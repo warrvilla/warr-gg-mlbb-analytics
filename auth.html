@@ -387,6 +387,19 @@ body>*{position:relative;z-index:1;}
   // No invite token — check if already signed in
   const user = await WAuth.init();
   if (user) {
+    // Check if they've completed setup (have a profile with a name)
+    const { data: profile } = await WAuth._sb()
+      .from('profiles')
+      .select('display_name')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile || !profile.display_name) {
+      // First-time user — show setup form
+      showPanel('invite');
+      return;
+    }
+
     const redir = new URLSearchParams(location.search).get('redirect') || 'draft_board.html';
     window.location.href = redir;
     return;
@@ -440,7 +453,7 @@ async function handleInviteSetup(e) {
 
   setLoading(btn, txt, true, 'Setting up account…');
 
-  // Update password (user is already in session from invite token exchange)
+  // Set password
   const { error: pwErr } = await WAuth._sb().auth.updateUser({ password });
   if (pwErr) {
     showMsg(friendlyErr(pwErr.message), 'err');
@@ -480,7 +493,7 @@ function friendlyErr(msg) {
   if (msg.toLowerCase().includes('invalid login') || msg.toLowerCase().includes('invalid credentials')) return 'Incorrect email or password';
   if (msg.toLowerCase().includes('email not confirmed')) return 'Please check your email and confirm your address first';
   if (msg.toLowerCase().includes('already registered')) return 'Email already registered — try signing in';
-  if (msg.toLowerCase().includes('email')) return 'Please enter a valid email address';
+  if (msg.toLowerCase().includes('invalid email')) return 'Please enter a valid email address';
   if (msg.toLowerCase().includes('password')) return 'Password is too weak or too short';
   if (msg.toLowerCase().includes('rate limit')) return 'Too many attempts — please wait a moment and try again';
   return msg;
