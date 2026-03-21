@@ -233,6 +233,57 @@ body>*{position:relative;z-index:1;}
         <div class="invite-note">
           Don't have an account? Contact the admin to get an invite link sent to your email.
         </div>
+        <div style="text-align:center;margin-top:12px;">
+          <button type="button" onclick="showPanel('reset')" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;text-decoration:underline;font-family:var(--font-body);">Forgot password / First time? Set your password</button>
+        </div>
+      </div>
+
+      <!-- ── RESET PASSWORD PANEL ── -->
+      <div id="panelReset" style="display:none;">
+        <div class="auth-mode-label">
+          Set / Reset Password
+          <small>We'll email you a link to set your password</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input class="form-input" id="rstEmail" type="email" placeholder="your@email.com" autocomplete="email"/>
+        </div>
+        <button class="submit-btn" id="rstBtn" onclick="handleResetRequest()">
+          <span id="rstBtnTxt">Send Password Link</span>
+        </button>
+        <div style="text-align:center;margin-top:14px;">
+          <button type="button" onclick="showPanel('signin')" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;text-decoration:underline;font-family:var(--font-body);">Back to Sign In</button>
+        </div>
+      </div>
+
+      <!-- ── NEW PASSWORD PANEL (shown when recovery token present) ── -->
+      <div id="panelNewPw" style="display:none;">
+        <div class="auth-mode-label">
+          Set New Password
+          <small>Choose a password for your account</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">New Password</label>
+          <div class="input-wrap">
+            <input class="form-input" id="npPassword" type="password" placeholder="Min. 8 characters" required minlength="8" autocomplete="new-password" oninput="checkPwStrength(this.value)"/>
+            <button type="button" class="pw-toggle" onclick="togglePw('npPassword',this)">Show</button>
+          </div>
+          <div class="pw-strength" id="pwBars">
+            <div class="pw-bar" id="pb1"></div><div class="pw-bar" id="pb2"></div>
+            <div class="pw-bar" id="pb3"></div><div class="pw-bar" id="pb4"></div>
+          </div>
+          <div class="pw-label" id="pwLbl"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm Password</label>
+          <div class="input-wrap">
+            <input class="form-input" id="npConfirm" type="password" placeholder="Repeat password" autocomplete="new-password"/>
+            <button type="button" class="pw-toggle" onclick="togglePw('npConfirm',this)">Show</button>
+          </div>
+        </div>
+        <button class="submit-btn" id="npBtn" onclick="handleSetNewPassword()">
+          <span id="npBtnTxt">Save Password &amp; Sign In</span>
+        </button>
       </div>
 
       <!-- ── ACCEPT INVITE / COMPLETE PROFILE (shown when invite token present) ── -->
@@ -296,6 +347,20 @@ body>*{position:relative;z-index:1;}
   const query = new URLSearchParams(location.search);
   const type  = hash.get('type') || query.get('type') || '';
 
+  if (type === 'recovery') {
+    const accessToken  = hash.get('access_token');
+    const refreshToken = hash.get('refresh_token');
+    const tokenHash    = query.get('token_hash');
+    if (accessToken) {
+      await WAuth._sb().auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+    } else if (tokenHash) {
+      await WAuth._sb().auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' });
+    }
+    history.replaceState(null, '', location.pathname);
+    showPanel('newpw');
+    return;
+  }
+
   if (type === 'invite' || type === 'signup') {
     const accessToken  = hash.get('access_token');
     const refreshToken = hash.get('refresh_token');
@@ -331,6 +396,8 @@ body>*{position:relative;z-index:1;}
 function showPanel(mode) {
   document.getElementById('panelSignIn').style.display  = mode === 'signin'  ? '' : 'none';
   document.getElementById('panelInvite').style.display  = mode === 'invite'  ? '' : 'none';
+  document.getElementById('panelReset').style.display   = mode === 'reset'   ? '' : 'none';
+  document.getElementById('panelNewPw').style.display   = mode === 'newpw'   ? '' : 'none';
 }
 
 // ── SIGN IN ───────────────────────────────────────────────────
@@ -418,6 +485,38 @@ function friendlyErr(msg) {
   if (msg.toLowerCase().includes('rate limit')) return 'Too many attempts — please wait a moment and try again';
   return msg;
 }
+// ── RESET PASSWORD REQUEST ─────────────────────────────────────
+async function handleResetRequest() {
+  const email = document.getElementById('rstEmail').value.trim();
+  const btn   = document.getElementById('rstBtn');
+  const txt   = document.getElementById('rstBtnTxt');
+  if (!email) { showMsg('Enter your email first', 'err'); return; }
+  clearMsg();
+  setLoading(btn, txt, true, 'Sending…');
+  const { error } = await WAuth._sb().auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + '/auth.html'
+  });
+  setLoading(btn, txt, false, 'Send Password Link');
+  if (error) { showMsg(friendlyErr(error.message), 'err'); return; }
+  showMsg('Check your email for the password link!', 'ok');
+}
+
+// ── SET NEW PASSWORD (after clicking reset link) ───────────────
+async function handleSetNewPassword() {
+  const password = document.getElementById('npPassword').value;
+  const confirm  = document.getElementById('npConfirm').value;
+  const btn      = document.getElementById('npBtn');
+  const txt      = document.getElementById('npBtnTxt');
+  clearMsg();
+  if (password !== confirm) { showMsg("Passwords don't match", 'err'); return; }
+  if (password.length < 8)  { showMsg('Password must be at least 8 characters', 'err'); return; }
+  setLoading(btn, txt, true, 'Saving…');
+  const { error } = await WAuth._sb().auth.updateUser({ password });
+  if (error) { showMsg(friendlyErr(error.message), 'err'); setLoading(btn, txt, false, 'Save Password & Sign In'); return; }
+  showMsg('Password set! Signing you in…', 'ok');
+  setTimeout(() => { window.location.href = 'draft_board.html'; }, 800);
+}
+
 function checkPwStrength(pw) {
   let score = 0;
   if (pw.length >= 8)  score++;
