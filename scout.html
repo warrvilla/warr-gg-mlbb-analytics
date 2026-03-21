@@ -1,0 +1,2583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scout — Warr.GG</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="warr-lib.js"></script>
+<link rel="stylesheet" href="warr-styles.css">
+<style>
+:root {
+    --bg:#07070C; --bg2:#0B0B12; --surface:#101018; --surface2:#161620; --surface3:#1E1E2A; --surface4:#272734;
+    --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.07); --border3:rgba(255,255,255,0.11);
+    --accent:#A888CC; --accent-dim:rgba(168,136,204,0.09); --accent-glow:rgba(168,136,204,0.22); --accent-border:rgba(168,136,204,0.22);
+  --neon:#4CB87A; --neon-dim:rgba(76,184,122,0.09); --neon-glow:rgba(76,184,122,0.20); --neon-border:rgba(76,184,122,0.22);
+  --blue:#5EA0D8; --blue2:#3B82F6; --blue-dim:rgba(94,160,216,0.09); --blue-border:rgba(94,160,216,0.22); --blue-glow:rgba(94,160,216,0.18);
+  --red:#D87880; --red-dim:rgba(216,120,128,0.09); --red-border:rgba(216,120,128,0.22);
+  --gold:#C89050; --gold-dim:rgba(200,144,80,0.09); --gold-border:rgba(200,144,80,0.22);
+  --green:#34D399; --green-dim:rgba(52,209,122,.08); --green-border:rgba(52,209,122,.25);
+  --purple:#A78BFA; --purple-dim:rgba(139,92,246,.08); --purple-border:rgba(139,92,246,.28);
+  --ai:#A78BFA; --ai-dim:rgba(167,139,250,0.10); --ai-border:rgba(167,139,250,0.28);
+  --cyan:#22D3EE; --orange:#F97316;
+  --text:#F0F0F8; --text2:rgba(240,240,248,0.54); --text3:rgba(240,240,248,0.28); --text4:rgba(240,240,248,0.12);
+  --ban-red:#D87880; --accent-main:#4F8EF7;
+  --font-head:-apple-system,'SF Pro Display','Inter',sans-serif; --font-body:'Inter',sans-serif; --font-mono:'JetBrains Mono',monospace;
+  --r:12px; --r2:18px; --r3:24px; --radius:8px; --radius2:12px; --radius3:16px;
+  --shadow:0 2px 16px rgba(0,0,0,.7); --shadow2:0 8px 40px rgba(0,0,0,.9);
+  --nav-h:52px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border3); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ── LAYOUT ── */
+.page { display: flex; min-height: calc(100vh - var(--nav-h)); }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.sidebar-section {
+  padding: 20px 16px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--font-head);
+  color: var(--text4);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.sidebar-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text3);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  border-left: 2px solid transparent;
+  transition: all .12s;
+  position: relative;
+}
+.sidebar-btn:hover { background: var(--surface); color: var(--text2); }
+.sidebar-btn.active { background: var(--accent-dim); color: var(--accent); border-left-color: var(--accent); }
+.sidebar-btn .icon { font-size: 14px; width: 18px; text-align: center; flex-shrink: 0; }
+.sidebar-count {
+  margin-left: auto;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  background: var(--surface3);
+  color: var(--text3);
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.sidebar-btn.active .sidebar-count { background: var(--accent-dim); color: var(--accent); border-color: var(--accent-border); }
+
+/* League badges in sidebar */
+.league-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── MAIN ── */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 28px 36px;
+}
+
+/* ── CARDS ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  padding: 20px 22px;
+  margin-bottom: 14px;
+}
+.card-title {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font-head);
+  letter-spacing: .5px;
+  color: var(--text);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── BUTTONS ── */
+.btn {
+  padding: 7px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-head);
+  letter-spacing: .3px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  border: none;
+  transition: all .15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.btn-accent { background: var(--accent); color: #fff; border-color: var(--accent-border); }
+.btn-accent:hover { background: rgba(139,92,246,0.90); box-shadow: 0 0 16px var(--accent-glow); }
+.btn-ghost { background: transparent; border: 1px solid var(--border2); color: var(--text2); }
+.btn-ghost:hover { border-color: var(--border3); color: var(--text); }
+.btn-danger { background: transparent; border: 1px solid var(--red-border); color: var(--red); }
+.btn-danger:hover { background: var(--red-dim); }
+.btn-sm { padding: 4px 10px; font-size: 10px; }
+
+/* ── FORM ── */
+.form-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.form-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 100px; }
+.form-group.wide { flex: 2; }
+.form-group.w3 { flex: 3; }
+.form-label {
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--font-head);
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+}
+.form-input, .form-select, .form-textarea {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.09);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 7px 10px;
+  font-size: 12px;
+  font-family: var(--font-body);
+  width: 100%;
+  transition: border-color .15s, background .15s;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  outline: none;
+  border-color: var(--accent-border);
+  background: rgba(168,136,204,0.07);
+}
+.form-textarea { resize: vertical; min-height: 58px; }
+.form-select option { background: var(--surface2); }
+
+/* ── MATCH LIST ── */
+.series-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  margin-bottom: 10px;
+  overflow: hidden;
+  transition: border-color .15s;
+}
+.series-card:hover { border-color: var(--border2); }
+.series-header {
+  display: grid;
+  grid-template-columns: 52px 1fr auto 20px;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  cursor: pointer;
+  user-select: none;
+  transition: background .12s;
+}
+.series-header:hover { background: var(--surface2); }
+.series-date-col { text-align: center; }
+.series-date-day { font-size: 20px; font-weight: 800; font-family: var(--font-head); line-height: 1; }
+.series-date-mon { font-size: 8px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-top: 1px; }
+.series-score {
+  font-size: 22px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  letter-spacing: 3px;
+  text-align: right;
+}
+.series-chevron { font-size: 10px; color: var(--text3); transition: transform .2s; }
+.series-chevron.open { transform: rotate(90deg); }
+
+.game-row {
+  padding: 7px 14px;
+  border-top: 1px solid var(--border);
+  cursor: pointer;
+  transition: background .1s;
+}
+.game-row:hover { background: var(--surface2); }
+.game-num {
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text3);
+  min-width: 22px;
+}
+.team-draft-line { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
+.team-draft-line:last-child { margin-bottom: 0; }
+.team-name-col {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-head);
+  width: 94px;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.draft-heroes { display: flex; gap: 2px; }
+.draft-bans { display: flex; gap: 2px; opacity: .45; }
+.sep-line { width: 1px; height: 18px; background: var(--border2); flex-shrink: 0; margin: 0 4px; }
+.hero-thumb {
+  width: 26px; height: 26px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--surface3);
+  display: block;
+  flex-shrink: 0;
+}
+.hero-thumb-sm {
+  width: 20px; height: 20px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--surface3);
+  display: block;
+  flex-shrink: 0;
+}
+.winner-badge {
+  font-size: 9px;
+  font-weight: 800;
+  font-family: var(--font-head);
+  letter-spacing: .3px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.winner-blue { background: var(--blue-dim); color: var(--blue); border: 1px solid var(--blue-border); }
+.winner-red { background: var(--red-dim); color: var(--red); border: 1px solid var(--red-border); }
+
+/* ── LANE FILTER ── */
+.lane-filter-row { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
+.lf-btn {
+  padding: 3px 9px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-head);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  transition: all .12s;
+}
+.lf-btn:hover { color: var(--text2); border-color: var(--border3); }
+.lf-btn.active { color: #fff; }
+
+/* ── HERO GRID ── */
+.hero-pool-wrap { max-height: 300px; overflow-y: auto; padding: 4px 2px; }
+.hero-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+.hc {
+  width: 50px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 2px 5px;
+  cursor: pointer;
+  transition: all .1s;
+  text-align: center;
+  background: var(--surface2);
+  position: relative;
+  user-select: none;
+}
+.hc:hover:not(.hc-used) { border-color: var(--blue-border); background: var(--blue-dim); transform: translateY(-1px); }
+@media (hover: none) { .hc:active:not(.hc-used) { border-color: var(--blue-border); background: var(--blue-dim); } }
+.hc.hc-used { opacity: .3; cursor: not-allowed; }
+.hc img { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; display: block; margin: 0 auto 3px; }
+.hc-name { font-size: 7.5px; font-weight: 600; color: var(--text); line-height: 1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.hc-lane { font-size: 7px; font-weight: 800; margin-top: 1px; letter-spacing:.3px; }
+
+/* ── PAGE HEADER FIX: override global sticky/glass so scout filters aren't clipped ── */
+.main .page-header, #mainArea .page-header {
+  position: static !important;
+  height: auto !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom: none !important;
+  padding: 0 !important;
+  margin-bottom: 14px;
+}
+/* Match log header — liquid glass card */
+#matchListStatic {
+  background: rgba(16,16,24,0.70);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: var(--radius2);
+  padding: 14px 16px 12px;
+  margin-bottom: 14px;
+  position: relative;
+  overflow: hidden;
+}
+#matchListStatic::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(168,136,204,0.35), rgba(94,160,216,0.25), transparent);
+}
+/* Glass search bar */
+.search-bar {
+  background: rgba(255,255,255,0.05) !important;
+  border: 1px solid rgba(255,255,255,0.09) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.search-bar:focus-within {
+  border-color: var(--blue-border) !important;
+  background: rgba(94,160,216,0.06) !important;
+}
+
+/* ── WEEK GROUP HEADER ── */
+.week-group-hdr {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 2px 6px;
+  font-size: 9px; font-weight: 800; font-family: var(--font-head);
+  letter-spacing: 1.5px; text-transform: uppercase; color: var(--text3);
+}
+.week-group-hdr:first-child { padding-top: 0; }
+.week-group-line { flex: 1; height: 1px; background: var(--border); }
+
+/* ── OBJECTIVE DISPLAY ── */
+.obj-row { display:flex; align-items:center; gap:4px; margin-top:4px; flex-wrap:wrap; }
+.obj-tag {
+  font-size:8px; font-weight:700; font-family:var(--font-head);
+  padding:1px 5px; border-radius:8px; border:1px solid transparent;
+  letter-spacing:.3px; white-space:nowrap;
+}
+.obj-blue { background:var(--blue-dim); color:var(--blue); border-color:var(--blue-border); }
+.obj-red  { background:var(--red-dim);  color:var(--red);  border-color:var(--red-border); }
+.obj-none { color:var(--text4); }
+
+/* ── OBJ FORM BUTTONS ── */
+.obj-btn {
+  font-size:9px; font-weight:700; font-family:var(--font-head);
+  padding:2px 8px; border-radius:8px; border:1px solid var(--border2);
+  cursor:pointer; background:transparent; color:var(--text3); transition:all .1s;
+  min-width:36px;
+}
+.obj-btn.blue { background:var(--blue-dim); color:var(--blue); border-color:var(--blue-border); }
+.obj-btn.red  { background:var(--red-dim);  color:var(--red);  border-color:var(--red-border); }
+
+/* ── DRAFT BOARD ── */
+.draft-layout {
+  display: grid;
+  grid-template-columns: 1fr 72px 1fr;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.draft-col-title {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-head);
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  padding: 5px 8px;
+  border-radius: 10px;
+  text-align: center;
+  margin-bottom: 5px;
+}
+.draft-step-list { display: flex; flex-direction: column; gap: 3px; }
+.draft-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  font-size: 11px;
+  min-height: 34px;
+  cursor: pointer;
+  transition: all .1s;
+}
+.draft-step.ban-step { border-color: rgba(240,82,82,.2); background: rgba(240,82,82,.05); }
+.draft-step.pick-step { border-color: rgba(79,142,247,.15); background: rgba(79,142,247,.04); }
+.draft-step.active-step {
+  border-color: var(--gold);
+  background: rgba(244,165,52,.08);
+  box-shadow: 0 0 0 2px rgba(244,165,52,.15);
+  animation: pulse-step 1s ease infinite alternate;
+}
+@keyframes pulse-step {
+  from { box-shadow: 0 0 0 2px rgba(244,165,52,.1); }
+  to { box-shadow: 0 0 0 4px rgba(244,165,52,.25); }
+}
+.draft-step img { width: 26px; height: 26px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+.step-name { font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.step-type {
+  font-size: 7px;
+  font-weight: 800;
+  font-family: var(--font-head);
+  letter-spacing: .5px;
+  padding: 1px 4px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.ban-label { background: rgba(240,82,82,.15); color: #f05252; }
+.pick-label { background: var(--blue-dim); color: var(--blue); }
+.lane-pill {
+  font-size: 7px;
+  font-weight: 700;
+  font-family: var(--font-head);
+  padding: 1px 5px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px dashed var(--border3);
+  color: var(--text3);
+  flex-shrink: 0;
+  transition: all .1s;
+}
+.lane-pill.assigned { border-style: solid; }
+.lane-pill:hover { border-color: var(--text2); }
+.phase-divider {
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--font-head);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text3);
+  padding: 5px 10px;
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 7px 0 4px;
+  text-align: center;
+}
+.vs-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 42px;
+  gap: 8px;
+}
+.vs-text {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text3);
+  letter-spacing: 2px;
+}
+.step-counter {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text3);
+  text-align: center;
+}
+
+/* ── SEARCH BAR ── */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  transition: border-color .15s;
+}
+.search-bar:focus-within { border-color: var(--blue-border); }
+.search-bar input {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 12px;
+  flex: 1;
+  outline: none;
+  font-family: var(--font-body);
+}
+.search-bar input::placeholder { color: var(--text3); }
+
+/* ── TEAM GRID ── */
+.team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.team-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  padding: 14px;
+  cursor: pointer;
+  transition: all .15s;
+  position: relative;
+  overflow: hidden;
+}
+.team-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--blue), var(--purple));
+  opacity: 0;
+  transition: opacity .2s;
+}
+.team-card:hover { border-color: var(--border3); background: var(--surface2); }
+.team-card:hover::before { opacity: 1; }
+.team-name { font-size: 14px; font-weight: 700; font-family: var(--font-head); color: var(--text); margin-bottom: 3px; }
+.team-stat-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
+.team-stat-label { color: var(--text3); }
+.team-stat-val { font-weight: 700; }
+.hero-chips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px; }
+.hero-chip {
+  font-size: 8px;
+  font-weight: 600;
+  padding: 2px 6px;
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text2);
+}
+/* Form indicator dots */
+.form-dots { display: flex; gap: 3px; }
+.form-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.form-dot.w { background: var(--green); }
+.form-dot.l { background: var(--red); }
+.form-dot.u { background: var(--border3); }
+
+/* ── META TABLE ── */
+.meta-table { width: 100%; border-collapse: collapse; }
+.meta-table th {
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--font-head);
+  letter-spacing: 1px;
+  color: var(--text3);
+  text-transform: uppercase;
+  padding: 7px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.meta-table th:hover { color: var(--text2); }
+.meta-table th.sorted { color: var(--blue); }
+.meta-table td { padding: 6px 10px; font-size: 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.meta-table tr:hover td { background: var(--surface2); }
+.hero-cell { display: flex; align-items: center; gap: 8px; }
+.hero-cell img { width: 30px; height: 30px; border-radius: 10px; object-fit: cover; }
+.wr-bar { height: 4px; border-radius: 2px; background: var(--surface3); overflow: hidden; width: 70px; }
+.wr-fill { height: 100%; border-radius: 2px; }
+.heat-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 2px;
+  margin-left: 3px;
+  vertical-align: middle;
+}
+
+/* ── STAT CHIPS ── */
+.stat-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.stat-chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; text-align: center; }
+.stat-chip-val { font-size: 20px; font-weight: 700; font-family: var(--font-head); }
+.stat-chip-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: .8px; margin-top: 2px; }
+
+/* ── FILTER ROW ── */
+.filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+.filter-badge {
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-head);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  transition: all .12s;
+  letter-spacing: .2px;
+}
+.filter-badge:hover { color: var(--text2); border-color: var(--border3); }
+.filter-badge.active { background: var(--blue-dim); border-color: var(--blue-border); color: var(--blue); }
+
+/* ── LEAGUE BADGES ── */
+.league-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--font-head);
+  letter-spacing: .5px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  text-transform: uppercase;
+}
+.lg-mplph { background: rgba(79,142,247,.12); color: #60a5fa; border: 1px solid rgba(79,142,247,.25); }
+.lg-mplmy { background: rgba(168,85,247,.12); color: #c084fc; border: 1px solid rgba(168,85,247,.25); }
+.lg-mplid { background: rgba(240,82,82,.12); color: #f87171; border: 1px solid rgba(240,82,82,.25); }
+.lg-mplsg { background: rgba(34,209,122,.12); color: #4ade80; border: 1px solid rgba(34,209,122,.25); }
+.lg-msc { background: rgba(244,165,52,.12); color: #fbbf24; border: 1px solid rgba(244,165,52,.25); }
+.lg-mseries { background: rgba(34,211,238,.12); color: #22d3ee; border: 1px solid rgba(34,211,238,.25); }
+.lg-scrims { background: rgba(251,146,60,.12); color: #fb923c; border: 1px solid rgba(251,146,60,.25); }
+.lg-other { background: var(--surface3); color: var(--text3); border: 1px solid var(--border); }
+
+/* ── MODAL ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.75);
+  backdrop-filter: blur(6px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn .15s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius3);
+  width: 100%;
+  max-width: 880px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow2);
+  animation: slideUp .2s ease;
+}
+@keyframes slideUp { from { transform: translateY(12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.modal-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.modal-title { font-size: 14px; font-weight: 700; font-family: var(--font-head); flex: 1; }
+.modal-body { flex: 1; overflow-y: auto; padding: 18px 20px; }
+.modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+/* ── TOAST ── */
+#toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(60px);
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-head);
+  z-index: 9999;
+  transition: transform .25s cubic-bezier(.34,1.56,.64,1);
+  pointer-events: none;
+  white-space: nowrap;
+}
+#toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ── EMPTY STATE ── */
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
+.empty-state .icon { font-size: 36px; margin-bottom: 12px; opacity: .5; }
+.empty-state p { font-size: 12px; line-height: 1.7; }
+
+/* ── PAGE HEADER ── */
+.page-header { margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 800; font-family: var(--font-head); letter-spacing: -.3px; }
+.page-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+/* ── DIVIDER ── */
+.divider { height: 1px; background: var(--border); margin: 14px 0; }
+
+/* ── TREND BADGE ── */
+.trend-up { color: var(--green); }
+.trend-down { color: var(--red); }
+.trend-flat { color: var(--text3); }
+
+/* ── PROGRESS BAR ── */
+.prog-bar { height: 4px; border-radius: 2px; background: var(--surface3); overflow: hidden; flex: 1; }
+.prog-fill { height: 100%; border-radius: 2px; transition: width .3s; }
+
+/* ── DELETE BTN ── */
+.del-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 8px;
+  line-height: 1.5;
+  transition: all .1s;
+  font-family: var(--font-head);
+}
+.del-btn:hover { border-color: var(--red); color: var(--red); background: var(--red-dim); }
+
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width: 768px) {
+  .page { flex-direction: column; height: auto; }
+  .sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); max-height: 160px; overflow-y: auto; }
+  .sidebar-section { display: none; }
+  .sidebar-btn { width: auto; padding: 6px 10px; font-size: 11px; border-left: none; border-bottom: 2px solid transparent; }
+  .sidebar-btn.active { border-bottom-color: var(--accent); background: var(--accent-dim); }
+  .main { padding: 14px 16px; }
+  /* Modal — full-width sheet on tablet */
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal { border-radius: 20px 20px 0 0; max-height: 92vh; max-width: 100% !important; }
+}
+@media (max-width: 480px) {
+  .team-grid { grid-template-columns: 1fr; }
+  .meta-table { font-size: 11px; }
+  .meta-table th, .meta-table td { padding: 5px 7px; }
+  .card { padding: 12px 14px; }
+  .main { padding: 10px 12px; }
+  /* Modal body — more scrollable room */
+  .modal { max-height: 94vh; }
+  .modal-header { padding: 12px 14px; }
+  .modal-body { padding: 14px; }
+  .modal-footer { padding: 10px 14px; flex-wrap: wrap; }
+  .modal-footer .btn { flex: 1; justify-content: center; }
+  /* Form rows stack on phone */
+  .form-row { flex-direction: column !important; }
+  .form-group { flex: unset !important; min-width: unset !important; }
+  /* Input font-size 16px prevents iOS auto-zoom */
+  .form-input, input[type="text"], input[type="number"], select {
+    font-size: 16px !important;
+  }
+  /* Sidebar compact pill scroll */
+  .sidebar { max-height: 52px; overflow-x: auto; overflow-y: hidden; flex-wrap: nowrap; }
+  .sidebar-btn { white-space: nowrap; flex-shrink: 0; }
+  /* Hero grid — 5 per row on phone, slightly bigger tap */
+  .hc { min-width: 52px; }
+  .hc img { width: 32px; height: 32px; }
+  /* Match list cards */
+  .match-card { padding: 10px 12px !important; }
+}
+
+/* ═══════════ APPLE LIQUID GLASS PATCH ═══════════ */
+:root { --pill: 9999px; }
+body::after {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(ellipse 50% 45% at 10% 20%, rgba(168,136,204,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 45% 40% at 90% 75%, rgba(94,160,216,0.07) 0%, transparent 60%);
+}
+.page, .page-wrap, nav, main { position:relative; z-index:1; }
+.card, .report-section, .section-card, .panel {
+  background: rgba(16,16,26,0.68) !important;
+  backdrop-filter: blur(20px) saturate(130%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(130%) !important;
+  border: 0.5px solid rgba(255,255,255,0.07) !important;
+  border-radius: 22px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07) !important;
+}
+.btn, button.btn {
+  border-radius: 9999px !important;
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-weight: 500 !important; letter-spacing: -0.01em !important;
+  text-transform: none !important;
+}
+.btn-accent { background: var(--accent) !important; border: none !important; color: #fff !important; box-shadow: 0 4px 16px rgba(168,136,204,0.24) !important; }
+.btn-ghost  { background: rgba(255,255,255,0.07) !important; border: 0.5px solid rgba(255,255,255,0.08) !important; color: var(--text2) !important; }
+/* ═══════════════════════════════════════════════════ */
+</style>
+<script src="warr-theme.js"></script>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <a class="nav-brand" href="index.html">
+    <span class="nav-brand-name">Warr.GG</span>
+    <span class="nav-brand-sub">MLBB Intel</span>
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="draft_board.html">Draft</a>
+    <a class="nav-link" href="ai_battle.html">AI Battle</a>
+    <a class="nav-link active" href="scout.html">Scout</a>
+    <a class="nav-link" href="stats.html">Analysis</a>
+    <a class="nav-link" href="patch_meta.html">Patch</a>
+  </div>
+  <div class="nav-right">
+  <div class="theme-switcher" title="Switch theme">
+    <button class="theme-btn" data-t="dark" title="Dark">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+    </button>
+    <button class="theme-btn" data-t="light" title="Light">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+    </button>
+    <button class="theme-btn" data-t="neon" title="Neon">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z"/></svg>
+    </button>
+  </div>
+    <span id="syncStatus" style="font-size:11px;font-weight:500;letter-spacing:-0.01em;font-family:var(--font-mono);color:var(--text4);transition:color .3s;"></span>
+    <div id="authChip"></div>
+  </div>
+  <button class="mobile-menu-btn" onclick="document.getElementById('mobileNav').classList.toggle('open')" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+<div class="mobile-nav" id="mobileNav">
+  <a class="mobile-nav-link" href="draft_board.html">Draft</a>
+  <a class="mobile-nav-link" href="ai_battle.html">AI Battle</a>
+  <a class="mobile-nav-link active" href="scout.html">Scout</a>
+  <a class="mobile-nav-link" href="stats.html">Analysis</a>
+  <a class="mobile-nav-link" href="patch_meta.html">Patch</a>
+</div>
+
+<div class="page-body">
+
+<div class="page">
+  <div class="sidebar">
+    <div class="sidebar-section">Views</div>
+    <button class="sidebar-btn active" id="sb-matches" onclick="showView('matches')">
+      <span>Matches</span>
+      <span class="sidebar-count" id="sc-matches">0</span>
+    </button>
+    <button class="sidebar-btn" id="sb-teams" onclick="showView('teams')">
+      <span>Teams</span>
+      <span class="sidebar-count" id="sc-teams">0</span>
+    </button>
+    <button class="sidebar-btn" id="sb-meta" onclick="showView('meta')">
+      <span>Hero Meta</span>
+    </button>
+
+    <div class="sidebar-section">League Filter</div>
+    <button class="sidebar-btn" id="sb-all" onclick="setLeagueFilter('all')">
+      <span>All Leagues</span>
+    </button>
+    <button class="sidebar-btn" id="sb-MPL PH" onclick="setLeagueFilter('MPL PH')">
+      <div class="league-dot" style="background:#60a5fa;box-shadow:0 0 5px #60a5fa66;"></div> MPL PH
+    </button>
+    <button class="sidebar-btn" id="sb-MPL MY" onclick="setLeagueFilter('MPL MY')">
+      <div class="league-dot" style="background:#c084fc;box-shadow:0 0 5px #c084fc66;"></div> MPL MY
+    </button>
+    <button class="sidebar-btn" id="sb-MPL ID" onclick="setLeagueFilter('MPL ID')">
+      <div class="league-dot" style="background:#f87171;box-shadow:0 0 5px #f8717166;"></div> MPL ID
+    </button>
+    <button class="sidebar-btn" id="sb-MPL SG" onclick="setLeagueFilter('MPL SG')">
+      <div class="league-dot" style="background:#4ade80;box-shadow:0 0 5px #4ade8066;"></div> MPL SG
+    </button>
+    <button class="sidebar-btn" id="sb-MSC" onclick="setLeagueFilter('MSC')">
+      <div class="league-dot" style="background:#fbbf24;box-shadow:0 0 5px #fbbf2466;"></div> MSC
+    </button>
+    <button class="sidebar-btn" id="sb-M-Series" onclick="setLeagueFilter('M-Series')">
+      <div class="league-dot" style="background:#22d3ee;box-shadow:0 0 5px #22d3ee66;"></div> M-Series
+    </button>
+    <button class="sidebar-btn" id="sb-Scrims" onclick="setLeagueFilter('Scrims')">
+      <div class="league-dot" style="background:#fb923c;box-shadow:0 0 5px #fb923c66;"></div> Scrims (Private)
+    </button>
+    <button class="sidebar-btn" id="sb-Other" onclick="setLeagueFilter('Other')">
+      <div class="league-dot" style="background:var(--text3);"></div> Other
+    </button>
+  </div>
+
+  <div class="main" id="mainArea"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// DATA MODEL & CONSTANTS
+// ══════════════════════════════════════════════════════════════
+const SCHEMA_VERSION = 3;
+const STORAGE_KEY = 'warr_scout_data';
+const DRAFT_KEY = 'mlbb_draft_data';
+
+const LEAGUES = ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series','Scrims','Other'];
+const LEAGUE_CSS = {'MPL PH':'lg-mplph','MPL MY':'lg-mplmy','MPL ID':'lg-mplid','MPL SG':'lg-mplsg','MSC':'lg-msc','M-Series':'lg-mseries','Scrims':'lg-scrims','Other':'lg-other'};
+const LEAGUE_COLOR = {'MPL PH':'#60a5fa','MPL MY':'#c084fc','MPL ID':'#f87171','MPL SG':'#4ade80','MSC':'#fbbf24','M-Series':'#22d3ee','Scrims':'#fb923c','Other':'#4f5d78'};
+const LANES = ['Gold','Jungle','Mid','EXP','Roam'];
+const LANE_COLORS = {Gold:'#f4a534',Mid:'#a855f7',Roam:'#34d17a',Jungle:'#f05252',EXP:'#38bdf8',Flex:'#8b97b0'};
+const LANE_ICONS = {Gold:'GLD',Mid:'MID',Roam:'RMG',Jungle:'JGL',EXP:'EXP',Flex:'FLX'};
+
+// Corrected MPL draft: 5 bans + 5 picks per side = 20 steps
+const DRAFT_STEPS = [
+  // Ban Phase 1: B R B R B R
+  {team:'blue',type:'ban',phase:1},
+  {team:'red', type:'ban',phase:1},
+  {team:'blue',type:'ban',phase:1},
+  {team:'red', type:'ban',phase:1},
+  {team:'blue',type:'ban',phase:1},
+  {team:'red', type:'ban',phase:1},
+  // Pick Phase 1: B R R B B R R B
+  {team:'blue',type:'pick',phase:1},
+  {team:'red', type:'pick',phase:1},
+  {team:'red', type:'pick',phase:1},
+  {team:'blue',type:'pick',phase:1},
+  {team:'blue',type:'pick',phase:1},
+  {team:'red', type:'pick',phase:1},
+  // Ban Phase 2: R B R B
+  {team:'red', type:'ban',phase:2},
+  {team:'blue',type:'ban',phase:2},
+  {team:'red', type:'ban',phase:2},
+  {team:'blue',type:'ban',phase:2},
+  // Pick Phase 2: R B B R
+  {team:'red', type:'pick',phase:2},
+  {team:'blue',type:'pick',phase:2},
+  {team:'blue',type:'pick',phase:2},
+  {team:'red', type:'pick',phase:2},
+];
+
+const ALL_HEROES = [
+  {id:'tigreal',name:'Tigreal',role:'Tank'},{id:'akai',name:'Akai',role:'Tank'},{id:'franco',name:'Franco',role:'Tank'},
+  {id:'minotaur',name:'Minotaur',role:'Tank'},{id:'lolita',name:'Lolita',role:'Tank'},{id:'johnson',name:'Johnson',role:'Tank'},
+  {id:'atlas',name:'Atlas',role:'Tank'},{id:'khufra',name:'Khufra',role:'Tank'},{id:'esmeralda',name:'Esmeralda',role:'Tank/Mage'},
+  {id:'uranus',name:'Uranus',role:'Tank'},{id:'hylos',name:'Hylos',role:'Tank'},{id:'belerick',name:'Belerick',role:'Tank'},
+  {id:'grock',name:'Grock',role:'Tank'},{id:'carmilla',name:'Carmilla',role:'Tank'},{id:'baxia',name:'Baxia',role:'Tank'},
+  {id:'gloo',name:'Gloo',role:'Tank'},{id:'chip',name:'Chip',role:'Tank'},{id:'fredrinn',name:'Fredrinn',role:'Tank/Fighter'},
+  {id:'kalea',name:'Kalea',role:'Tank'},{id:'edith',name:'Edith',role:'Tank/MM'},{id:'marcel',name:'Marcel',role:'Tank'},
+  {id:'balmond',name:'Balmond',role:'Fighter'},{id:'zilong',name:'Zilong',role:'Fighter'},{id:'alucard',name:'Alucard',role:'Fighter'},
+  {id:'alpha',name:'Alpha',role:'Fighter'},{id:'sun',name:'Sun',role:'Fighter'},{id:'argus',name:'Argus',role:'Fighter'},
+  {id:'hilda',name:'Hilda',role:'Fighter'},{id:'ruby',name:'Ruby',role:'Fighter'},{id:'xborg',name:'X.Borg',role:'Fighter'},
+  {id:'aldous',name:'Aldous',role:'Fighter'},{id:'chou',name:'Chou',role:'Fighter'},{id:'badang',name:'Badang',role:'Fighter'},
+  {id:'guinevere',name:'Guinevere',role:'Fighter'},{id:'terizla',name:'Terizla',role:'Fighter'},{id:'thamuz',name:'Thamuz',role:'Fighter'},
+  {id:'masha',name:'Masha',role:'Fighter'},{id:'khaleed',name:'Khaleed',role:'Fighter'},{id:'paquito',name:'Paquito',role:'Fighter'},
+  {id:'yuzhong',name:'Yu Zhong',role:'Fighter'},{id:'dyrroth',name:'Dyrroth',role:'Fighter'},{id:'jawhead',name:'Jawhead',role:'Fighter'},
+  {id:'martis',name:'Martis',role:'Fighter'},{id:'silvanna',name:'Silvanna',role:'Fighter'},{id:'yin',name:'Yin',role:'Fighter'},
+  {id:'minsitthar',name:'Minsitthar',role:'Fighter'},{id:'aulus',name:'Aulus',role:'Fighter'},{id:'freya',name:'Freya',role:'Fighter'},
+  {id:'lapulapu',name:'Lapu-Lapu',role:'Fighter'},{id:'leomord',name:'Leomord',role:'Fighter'},{id:'phoveus',name:'Phoveus',role:'Fighter'},
+  {id:'arlott',name:'Arlott',role:'Fighter'},{id:'cici',name:'Cici',role:'Fighter'},{id:'sora',name:'Sora',role:'Fighter/Assassin'},
+  {id:'bane',name:'Bane',role:'Fighter'},{id:'lukas',name:'Lukas',role:'Fighter'},{id:'gatotkaca',name:'Gatotkaca',role:'Tank/Fighter'},
+  {id:'roger',name:'Roger',role:'Fighter/MM'},
+  {id:'saber',name:'Saber',role:'Assassin'},{id:'karina',name:'Karina',role:'Assassin'},{id:'fanny',name:'Fanny',role:'Assassin'},
+  {id:'hayabusa',name:'Hayabusa',role:'Assassin'},{id:'natalia',name:'Natalia',role:'Assassin'},{id:'helcurt',name:'Helcurt',role:'Assassin'},
+  {id:'lancelot',name:'Lancelot',role:'Assassin'},{id:'gusion',name:'Gusion',role:'Assassin'},{id:'ling',name:'Ling',role:'Assassin'},
+  {id:'selena',name:'Selena',role:'Assassin/Mage'},{id:'benedetta',name:'Benedetta',role:'Assassin'},{id:'aamon',name:'Aamon',role:'Assassin'},
+  {id:'nolan',name:'Nolan',role:'Assassin'},{id:'yss',name:'Yi Sun-shin',role:'Assassin/MM'},{id:'suyou',name:'Suyou',role:'Assassin'},
+  {id:'joy',name:'Joy',role:'Assassin'},{id:'julian',name:'Julian',role:'Fighter/Assassin'},{id:'hanzo',name:'Hanzo',role:'Assassin'},
+  {id:'nana',name:'Nana',role:'Mage/Support'},{id:'eudora',name:'Eudora',role:'Mage'},{id:'aurora',name:'Aurora',role:'Mage'},
+  {id:'gord',name:'Gord',role:'Mage'},{id:'cyclops',name:'Cyclops',role:'Mage'},{id:'alice',name:'Alice',role:'Mage/Tank'},
+  {id:'harley',name:'Harley',role:'Mage/Assassin'},{id:'odette',name:'Odette',role:'Mage'},{id:'vexana',name:'Vexana',role:'Mage'},
+  {id:'lunox',name:'Lunox',role:'Mage'},{id:'kagura',name:'Kagura',role:'Mage'},{id:'lylia',name:'Lylia',role:'Mage'},
+  {id:'cecilion',name:'Cecilion',role:'Mage'},{id:'yve',name:'Yve',role:'Mage'},{id:'valentina',name:'Valentina',role:'Mage'},
+  {id:'xavier',name:'Xavier',role:'Mage'},{id:'change',name:"Chang'e",role:'Mage'},{id:'pharsa',name:'Pharsa',role:'Mage'},
+  {id:'novaria',name:'Novaria',role:'Mage'},{id:'luoyi',name:'Luo Yi',role:'Mage'},{id:'zhuxin',name:'Zhuxin',role:'Mage'},
+  {id:'faramis',name:'Faramis',role:'Mage/Support'},{id:'kadita',name:'Kadita',role:'Mage/Assassin'},{id:'kimmy',name:'Kimmy',role:'Mage/MM'},
+  {id:'zhask',name:'Zhask',role:'Mage'},{id:'vale',name:'Vale',role:'Mage'},{id:'harith',name:'Harith',role:'Mage'},{id:'zetian',name:'Zetian',role:'Mage'},
+  {id:'miya',name:'Miya',role:'MM'},{id:'layla',name:'Layla',role:'MM'},{id:'moskov',name:'Moskov',role:'MM'},
+  {id:'clint',name:'Clint',role:'MM'},{id:'bruno',name:'Bruno',role:'MM'},{id:'irithel',name:'Irithel',role:'MM'},
+  {id:'lesley',name:'Lesley',role:'MM/Assassin'},{id:'hanabi',name:'Hanabi',role:'MM'},{id:'claude',name:'Claude',role:'MM'},
+  {id:'granger',name:'Granger',role:'MM'},{id:'brody',name:'Brody',role:'MM'},{id:'karrie',name:'Karrie',role:'MM'},
+  {id:'beatrix',name:'Beatrix',role:'MM'},{id:'melissa',name:'Melissa',role:'MM'},{id:'natan',name:'Natan',role:'MM'},
+  {id:'wanwan',name:'Wanwan',role:'MM'},{id:'ixia',name:'Ixia',role:'MM'},{id:'obsidia',name:'Obsidia',role:'MM'},
+  {id:'estes',name:'Estes',role:'Support'},{id:'angela',name:'Angela',role:'Support'},{id:'rafaela',name:'Rafaela',role:'Support'},
+  {id:'diggie',name:'Diggie',role:'Support'},{id:'floryn',name:'Floryn',role:'Support'},{id:'mathilda',name:'Mathilda',role:'Support'},
+  {id:'kaja',name:'Kaja',role:'Support/Fighter'},{id:'popol',name:'Popol & Kupa',role:'Support/MM'},{id:'barats',name:'Barats',role:'Fighter/Tank'},
+].sort((a,b) => a.name.localeCompare(b.name));
+
+const HERO_BY_NAME = Object.fromEntries(ALL_HEROES.map(h => [h.name, h]));
+const HERO_BY_ID   = Object.fromEntries(ALL_HEROES.map(h => [h.id, h]));
+
+// Normalized lookup: handles case differences, missing hyphens, extra spaces
+// e.g. "Yi Sun-Shin", "yi sun shin", "yisunshin" all resolve to the correct hero
+const _normKey = s => (s||'').toLowerCase().replace(/[-\s'\.]/g,'');
+const HERO_BY_NORM = Object.fromEntries(ALL_HEROES.map(h => [_normKey(h.name), h]));
+// Also index by id normalization for legacy keys
+ALL_HEROES.forEach(h => { HERO_BY_NORM[h.id] = h; });
+
+function heroByName(name) {
+  if (!name) return null;
+  // 1. Exact match (fast path)
+  if (HERO_BY_NAME[name]) return HERO_BY_NAME[name];
+  // 2. Normalized: strip case/hyphens/spaces
+  return HERO_BY_NORM[_normKey(name)] || null;
+}
+
+// ══════════════════════════════════════════════════════════════
+// DATABASE MODULE
+// ══════════════════════════════════════════════════════════════
+const DB_MODULE = (() => {
+  let _db = { version: SCHEMA_VERSION, matches: [], teams: {} };
+
+  function _migrate(db) {
+    if (!db.version) {
+      // v0→v1: ensure seriesId on all matches
+      db.version = 1;
+    }
+    if (db.version < 2) {
+      // v1→v2: ensure all picks have {name,lane} shape
+      db.matches.forEach(m => {
+        ['bluePicks','redPicks'].forEach(k => {
+          m[k] = (m[k]||[]).map(p => typeof p === 'string' ? {name:p,lane:null} : p);
+        });
+      });
+      db.version = 2;
+    }
+    if (db.version < 3) {
+      // v2→v3: backfill deterministic seriesIds
+      const map = {};
+      db.matches.forEach(m => {
+        if (!m.seriesId) {
+          const k = _seriesKey_raw(m);
+          if (!map[k]) map[k] = 'sid_' + _hashStr(k);
+          m.seriesId = map[k];
+        }
+      });
+      db.version = 3;
+    }
+    return db;
+  }
+
+  function _hashStr(s) {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+    return Math.abs(h).toString(36);
+  }
+
+  function _seriesKey_raw(m) {
+    const teams = [m.blueTeam||'', m.redTeam||''].sort().join('|');
+    const anchor = (m.week || m.date || '').trim();
+    return `${anchor}|${teams}|${(m.league||'').trim()}|${(m.stage||'').trim()}|${(m.seriesFormat||'BO3').trim()}`;
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      _db = _migrate(JSON.parse(raw));
+    } catch(e) {
+      console.error('DB load error', e);
+    }
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(_db));
+    } catch(e) {
+      // Storage full — try pruning notes
+      toast('Storage nearly full');
+    }
+  }
+
+  function getMatches() { return _db.matches; }
+  function getTeams() { return _db.teams; }
+
+  function upsertMatch(match) {
+    const idx = _db.matches.findIndex(m => m.id === match.id);
+    if (idx >= 0) _db.matches[idx] = match;
+    else _db.matches.push(match);
+  }
+
+  function deleteMatch(id) {
+    _db.matches = _db.matches.filter(m => m.id !== id);
+  }
+
+  function upsertTeam(name, data) {
+    if (!_db.teams[name]) _db.teams[name] = {name};
+    Object.assign(_db.teams[name], data);
+  }
+
+  function deleteTeam(name) {
+    delete _db.teams[name];
+  }
+
+  function rebuildTeams() {
+    const preserved = {};
+    Object.values(_db.teams).forEach(t => {
+      preserved[t.name] = { winCondition: t.winCondition||'', coachNotes: t.coachNotes||'' };
+    });
+    _db.teams = {};
+
+    _db.matches.forEach(m => {
+      [m.blueTeam, m.redTeam].forEach(n => {
+        if (!n) return;
+        if (!_db.teams[n]) _db.teams[n] = { name:n, ...( preserved[n]||{} ) };
+      });
+    });
+
+    Object.keys(_db.teams).forEach(name => {
+      const t = _db.teams[name];
+      const games = _db.matches.filter(m => m.blueTeam===name || m.redTeam===name);
+      // Sort by date ascending for form calc
+      const sorted = [...games].sort((a,b) => new Date(a.date)-new Date(b.date));
+
+      t.gamesPlayed = games.length;
+      t.wins = games.filter(m => (m.winner==='blue'&&m.blueTeam===name)||(m.winner==='red'&&m.redTeam===name)).length;
+      t.losses = t.gamesPlayed - t.wins;
+      t.winRate = t.gamesPlayed > 0 ? Math.round(t.wins/t.gamesPlayed*100) : 0;
+      t.leagues = [...new Set(games.map(m=>m.league).filter(Boolean))];
+
+      const blueGames = games.filter(m=>m.blueTeam===name);
+      const redGames  = games.filter(m=>m.redTeam===name);
+      t.blueSideGames = blueGames.length;
+      t.redSideGames  = redGames.length;
+      t.blueWins = blueGames.filter(m=>m.winner==='blue').length;
+      t.redWins  = redGames.filter(m=>m.winner==='red').length;
+      t.blueSideWR = t.blueSideGames ? Math.round(t.blueWins/t.blueSideGames*100) : null;
+      t.redSideWR  = t.redSideGames  ? Math.round(t.redWins/t.redSideGames*100)   : null;
+
+      // Form: last 5 game results
+      t.form = sorted.slice(-5).map(m => {
+        const won = (m.winner==='blue'&&m.blueTeam===name)||(m.winner==='red'&&m.redTeam===name);
+        return won ? 'W' : 'L';
+      });
+
+      // Current streak
+      let streak = 0, streakType = null;
+      for (let i = sorted.length-1; i >= 0; i--) {
+        const m = sorted[i];
+        const won = (m.winner==='blue'&&m.blueTeam===name)||(m.winner==='red'&&m.redTeam===name);
+        const r = won ? 'W' : 'L';
+        if (streakType === null) { streakType = r; streak = 1; }
+        else if (r === streakType) streak++;
+        else break;
+      }
+      t.streak = { type: streakType, count: streak };
+
+      // Pick/ban stats
+      const pickC={}, banC={}, pickW={}, banRecC={};
+      games.forEach(m => {
+        const ours = m.blueTeam === name;
+        const won  = (ours && m.winner==='blue') || (!ours && m.winner==='red');
+        const picks = ours ? (m.bluePicks||[]) : (m.redPicks||[]);
+        const bans  = ours ? (m.blueBans||[])  : (m.redBans||[]);
+        const oppBans = ours ? (m.redBans||[]) : (m.blueBans||[]);
+        picks.forEach(p => {
+          const n = p.name||p;
+          pickC[n] = (pickC[n]||0) + 1;
+          if (won) pickW[n] = (pickW[n]||0) + 1;
+        });
+        bans.forEach(b => { const n=b.name||b; banC[n]=(banC[n]||0)+1; });
+        oppBans.forEach(b => { const n=b.name||b; banRecC[n]=(banRecC[n]||0)+1; });
+      });
+
+      t.topPicks = Object.entries(pickC).sort((a,b)=>b[1]-a[1]).slice(0,10)
+        .map(([n,c])=>({name:n,count:c,wr:pickW[n]?Math.round(pickW[n]/c*100):0}));
+      t.topBans = Object.entries(banC).sort((a,b)=>b[1]-a[1]).slice(0,8)
+        .map(([n,c])=>({name:n,count:c}));
+      t.bansReceived = Object.entries(banRecC).sort((a,b)=>b[1]-a[1]).slice(0,8)
+        .map(([n,c])=>({name:n,count:c}));
+
+      // Pool depth: unique heroes picked with >=2 games
+      t.poolDepth = Object.values(pickC).filter(c=>c>=2).length;
+
+      // Objective control: turtle & lord
+      let turtleTotal=0, turtleWon=0, lordTotal=0, lordWon=0;
+      games.forEach(m => {
+        const isBlue = m.blueTeam === name;
+        const side = isBlue ? 'blue' : 'red';
+        const obj = m.objectives || {};
+        const tArr = obj.turtle || [obj.t1,obj.t2,obj.t3].filter(Boolean) || [];
+        const lArr = obj.lord   || [obj.l1,obj.l2,obj.l3].filter(Boolean) || [];
+        tArr.forEach(v => { if (v) { turtleTotal++; if (v===side) turtleWon++; } });
+        lArr.forEach(v => { if (v) { lordTotal++;   if (v===side) lordWon++;   } });
+      });
+      t.turtleCtrl  = turtleTotal > 0 ? Math.round(turtleWon/turtleTotal*100) : null;
+      t.lordCtrl    = lordTotal   > 0 ? Math.round(lordWon/lordTotal*100)     : null;
+      t.turtleTotal = turtleTotal;
+      t.lordTotal   = lordTotal;
+
+      // First pick tendencies
+      const fpC = {};
+      games.forEach(m => {
+        const ours = m.blueTeam===name;
+        const picks = ours?(m.bluePicks||[]):(m.redPicks||[]);
+        if (picks[0]) { const n=picks[0].name||picks[0]; fpC[n]=(fpC[n]||0)+1; }
+      });
+      t.topFirstPick = Object.entries(fpC).sort((a,b)=>b[1]-a[1]).slice(0,5)
+        .map(([n,c])=>({name:n,count:c}));
+    });
+  }
+
+  function getSeriesId(m) {
+    if (m.seriesId) return m.seriesId;
+    return 'sid_' + _hashStr(_seriesKey_raw(m));
+  }
+
+  return { load, save, getMatches, getTeams, upsertMatch, deleteMatch, upsertTeam, deleteTeam, rebuildTeams, getSeriesId, _hashStr, _seriesKey_raw };
+})();
+
+// ── SUPABASE INTEGRATION ──────────────────────────────────────
+// Sync status indicator
+let _syncPending = false;
+function _setSyncStatus(state) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  if (state === 'syncing') { el.textContent = '⟳ Syncing…'; el.style.color = 'var(--text3)'; }
+  else if (state === 'ok')   { el.textContent = '✓ Synced';   el.style.color = 'var(--neon)'; }
+  else if (state === 'err')  { el.textContent = '⚠ Offline';  el.style.color = 'var(--gold)'; }
+  else                       { el.textContent = '';           }
+}
+
+// Load all matches from cloud and merge with any local-only matches
+async function loadFromSupabase() {
+  _setSyncStatus('syncing');
+  try {
+    const cloudMatches = await WDB.loadMatches();
+    const cloudIds = new Set(cloudMatches.map(m => m.id));
+    // Keep local-only matches (not yet on cloud) and upload them
+    const localOnly = DB_MODULE.getMatches().filter(m => !cloudIds.has(m.id));
+    // Replace DB with cloud data + any local-only ones
+    cloudMatches.forEach(m => DB_MODULE.upsertMatch(m));
+    // Upload local-only silently
+    for (const m of localOnly) {
+      DB_MODULE.upsertMatch(m); // ensure in memory
+      WDB.saveMatch(m).catch(() => {});
+    }
+    DB_MODULE.rebuildTeams();
+    DB_MODULE.save();
+    _setSyncStatus('ok');
+    renderCurrentView();
+  } catch(e) {
+    _setSyncStatus('err');
+    // Still render with local data
+    renderCurrentView();
+  }
+}
+
+// Push a single match to cloud (called after every save/edit)
+async function _cloudSaveMatch(match) {
+  try {
+    await WDB.saveMatch(match);
+    _setSyncStatus('ok');
+  } catch(e) {
+    _setSyncStatus('err');
+    console.warn('Cloud save failed, data kept locally:', e.message);
+  }
+}
+
+// Delete a match from cloud (called after local delete)
+async function _cloudDeleteMatch(id) {
+  try {
+    await WDB.deleteMatch(id);
+    _setSyncStatus('ok');
+  } catch(e) {
+    _setSyncStatus('err');
+    console.warn('Cloud delete failed:', e.message);
+  }
+}
+function renderCurrentView() {
+  if (typeof showView === 'function') showView(currentView);
+}
+
+// ══════════════════════════════════════════════════════════════
+// UI STATE
+// ══════════════════════════════════════════════════════════════
+let currentView = 'matches';
+let leagueFilter = 'all';
+let matchSearch = '';
+let teamSearch = '';
+let matchSort = 'date';
+let teamSort = 'games';
+let metaSort = 'presence';
+let metaLeague = 'all';
+let metaRole = 'All';
+let _seriesCollapsed = {};
+
+// Draft entry state
+let editingMatchId = null;
+let draftStepIndex = 0;
+let draftSlots = Array(DRAFT_STEPS.length).fill(null);
+let draftLaneFilter = 'All';
+let draftHeroSearch = '';
+let draftFilterMode = 'lane'; // 'lane' | 'role'
+let _searchDebounce = null;
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+// Init auth chip
+(async () => {
+  const ok = await WAuth.requireAuth();
+  if (!ok) return; // redirecting to auth.html
+})();
+WAuth.renderAuthChip('authChip');
+// Auto-load from Supabase on page load
+loadFromSupabase().catch(() => {});
+
+DB_MODULE.load();
+DB_MODULE.rebuildTeams();
+DB_MODULE.save();
+showView('matches');
+document.getElementById('sb-all').classList.add('active');
+
+// ══════════════════════════════════════════════════════════════
+// ROUTING
+// ══════════════════════════════════════════════════════════════
+function showView(v) {
+  currentView = v;
+  ['matches','teams','meta'].forEach(x => document.getElementById('sb-'+x)?.classList.toggle('active', x===v));
+  if (v==='matches') renderMatchList();
+  else if (v==='teams') renderTeams();
+  else renderMeta();
+}
+
+function setLeagueFilter(lf) {
+  leagueFilter = lf;
+  // Clear all league sidebar active states
+  document.querySelectorAll('.sidebar-btn[id^="sb-"]').forEach(el => {
+    const id = el.id.replace('sb-','');
+    const isView = ['matches','teams','meta'].includes(id);
+    if (!isView) el.classList.remove('active');
+  });
+  const key = lf === 'all' ? 'all' : lf;
+  document.getElementById('sb-'+key)?.classList.add('active');
+  showView(currentView);
+}
+
+function updateSidebarCounts() {
+  const series = getFilteredSeries();
+  document.getElementById('sc-matches').textContent = series.reduce((t,s) => t + s.games.length, 0);
+  document.getElementById('sc-teams').textContent = Object.keys(DB_MODULE.getTeams()).length;
+}
+
+// ══════════════════════════════════════════════════════════════
+// DATA QUERIES
+// ══════════════════════════════════════════════════════════════
+function getFilteredMatches() {
+  const q = matchSearch.toLowerCase();
+  return DB_MODULE.getMatches().filter(m => {
+    if (leagueFilter !== 'all' && m.league !== leagueFilter) return false;
+    if (q && !m.blueTeam.toLowerCase().includes(q) && !m.redTeam.toLowerCase().includes(q) && !(m.notes||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function getFilteredSeries() {
+  const matches = getFilteredMatches();
+  const map = {};
+  matches.forEach(m => {
+    const k = DB_MODULE.getSeriesId(m);
+    if (!map[k]) map[k] = {
+      key: k,
+      date: m.date,
+      league: m.league||'',
+      blueTeam: m.blueTeam,
+      redTeam: m.redTeam,
+      seriesFormat: m.seriesFormat||'BO3',
+      stage: m.stage||'',
+      week: m.week||'',
+      games: []
+    };
+    map[k].games.push(m);
+  });
+
+  Object.values(map).forEach(s => {
+    s.games.sort((a,b) => (Number(a.gameNum)||1) - (Number(b.gameNum)||1));
+    const g1 = s.games[0];
+    s.blueTeam = g1.blueTeam;
+    s.redTeam  = g1.redTeam;
+    s.seriesFormat = g1.seriesFormat || s.seriesFormat;
+    s.date = s.games.map(g=>g.date).filter(Boolean).sort()[0] || s.date;
+  });
+
+  return Object.values(map).sort((a,b) => {
+    if (matchSort==='date')   return new Date(b.date) - new Date(a.date);
+    if (matchSort==='blue')   return a.blueTeam.localeCompare(b.blueTeam);
+    if (matchSort==='red')    return a.redTeam.localeCompare(b.redTeam);
+    if (matchSort==='league') return (a.league||'').localeCompare(b.league||'');
+    return new Date(b.date) - new Date(a.date);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// MATCH LIST VIEW
+// ══════════════════════════════════════════════════════════════
+function renderMatchList() {
+  const area = document.getElementById('mainArea');
+  const series = getFilteredSeries();
+  const totalGames = series.reduce((t,s) => t+s.games.length, 0);
+
+  if (!document.getElementById('matchListStatic')) {
+    area.innerHTML = `
+      <div id="matchListStatic">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <div>
+            <div class="page-title" style="font-size:16px;">Match Log</div>
+            <div class="page-sub" id="matchListSub" style="margin-top:2px;">${series.length} series · ${totalGames} games</div>
+          </div>
+          <button class="btn btn-accent" onclick="openNewMatch()" style="margin-left:auto;padding:7px 14px;font-size:11px;">+ New Match</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div class="search-bar" style="flex:1;min-width:160px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--text3);flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input id="matchSearchInput" placeholder="Search teams or notes…" oninput="onMatchSearch(this.value)">
+          </div>
+          <select class="form-select" style="width:auto;font-size:11px;" onchange="matchSort=this.value;renderMatchListBody()">
+            <option value="date">Sort by Date</option>
+            <option value="league">League</option>
+            <option value="blue">Blue Team</option>
+            <option value="red">Red Team</option>
+          </select>
+        </div>
+      </div>
+      <div id="matchListBody"></div>`;
+  } else {
+    document.getElementById('matchListSub').textContent = `${series.length} series · ${totalGames} games`;
+  }
+
+  renderMatchListBody();
+  updateSidebarCounts();
+}
+
+function onMatchSearch(val) {
+  clearTimeout(_searchDebounce);
+  _searchDebounce = setTimeout(() => { matchSearch = val; renderMatchListBody(); }, 150);
+}
+
+function renderMatchListBody() {
+  const body = document.getElementById('matchListBody');
+  if (!body) return;
+  const series = getFilteredSeries();
+  const subEl = document.getElementById('matchListSub');
+  if (subEl) subEl.textContent = `${series.length} series · ${series.reduce((t,s)=>t+s.games.length,0)} games`;
+  if (!series.length) {
+    body.innerHTML = `<div class="empty-state"><p>No matches logged yet.<br>Click <b>+ New Match</b> to get started.</p></div>`;
+    return;
+  }
+
+  let _lastWeekKey = null;
+  body.innerHTML = series.map(s => {
+    const sk = s.key;
+    const collapsed = _seriesCollapsed[sk] !== false;
+    const lc = LEAGUE_CSS[s.league] || 'lg-other';
+    const d = new Date(s.date);
+    const day = isNaN(d.getTime()) ? '?' : d.getDate();
+    const mon = isNaN(d.getTime()) ? '' : d.toLocaleString('default',{month:'short'});
+    // Week group header
+    const weekKey = `${s.league}|${s.stage||''}|${s.week||''}`;
+    let groupHdr = '';
+    if (weekKey !== _lastWeekKey) {
+      _lastWeekKey = weekKey;
+      const wLabel = s.week || s.stage || 'General';
+      const lgLabel = s.league ? `${s.league} — ` : '';
+      groupHdr = `<div class="week-group-hdr"><div class="week-group-line"></div><span>${lgLabel}${wLabel}</span><div class="week-group-line"></div></div>`;
+    }
+    const blueWins = s.games.filter(g => (g.winner==='blue'?g.blueTeam:g.redTeam) === s.blueTeam).length;
+    const redWins  = s.games.filter(g => (g.winner==='blue'?g.blueTeam:g.redTeam) === s.redTeam).length;
+    const scoreColor = blueWins > redWins ? 'var(--blue)' : redWins > blueWins ? 'var(--red)' : 'var(--text3)';
+    const seriesWinner = blueWins > redWins ? s.blueTeam : redWins > blueWins ? s.redTeam : '';
+
+    const gameRows = s.games.map(g => {
+      const bp = g.bluePicks||[], rp = g.redPicks||[];
+      const bb = g.blueBans||[], rb = g.redBans||[];
+      const img = (name, size=26) => {
+        const id = heroByName(name)?.id || _normKey(name) || name;
+        const cls = size === 26 ? 'hero-thumb' : 'hero-thumb-sm';
+        return `<img class="${cls}" src="./portraits/${id}.png" onerror="this.src=''" title="${name}" style="${size===20?'width:20px;height:20px;':''}">`;
+      };
+      const line = (picks, bans, color, tn) => `
+        <div class="team-draft-line">
+          <div class="team-name-col" style="color:${color};" title="${tn}">${tn}</div>
+          <div class="draft-heroes">${picks.map(p=>img(p.name||p)).join('')}</div>
+          <div class="sep-line"></div>
+          <div class="draft-bans">${bans.map(n=>img(n,20)).join('')}</div>
+        </div>`;
+      const wTeam  = g.winner==='blue' ? g.blueTeam : g.redTeam;
+      const wColor = g.winner==='blue' ? 'var(--blue)' : 'var(--red)';
+      // Objectives display
+      const obj = g.objectives || {};
+      const objTeamLabel = (v, blueN, redN) => {
+        if (v === 'blue') return `<span class="obj-tag obj-blue">${blueN||'Blue'}</span>`;
+        if (v === 'red')  return `<span class="obj-tag obj-red">${redN||'Red'}</span>`;
+        return '';
+      };
+      // Support new array format {turtle:[],lord:[]} and legacy {t1,t2,t3,l1,l2,l3}
+      const turtles = obj.turtle || [obj.t1,obj.t2,obj.t3].filter(Boolean);
+      const lords   = obj.lord   || [obj.l1,obj.l2,obj.l3].filter(Boolean);
+      const hasObj  = turtles.length || lords.length;
+      const objRow  = hasObj ? `<div class="obj-row">
+        ${turtles.length ? `<span style="font-size:8px;color:var(--text3);">🐢</span>${turtles.map((v,i)=>`<span style="font-size:7px;color:var(--text4);">T${i+1}</span>${objTeamLabel(v,g.blueTeam,g.redTeam)}`).join('')}` : ''}
+        ${turtles.length && lords.length ? `<div style="width:1px;height:10px;background:var(--border2);"></div>` : ''}
+        ${lords.length   ? `<span style="font-size:8px;color:var(--text3);">👑</span>${lords.map((v,i)=>`<span style="font-size:7px;color:var(--text4);">L${i+1}</span>${objTeamLabel(v,g.blueTeam,g.redTeam)}`).join('')}` : ''}
+      </div>` : '';
+
+      return `<div class="game-row" onclick="openEditMatch('${g.id}')">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+          <span class="game-num">G${g.gameNum||1}</span>
+          <span style="font-size:8px;font-weight:700;color:var(--text3);letter-spacing:.5px;">PICKS</span>
+          <div style="width:1px;height:8px;background:var(--border2);"></div>
+          <span style="font-size:8px;font-weight:700;color:var(--text4);">BANS</span>
+          <div style="flex:1;"></div>
+          <span class="winner-badge" style="background:${wColor}18;color:${wColor};border:1px solid ${wColor}44;">${wTeam}</span>
+          ${g.vodLink ? `<a href="${g.vodLink}" target="_blank" onclick="event.stopPropagation()" style="font-size:9px;color:var(--blue);text-decoration:none;padding:2px 7px;border:1px solid var(--blue-border);border-radius:8px;">▶ VOD</a>` : ''}
+          <button onclick="event.stopPropagation();deleteMatch('${g.id}')" class="del-btn">✕</button>
+        </div>
+        <div>
+          ${line(bp, bb, 'var(--blue)', g.blueTeam)}
+          ${line(rp, rb, 'var(--red)',  g.redTeam)}
+        </div>
+        ${objRow}
+      </div>`;
+    }).join('');
+
+    return groupHdr + `<div class="series-card">
+      <div class="series-header" onclick="toggleSeries('${sk}')">
+        <div class="series-date-col">
+          <div class="series-date-day">${day}</div>
+          <div class="series-date-mon">${mon}</div>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;flex-wrap:wrap;">
+            <span class="league-badge ${lc}">${s.league}</span>
+            ${s.stage ? `<span style="font-size:9px;color:var(--text3);">${s.stage}${s.week?' · '+s.week:''}</span>` : ''}
+            <span style="font-size:9px;color:var(--text3);">${s.seriesFormat} · ${s.games.length}G</span>
+          </div>
+          <div style="font-size:13px;font-weight:700;font-family:var(--font-head);">
+            <span style="color:var(--blue);">${s.blueTeam}</span>
+            <span style="color:var(--text3);font-weight:400;font-size:11px;margin:0 6px;">vs</span>
+            <span style="color:var(--red);">${s.redTeam}</span>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div class="series-score" style="color:${scoreColor};">${blueWins}&nbsp;–&nbsp;${redWins}</div>
+          ${seriesWinner ? `<div style="font-size:9px;color:var(--text3);margin-top:2px;">${seriesWinner}</div>` : ''}
+        </div>
+        <div class="series-chevron ${collapsed?'':'open'}">▶</div>
+      </div>
+      ${collapsed ? '' : gameRows}
+    </div>`;
+  }).join('');
+}
+
+function toggleSeries(sk) {
+  _seriesCollapsed[sk] = _seriesCollapsed[sk] !== false ? false : true;
+  renderMatchListBody();
+}
+
+function deleteMatch(id) {
+  if (!confirm('Delete this game?')) return;
+  DB_MODULE.deleteMatch(id);
+  DB_MODULE.rebuildTeams();
+  DB_MODULE.save();
+  renderMatchList();
+  toast('Match deleted');
+  // Auto-sync deletion to cloud (non-blocking)
+  _setSyncStatus('syncing');
+  _cloudDeleteMatch(id);
+}
+
+// ══════════════════════════════════════════════════════════════
+// MATCH MODAL — OPEN/CLOSE
+// ══════════════════════════════════════════════════════════════
+function openNewMatch() {
+  editingMatchId = null;
+  draftStepIndex = 0;
+  draftSlots = Array(DRAFT_STEPS.length).fill(null);
+  draftLaneFilter = 'All';
+  draftHeroSearch = '';
+  draftFilterMode = 'lane';
+  _openMatchModal({
+    id:'', league:'MPL PH', season:'', stage:'Regular Season', week:'',
+    seriesFormat:'BO3', gameNum:1, blueTeam:'', redTeam:'', winner:'blue',
+    date: new Date().toISOString().split('T')[0], vodLink:'', notes:'',
+    blueBans:[], redBans:[], bluePicks:[], redPicks:[]
+  });
+}
+
+function openEditMatch(id) {
+  const m = DB_MODULE.getMatches().find(x => x.id === id);
+  if (!m) return;
+  editingMatchId = id;
+  draftSlots = Array(DRAFT_STEPS.length).fill(null);
+  draftStepIndex = 0;
+  draftLaneFilter = 'All';
+  draftHeroSearch = '';
+
+  let bi=0, ri=0, bpi=0, rpi=0;
+  DRAFT_STEPS.forEach((step, i) => {
+    if (step.type === 'ban') {
+      const arr = step.team==='blue' ? m.blueBans : m.redBans;
+      const idx = step.team==='blue' ? bi++ : ri++;
+      const name = arr && arr[idx];
+      if (name) { draftSlots[i] = {heroName:name, heroId:heroByName(name)?.id||name, lane:null, type:'ban', team:step.team}; draftStepIndex = i+1; }
+    } else {
+      const arr = step.team==='blue' ? m.bluePicks : m.redPicks;
+      const idx = step.team==='blue' ? bpi++ : rpi++;
+      const pick = arr && arr[idx];
+      if (pick) { const _h = heroByName(pick.name); const _autoLane = pick.lane || (_h ? heroLanes(_h)[0] : null) || null; draftSlots[i] = {heroName:pick.name, heroId:_h?.id||pick.name, lane:_autoLane, type:'pick', team:step.team}; draftStepIndex = i+1; }
+    }
+  });
+
+  draftLaneFilter = 'All';
+  draftHeroSearch = '';
+  draftFilterMode = 'lane';
+  _openMatchModal(m);
+}
+
+function _openMatchModal(m) {
+  const existingTeams = Object.keys(DB_MODULE.getTeams());
+  const teamOpts = existingTeams.map(t => `<option value="${t}">${t}</option>`).join('');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'matchModal';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:920px;">
+      <div class="modal-header">
+        <div class="modal-title">${editingMatchId ? 'Edit Match' : '+ New Match'}</div>
+        <div style="font-size:10px;color:var(--text3);margin-left:4px;">
+          ${editingMatchId ? `ID: <span style="font-family:var(--font-mono);">${editingMatchId}</span>` : ''}
+        </div>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="closeMatchModal()">✕ Close</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- MATCH INFO -->
+        <div class="card" style="margin-bottom:12px;">
+          <div class="card-title">Match Info</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">League</label>
+              <select class="form-select" id="mf-league">
+                ${LEAGUES.map(l=>`<option value="${l}" ${m.league===l?'selected':''}>${l}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Season</label>
+              <input class="form-input" id="mf-season" placeholder="Season 15" value="${m.season||''}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Stage</label>
+              <select class="form-select" id="mf-stage">
+                ${['Regular Season','Playoffs','Grand Finals','Elimination','Group Stage','Scrimmage'].map(s=>`<option ${m.stage===s?'selected':''}>${s}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Week / Day</label>
+              <input class="form-input" id="mf-week" placeholder="Week 1 Day 2" value="${m.week||''}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Series Format</label>
+              <select class="form-select" id="mf-format" onchange="updateGameNumOptions()">
+                ${['Single Game','BO3','BO5','BO7'].map(f=>`<option ${(m.seriesFormat||'BO3')===f?'selected':''}>${f}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Game #</label>
+              <select class="form-select" id="mf-gamenum">${gameNumOptions(m.seriesFormat||'BO3', m.gameNum)}</select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date</label>
+              <input class="form-input" type="date" id="mf-date" value="${m.date||''}">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group wide">
+              <label class="form-label">Blue Side Team</label>
+              <input class="form-input" id="mf-blue" placeholder="Team name" value="${m.blueTeam||''}" list="teamList" oninput="renderDraftBoard()">
+            </div>
+            <div class="form-group wide">
+              <label class="form-label">Red Side Team</label>
+              <input class="form-input" id="mf-red" placeholder="Team name" value="${m.redTeam||''}" list="teamList" oninput="renderDraftBoard()">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Winner</label>
+              <select class="form-select" id="mf-winner">
+                <option value="blue" ${m.winner==='blue'?'selected':''}>Blue Side</option>
+                <option value="red"  ${m.winner==='red' ?'selected':''}>Red Side</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group wide">
+              <label class="form-label">VOD Link</label>
+              <input class="form-input" id="mf-vod" placeholder="YouTube / Twitch URL" value="${m.vodLink||''}">
+            </div>
+            <div class="form-group w3">
+              <label class="form-label">Notes</label>
+              <textarea class="form-textarea" id="mf-notes" placeholder="Game notes, observations…">${m.notes||''}</textarea>
+            </div>
+          </div>
+          <div class="form-row" style="margin-top:6px;">
+            <div style="flex:1;">
+              <div class="form-label" style="margin-bottom:6px;">Objectives — click to cycle team &nbsp;<span style="font-weight:400;color:var(--text3);">(supports unlimited kills)</span></div>
+              <div id="obj-turtle-row" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:5px;">
+                ${_buildObjRowHTML('turtle', _readObjArr(m,'turtle'))}
+              </div>
+              <div id="obj-lord-row" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+                ${_buildObjRowHTML('lord', _readObjArr(m,'lord'))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DRAFT BOARD -->
+        <div class="card">
+          <div class="card-title">
+            Draft Entry
+            <span style="font-size:10px;color:var(--text3);font-weight:400;">— click a step to set cursor, click hero to assign</span>
+            <span id="draftProgressPct" style="margin-left:auto;font-family:var(--font-mono);font-size:10px;color:var(--text3);"></span>
+          </div>
+          <div id="draftBoard"></div>
+          <div class="divider"></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;flex-wrap:wrap;">
+            <span style="font-size:11px;font-weight:700;color:var(--text2);font-family:var(--font-head);">HERO POOL</span>
+            <input class="form-input" style="flex:1;max-width:180px;padding:4px 8px;font-size:11px;" placeholder="Search hero…"
+              oninput="draftHeroSearch=this.value;renderHeroPool()" value="${draftHeroSearch}">
+            <span style="font-size:11px;font-weight:700;" id="draftStepHint"></span>
+          </div>
+          <div class="lane-filter-row" id="draftLaneFilters"></div>
+          <div class="hero-pool-wrap"><div class="hero-grid" id="draftHeroGrid"></div></div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeMatchModal()">Cancel</button>
+        <button class="btn btn-accent" onclick="saveMatch()">Save Match</button>
+      </div>
+    </div>
+    <datalist id="teamList">${teamOpts}</datalist>`;
+
+  document.body.appendChild(overlay);
+  renderDraftBoard();
+}
+
+function closeMatchModal() { document.getElementById('matchModal')?.remove(); }
+
+function gameNumOptions(format, selected) {
+  const max = format==='Single Game'?1:format==='BO3'?3:format==='BO5'?5:7;
+  return Array.from({length:max},(_,i)=>i+1).map(n=>`<option value="${n}" ${selected==n?'selected':''}>Game ${n}</option>`).join('');
+}
+function updateGameNumOptions() {
+  const fmt = document.getElementById('mf-format')?.value || 'BO3';
+  const sel = document.getElementById('mf-gamenum');
+  if (sel) sel.innerHTML = gameNumOptions(fmt, Number(sel.value)||1);
+}
+
+// ══════════════════════════════════════════════════════════════
+// DRAFT BOARD RENDERING
+// ══════════════════════════════════════════════════════════════
+function renderDraftBoard() {
+  const bd = document.getElementById('draftBoard');
+  if (!bd) return;
+  const blueTeam = document.getElementById('mf-blue')?.value || 'Blue Side';
+  const redTeam  = document.getElementById('mf-red')?.value  || 'Red Side';
+
+  const renderSlot = (step, i) => {
+    const sl = draftSlots[i];
+    const isActive = (i === draftStepIndex);
+    const isBan = step.type === 'ban';
+    const cls = ['draft-step', isBan?'ban-step':'pick-step', sl?'':'empty', isActive?'active-step':''].filter(Boolean).join(' ');
+    const label = `<span class="step-type ${isBan?'ban-label':'pick-label'}">${isBan?'BAN':'PICK'}</span>`;
+
+    if (sl) {
+      const lc = LANE_COLORS[sl.lane] || '';
+      const laneBtn = !isBan ? `<span class="lane-pill ${sl.lane?'assigned':''}"
+        style="${sl.lane ? `background:${lc}22;color:${lc};border-color:${lc}88;` : ''}"
+        onclick="cycleDraftLane(${i})" title="Click to cycle lane">${sl.lane || '+ lane'}</span>` : '';
+      return `<div class="${cls}" data-step="${i}">
+        ${label}
+        <img src="./portraits/${sl.heroId}.png" onerror="this.style.display='none'" style="width:26px;height:26px;border-radius:8px;object-fit:cover;flex-shrink:0;">
+        <span class="step-name">${sl.heroName}</span>
+        ${laneBtn}
+        <button onclick="clearDraftSlot(${i})" style="background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:10px;padding:0 2px;flex-shrink:0;line-height:1;">✕</button>
+      </div>`;
+    }
+    return `<div class="${cls}" data-step="${i}" onclick="setDraftStep(${i})">
+      ${label}<span class="step-name" style="color:var(--text3);">— empty —</span>
+    </div>`;
+  };
+
+  const byPhaseTeam = (phase, team, type) =>
+    DRAFT_STEPS.map((s,i) => ({s,i})).filter(({s}) => s.phase===phase && s.team===team && s.type===type);
+
+  const blueBans1  = byPhaseTeam(1,'blue','ban'),  redBans1  = byPhaseTeam(1,'red','ban');
+  const bluePicks1 = byPhaseTeam(1,'blue','pick'), redPicks1 = byPhaseTeam(1,'red','pick');
+  const blueBans2  = byPhaseTeam(2,'blue','ban'),  redBans2  = byPhaseTeam(2,'red','ban');
+  const bluePicks2 = byPhaseTeam(2,'blue','pick'), redPicks2 = byPhaseTeam(2,'red','pick');
+  const rg = arr => arr.map(({s,i}) => renderSlot(s,i)).join('');
+
+  const filledCount = draftSlots.filter(Boolean).length;
+  const pctEl = document.getElementById('draftProgressPct');
+  if (pctEl) pctEl.textContent = `${filledCount}/${DRAFT_STEPS.length} steps`;
+
+  bd.innerHTML = `
+    <div class="phase-divider">Ban Phase 1 · 3 bans each (B R B R B R)</div>
+    <div class="draft-layout">
+      <div>
+        <div class="draft-col-title" style="background:var(--accent-dim);color:var(--accent);">${blueTeam}</div>
+        <div class="draft-step-list">${rg(blueBans1)}</div>
+      </div>
+      <div class="vs-col">
+        <div class="vs-text">VS</div>
+        <div class="step-counter">Step ${Math.min(draftStepIndex+1, DRAFT_STEPS.length)}/${DRAFT_STEPS.length}</div>
+        <button class="btn btn-ghost btn-sm" onclick="undoDraftStep()" title="Undo last pick">↩</button>
+        <button class="btn btn-ghost btn-sm" onclick="resetDraft()" title="Reset draft">Reset</button>
+      </div>
+      <div>
+        <div class="draft-col-title" style="background:var(--red-dim);color:var(--red);">${redTeam}</div>
+        <div class="draft-step-list">${rg(redBans1)}</div>
+      </div>
+    </div>
+
+    <div class="phase-divider">Pick Phase 1 · 4 picks each (B R R B B R R B)</div>
+    <div class="draft-layout">
+      <div><div class="draft-step-list">${rg(bluePicks1)}</div></div>
+      <div class="vs-col"></div>
+      <div><div class="draft-step-list">${rg(redPicks1)}</div></div>
+    </div>
+
+    <div class="phase-divider">Ban Phase 2 · 2 bans each (R B R B)</div>
+    <div class="draft-layout">
+      <div><div class="draft-step-list">${rg(redBans2)}</div></div>
+      <div class="vs-col"></div>
+      <div><div class="draft-step-list">${rg(blueBans2)}</div></div>
+    </div>
+
+    <div class="phase-divider">Pick Phase 2 · 1 pick each (R B B R)</div>
+    <div class="draft-layout">
+      <div><div class="draft-step-list">${rg(redPicks2)}</div></div>
+      <div class="vs-col"></div>
+      <div><div class="draft-step-list">${rg(bluePicks2)}</div></div>
+    </div>`;
+
+  // Step hint
+  const hintEl = document.getElementById('draftStepHint');
+  if (hintEl) {
+    if (draftStepIndex < DRAFT_STEPS.length) {
+      const step = DRAFT_STEPS[draftStepIndex];
+      const tn = document.getElementById(step.team==='blue'?'mf-blue':'mf-red')?.value || (step.team==='blue'?'Blue':'Red');
+      hintEl.innerHTML = `<span style="color:${step.type==='ban'?'var(--red)':'var(--blue)'};">▶ ${tn} — ${step.type.toUpperCase()} (Phase ${step.phase})</span>`;
+    } else {
+      hintEl.innerHTML = `<span style="color:var(--green);">✓ Draft complete</span>`;
+    }
+  }
+
+  renderHeroPool();
+}
+
+const ROLES_FILTER = ['All','MM','Mage','Support','Tank','Assassin','Fighter'];
+const ROLE_COLORS_F = {MM:'#C89050',Mage:'#A888CC',Support:'#4CB87A',Tank:'#5EA0D8',Assassin:'#D87880',Fighter:'#C89050'};
+
+function renderHeroPool() {
+  const lf  = document.getElementById('draftLaneFilters');
+  const grid = document.getElementById('draftHeroGrid');
+  if (!lf || !grid) return;
+
+  const isLane = draftFilterMode !== 'role';
+  const filters = isLane ? ['All',...LANES] : ROLES_FILTER;
+
+  // Toggle + filter buttons
+  lf.innerHTML =
+    `<button class="lf-btn" style="background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.11);color:var(--text2);padding:3px 8px;font-size:9px;letter-spacing:.4px;" onclick="draftFilterMode=draftFilterMode==='lane'?'role':'lane';draftLaneFilter='All';renderHeroPool()">⇄ ${isLane?'By Lane':'By Role'}</button>` +
+    filters.map(l => {
+      const col = isLane ? (LANE_COLORS[l] || 'var(--text3)') : (ROLE_COLORS_F[l] || 'var(--text3)');
+      const active = draftLaneFilter === l;
+      return `<button class="lf-btn${active?' active':''}"
+        style="${active ? `border-color:${col}66;background:${col}16;color:${col};` : ''}"
+        onclick="draftLaneFilter='${l}';renderHeroPool()">
+        ${l}
+      </button>`;
+    }).join('');
+
+  const usedNames = new Set(draftSlots.filter(Boolean).map(s => s.heroName));
+  const sq = draftHeroSearch.toLowerCase();
+
+  const heroes = ALL_HEROES.filter(h => {
+    if (sq && !h.name.toLowerCase().includes(sq)) return false;
+    if (draftLaneFilter !== 'All') {
+      if (isLane) {
+        if (!heroLanes(h).includes(draftLaneFilter)) return false;
+      } else {
+        if (h.role.split('/')[0] !== draftLaneFilter) return false;
+      }
+    }
+    return true;
+  });
+
+  grid.innerHTML = heroes.map(h => {
+    const used = usedNames.has(h.name);
+    const enc = h.name.replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;');
+    const pLane = heroLanes(h)[0] || '';
+    const laneCol = LANE_COLORS[pLane] || 'var(--text3)';
+    return `<div class="hc${used?' hc-used':''}" data-pick="${enc}" title="${h.name} — ${pLane||h.role}">
+      <img src="./portraits/${h.id}.png" onerror="this.src=''">
+      <div class="hc-name">${h.name}</div>
+      <div class="hc-lane" style="color:${laneCol};">${pLane || '—'}</div>
+    </div>`;
+  }).join('');
+
+  grid.onclick = e => {
+    const card = e.target.closest('[data-pick]');
+    if (!card || card.classList.contains('hc-used')) return;
+    pickHero(card.dataset.pick.replace(/&amp;/g,'&').replace(/&#39;/g,"'").replace(/&quot;/g,'"'));
+  };
+}
+
+// ── Correct per-hero lane map (sourced from draft_board + ai_battle) ──
+const HERO_LANES_MAP = {
+  // Gold
+  'Claude':['Gold'],'Karrie':['Gold'],'Beatrix':['Gold'],'Wanwan':['Gold'],
+  'Granger':['Gold'],'Brody':['Gold'],'Miya':['Gold'],'Bruno':['Gold'],
+  'Clint':['Gold'],'Hanabi':['Gold'],'Irithel':['Gold'],'Layla':['Gold'],
+  'Lesley':['Gold'],'Melissa':['Gold'],'Moskov':['Gold'],'Natan':['Gold'],
+  'Ixia':['Gold'],'Aulus':['Gold'],'Obsidia':['Gold'],
+  'Roger':['Gold','Jungle'],'Freya':['Gold'],'Harith':['Gold'],
+  'Alice':['Gold'],
+  // Jungle
+  'Yi Sun-shin':['Jungle'],'Hayabusa':['Jungle'],'Lancelot':['Jungle'],
+  'Ling':['Jungle'],'Fanny':['Jungle'],'Nolan':['Jungle'],'Gusion':['Jungle'],
+  'Karina':['Jungle'],'Benedetta':['Jungle'],'Helcurt':['Jungle'],
+  'Joy':['Jungle'],'Aamon':['Jungle'],'Natalia':['Jungle'],'Saber':['Jungle'],
+  'Hanzo':['Jungle'],'Suyou':['Jungle'],'Fredrinn':['Jungle','EXP'],
+  'Phoveus':['Jungle'],'Martis':['Jungle','EXP'],
+  'Aldous':['EXP','Jungle'],'Argus':['EXP','Jungle'],'Barats':['Jungle','EXP'],
+  'Leomord':['Jungle'],'Alpha':['Jungle'],'Harley':['Jungle','Mid'],
+  'Julian':['Jungle','Mid'],'Balmond':['EXP'],'Guinevere':['Jungle'],
+  'Sun':['EXP','Jungle'],'Baxia':['Roam','Jungle'],
+  // Mid
+  'Zhuxin':['Mid'],'Yve':['Mid'],'Pharsa':['Mid'],'Kagura':['Mid'],'Zetian':['Mid'],
+  'Valentina':['Mid'],'Xavier':['Mid'],'Novaria':['Mid'],'Lylia':['Mid'],
+  'Lunox':['Mid'],'Kadita':['Mid','Jungle'],'Luo Yi':['Mid'],'Odette':['Mid'],
+  'Cecilion':['Mid'],'Vale':['Mid'],'Eudora':['Mid'],'Aurora':['Mid'],
+  'Gord':['Mid'],'Cyclops':['Mid'],'Vexana':['Mid'],'Zhask':['Mid'],
+  'Nana':['Mid','Roam'],'Kimmy':['Mid'],"Chang'e":['Mid'],
+  'Selena':['Mid','Roam'],'Faramis':['Roam','Mid'],'Valir':['Mid','Roam'],
+  // EXP
+  'Yu Zhong':['EXP'],'Arlott':['EXP'],'Cici':['EXP'],'Gatotkaca':['EXP'],
+  'Esmeralda':['EXP'],'Dyrroth':['EXP'],'Terizla':['EXP'],'Thamuz':['EXP'],
+  'Khaleed':['EXP'],'Paquito':['EXP'],'Silvanna':['EXP'],
+  'Badang':['EXP'],'Ruby':['EXP','Roam'],
+  'Hilda':['EXP','Roam'],'Masha':['EXP'],'X.Borg':['EXP'],
+  'Lapu-Lapu':['EXP'],'Zilong':['EXP'],'Alucard':['EXP'],'Yin':['EXP'],
+  'Lukas':['EXP','Jungle'],'Sora':['EXP'],'Bane':['EXP'],
+  'Jawhead':['Roam'],'Uranus':['EXP'],'Minsitthar':['Roam','EXP'],
+  // Roam
+  'Hylos':['Roam'],'Atlas':['Roam'],'Khufra':['Roam'],
+  'Gloo':['Roam'],'Chip':['Roam'],'Kalea':['Roam'],'Mathilda':['Roam'],
+  'Angela':['Roam'],'Floryn':['Roam'],'Franco':['Roam'],'Tigreal':['Roam'],
+  'Johnson':['Roam'],'Akai':['Roam'],'Minotaur':['Roam'],'Lolita':['Roam'],
+  'Grock':['Roam'],'Belerick':['Roam'],'Carmilla':['Roam'],
+  'Kaja':['Roam'],'Diggie':['Roam'],'Estes':['Roam'],'Rafaela':['Roam'],
+  'Edith':['Roam'],'Marcel':['Roam'],'Chou':['Roam','Gold'],
+  'Popol & Kupa':['Roam'],
+};
+
+function heroLanes(h) {
+  if (HERO_LANES_MAP[h.name]) return HERO_LANES_MAP[h.name];
+  // Fallback by role for any hero not in map
+  const r = h.role;
+  if (r.includes('Support')) return ['Roam'];
+  if (r.startsWith('MM') || r === 'MM') return ['Gold'];
+  if (r.includes('Assassin') && !r.includes('Fighter')) return ['Jungle'];
+  if (r.includes('Mage') && !r.includes('Support')) return ['Mid'];
+  if (r.includes('Tank') && !r.includes('Fighter')) return ['Roam'];
+  if (r.includes('Fighter')) return ['EXP'];
+  return ['Flex'];
+}
+
+function pickHero(name) {
+  if (draftStepIndex >= DRAFT_STEPS.length) { toast('Draft complete — all 20 steps filled'); return; }
+  const step = DRAFT_STEPS[draftStepIndex];
+  const h = heroByName(name);
+  if (!h) return;
+  // Auto-assign primary lane from HERO_LANES_MAP; bans always null
+  const autoLane = step.type === 'pick' ? (heroLanes(h)[0] || null) : null;
+  draftSlots[draftStepIndex] = {heroName:name, heroId:h.id, lane:autoLane, type:step.type, team:step.team};
+  draftStepIndex++;
+  renderDraftBoard();
+}
+
+function setDraftStep(i)  { draftStepIndex = i; renderDraftBoard(); }
+function undoDraftStep()  { if (draftStepIndex <= 0) return; draftStepIndex--; draftSlots[draftStepIndex] = null; renderDraftBoard(); }
+function clearDraftSlot(i){ draftSlots[i] = null; if (draftStepIndex > i) draftStepIndex = i; renderDraftBoard(); }
+function resetDraft()     { if (!confirm('Reset entire draft?')) return; draftStepIndex=0; draftSlots=Array(DRAFT_STEPS.length).fill(null); renderDraftBoard(); }
+
+function cycleDraftLane(i) {
+  const sl = draftSlots[i];
+  if (!sl || sl.type==='ban') return;
+  const idx = LANES.indexOf(sl.lane);
+  sl.lane = idx >= 0 ? (idx < LANES.length-1 ? LANES[idx+1] : null) : LANES[0];
+  renderDraftBoard();
+}
+
+// ══════════════════════════════════════════════════════════════
+// SAVE MATCH
+// ══════════════════════════════════════════════════════════════
+function saveMatch() {
+  const league    = document.getElementById('mf-league')?.value||'';
+  const blueTeam  = document.getElementById('mf-blue')?.value?.trim()||'';
+  const redTeam   = document.getElementById('mf-red')?.value?.trim()||'';
+  if (!blueTeam || !redTeam) { toast('Enter both team names'); return; }
+  if (!league) { toast('Select a league'); return; }
+
+  const blueBans=[], redBans=[], bluePicks=[], redPicks=[];
+  DRAFT_STEPS.forEach((step,i) => {
+    const sl = draftSlots[i]; if (!sl) return;
+    if (step.type==='ban') { if (step.team==='blue') blueBans.push(sl.heroName); else redBans.push(sl.heroName); }
+    else { if (step.team==='blue') bluePicks.push({name:sl.heroName,lane:sl.lane}); else redPicks.push({name:sl.heroName,lane:sl.lane}); }
+  });
+
+  const stage  = (document.getElementById('mf-stage')?.value||'').trim();
+  const week   = (document.getElementById('mf-week')?.value||'').trim();
+  const date   = document.getElementById('mf-date')?.value || new Date().toISOString().split('T')[0];
+  const format = (document.getElementById('mf-format')?.value||'BO3').trim();
+  const sortedTeams = [blueTeam, redTeam].sort().join('|');
+
+  // Find existing series to inherit seriesId
+  const existingSeries = DB_MODULE.getMatches().find(m => {
+    if (m.id === editingMatchId) return false;
+    if ([m.blueTeam,m.redTeam].sort().join('|') !== sortedTeams) return false;
+    if ((m.league||'').trim() !== league.trim()) return false;
+    if ((m.stage||'').trim() !== stage) return false;
+    if ((m.seriesFormat||'BO3').trim() !== format) return false;
+    if (week && m.week) return m.week.trim() === week;
+    return (m.date||'') === date;
+  });
+
+  const editingSeriesId = editingMatchId ? DB_MODULE.getMatches().find(m=>m.id===editingMatchId)?.seriesId : null;
+  const rawKey = `${(week||date).trim()}|${sortedTeams}|${league.trim()}|${stage}|${format}`;
+  const seriesId = editingSeriesId || existingSeries?.seriesId || ('sid_' + DB_MODULE._hashStr(rawKey));
+
+  const _readObjRow = type => [...document.querySelectorAll(`[data-type="${type}"]`)].map(b => b.dataset.val || '').filter(Boolean);
+  const objectives = {
+    turtle: _readObjRow('turtle'),
+    lord:   _readObjRow('lord'),
+  };
+
+  const match = {
+    id: editingMatchId || 'match_' + Date.now(),
+    league, seriesId,
+    season: document.getElementById('mf-season')?.value||'',
+    stage, week, seriesFormat: format,
+    gameNum: Number(document.getElementById('mf-gamenum')?.value)||1,
+    blueTeam, redTeam,
+    winner: document.getElementById('mf-winner')?.value||'blue',
+    date,
+    vodLink: document.getElementById('mf-vod')?.value||'',
+    notes: document.getElementById('mf-notes')?.value||'',
+    blueBans, redBans, bluePicks, redPicks,
+    objectives,
+    savedAt: Date.now(),
+  };
+
+  DB_MODULE.upsertMatch(match);
+  DB_MODULE.rebuildTeams();
+  DB_MODULE.save();
+  closeMatchModal();
+  renderMatchList();
+  toast(`✓ Match saved — ${blueTeam} vs ${redTeam}`);
+  // Auto-sync to cloud (non-blocking)
+  _setSyncStatus('syncing');
+  _cloudSaveMatch(match);
+}
+
+// ══════════════════════════════════════════════════════════════
+// TEAMS VIEW
+// ══════════════════════════════════════════════════════════════
+function renderTeams() {
+  const area = document.getElementById('mainArea');
+  const teams = Object.values(DB_MODULE.getTeams()).filter(t => {
+    if (leagueFilter !== 'all' && !t.leagues?.includes(leagueFilter)) return false;
+    if (teamSearch && !t.name.toLowerCase().includes(teamSearch.toLowerCase())) return false;
+    return true;
+  }).sort((a,b) => {
+    if (teamSort==='games')   return (b.gamesPlayed||0)-(a.gamesPlayed||0);
+    if (teamSort==='winrate') return (b.winRate||0)-(a.winRate||0);
+    if (teamSort==='wins')    return (b.wins||0)-(a.wins||0);
+    if (teamSort==='name')    return a.name.localeCompare(b.name);
+    if (teamSort==='bluewr')  return (b.blueSideWR||0)-(a.blueSideWR||0);
+    if (teamSort==='redwr')   return (b.redSideWR||0)-(a.redSideWR||0);
+    if (teamSort==='pool')    return (b.poolDepth||0)-(a.poolDepth||0);
+    return (b.gamesPlayed||0)-(a.gamesPlayed||0);
+  });
+
+  const tSorts = [['games','Games'],['winrate','WR'],['wins','Wins'],['bluewr','Blue WR'],['redwr','Red WR'],['pool','Pool'],['name','Name']];
+  area.innerHTML = `
+    <div class="page-header">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <div class="page-title">Team Profiles</div>
+        <button class="btn btn-accent btn-sm" onclick="openTeamEditor(null)" style="margin-left:auto;">+ Add Team</button>
+      </div>
+      <div class="search-bar" style="margin-bottom:10px;">
+        
+        <input placeholder="Search teams…" value="${teamSearch}" oninput="teamSearch=this.value;renderTeams()">
+      </div>
+      <div class="filter-row">
+        <span style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1.5px;text-transform:uppercase;">SORT</span>
+        ${tSorts.map(([k,l]) => `<button class="filter-badge${teamSort===k?' active':''}" onclick="teamSort='${k}';renderTeams()">${l}</button>`).join('')}
+      </div>
+    </div>
+    <div id="teamsGrid"></div>`;
+
+  const grid = document.getElementById('teamsGrid');
+  if (!teams.length) {
+    grid.innerHTML = `<div class="empty-state"><p>No team profiles yet.<br>Log matches to auto-generate team data.</p></div>`;
+    return;
+  }
+  grid.className = 'team-grid';
+  grid.innerHTML = teams.map(t => {
+    const wr = t.winRate||0;
+    const wrc = wr>=60?'var(--green)':wr>=50?'var(--gold)':'var(--red)';
+    const lb = (t.leagues||[]).map(l=>`<span class="league-badge ${LEAGUE_CSS[l]||'lg-other'}">${l}</span>`).join(' ');
+    const tpc = (t.topPicks||[]).slice(0,5).map(p=>`<span class="hero-chip">${p.name} <span style="color:var(--text3);">×${p.count}</span></span>`).join('');
+    const tbc = (t.topBans||[]).slice(0,5).map(b=>`<span class="hero-chip" style="border-color:rgba(240,82,82,.25);color:#f87171;">${b.name} <span style="opacity:.7;">×${b.count}</span></span>`).join('');
+    const formDots = (t.form||[]).map(r=>`<div class="form-dot ${r==='W'?'w':'l'}" title="${r}"></div>`).join('');
+    const streakLabel = t.streak?.count > 1 ? `<span style="font-size:9px;color:${t.streak.type==='W'?'var(--green)':'var(--red)'};">${t.streak.type}${t.streak.count}</span>` : '';
+
+    return `<div class="team-card" onclick="openTeamEditor('${t.name}')">
+      <div class="team-name">${t.name}</div>
+      <div style="display:flex;align-items:center;gap:5px;margin-bottom:8px;flex-wrap:wrap;">
+        ${lb}
+        <div style="flex:1;"></div>
+        <div class="form-dots" title="Recent form">${formDots}</div>
+        ${streakLabel}
+      </div>
+      <div class="team-stat-row"><span class="team-stat-label">Record</span><span class="team-stat-val" style="color:${wrc};">${t.wins||0}W ${t.losses||0}L (${wr}%)</span></div>
+      <div class="team-stat-row"><span class="team-stat-label">Blue Side</span><span class="team-stat-val">${t.blueSideWR!==null?t.blueSideWR+'%':'-'} <span style="color:var(--text3);font-size:10px;">(${t.blueSideGames||0}g)</span></span></div>
+      <div class="team-stat-row"><span class="team-stat-label">Red Side</span><span class="team-stat-val">${t.redSideWR!==null?t.redSideWR+'%':'-'} <span style="color:var(--text3);font-size:10px;">(${t.redSideGames||0}g)</span></span></div>
+      <div class="team-stat-row"><span class="team-stat-label">Pool Depth</span><span class="team-stat-val">${t.poolDepth||0} heroes</span></div>
+      ${t.turtleCtrl!==null?`<div class="team-stat-row"><span class="team-stat-label">🐢 Turtle Ctrl</span><span class="team-stat-val" style="color:var(--neon);">${t.turtleCtrl}% <span style="color:var(--text3);font-size:10px;">(${t.turtleTotal})</span></span></div>`:''}
+      ${t.lordCtrl!==null?`<div class="team-stat-row"><span class="team-stat-label">👑 Lord Ctrl</span><span class="team-stat-val" style="color:var(--gold);">${t.lordCtrl}% <span style="color:var(--text3);font-size:10px;">(${t.lordTotal})</span></span></div>`:''}
+      ${tpc ? `<div style="font-size:8px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-top:8px;margin-bottom:4px;">TOP PICKS</div><div class="hero-chips">${tpc}</div>` : ''}
+      ${tbc ? `<div style="font-size:8px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-top:6px;margin-bottom:4px;">TOP BANS</div><div class="hero-chips">${tbc}</div>` : ''}
+      ${t.coachNotes ? `<div style="margin-top:8px;padding-top:7px;border-top:1px solid var(--border);font-size:10px;color:var(--text3);font-style:italic;line-height:1.5;">${t.coachNotes.slice(0,90)}${t.coachNotes.length>90?'…':''}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function openTeamEditor(teamName) {
+  const t = teamName ? DB_MODULE.getTeams()[teamName] : {name:'',winCondition:'',coachNotes:''};
+  if (!t) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'teamModal';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:600px;">
+      <div class="modal-header">
+        <div class="modal-title">${teamName ? teamName : '+ Add Team'}</div>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="document.getElementById('teamModal').remove()">✕</button>
+      </div>
+      <div class="modal-body">
+        ${!teamName ? `<div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label">Team Name</label>
+          <input class="form-input" id="tf-name" placeholder="e.g. RSG PH" value="${t.name||''}">
+        </div>` : ''}
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label">Win Condition</label>
+          <input class="form-input" id="tf-wc" placeholder="e.g. Hypercarry protect composition" value="${t.winCondition||''}">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label">Coach Notes</label>
+          <textarea class="form-textarea" id="tf-notes" style="min-height:100px;" placeholder="Playstyle, tendencies, weaknesses, key players…">${t.coachNotes||''}</textarea>
+        </div>
+        ${teamName && t.gamesPlayed > 0 ? `
+          <div class="card" style="margin-top:4px;">
+            <div class="card-title">Stats from ${t.gamesPlayed} games</div>
+            <div class="stat-chips">
+              <div class="stat-chip"><div class="stat-chip-val">${t.gamesPlayed}</div><div class="stat-chip-label">Games</div></div>
+              <div class="stat-chip"><div class="stat-chip-val" style="color:${t.winRate>=50?'var(--green)':'var(--red)'};">${t.winRate}%</div><div class="stat-chip-label">WR</div></div>
+              <div class="stat-chip"><div class="stat-chip-val">${t.blueSideWR!==null?t.blueSideWR+'%':'—'}</div><div class="stat-chip-label">Blue WR</div></div>
+              <div class="stat-chip"><div class="stat-chip-val">${t.redSideWR!==null?t.redSideWR+'%':'—'}</div><div class="stat-chip-label">Red WR</div></div>
+              <div class="stat-chip"><div class="stat-chip-val">${t.poolDepth||0}</div><div class="stat-chip-label">Pool</div></div>
+              ${t.turtleCtrl!==null?`<div class="stat-chip"><div class="stat-chip-val" style="color:var(--neon);">${t.turtleCtrl}%</div><div class="stat-chip-label">🐢 Ctrl</div></div>`:''}
+              ${t.lordCtrl!==null?`<div class="stat-chip"><div class="stat-chip-val" style="color:var(--gold);">${t.lordCtrl}%</div><div class="stat-chip-label">👑 Ctrl</div></div>`:''}
+            </div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;">
+              <div>
+                <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">TOP PICKS</div>
+                <div class="hero-chips">${(t.topPicks||[]).map(p=>`<span class="hero-chip">${p.name} ×${p.count} <span style="color:${p.wr>=50?'var(--green)':'var(--text3)'};">${p.wr}%</span></span>`).join('')}</div>
+              </div>
+              <div>
+                <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">TOP BANS</div>
+                <div class="hero-chips">${(t.topBans||[]).map(b=>`<span class="hero-chip" style="color:#f87171;border-color:rgba(240,82,82,.25);">${b.name} ×${b.count}</span>`).join('')}</div>
+              </div>
+              ${(t.bansReceived||[]).length ? `<div>
+                <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">BANS RECEIVED</div>
+                <div class="hero-chips">${(t.bansReceived||[]).map(b=>`<span class="hero-chip" style="color:var(--gold);border-color:rgba(244,165,52,.25);">${b.name} ×${b.count}</span>`).join('')}</div>
+              </div>` : ''}
+              ${(t.topFirstPick||[]).length ? `<div>
+                <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">FIRST PICK</div>
+                <div class="hero-chips">${(t.topFirstPick||[]).map(p=>`<span class="hero-chip" style="color:var(--blue);border-color:var(--blue-border);">${p.name} ×${p.count}</span>`).join('')}</div>
+              </div>` : ''}
+            </div>
+          </div>` : ''}
+      </div>
+      <div class="modal-footer">
+        ${teamName ? `<button class="btn btn-danger" onclick="deleteTeam('${teamName}')">Delete</button>` : ''}
+        <button class="btn btn-ghost" onclick="document.getElementById('teamModal').remove()">Cancel</button>
+        <button class="btn btn-accent" onclick="saveTeam('${teamName||''}')">Save</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function saveTeam(existing) {
+  const name = existing || document.getElementById('tf-name')?.value?.trim();
+  if (!name) { toast('Enter team name'); return; }
+  DB_MODULE.upsertTeam(name, {
+    winCondition: document.getElementById('tf-wc')?.value||'',
+    coachNotes:   document.getElementById('tf-notes')?.value||'',
+  });
+  DB_MODULE.save();
+  document.getElementById('teamModal')?.remove();
+  renderTeams();
+  toast(`✓ ${name} saved`);
+}
+
+function deleteTeam(name) {
+  if (!confirm(`Delete ${name}?`)) return;
+  DB_MODULE.deleteTeam(name);
+  DB_MODULE.save();
+  document.getElementById('teamModal')?.remove();
+  renderTeams();
+  toast('Team deleted');
+}
+
+// ══════════════════════════════════════════════════════════════
+// META VIEW
+// ══════════════════════════════════════════════════════════════
+function renderMeta() {
+  const area = document.getElementById('mainArea');
+  const all  = DB_MODULE.getMatches();
+  const leagueCounts = {'all': all.length};
+  LEAGUES.forEach(l => leagueCounts[l] = all.filter(m=>m.league===l).length);
+
+  area.innerHTML = `
+    <div class="page-header">
+      <div class="page-title">Hero Meta</div>
+      <div class="page-sub">Pick & ban rates across your match log</div>
+    </div>
+    <div class="filter-row" style="margin-bottom:6px;">
+      <span style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1.5px;text-transform:uppercase;flex-shrink:0;">LEAGUE</span>
+      ${['all',...LEAGUES].map(l => {
+        const active = metaLeague===l;
+        const cnt = leagueCounts[l]||0;
+        const noData = l!=='all' && cnt===0;
+        return `<button class="filter-badge${active?' active':''}" ${noData?'disabled style="opacity:.35;cursor:not-allowed;"':''} onclick="metaLeague='${l}';renderMeta()">
+          ${l==='all'?'All':l}${cnt&&l!=='all'?` <span style="font-size:9px;opacity:.55;">(${cnt})</span>`:''}
+        </button>`;
+      }).join('')}
+    </div>
+    <div class="filter-row">
+      <span style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1.5px;text-transform:uppercase;flex-shrink:0;">SORT</span>
+      ${['presence','pickrate','banrate','winrate','picks','bans'].map(s =>
+        `<button class="filter-badge${metaSort===s?' active':''}" onclick="metaSort='${s}';renderMeta()">${s}</button>`
+      ).join('')}
+    </div>
+    <div class="filter-row" style="margin-bottom:6px;">
+      <span style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1.5px;text-transform:uppercase;flex-shrink:0;">ROLE</span>
+      ${['All','Gold','Jungle','Mid','EXP','Roam'].map(r =>
+        `<button class="filter-badge${metaRole===r?' active':''}" onclick="metaRole='${r}';renderMeta()">${r}</button>`
+      ).join('')}
+    </div>
+    <div id="metaWrap"></div>`;
+
+  const pool = metaLeague==='all' ? all : all.filter(m => m.league===metaLeague);
+  document.getElementById('metaWrap').innerHTML = buildMetaTable(pool, metaRole);
+}
+
+function buildMetaTable(matches, roleFilter) {
+  roleFilter = roleFilter || 'All';
+  if (!matches.length) return `<div class="empty-state"><p>No match data for this filter.</p></div>`;
+  const total = matches.length;
+  const stats = {};
+
+  matches.forEach(m => {
+    [...(m.bluePicks||[]).map(p=>({...p,team:'blue'})), ...(m.redPicks||[]).map(p=>({...p,team:'red'}))].forEach(p => {
+      const n = p.name||p;
+      if (!stats[n]) stats[n] = {picks:0,bans:0,wins:0};
+      stats[n].picks++;
+      if (m.winner===p.team) stats[n].wins++;
+    });
+    [...(m.blueBans||[]), ...(m.redBans||[])].forEach(b => {
+      const n = b.name||b;
+      if (!stats[n]) stats[n] = {picks:0,bans:0,wins:0};
+      stats[n].bans++;
+    });
+  });
+
+  let rows = Object.entries(stats).map(([name,d]) => ({
+    name,
+    picks: d.picks, bans: d.bans, wins: d.wins,
+    presence:  Math.round((d.picks+d.bans)/total*100),
+    pickRate:  Math.round(d.picks/total*100),
+    banRate:   Math.round(d.bans/total*100),
+    winRate:   d.picks>0 ? Math.round(d.wins/d.picks*100) : null,
+    h: heroByName(name),
+  }));
+
+  // Apply lane/role filter using the correct HERO_LANES_MAP
+  if (roleFilter !== 'All') {
+    rows = rows.filter(r => {
+      if (!r.h) return false;
+      return heroLanes(r.h).includes(roleFilter);
+    });
+  }
+
+  rows.sort((a,b) => {
+    if (metaSort==='presence') return b.presence-a.presence;
+    if (metaSort==='pickrate') return b.pickRate-a.pickRate;
+    if (metaSort==='banrate')  return b.banRate-a.banRate;
+    if (metaSort==='winrate')  return (b.winRate||0)-(a.winRate||0);
+    if (metaSort==='picks')    return b.picks-a.picks;
+    return b.bans-a.bans;
+  });
+
+  const tbody = rows.map((r,i) => {
+    const wrc = r.winRate===null?'var(--text3)':r.winRate>=60?'var(--green)':r.winRate>=50?'var(--gold)':'var(--red)';
+    const presenceColor = r.presence>=80?'var(--red)':r.presence>=50?'var(--gold)':'var(--blue)';
+    return `<tr>
+      <td style="color:var(--text3);font-family:var(--font-mono);font-size:11px;width:28px;">${i+1}</td>
+      <td>
+        <div class="hero-cell">
+          ${r.h ? `<img src="./portraits/${r.h.id}.png" onerror="this.style.display='none'">` : ''}
+          <div>
+            <div style="font-weight:600;">${r.name}</div>
+            <div style="font-size:9px;color:var(--text3);">${r.h?.role||''}</div>
+          </div>
+        </div>
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div class="wr-bar"><div class="wr-fill" style="width:${r.presence}%;background:${presenceColor};"></div></div>
+          <span style="font-size:11px;font-weight:700;font-family:var(--font-mono);">${r.presence}%</span>
+        </div>
+      </td>
+      <td><span style="font-weight:700;">${r.pickRate}%</span> <span style="font-size:10px;color:var(--text3);">(${r.picks})</span></td>
+      <td><span style="font-weight:700;color:var(--red);">${r.banRate}%</span> <span style="font-size:10px;color:var(--text3);">(${r.bans})</span></td>
+      <td><span style="font-weight:700;color:${wrc};">${r.winRate!==null?r.winRate+'%':'—'}</span></td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div style="font-size:11px;color:var(--text3);margin-bottom:10px;font-family:var(--font-mono);">${total} games · ${rows.length} heroes tracked</div>
+    <div style="overflow-x:auto;">
+      <table class="meta-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th onclick="metaSort='picks';renderMeta()">Hero</th>
+            <th onclick="metaSort='presence';renderMeta()" class="${metaSort==='presence'?'sorted':''}">Presence ↕</th>
+            <th onclick="metaSort='pickrate';renderMeta()" class="${metaSort==='pickrate'?'sorted':''}">Pick Rate ↕</th>
+            <th onclick="metaSort='banrate';renderMeta()"  class="${metaSort==='banrate' ?'sorted':''}">Ban Rate ↕</th>
+            <th onclick="metaSort='winrate';renderMeta()"  class="${metaSort==='winrate' ?'sorted':''}">Win Rate ↕</th>
+          </tr>
+        </thead>
+        <tbody>${tbody}</tbody>
+      </table>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// EXPORT / IMPORT
+// ══════════════════════════════════════════════════════════════
+function exportData() {
+  const wb = XLSX.utils.book_new();
+  const mRows = [['ID','SeriesID','League','Season','Stage','Week','SeriesFormat','GameNum','BlueTeam','RedTeam','Winner','Date','VODLink','Notes',
+    'BlueBan1','BlueBan2','BlueBan3','BlueBan4','BlueBan5',
+    'RedBan1','RedBan2','RedBan3','RedBan4','RedBan5',
+    'BluePick1','BP1Lane','BluePick2','BP2Lane','BluePick3','BP3Lane','BluePick4','BP4Lane','BluePick5','BP5Lane',
+    'RedPick1','RP1Lane','RedPick2','RP2Lane','RedPick3','RP3Lane','RedPick4','RP4Lane','RedPick5','RP5Lane',
+    'Turtle1','Turtle2','Turtle3','Turtle4','Turtle5','Lord1','Lord2','Lord3','Lord4','Lord5']];
+
+  DB_MODULE.getMatches().forEach(m => {
+    const bb=m.blueBans||[], rb=m.redBans||[], bp=m.bluePicks||[], rp=m.redPicks||[];
+    const obj = m.objectives || {};
+    const tArr = obj.turtle || [obj.t1,obj.t2,obj.t3].filter(Boolean) || [];
+    const lArr = obj.lord   || [obj.l1,obj.l2,obj.l3].filter(Boolean) || [];
+    const row = [m.id, m.seriesId||'', m.league, m.season||'', m.stage||'', (m.week||'').trim(), m.seriesFormat||'BO3', m.gameNum||1,
+      m.blueTeam, m.redTeam, m.winner, m.date, m.vodLink||'', m.notes||'',
+      bb[0]||'',bb[1]||'',bb[2]||'',bb[3]||'',bb[4]||'',
+      rb[0]||'',rb[1]||'',rb[2]||'',rb[3]||'',rb[4]||''];
+    for (let i=0;i<5;i++) row.push(bp[i]?.name||'', bp[i]?.lane||'');
+    for (let i=0;i<5;i++) row.push(rp[i]?.name||'', rp[i]?.lane||'');
+    for (let i=0;i<5;i++) row.push(tArr[i]||'');
+    for (let i=0;i<5;i++) row.push(lArr[i]||'');
+    mRows.push(row);
+  });
+
+  const wsM = XLSX.utils.aoa_to_sheet(mRows);
+  wsM['!cols'] = mRows[0].map((_,i) => ({wch: i<14?14:10}));
+  XLSX.utils.book_append_sheet(wb, wsM, 'Scout_Matches');
+
+  const tRows = [['Team','Leagues','Games','Wins','Losses','WinRate%','BlueSideWR%','RedSideWR%','PoolDepth','TurtleCtrl%','TurtleGames','LordCtrl%','LordGames','TopPicks','TopBans','WinCondition','CoachNotes']];
+  Object.values(DB_MODULE.getTeams()).forEach(t => tRows.push([
+    t.name, (t.leagues||[]).join(', '),
+    t.gamesPlayed||0, t.wins||0, t.losses||0, t.winRate||0,
+    t.blueSideWR??'', t.redSideWR??'', t.poolDepth||0,
+    t.turtleCtrl??'', t.turtleTotal||0, t.lordCtrl??'', t.lordTotal||0,
+    (t.topPicks||[]).slice(0,5).map(p=>p.name).join(', '),
+    (t.topBans||[]).slice(0,5).map(b=>b.name).join(', '),
+    t.winCondition||'', t.coachNotes||''
+  ]));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(tRows), 'Scout_Teams');
+  XLSX.writeFile(wb, `warr_scout_${new Date().toISOString().split('T')[0]}.xlsx`);
+  toast('Exported successfully');
+}
+
+function importData(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      let imported = 0, updated = 0;
+      const wsM = wb.Sheets['Scout_Matches'];
+      if (wsM) {
+        const rows = XLSX.utils.sheet_to_json(wsM, {header:1});
+        const hdrs = (rows[0]||[]).map(h=>(h||'').toString().trim());
+        const hasSeriesId = hdrs[1]==='SeriesID';
+
+        rows.slice(1).forEach(r => {
+          let id, seriesIdCol, league, season, stage, week, sf, gn, bt, rt, winner, date, vod, notes;
+          let bb1,bb2,bb3,bb4,bb5, rb1,rb2,rb3,rb4,rb5;
+          let bp1n,bp1l,bp2n,bp2l,bp3n,bp3l,bp4n,bp4l,bp5n,bp5l;
+          let rp1n,rp1l,rp2n,rp2l,rp3n,rp3l,rp4n,rp4l,rp5n,rp5l;
+
+          if (hasSeriesId) {
+            [id,seriesIdCol,league,season,stage,week,sf,gn,bt,rt,winner,date,vod,notes,bb1,bb2,bb3,bb4,bb5,rb1,rb2,rb3,rb4,rb5,bp1n,bp1l,bp2n,bp2l,bp3n,bp3l,bp4n,bp4l,bp5n,bp5l,rp1n,rp1l,rp2n,rp2l,rp3n,rp3l,rp4n,rp4l,rp5n,rp5l] = r;
+          } else {
+            [id,league,season,stage,week,sf,gn,bt,rt,winner,date,vod,notes,bb1,bb2,bb3,bb4,bb5,rb1,rb2,rb3,rb4,rb5,bp1n,bp1l,bp2n,bp2l,bp3n,bp3l,bp4n,bp4l,bp5n,bp5l,rp1n,rp1l,rp2n,rp2l,rp3n,rp3l,rp4n,rp4l,rp5n,rp5l] = r;
+          }
+          if (!id) return;
+
+          const mk = (n,l) => n ? {name:String(n),lane:l||null} : null;
+          const wk = (week||'').trim();
+          const fmtClean = (sf||'BO3').trim();
+          const rawKey = `${(wk||date||'').trim()}|${[bt,rt].sort().join('|')}|${(league||'').trim()}|${(stage||'').trim()}|${fmtClean}`;
+          const seriesId = (seriesIdCol && String(seriesIdCol).startsWith('sid_')) ? seriesIdCol :
+            ('sid_' + DB_MODULE._hashStr(rawKey));
+
+          const existing = DB_MODULE.getMatches().find(m => m.id === id);
+          if (existing) {
+            if (existing.seriesId !== seriesId) { existing.seriesId = seriesId; updated++; }
+            return;
+          }
+
+          DB_MODULE.upsertMatch({
+            id, league, season, stage, week:wk, seriesFormat:fmtClean,
+            gameNum: Number(gn)||1, blueTeam:bt, redTeam:rt, winner, date,
+            vodLink:vod||'', notes:notes||'', seriesId,
+            blueBans:  [bb1,bb2,bb3,bb4,bb5].filter(Boolean),
+            redBans:   [rb1,rb2,rb3,rb4,rb5].filter(Boolean),
+            bluePicks: [mk(bp1n,bp1l),mk(bp2n,bp2l),mk(bp3n,bp3l),mk(bp4n,bp4l),mk(bp5n,bp5l)].filter(Boolean),
+            redPicks:  [mk(rp1n,rp1l),mk(rp2n,rp2l),mk(rp3n,rp3l),mk(rp4n,rp4l),mk(rp5n,rp5l)].filter(Boolean),
+          });
+          imported++;
+        });
+      }
+
+      const wsT = wb.Sheets['Scout_Teams'];
+      if (wsT) {
+        XLSX.utils.sheet_to_json(wsT, {header:1}).slice(1).forEach(r => {
+          const [name,,,,,,,,,,wc,notes] = r;
+          if (!name) return;
+          DB_MODULE.upsertTeam(String(name), {
+            winCondition: wc||'',
+            coachNotes:   notes||'',
+          });
+        });
+      }
+
+      DB_MODULE.rebuildTeams();
+      DB_MODULE.save();
+      showView(currentView);
+      toast(`✓ ${imported} new · ${updated} updated`);
+    } catch(err) {
+      toast('Import failed: ' + err.message);
+    }
+    input.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ══════════════════════════════════════════════════════════════
+// OBJECTIVE EDITOR — dynamic turtle / lord tracking
+// ══════════════════════════════════════════════════════════════
+
+/* Read objectives from either new array format or legacy t1/t2/t3 keys */
+function _readObjArr(m, type) {
+  const obj = m.objectives || {};
+  if (type === 'turtle') {
+    return obj.turtle || [obj.t1, obj.t2, obj.t3].filter(Boolean);
+  }
+  return obj.lord || [obj.l1, obj.l2, obj.l3].filter(Boolean);
+}
+
+/* Build the inner HTML for one objective row (turtle or lord) */
+function _buildObjRowHTML(type, values) {
+  const icon = type === 'turtle' ? '🐢' : '👑';
+  const label = type === 'turtle' ? 'Turtle' : 'Lord';
+  let html = `<span style="font-size:9px;color:var(--text3);font-weight:700;min-width:18px;">${icon}</span>`;
+  values.forEach((v, i) => {
+    const cls = v === 'blue' ? 'blue' : v === 'red' ? 'red' : '';
+    const txt = v === 'blue' ? 'Blue' : v === 'red' ? 'Red' : '—';
+    html += `<span style="font-size:8px;color:var(--text4);">${i + 1}</span>` +
+      `<button class="obj-btn ${cls}" data-type="${type}" data-val="${v}" onclick="cycleObj(this)" type="button">${txt}</button>` +
+      `<button onclick="removeObj('${type}',${i})" type="button" title="Remove" style="background:none;border:none;color:var(--text4);cursor:pointer;font-size:9px;padding:0 1px;line-height:1;">✕</button>`;
+  });
+  html += `<button onclick="addObj('${type}')" type="button" style="font-size:9px;padding:2px 8px;border-radius:6px;border:1px dashed var(--border2);background:transparent;color:var(--text3);cursor:pointer;white-space:nowrap;">+ ${label}</button>`;
+  return html;
+}
+
+/* Re-render one objective row from current button values + add new empty slot */
+function addObj(type) {
+  const row = document.getElementById('obj-' + type + '-row');
+  if (!row) return;
+  const vals = [...row.querySelectorAll('[data-type="' + type + '"]')].map(b => b.dataset.val || '');
+  vals.push('');
+  row.innerHTML = _buildObjRowHTML(type, vals);
+}
+
+/* Remove one slot and re-render */
+function removeObj(type, idx) {
+  const row = document.getElementById('obj-' + type + '-row');
+  if (!row) return;
+  const vals = [...row.querySelectorAll('[data-type="' + type + '"]')].map(b => b.dataset.val || '');
+  vals.splice(idx, 1);
+  row.innerHTML = _buildObjRowHTML(type, vals);
+}
+
+/* Cycle a single objective button: (none) → blue → red → (none) */
+function cycleObj(btn) {
+  const states = ['', 'blue', 'red'];
+  const cur = btn.dataset.val || '';
+  const next = states[(states.indexOf(cur) + 1) % states.length];
+  btn.dataset.val = next;
+  btn.textContent = next === 'blue' ? 'Blue' : next === 'red' ? 'Red' : '—';
+  btn.className = 'obj-btn' + (next ? ' ' + next : '');
+}
+
+// ══════════════════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════════════════
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+</script>
+
+</div><!-- /.page-body -->
+
+</body>
+</html>

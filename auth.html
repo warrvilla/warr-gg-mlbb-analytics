@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In — Warr.GG</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="warr-styles.css">
+<style>
+:root {
+  --bg:#07070C; --bg2:#0B0B12; --surface:#101018; --surface2:#161620; --surface3:#1E1E2A; --surface4:#272734;
+  --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.11); --border3:rgba(255,255,255,0.12);
+  --accent:#A888CC; --accent-dim:rgba(168,136,204,0.09); --accent-glow:rgba(168,136,204,0.22); --accent-border:rgba(168,136,204,0.22);
+  --blue:#5EA0D8; --blue-dim:rgba(94,160,216,0.09); --blue-border:rgba(94,160,216,0.22); --blue-glow:rgba(94,160,216,0.18);
+  --red:#D87880; --red-dim:rgba(216,120,128,0.09); --red-border:rgba(216,120,128,0.22);
+  --gold:#C89050; --gold-dim:rgba(200,144,80,0.09); --gold-border:rgba(200,144,80,0.22);
+  --green:#34D399; --green-dim:rgba(52,209,122,.08); --green-border:rgba(52,209,122,.25);
+  --purple:#A78BFA; --cyan:#22D3EE; --orange:#F97316;
+  --text:#F0F4FF; --text2:rgba(240,244,255,0.60); --text3:rgba(240,244,255,0.32); --text4:rgba(240,244,255,0.14);
+  --font-head:-apple-system,'SF Pro Display','Inter',sans-serif; --font-body:'Inter',sans-serif; --font-mono:'JetBrains Mono',monospace;
+  --r:12px; --r2:18px; --r3:24px; --shadow:0 2px 16px rgba(0,0,0,.7); --shadow2:0 8px 40px rgba(0,0,0,.9);
+  --nav-h:52px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:14px;}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;}
+::-webkit-scrollbar{width:3px;} ::-webkit-scrollbar-thumb{background:var(--border3);border-radius:2px;}
+
+.page{flex:1;display:flex;align-items:center;justify-content:center;padding:32px 16px;min-height:calc(100vh - var(--nav-h));}
+
+/* ── AUTH CARD ── */
+.auth-wrap{width:100%;max-width:400px;}
+.auth-hero{text-align:center;margin-bottom:32px;}
+.auth-wordmark{font-family:var(--font-head);font-size:28px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text);margin-bottom:6px;}
+.auth-wordmark span{color:var(--accent);}
+.auth-sub{font-family:var(--font-mono);font-size:9px;font-weight:500;letter-spacing:0.28em;text-transform:uppercase;color:var(--text4);}
+
+.auth-card{
+  background:rgba(16,16,26,0.70);
+  backdrop-filter:blur(40px) saturate(135%);
+  -webkit-backdrop-filter:blur(40px) saturate(135%);
+  border:0.5px solid rgba(255,255,255,0.08);
+  border-radius:28px;
+  box-shadow:0 16px 60px rgba(0,0,0,0.70), inset 0 1px 0 rgba(255,255,255,0.08);
+  padding:28px 26px;
+  position:relative;
+  overflow:hidden;
+}
+.auth-card::before{
+  content:'';position:absolute;top:0;left:8%;right:8%;height:0.5px;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent);
+  pointer-events:none;
+}
+
+/* Mode label */
+.auth-mode-label{
+  text-align:center;margin-bottom:22px;
+  font-family:var(--font-head);font-size:13px;font-weight:700;color:var(--text2);
+  letter-spacing:-0.01em;
+}
+.auth-mode-label small{display:block;font-size:10px;font-weight:400;color:var(--text4);margin-top:3px;letter-spacing:0.04em;}
+
+/* ── FORMS ── */
+.form-group{margin-bottom:14px;}
+.form-label{
+  display:block;font-size:11px;font-weight:500;
+  font-family:var(--font-body);color:var(--text3);
+  letter-spacing:-0.01em;margin-bottom:7px;
+}
+.optional-tag{font-size:9px;color:var(--text4);margin-left:6px;letter-spacing:0.04em;font-weight:400;}
+.form-input{
+  width:100%;
+  background:rgba(118,118,128,0.14);
+  border:0.5px solid rgba(255,255,255,0.07);
+  border-radius:14px;
+  color:#fff;
+  font-family:var(--font-body);
+  font-size:14px;
+  padding:11px 14px;
+  outline:none;
+  transition:border-color .15s, box-shadow .15s;
+}
+.form-input:focus{border-color:rgba(168,136,204,0.28);box-shadow:0 0 0 3px rgba(168,136,204,0.09);}
+.form-input::placeholder{color:rgba(240,244,255,0.22);}
+.form-input.err{border-color:rgba(216,120,128,0.50);box-shadow:0 0 0 3px rgba(216,120,128,0.09);}
+
+/* Password wrapper */
+.input-wrap{position:relative;}
+.input-wrap .form-input{padding-right:52px;}
+.pw-toggle{
+  position:absolute;right:12px;top:50%;transform:translateY(-50%);
+  background:transparent;border:none;
+  font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;
+  color:var(--text4);cursor:pointer;transition:color .15s;padding:4px;
+}
+.pw-toggle:hover{color:var(--text2);}
+
+/* Submit btn */
+.submit-btn{
+  width:100%;padding:12px;margin-top:10px;
+  font-family:var(--font-head);font-size:14px;font-weight:600;
+  letter-spacing:-0.01em;text-transform:none;
+  background:var(--accent);border:none;color:#fff;
+  border-radius:9999px;cursor:pointer;transition:all .2s;
+  box-shadow:0 4px 20px rgba(168,136,204,0.22), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+.submit-btn:hover{background:#B898D8;box-shadow:0 4px 28px rgba(168,136,204,0.30);transform:translateY(-1px);}
+.submit-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none;}
+
+/* ── MESSAGE ── */
+.auth-msg{
+  padding:9px 12px;border-radius:10px;
+  font-size:11px;font-weight:500;font-family:var(--font-mono);
+  letter-spacing:0.02em;margin-bottom:14px;display:none;line-height:1.5;
+}
+.auth-msg.show{display:block;}
+.auth-msg.err{background:var(--red-dim);border:1px solid var(--red-border);color:var(--red);}
+.auth-msg.ok{background:rgba(52,209,122,.08);border:1px solid rgba(52,209,122,.25);color:var(--green);}
+
+/* spinner */
+.spin{width:12px;height:12px;border:2px solid rgba(255,255,255,.2);border-top-color:rgba(255,255,255,.8);border-radius:50%;animation:spin .6s linear infinite;display:inline-block;vertical-align:middle;margin-right:7px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* pw strength */
+.pw-strength{display:flex;gap:3px;margin-top:6px;}
+.pw-bar{height:2px;flex:1;border-radius:2px;background:rgba(255,255,255,0.08);transition:background .2s;}
+.pw-label{font-family:var(--font-mono);font-size:9px;letter-spacing:0.08em;color:var(--text4);margin-top:4px;}
+
+/* invite badge */
+.invite-badge{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(76,184,122,0.08);border:1px solid rgba(76,184,122,0.22);
+  border-radius:10px;padding:9px 12px;margin-bottom:18px;
+  font-size:11px;color:var(--green);font-weight:500;
+}
+.invite-badge svg{flex-shrink:0;}
+
+/* divider */
+.auth-divider{display:flex;align-items:center;gap:10px;margin:18px 0 6px;}
+.auth-divider-line{flex:1;height:1px;background:var(--border);}
+.auth-divider-txt{font-size:9px;color:var(--text4);letter-spacing:0.12em;text-transform:uppercase;white-space:nowrap;}
+
+/* invite-only notice */
+.invite-note{
+  text-align:center;margin-top:16px;
+  font-size:10px;color:var(--text4);letter-spacing:0.02em;line-height:1.6;
+}
+
+@media(max-width:600px){
+  .auth-wrap{max-width:100%;}
+  .page{padding:16px 14px;align-items:flex-start;padding-top:24px;}
+}
+@media(max-width:480px){
+  .auth-card{padding:22px 16px;border-radius:22px;}
+  .auth-wordmark{font-size:24px;}
+  .page{padding:14px 12px;padding-top:20px;}
+  .form-input{font-size:16px;} /* prevent iOS zoom on focus */
+}
+
+/* ambient orbs */
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 55% 50% at 15% 20%, rgba(168,136,204,0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 45% 45% at 85% 80%, rgba(94,160,216,0.08) 0%, transparent 60%);
+}
+body>*{position:relative;z-index:1;}
+</style>
+<script src="warr-theme.js"></script>
+</head>
+<body>
+
+<nav class="topnav">
+  <a class="nav-brand" href="index.html">
+    <span class="nav-brand-name">Warr.GG</span>
+    <span class="nav-brand-sub">MLBB Intel</span>
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="draft_board.html">Draft</a>
+    <a class="nav-link" href="ai_battle.html">AI Battle</a>
+    <a class="nav-link" href="scout.html">Scout</a>
+    <a class="nav-link" href="stats.html">Analysis</a>
+    <a class="nav-link" href="patch_meta.html">Patch</a>
+  </div>
+  <div class="nav-right"></div>
+  <button class="mobile-menu-btn" onclick="document.querySelector('.mobile-nav').classList.toggle('open')" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<nav class="mobile-nav">
+  <a class="mobile-nav-link" href="draft_board.html">Draft</a>
+  <a class="mobile-nav-link" href="ai_battle.html">AI Battle</a>
+  <a class="mobile-nav-link" href="scout.html">Scout</a>
+  <a class="mobile-nav-link" href="stats.html">Analysis</a>
+  <a class="mobile-nav-link" href="patch_meta.html">Patch</a>
+</nav>
+
+<div class="page">
+  <div class="auth-wrap">
+    <div class="auth-hero">
+      <div class="auth-wordmark">WARR<span>.GG</span></div>
+      <div class="auth-sub">MLBB Draft Intelligence</div>
+    </div>
+
+    <div class="auth-card">
+
+      <!-- ── MESSAGE ── -->
+      <div class="auth-msg" id="authMsg"></div>
+
+      <!-- ── SIGN IN FORM (default) ── -->
+      <div id="panelSignIn">
+        <div class="auth-mode-label">
+          Sign In
+          <small>Access is by invitation only</small>
+        </div>
+        <form id="signinForm" onsubmit="handleSignIn(event)">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-input" id="siEmail" type="email" placeholder="your@email.com" required autocomplete="email"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <div class="input-wrap">
+              <input class="form-input" id="siPassword" type="password" placeholder="••••••••" required autocomplete="current-password"/>
+              <button type="button" class="pw-toggle" onclick="togglePw('siPassword',this)">Show</button>
+            </div>
+          </div>
+          <button class="submit-btn" id="signinBtn" type="submit">
+            <span id="signinBtnTxt">Sign In</span>
+          </button>
+        </form>
+        <div class="invite-note">
+          Don't have an account? Contact the admin to get an invite link sent to your email.
+        </div>
+      </div>
+
+      <!-- ── ACCEPT INVITE / COMPLETE PROFILE (shown when invite token present) ── -->
+      <div id="panelInvite" style="display:none;">
+        <div class="invite-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.68A2 2 0 012 .99h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91A16 16 0 0015.1 17.9l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 18.92z"/></svg>
+          You've been invited! Complete your profile to get started.
+        </div>
+        <form id="inviteForm" onsubmit="handleInviteSetup(event)">
+          <div class="form-group">
+            <label class="form-label">Your Name <span class="optional-tag">required</span></label>
+            <input class="form-input" id="ivName" type="text" placeholder="e.g. Warr, Coach Juan" required maxlength="40" autocomplete="name"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Team Name <span class="optional-tag">optional</span></label>
+            <input class="form-input" id="ivTeam" type="text" placeholder="e.g. RSG PH, ONIC, your squad name" maxlength="50" autocomplete="off"/>
+          </div>
+          <div class="auth-divider">
+            <div class="auth-divider-line"></div>
+            <div class="auth-divider-txt">Set a password</div>
+            <div class="auth-divider-line"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <div class="input-wrap">
+              <input class="form-input" id="ivPassword" type="password" placeholder="Min. 8 characters" required minlength="8" autocomplete="new-password" oninput="checkPwStrength(this.value)"/>
+              <button type="button" class="pw-toggle" onclick="togglePw('ivPassword',this)">Show</button>
+            </div>
+            <div class="pw-strength" id="pwBars">
+              <div class="pw-bar" id="pb1"></div>
+              <div class="pw-bar" id="pb2"></div>
+              <div class="pw-bar" id="pb3"></div>
+              <div class="pw-bar" id="pb4"></div>
+            </div>
+            <div class="pw-label" id="pwLbl"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm Password</label>
+            <div class="input-wrap">
+              <input class="form-input" id="ivConfirm" type="password" placeholder="Repeat password" required autocomplete="new-password"/>
+              <button type="button" class="pw-toggle" onclick="togglePw('ivConfirm',this)">Show</button>
+            </div>
+          </div>
+          <button class="submit-btn" id="inviteBtn" type="submit">
+            <span id="inviteBtnTxt">Complete Setup &amp; Sign In</span>
+          </button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="warr-lib.js"></script>
+<script>
+
+// ── DETECT MODE (invite token vs normal login) ─────────────────
+(async () => {
+  // Check if already signed in
+  const user = await WAuth.init();
+  if (user) {
+    const redir = new URLSearchParams(location.search).get('redirect') || 'draft_board.html';
+    window.location.href = redir;
+    return;
+  }
+
+  // Supabase puts invite token in the URL hash: #access_token=...&type=invite
+  // It also may use ?token_hash=...&type=invite (PKCE flow)
+  const hash  = new URLSearchParams(location.hash.replace('#',''));
+  const query = new URLSearchParams(location.search);
+  const type  = hash.get('type') || query.get('type') || '';
+
+  if (type === 'invite' || type === 'signup') {
+    // Invite flow — exchange token first so session is ready for password update
+    const accessToken  = hash.get('access_token');
+    const refreshToken = hash.get('refresh_token');
+    if (accessToken) {
+      await WAuth._sb().auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+    }
+    showPanel('invite');
+  }
+})();
+
+function showPanel(mode) {
+  document.getElementById('panelSignIn').style.display  = mode === 'signin'  ? '' : 'none';
+  document.getElementById('panelInvite').style.display  = mode === 'invite'  ? '' : 'none';
+}
+
+// ── SIGN IN ───────────────────────────────────────────────────
+async function handleSignIn(e) {
+  e.preventDefault();
+  const email    = document.getElementById('siEmail').value.trim();
+  const password = document.getElementById('siPassword').value;
+  const btn      = document.getElementById('signinBtn');
+  const txt      = document.getElementById('signinBtnTxt');
+  clearMsg();
+  setLoading(btn, txt, true, 'Signing in…');
+
+  const { error } = await WAuth.signIn(email, password);
+  if (error) {
+    showMsg(friendlyErr(error.message), 'err');
+    setLoading(btn, txt, false, 'Sign In');
+    return;
+  }
+  showMsg('Signed in — redirecting…', 'ok');
+  setTimeout(() => {
+    const redir = new URLSearchParams(location.search).get('redirect') || 'draft_board.html';
+    window.location.href = redir;
+  }, 600);
+}
+
+// ── ACCEPT INVITE + PROFILE SETUP ─────────────────────────────
+async function handleInviteSetup(e) {
+  e.preventDefault();
+  const displayName = document.getElementById('ivName').value.trim();
+  const teamName    = document.getElementById('ivTeam').value.trim();
+  const password    = document.getElementById('ivPassword').value;
+  const confirm     = document.getElementById('ivConfirm').value;
+  const btn         = document.getElementById('inviteBtn');
+  const txt         = document.getElementById('inviteBtnTxt');
+  clearMsg();
+
+  if (!displayName) { showMsg('Your name is required', 'err'); return; }
+  if (password !== confirm) { showMsg("Passwords don't match", 'err'); return; }
+  if (password.length < 8)  { showMsg('Password must be at least 8 characters', 'err'); return; }
+
+  setLoading(btn, txt, true, 'Setting up account…');
+
+  // Update password (user is already in session from invite token exchange)
+  const { error: pwErr } = await WAuth._sb().auth.updateUser({ password });
+  if (pwErr) {
+    showMsg(friendlyErr(pwErr.message), 'err');
+    setLoading(btn, txt, false, 'Complete Setup & Sign In');
+    return;
+  }
+
+  // Save profile (display name + optional team name)
+  const { error: profErr } = await WAuth.saveProfile(displayName, teamName || null);
+  if (profErr) console.warn('Profile save warning:', profErr.message);
+
+  showMsg('Account ready — taking you in…', 'ok');
+  setTimeout(() => { window.location.href = 'draft_board.html'; }, 800);
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+function showMsg(text, type) {
+  const el = document.getElementById('authMsg');
+  el.textContent = text;
+  el.className   = 'auth-msg show ' + type;
+}
+function clearMsg() {
+  document.getElementById('authMsg').className = 'auth-msg';
+}
+function setLoading(btn, txt, on, label) {
+  btn.disabled = on;
+  txt.innerHTML = on ? `<span class="spin"></span>${label}` : label;
+}
+function togglePw(id, btn) {
+  const inp  = document.getElementById(id);
+  const show = inp.type === 'password';
+  inp.type   = show ? 'text' : 'password';
+  btn.textContent = show ? 'Hide' : 'Show';
+}
+function friendlyErr(msg) {
+  if (!msg) return 'Something went wrong, please try again';
+  if (msg.toLowerCase().includes('invalid login') || msg.toLowerCase().includes('invalid credentials')) return 'Incorrect email or password';
+  if (msg.toLowerCase().includes('email not confirmed')) return 'Please check your email and confirm your address first';
+  if (msg.toLowerCase().includes('already registered')) return 'Email already registered — try signing in';
+  if (msg.toLowerCase().includes('email')) return 'Please enter a valid email address';
+  if (msg.toLowerCase().includes('password')) return 'Password is too weak or too short';
+  if (msg.toLowerCase().includes('rate limit')) return 'Too many attempts — please wait a moment and try again';
+  return msg;
+}
+function checkPwStrength(pw) {
+  let score = 0;
+  if (pw.length >= 8)  score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/[0-9!@#$%^&*]/.test(pw)) score++;
+  const colors = ['', '#D87880', '#C89050', '#5EA0D8', '#4CB87A'];
+  const labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById('pb'+i).style.background = i <= score ? colors[score] : 'rgba(255,255,255,0.08)';
+  }
+  const lbl = document.getElementById('pwLbl');
+  lbl.textContent = labels[score] || '';
+  lbl.style.color = colors[score] || 'var(--text4)';
+}
+</script>
+</body>
+</html>

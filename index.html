@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Warr.GG — MLBB Esports Intelligence</title>
+<link rel="stylesheet" href="warr-styles.css">
+<style>
+/* ── LOCAL PAGE TOKENS ──────────────────────────────────────── */
+:root {
+  --bg:#07070C; --bg2:#0B0B12; --surface:#101018; --surface2:#161620;
+  --surface3:#1E1E2A; --surface4:#272734;
+  --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.07); --border3:rgba(255,255,255,0.11);
+  --accent:#A888CC; --accent-dim:rgba(168,136,204,0.09); --accent-glow:rgba(168,136,204,0.22); --accent-border:rgba(168,136,204,0.22);
+  --neon:#4CB87A; --neon-dim:rgba(76,184,122,0.09); --neon-glow:rgba(76,184,122,0.20); --neon-border:rgba(76,184,122,0.22);
+  --blue:#5EA0D8; --blue-dim:rgba(94,160,216,0.09); --blue-border:rgba(94,160,216,0.22);
+  --red:#D87880; --red-dim:rgba(216,120,128,0.09); --red-border:rgba(216,120,128,0.22);
+  --gold:#C89050; --gold-dim:rgba(200,144,80,0.09); --gold-border:rgba(200,144,80,0.22);
+  --purple:#A888CC; --cyan:#64D2FF; --teal:#5AC8F5; --indigo:#5E5CE6;
+  --text:#F0F0F8; --text2:rgba(240,240,248,0.54); --text3:rgba(240,240,248,0.28); --text4:rgba(240,240,248,0.12);
+  --font-head:-apple-system,'SF Pro Display','Inter','Helvetica Neue',sans-serif;
+  --font-display:-apple-system,'SF Pro Display','Inter','Helvetica Neue',sans-serif;
+  --font-body:-apple-system,'SF Pro Text','Inter','Helvetica Neue',sans-serif;
+  --font-mono:'SF Mono','JetBrains Mono','Fira Code',ui-monospace,monospace;
+  --r:12px; --r2:18px; --r3:24px; --r4:32px; --pill:9999px; --nav-h:52px;
+  --glass:rgba(16,16,26,0.68); --glass-border:rgba(255,255,255,0.07);
+  --glass-shadow:0 8px 32px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.07),inset 0 -1px 0 rgba(0,0,0,0.10);
+  --blur:blur(40px) saturate(140%); --blur-sm:blur(20px) saturate(130%);
+}
+
+body { overflow-x: hidden; }
+
+/* ── AMBIENT BACKGROUND ORBS ───────────────────────────────── */
+.ambient {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  overflow: hidden;
+}
+.orb {
+  position: absolute; border-radius: 50%;
+  filter: blur(100px); opacity: 0.85;
+}
+.orb-1 {
+  width: 700px; height: 700px;
+  background: radial-gradient(circle, rgba(168,136,204,0.28) 0%, rgba(94,92,230,0.14) 40%, transparent 70%);
+  top: -200px; left: -150px;
+  animation: orb-drift1 20s ease-in-out infinite;
+}
+.orb-2 {
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(94,160,216,0.06) 0%, rgba(94,160,216,0.08) 45%, transparent 70%);
+  bottom: -100px; right: -100px;
+  animation: orb-drift2 25s ease-in-out infinite;
+}
+.orb-3 {
+  width: 450px; height: 450px;
+  background: radial-gradient(circle, rgba(76,184,122,0.08) 0%, transparent 65%);
+  top: 50%; right: 20%;
+  animation: orb-drift3 18s ease-in-out infinite;
+}
+@keyframes orb-drift1 { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(40px,-30px) scale(1.05)} 66%{transform:translate(-20px,40px) scale(0.97)} }
+@keyframes orb-drift2 { 0%,100%{transform:translate(0,0) scale(1)} 40%{transform:translate(-50px,30px) scale(1.08)} 70%{transform:translate(30px,-40px) scale(0.95)} }
+@keyframes orb-drift3 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-30px,-50px) scale(1.12)} }
+
+/* ── HERO ──────────────────────────────────────────────────── */
+.hero {
+  min-height: 100svh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center;
+  padding: calc(var(--nav-h) + 80px) 24px 80px;
+  position: relative; z-index: 1;
+}
+
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 500; letter-spacing: 0.01em;
+  color: var(--text3);
+  background: rgba(255,255,255,0.06);
+  border: 0.5px solid rgba(255,255,255,0.08);
+  border-radius: var(--pill);
+  padding: 6px 16px;
+  margin-bottom: 36px;
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.eyebrow-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--neon);
+  box-shadow: 0 0 6px rgba(76,184,122,0.50);
+  flex-shrink: 0;
+  animation: dot-pulse 2.5s ease-in-out infinite;
+}
+@keyframes dot-pulse {
+  0%,100%{opacity:1;box-shadow:0 0 6px rgba(76,184,122,0.50)}
+  50%{opacity:0.5;box-shadow:0 0 3px rgba(76,184,122,0.22)}
+}
+
+/* Large hero title — Apple-style clean */
+.hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(56px, 10vw, 112px);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.hero-title em {
+  font-style: normal;
+  background: linear-gradient(135deg, #FFFFFF 0%, #A888CC 45%, #5E5CE6 80%, #5EA0D8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-sub {
+  font-size: clamp(16px, 2vw, 20px);
+  font-weight: 400;
+  color: var(--text3);
+  max-width: 520px;
+  line-height: 1.55;
+  margin: 20px auto 44px;
+  letter-spacing: -0.01em;
+}
+
+/* CTA buttons */
+.hero-actions {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  justify-content: center; margin-bottom: 80px;
+}
+.cta-primary {
+  padding: 14px 28px;
+  font-size: 15px; font-weight: 600; letter-spacing: -0.02em;
+  background: var(--accent); color: #fff;
+  border: none; border-radius: var(--pill);
+  cursor: pointer; transition: all 0.22s ease;
+  text-decoration: none; display: inline-block;
+  box-shadow: 0 4px 20px rgba(168,136,204,0.22), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+.cta-primary:hover {
+  background: #B898D8;
+  box-shadow: 0 8px 32px rgba(168,136,204,0.30), inset 0 1px 0 rgba(255,255,255,0.14);
+  transform: translateY(-2px);
+}
+.cta-secondary {
+  padding: 13px 26px;
+  font-size: 15px; font-weight: 500; letter-spacing: -0.02em;
+  background: rgba(255,255,255,0.08); color: var(--text2);
+  border: 0.5px solid rgba(255,255,255,0.10); border-radius: var(--pill);
+  cursor: pointer; transition: all 0.22s ease;
+  text-decoration: none; display: inline-block;
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 4px 16px rgba(0,0,0,0.3);
+}
+.cta-secondary:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 6px 24px rgba(0,0,0,0.4);
+  transform: translateY(-1px);
+}
+
+/* ── STATS GLASS PILL ───────────────────────────────────────── */
+.hero-stats {
+  display: flex; gap: 0;
+  background: var(--glass);
+  backdrop-filter: var(--blur-sm);
+  -webkit-backdrop-filter: var(--blur-sm);
+  border: 0.5px solid var(--glass-border);
+  border-radius: var(--r3);
+  box-shadow: var(--glass-shadow);
+  overflow: hidden;
+  position: relative;
+}
+.hero-stats::before {
+  content: '';
+  position: absolute; top: 0; left: 10%; right: 10%;
+  height: 0.5px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent);
+  pointer-events: none;
+}
+.hud-stat {
+  padding: 20px 34px; text-align: center; flex: 1;
+  border-right: 0.5px solid rgba(255,255,255,0.07);
+  position: relative;
+}
+.hud-stat:last-child { border-right: none; }
+.hud-stat-val {
+  font-family: var(--font-display);
+  font-size: 22px; font-weight: 700;
+  color: var(--text); line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+.hud-stat-label {
+  font-size: 11px; font-weight: 400;
+  color: var(--text4); margin-top: 4px;
+  letter-spacing: 0.01em;
+}
+
+/* ── SECTION ────────────────────────────────────────────────── */
+.content-section {
+  padding: 0 32px 100px;
+  max-width: 1200px; margin: 0 auto; width: 100%;
+  position: relative; z-index: 1;
+}
+.section-eyebrow {
+  font-size: 12px; font-weight: 500; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--accent);
+  margin-bottom: 12px;
+}
+.section-heading {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 46px);
+  font-weight: 700; letter-spacing: -0.03em;
+  color: var(--text); line-height: 1.1;
+  margin-bottom: 10px;
+}
+.section-heading em { font-style: normal; color: var(--text2); }
+.section-sub {
+  font-size: 15px; color: var(--text3); margin-bottom: 48px;
+  max-width: 460px; line-height: 1.55; letter-spacing: -0.01em;
+}
+
+/* ── TOOLS GRID ─────────────────────────────────────────────── */
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.tool-card {
+  background: var(--glass);
+  backdrop-filter: var(--blur-sm);
+  -webkit-backdrop-filter: var(--blur-sm);
+  border: 0.5px solid var(--glass-border);
+  border-radius: var(--r3);
+  box-shadow: var(--glass-shadow);
+  padding: 28px 26px 24px;
+  display: flex; flex-direction: column; gap: 10px;
+  text-decoration: none; color: inherit;
+  transition: all 0.22s ease;
+  position: relative; overflow: hidden;
+}
+/* Top shine */
+.tool-card::before {
+  content: '';
+  position: absolute; top: 0; left: 8%; right: 8%;
+  height: 0.5px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+  pointer-events: none;
+}
+/* Color accent bar on hover */
+.tool-card::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--card-accent, rgba(168,136,204,0.5));
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 0.28s ease;
+  border-radius: 0 0 var(--r3) var(--r3);
+}
+.tool-card:hover {
+  background: rgba(40,40,44,0.80);
+  border-color: rgba(255,255,255,0.10);
+  transform: translateY(-3px);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.09);
+}
+.tool-card:hover::after { transform: scaleX(1); }
+.tool-card.featured {
+  grid-column: span 2;
+}
+
+.tool-icon {
+  width: 40px; height: 40px; border-radius: var(--r2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+  background: rgba(255,255,255,0.07);
+  border: 0.5px solid rgba(255,255,255,0.07);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.tool-badge {
+  display: inline-flex; align-items: center;
+  font-size: 11px; font-weight: 500; letter-spacing: -0.01em;
+  padding: 3px 10px; border-radius: var(--pill); border: 0.5px solid;
+  width: fit-content;
+}
+.tool-badge-accent { color: var(--accent); border-color: var(--accent-border); background: var(--accent-dim); }
+.tool-badge-blue   { color: var(--blue);   border-color: var(--blue-border);   background: var(--blue-dim); }
+.tool-badge-neon   { color: var(--neon);   border-color: var(--neon-border);   background: var(--neon-dim); }
+.tool-badge-gold   { color: var(--gold);   border-color: var(--gold-border);   background: var(--gold-dim); }
+.tool-badge-muted  { color: var(--text3);  border-color: var(--border2);       background: rgba(255,255,255,0.04); }
+
+.tool-name {
+  font-family: var(--font-display);
+  font-size: 17px; font-weight: 600;
+  color: var(--text); letter-spacing: -0.02em;
+}
+.tool-desc {
+  font-size: 13px; color: var(--text3); line-height: 1.6;
+  flex: 1; letter-spacing: -0.01em;
+}
+.tool-arrow {
+  font-size: 13px; font-weight: 500;
+  color: var(--text4); letter-spacing: -0.01em;
+  margin-top: auto; transition: color 0.18s;
+  display: flex; align-items: center; gap: 4px;
+}
+.tool-card:hover .tool-arrow { color: var(--text2); }
+
+/* ── WORKFLOW ───────────────────────────────────────────────── */
+.workflow-section {
+  border-top: 0.5px solid var(--border);
+  padding: 80px 32px;
+  max-width: 1200px; margin: 0 auto; width: 100%;
+  position: relative; z-index: 1;
+}
+.workflow-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 16px; margin-top: 48px;
+}
+.workflow-step {
+  background: var(--glass);
+  backdrop-filter: var(--blur-sm);
+  -webkit-backdrop-filter: var(--blur-sm);
+  border: 0.5px solid var(--glass-border);
+  border-radius: var(--r3);
+  box-shadow: var(--glass-shadow);
+  padding: 32px 28px;
+  display: flex; flex-direction: column; gap: 14px;
+  position: relative; overflow: hidden;
+}
+.workflow-step::before {
+  content: '';
+  position: absolute; top: 0; left: 8%; right: 8%;
+  height: 0.5px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.11), transparent);
+}
+.step-num {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  color: var(--accent); letter-spacing: 0.06em;
+  padding: 4px 10px; border-radius: var(--pill);
+  background: var(--accent-dim);
+  border: 0.5px solid var(--accent-border);
+  width: fit-content;
+}
+.step-title {
+  font-family: var(--font-display); font-size: 15px; font-weight: 600;
+  color: var(--text); letter-spacing: -0.02em;
+}
+.step-desc { font-size: 13px; color: var(--text3); line-height: 1.6; letter-spacing: -0.01em; }
+
+/* ── CTA BAND ───────────────────────────────────────────────── */
+.cta-band-wrap {
+  padding: 0 32px 100px;
+  max-width: 1200px; margin: 0 auto; position: relative; z-index: 1;
+}
+.cta-band {
+  background: var(--glass);
+  backdrop-filter: var(--blur-sm);
+  -webkit-backdrop-filter: var(--blur-sm);
+  border: 0.5px solid var(--glass-border);
+  border-radius: var(--r4);
+  box-shadow: var(--glass-shadow);
+  padding: 64px 48px;
+  text-align: center;
+  position: relative; overflow: hidden;
+}
+.cta-band::before {
+  content: '';
+  position: absolute; top: 0; left: 5%; right: 5%;
+  height: 0.5px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.16), transparent);
+}
+/* Inner orb glow in CTA band */
+.cta-band::after {
+  content: '';
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 60% at 30% 50%, rgba(168,136,204,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 75% 50%, rgba(94,160,216,0.08) 0%, transparent 60%);
+}
+.cta-band-tag {
+  font-size: 12px; font-weight: 500; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--neon);
+  margin-bottom: 18px; position: relative; z-index: 1;
+}
+.cta-band-title {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 48px);
+  font-weight: 700; letter-spacing: -0.03em;
+  color: var(--text); line-height: 1.08;
+  margin-bottom: 14px; position: relative; z-index: 1;
+}
+.cta-band-title em { font-style: normal; color: var(--accent); }
+.cta-band-sub {
+  font-size: 15px; color: var(--text3); margin-bottom: 36px;
+  letter-spacing: -0.01em; position: relative; z-index: 1;
+}
+
+/* ── FOOTER ─────────────────────────────────────────────────── */
+.site-footer {
+  border-top: 0.5px solid var(--border);
+  padding: 32px 32px;
+  display: flex; align-items: center; gap: 20px;
+  max-width: 1200px; margin: 0 auto; width: 100%;
+  position: relative; z-index: 1;
+}
+.footer-brand {
+  font-family: var(--font-display); font-size: 14px; font-weight: 700;
+  letter-spacing: -0.02em; color: var(--text);
+}
+.footer-copy {
+  font-size: 12px; color: var(--text4); letter-spacing: -0.01em; margin-top: 3px;
+}
+.footer-links { margin-left: auto; display: flex; gap: 24px; }
+.footer-links a {
+  font-size: 13px; font-weight: 500; letter-spacing: -0.01em;
+  color: var(--text4); transition: color 0.18s;
+}
+.footer-links a:hover { color: var(--text2); }
+
+/* ── RESPONSIVE ─────────────────────────────────────────────── */
+@media (max-width: 1000px) {
+  .tools-grid { grid-template-columns: 1fr 1fr; }
+  .tool-card.featured { grid-column: span 2; }
+}
+@media (max-width: 760px) {
+  .tools-grid, .workflow-grid { grid-template-columns: 1fr; }
+  .tool-card.featured { grid-column: span 1; }
+  .hero-actions { flex-direction: column; align-items: center; }
+  .hero-stats { flex-direction: column; }
+  .hud-stat { border-right: none; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+  .hud-stat:last-child { border-bottom: none; }
+  .content-section, .workflow-section, .cta-band-wrap { padding-left: 16px; padding-right: 16px; }
+  .site-footer { flex-direction: column; text-align: center; }
+  .footer-links { margin-left: 0; }
+  .cta-band { padding: 40px 24px; }
+}
+
+/* ── ANIMATIONS ─────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hero > * { animation: fadeUp 0.70s cubic-bezier(.22,1,.36,1) both; }
+.hero-eyebrow     { animation-delay: 0.00s; }
+.hero-title       { animation-delay: 0.08s; }
+.hero-sub         { animation-delay: 0.15s; }
+.hero-actions     { animation-delay: 0.22s; }
+.hero-stats       { animation-delay: 0.32s; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="warr-theme.js"></script>
+</head>
+<body>
+
+<!-- AMBIENT ORBS -->
+<div class="ambient">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<!-- NAV -->
+<nav class="topnav">
+  <a class="nav-brand" href="index.html">
+    <span class="nav-brand-name">Warr.GG</span>
+    <span class="nav-brand-sub">MLBB Intel</span>
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="draft_board.html">Draft</a>
+    <a class="nav-link" href="ai_battle.html">AI Battle</a>
+    <a class="nav-link" href="scout.html">Scout</a>
+    <a class="nav-link" href="stats.html">Analysis</a>
+    <a class="nav-link" href="patch_meta.html">Patch</a>
+  </div>
+  <div class="nav-right">
+    <div class="theme-switcher" title="Switch theme">
+      <button class="theme-btn" data-t="dark" title="Dark">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+      </button>
+      <button class="theme-btn" data-t="light" title="Light">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+      <button class="theme-btn" data-t="neon" title="Neon">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z"/></svg>
+      </button>
+    </div>
+    <div id="authChip"><a href="auth.html" class="cta-secondary" style="padding:7px 18px;font-size:13px;">Sign In</a></div>
+  </div>
+  <button class="mobile-menu-btn" onclick="document.querySelector('.mobile-nav').classList.toggle('open')" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<nav class="mobile-nav">
+  <a class="mobile-nav-link" href="draft_board.html">Draft</a>
+  <a class="mobile-nav-link" href="ai_battle.html">AI Battle</a>
+  <a class="mobile-nav-link" href="scout.html">Scout</a>
+  <a class="mobile-nav-link" href="stats.html">Analysis</a>
+  <a class="mobile-nav-link" href="patch_meta.html">Patch</a>
+  <a class="mobile-nav-link" href="auth.html">Sign In</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-eyebrow">
+    <div class="eyebrow-dot"></div>
+    MLBB Esports Intelligence Platform
+  </div>
+
+  <h1 class="hero-title">Draft smarter.<br><em>Win the game.</em></h1>
+
+  <p class="hero-sub">
+    AI-powered draft tools, meta tracking, and competitive analytics — built for serious Mobile Legends teams.
+  </p>
+
+  <div class="hero-actions">
+    <a href="draft_board.html" class="cta-primary">Open Draft Board</a>
+    <a href="ai_battle.html" class="cta-secondary">Challenge AI →</a>
+  </div>
+
+  <div class="hero-stats">
+    <div class="hud-stat">
+      <div class="hud-stat-val">MPL</div>
+      <div class="hud-stat-label">PH · ID · MY · SG</div>
+    </div>
+    <div class="hud-stat">
+      <div class="hud-stat-val">120+</div>
+      <div class="hud-stat-label">Heroes tracked</div>
+    </div>
+    <div class="hud-stat">
+      <div class="hud-stat-val" style="color:var(--accent);">AI</div>
+      <div class="hud-stat-label">Draft analysis</div>
+    </div>
+    <div class="hud-stat">
+      <div class="hud-stat-val" style="color:var(--neon);">Free</div>
+      <div class="hud-stat-label">No account needed</div>
+    </div>
+  </div>
+</section>
+
+<!-- TOOLS -->
+<div class="content-section">
+  <div class="section-eyebrow">Arsenal</div>
+  <div class="section-heading">Every tool your<br><em>team needs.</em></div>
+  <p class="section-sub">Six integrated tools — from live draft simulations to AI opponents and opponent scouting databases.</p>
+
+  <div class="tools-grid">
+
+    <!-- Draft Board — featured -->
+    <a class="tool-card featured" href="draft_board.html" style="--card-accent:rgba(94,160,216,0.6);">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div class="tool-icon" style="background:rgba(94,160,216,0.08);border-color:rgba(94,160,216,0.20);">⚔️</div>
+        <div class="tool-badge tool-badge-blue">Core Tool</div>
+      </div>
+      <div class="tool-name">Draft Board</div>
+      <div class="tool-desc">Simulate full MPL-format draft sequences with live ban and pick tracking. Run BO1 through BO7 series simulations, smart opponent side-picker, and export results for post-match review.</div>
+      <div class="tool-arrow">Open Draft Board <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+    </a>
+
+    <!-- AI Battle -->
+    <a class="tool-card" href="ai_battle.html" style="--card-accent:rgba(168,136,204,0.6);">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+        <div class="tool-icon" style="background:rgba(168,136,204,0.08);border-color:rgba(168,136,204,0.13);">🤖</div>
+        <div class="tool-badge tool-badge-accent">AI Powered</div>
+      </div>
+      <div class="tool-name">AI Battle</div>
+      <div class="tool-desc">1v1 live draft against Warr.GG AI — Normal, Hard, and Grandmaster modes. Adapts to your bans and counters in real time.</div>
+      <div class="tool-arrow">Challenge AI <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+    </a>
+
+    <!-- Scout -->
+    <a class="tool-card" href="scout.html" style="--card-accent:rgba(100,210,255,0.5);">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+        <div class="tool-icon" style="background:rgba(100,210,255,0.10);border-color:rgba(100,210,255,0.18);">🔍</div>
+        <div class="tool-badge" style="color:var(--cyan);border-color:rgba(100,210,255,0.30);background:rgba(100,210,255,0.10);">Scouting</div>
+      </div>
+      <div class="tool-name">Team Scout</div>
+      <div class="tool-desc">Deep opponent analysis — draft patterns, hero comfort pools, ban tendencies, and side-specific strategies by league and season.</div>
+      <div class="tool-arrow">Scout Opponents <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+    </a>
+
+    <!-- Stats -->
+    <a class="tool-card" href="stats.html" style="--card-accent:rgba(255,159,10,0.5);">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+        <div class="tool-icon" style="background:rgba(200,144,80,0.08);border-color:rgba(255,159,10,0.18);">📊</div>
+        <div class="tool-badge tool-badge-gold">Analytics</div>
+      </div>
+      <div class="tool-name">Analysis</div>
+      <div class="tool-desc">Win rates, pick/ban frequencies, team head-to-head records, and game-by-game breakdowns across all MPL regions and international events.</div>
+      <div class="tool-arrow">View Reports <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+    </a>
+
+    <!-- Patch Meta -->
+    <a class="tool-card" href="patch_meta.html" style="--card-accent:rgba(255,55,95,0.5);">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+        <div class="tool-icon" style="background:rgba(216,120,128,0.08);border-color:rgba(216,120,128,0.12);">📋</div>
+        <div class="tool-badge" style="color:var(--red);border-color:var(--red-border);background:var(--red-dim);">Meta</div>
+      </div>
+      <div class="tool-name">Patch Meta</div>
+      <div class="tool-desc">Live hero tier lists, role priority rankings, and meta shift tracking. Know what's S-tier before your opponents read the patch notes.</div>
+      <div class="tool-arrow">Check Tier List <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+    </a>
+
+    <!-- Scrim Vault -->
+    <a class="tool-card" href="auth.html" style="--card-accent:rgba(76,184,122,0.5);">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+        <div class="tool-icon" style="background:rgba(76,184,122,0.07);border-color:rgba(76,184,122,0.12);">🔒</div>
+        <div class="tool-badge tool-badge-neon">Private</div>
+      </div>
+      <div class="tool-name">Scrim Vault</div>
+      <div class="tool-desc">Log and analyze your team's internal scrim drafts. Fully isolated per team — only your registered account can access your private records.</div>
+      <div class="tool-arrow">Sign In to Access <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+    </a>
+  </div>
+</div>
+
+<!-- WORKFLOW -->
+<div class="workflow-section">
+  <div class="section-eyebrow">How it works</div>
+  <div class="section-heading">From raw data to<br><em>game-winning drafts.</em></div>
+  <p class="section-sub">Three steps. No setup required.</p>
+
+  <div class="workflow-grid">
+    <div class="workflow-step">
+      <div class="step-num">01</div>
+      <div class="step-title">Load Match Data</div>
+      <div class="step-desc">Sync directly from the cloud database. All public league data — MPL, MSC, M-Series — available instantly. No CSV import, no setup.</div>
+    </div>
+    <div class="workflow-step">
+      <div class="step-num">02</div>
+      <div class="step-title">Scout &amp; Analyze</div>
+      <div class="step-desc">Identify opponent patterns — favorite picks, frequent bans, comfort hero pools, side-specific tendencies, and series-level strategies.</div>
+    </div>
+    <div class="workflow-step">
+      <div class="step-num">03</div>
+      <div class="step-title">Simulate &amp; Win</div>
+      <div class="step-desc">Run full draft simulations before match day. Test ban sequences, practice against AI, and arrive in the draft chair with the plan locked.</div>
+    </div>
+  </div>
+</div>
+
+<!-- CTA BAND -->
+<div class="cta-band-wrap">
+  <div class="cta-band">
+    <div class="cta-band-tag">Free to use</div>
+    <div class="cta-band-title">Ready to dominate<br><em>the draft?</em></div>
+    <div class="cta-band-sub">No account needed for public tools. Scrim Vault requires free registration.</div>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;position:relative;z-index:1;">
+      <a href="draft_board.html" class="cta-primary">Launch Draft Board</a>
+      <a href="auth.html" class="cta-secondary">Create Free Account →</a>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer style="border-top:0.5px solid var(--border);position:relative;z-index:1;">
+  <div class="site-footer">
+    <div>
+      <div class="footer-brand">Warr.GG</div>
+      <div class="footer-copy">MLBB Esports Intelligence · Built for MPL SG · © 2025</div>
+    </div>
+    <div class="footer-links">
+      <a href="draft_board.html">Draft</a>
+      <a href="ai_battle.html">AI Battle</a>
+      <a href="scout.html">Scout</a>
+      <a href="stats.html">Analysis</a>
+      <a href="patch_meta.html">Patch</a>
+      <a href="auth.html">Sign In</a>
+    </div>
+  </div>
+</footer>
+
+<script src="warr-lib.js"></script>
+<script>
+// index.html: require login, then update nav chip to show the logged-in user
+(async () => {
+  const ok = await WAuth.requireAuth();
+  if (!ok) return;
+  await WAuth.renderAuthChip('authChip');
+})();
+</script>
+</body>
+</html>

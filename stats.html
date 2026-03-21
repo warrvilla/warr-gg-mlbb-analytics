@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analysis — Warr.GG</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="warr-lib.js"></script>
+<link rel="stylesheet" href="warr-styles.css">
+<style>
+:root {
+    --bg:#07070C; --bg2:#0B0B12; --surface:#101018; --surface2:#161620; --surface3:#1E1E2A; --surface4:#272734;
+    --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.07); --border3:rgba(255,255,255,0.11);
+    --accent:#A888CC; --accent-dim:rgba(168,136,204,0.09); --accent-glow:rgba(168,136,204,0.22); --accent-border:rgba(168,136,204,0.22);
+  --neon:#4CB87A; --neon-dim:rgba(76,184,122,0.09); --neon-glow:rgba(76,184,122,0.20); --neon-border:rgba(76,184,122,0.22);
+  --blue:#5EA0D8; --blue2:#3B82F6; --blue-dim:rgba(94,160,216,0.09); --blue-border:rgba(94,160,216,0.22); --blue-glow:rgba(94,160,216,0.18);
+  --red:#D87880; --red-dim:rgba(216,120,128,0.09); --red-border:rgba(216,120,128,0.22);
+  --gold:#C89050; --gold-dim:rgba(200,144,80,0.09); --gold-border:rgba(200,144,80,0.22);
+  --green:#34D399; --green-dim:rgba(52,209,122,.08); --green-border:rgba(52,209,122,.25);
+  --purple:#A78BFA; --purple-dim:rgba(139,92,246,.08); --purple-border:rgba(139,92,246,.28);
+  --ai:#A78BFA; --ai-dim:rgba(167,139,250,0.10); --ai-border:rgba(167,139,250,0.28);
+  --cyan:#22D3EE; --orange:#F97316;
+  --text:#F0F0F8; --text2:rgba(240,240,248,0.54); --text3:rgba(240,240,248,0.28); --text4:rgba(240,240,248,0.12);
+  --ban-red:#D87880; --accent-main:#4F8EF7;
+  --font-head:-apple-system,'SF Pro Display','Inter',sans-serif; --font-body:'Inter',sans-serif; --font-mono:'JetBrains Mono',monospace;
+  --r:12px; --r2:18px; --r3:24px; --radius:8px; --radius2:12px; --radius3:16px;
+  --shadow:0 2px 16px rgba(0,0,0,.7); --shadow2:0 8px 40px rgba(0,0,0,.9);
+  --nav-h:52px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:14px;}
+body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;-webkit-font-smoothing:antialiased;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border3);border-radius:8px;}
+
+/* ── PAGE ── */
+.page{max-width:1100px;margin:0 auto;padding:24px 16px;}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden;margin-bottom:14px;}
+.card-hdr{padding:13px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px;background:var(--surface2);}
+.card-hdr-title{font-size:11px;font-weight:700;font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;}
+.card-body{padding:16px;}
+
+/* ── SETUP ── */
+.setup-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end;}
+@media(max-width:640px){.setup-grid{grid-template-columns:1fr;}}
+
+/* ── FORM ELEMENTS ── */
+select,input[type=text],input[type=password]{background:var(--surface2);border:1px solid var(--border2);color:var(--text);padding:8px 12px;border-radius:var(--radius);font-size:13px;font-family:var(--font-body);outline:none;transition:border-color .15s;}
+select:focus /* border-accent */,input:focus{border-color:var(--accent-border);}
+select option{background:var(--surface2);}
+.form-label{font-size:9px;font-weight:700;font-family:var(--font-head);color:var(--text3);text-transform:uppercase;letter-spacing:1.2px;display:block;margin-bottom:5px;}
+
+/* ── BUTTONS ── */
+.btn{padding:8px 18px;font-size:11px;font-weight:700;font-family:var(--font-head);letter-spacing:.4px;border-radius:var(--radius);border:none;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-accent{background:var(--accent);color:#fff;border:1px solid var(--accent-border);}
+.btn-accent:not(:disabled):hover{background:rgba(139,92,246,0.90);box-shadow:0 0 16px var(--accent-glow);}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--text2);}
+.btn-ghost:hover{border-color:var(--border3);color:var(--text);}
+.btn-sm{padding:5px 12px;font-size:10px;}
+
+/* ── REPORT SECTIONS ── */
+.report-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);margin-bottom:14px;overflow:hidden;}
+.report-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px;background:var(--surface2);}
+.report-hdr-title{font-size:11px;font-weight:700;font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;}
+.report-body{padding:16px;}
+
+/* ── TEAM COMPARE GRID ── */
+.team-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+@media(max-width:600px){.team-grid-2{grid-template-columns:1fr;}}
+
+/* ── STAT BAR ── */
+.stat-bar-row{display:flex;align-items:center;gap:8px;padding:4px 0;}
+.stat-bar-label{font-size:11px;font-weight:500;width:110px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2);}
+.stat-bar-bg{flex:1;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;}
+.stat-bar-fill{height:100%;border-radius:2px;transition:width .4s ease;}
+.stat-bar-val{font-size:10px;font-weight:700;font-family:var(--font-mono);width:32px;text-align:right;flex-shrink:0;}
+
+/* ── INFO ROW ── */
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.info-row:last-child{border-bottom:none;}
+.info-key{color:var(--text3);}
+.info-val{font-weight:600;}
+
+/* ── H2H ── */
+.h2h-bar-wrap{display:flex;height:6px;border-radius:8px;overflow:hidden;margin:10px 0;}
+.h2h-bar-blue{background:var(--blue);transition:flex .5s ease;}
+.h2h-bar-red{background:var(--red);transition:flex .5s ease;}
+
+/* ── PRIORITY SECTION ── */
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:700px){.three-col,.two-col{grid-template-columns:1fr;}}
+@media(max-width:480px){
+  /* iOS: prevent auto-zoom on input focus */
+  input, select, textarea { font-size: 16px !important; }
+  .card-body { padding: 12px; }
+  .stat-bar-label { width: 90px; font-size: 10px; }
+}
+.priority-col-hdr{font-size:9px;font-weight:700;font-family:var(--font-head);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.hero-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.03);}
+.hero-row img{width:28px;height:28px;border-radius:10px;object-fit:cover;background:var(--surface3);flex-shrink:0;}
+.hero-row-name{font-size:11px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hero-row-meta{font-size:10px;font-family:var(--font-mono);flex-shrink:0;}
+
+/* ── HERO CHIPS ── */
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:600;background:var(--surface2);border:1px solid var(--border2);margin:2px;color:var(--text2);}
+.chip.ban{background:var(--red-dim);border-color:var(--red-border);color:var(--red);}
+.chip.pick{background:var(--blue-dim);border-color:var(--blue-border);color:var(--blue);}
+.chip.gold{background:var(--gold-dim);border-color:var(--gold-border);color:var(--gold);}
+.chip.green{background:var(--green-dim);border-color:var(--green-border);color:var(--green);}
+
+/* ── KEY TAG ── */
+.key-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius2);padding:13px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;transition:border-color .2s;}
+.key-status{font-size:9px;font-weight:700;font-family:var(--font-head);letter-spacing:.5px;padding:3px 8px;border-radius:10px;}
+.key-ok{background:var(--green-dim);color:var(--green);border:1px solid var(--green-border);}
+.key-missing{background:var(--red-dim);color:var(--red);border:1px solid var(--red-border);}
+
+/* ── AI SECTION ── */
+.ai-insight{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);padding:12px 14px;margin-top:8px;}
+.ai-insight p{font-size:12px;line-height:1.75;color:var(--text2);}
+
+/* ── CONFIDENCE ── */
+.conf-badge{font-size:9px;font-weight:700;font-family:var(--font-head);letter-spacing:.5px;padding:3px 9px;border-radius:10px;}
+.conf-high{background:var(--green-dim);color:var(--green);border:1px solid var(--green-border);}
+.conf-medium{background:var(--gold-dim);color:var(--gold);border:1px solid var(--gold-border);}
+.conf-low{background:var(--red-dim);color:var(--red);border:1px solid var(--red-border);}
+
+/* ── PATCH MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;overflow-y:auto;}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius3);width:100%;max-width:760px;box-shadow:var(--shadow2);animation:slideUp .2s ease;}
+@keyframes slideUp{from{transform:translateY(12px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+
+/* ── LOADING ── */
+.loading-bar{height:2px;background:var(--border);border-radius:2px;overflow:hidden;margin:8px 0;}
+.loading-bar-fill{height:100%;background:var(--accent);animation:loadpulse 1.5s ease infinite;}
+@keyframes loadpulse{0%,100%{clip-path:inset(0 90% 0 0);}50%{clip-path:inset(0 0 0 0);}}
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid var(--border3);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── EMPTY / TOAST ── */
+.empty-state{text-align:center;padding:60px 20px;color:var(--text3);}
+.empty-state .big{font-size:40px;margin-bottom:12px;opacity:.4;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:9px 18px;border-radius:8px;font-size:12px;font-weight:600;font-family:var(--font-head);transition:transform .25s cubic-bezier(.34,1.56,.64,1);z-index:9999;pointer-events:none;white-space:nowrap;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+
+/* ── SECTION TITLE ── */
+.section-label{font-size:9px;font-weight:700;font-family:var(--font-head);letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;}
+
+/* ── DIVIDER ── */
+.divider{height:1px;background:var(--border);margin:12px 0;}
+
+/* ── WIN PREDICTION BAR ── */
+.pred-bar-wrap{display:flex;gap:0;height:8px;border-radius:10px;overflow:hidden;}
+.pred-bar-blue{background:var(--blue);transition:flex .5s;}
+.pred-bar-red{background:var(--red);transition:flex .5s;}
+
+/* ── FORM DOTS ── */
+.form-dots{display:flex;gap:3px;}
+.form-dot{width:7px;height:7px;border-radius:50%;}
+.form-dot.w{background:var(--green);}
+.form-dot.l{background:var(--red);}
+
+
+
+/* ═══════════ APPLE LIQUID GLASS OVERRIDE ═══════════ */
+
+/* Map old radius vars to Apple values */
+:root {
+  --radius:  16px;
+  --radius2: 22px;
+  --radius3: 28px;
+}
+
+/* Ambient background orbs */
+body::after {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(ellipse 55% 45% at 15% 15%, rgba(168,136,204,0.09) 0%, transparent 60%),
+    radial-gradient(ellipse 45% 50% at 85% 80%, rgba(94,160,216,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 35% at 60% 40%, rgba(120,120,200,0.04) 0%, transparent 55%);
+}
+
+/* ── PAGE SHELL ── */
+.page { position:relative; z-index:1; }
+
+/* ── CARD (main glass panel) ── */
+.card {
+  background: rgba(16,16,26,0.68) !important;
+  backdrop-filter: blur(20px) saturate(130%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(130%) !important;
+  border: 0.5px solid rgba(255,255,255,0.07) !important;
+  border-radius: 22px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07) !important;
+  overflow: hidden !important;
+  position: relative !important;
+}
+.card::before {
+  content: '';
+  position: absolute; top: 0; left: 8%; right: 8%;
+  height: 0.5px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── CARD HEADER ── */
+.card-hdr {
+  background: rgba(255,255,255,0.04) !important;
+  border-bottom: 0.5px solid rgba(255,255,255,0.08) !important;
+  padding: 14px 18px !important;
+}
+.card-hdr-title {
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-size: 11px !important; font-weight: 600 !important;
+  letter-spacing: 0.04em !important; text-transform: uppercase !important;
+  color: var(--text4) !important;
+}
+.card-body { padding: 18px !important; }
+
+/* ── REPORT SECTION ── */
+.report-section {
+  background: rgba(16,16,26,0.68) !important;
+  backdrop-filter: blur(20px) saturate(130%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(130%) !important;
+  border: 0.5px solid rgba(255,255,255,0.07) !important;
+  border-radius: 22px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07) !important;
+  overflow: hidden !important;
+  position: relative !important;
+  margin-bottom: 16px !important;
+}
+.report-section::before {
+  content: '';
+  position: absolute; top: 0; left: 8%; right: 8%;
+  height: 0.5px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+  pointer-events: none;
+}
+.report-hdr {
+  background: rgba(255,255,255,0.04) !important;
+  border-bottom: 0.5px solid rgba(255,255,255,0.08) !important;
+  padding: 14px 18px !important;
+}
+.report-hdr-title {
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-size: 11px !important; font-weight: 600 !important;
+  letter-spacing: 0.04em !important; text-transform: uppercase !important;
+  color: var(--text4) !important;
+}
+.report-body { padding: 18px !important; }
+
+/* ── KEY CARD ── */
+.key-card {
+  background: rgba(255,255,255,0.05) !important;
+  border: 0.5px solid rgba(255,255,255,0.07) !important;
+  border-radius: 16px !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07) !important;
+  transition: all 0.18s ease !important;
+}
+.key-card:hover { background: rgba(255,255,255,0.08) !important; border-color: rgba(255,255,255,0.10) !important; }
+
+/* ── FORM ELEMENTS ── */
+select, input[type=text], input[type=password] {
+  background: rgba(118,118,128,0.14) !important;
+  border: 0.5px solid rgba(255,255,255,0.07) !important;
+  border-radius: 14px !important;
+  color: var(--text) !important;
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-size: 14px !important;
+  padding: 9px 14px !important;
+}
+select:focus, input:focus {
+  border-color: rgba(168,136,204,0.22) !important;
+  box-shadow: 0 0 0 3px rgba(168,136,204,0.08) !important;
+  outline: none !important;
+}
+.form-label {
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-size: 11px !important; font-weight: 600 !important;
+  letter-spacing: 0.04em !important; text-transform: uppercase !important;
+  color: var(--text4) !important;
+}
+
+/* ── BUTTONS ── */
+.btn {
+  border-radius: 9999px !important;
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-weight: 500 !important; letter-spacing: -0.01em !important;
+  text-transform: none !important;
+  transition: all 0.18s ease !important;
+}
+.btn-accent {
+  background: var(--accent) !important;
+  border: none !important; color: #fff !important;
+  box-shadow: 0 4px 16px rgba(168,136,204,0.24), inset 0 1px 0 rgba(255,255,255,0.11) !important;
+}
+.btn-accent:not(:disabled):hover {
+  background: #B898D8 !important;
+  box-shadow: 0 4px 24px rgba(168,136,204,0.28) !important;
+  transform: translateY(-1px) !important;
+}
+.btn-ghost {
+  background: rgba(255,255,255,0.07) !important;
+  border: 0.5px solid rgba(255,255,255,0.08) !important;
+  color: var(--text2) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06) !important;
+}
+.btn-ghost:hover { background: rgba(255,255,255,0.08) !important; color: var(--text) !important; }
+
+/* ── CHIP BADGES ── */
+.chip {
+  border-radius: 9999px !important;
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-size: 11px !important; font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  border: 0.5px solid !important;
+}
+.chip.ban   { background: rgba(216,120,128,0.09) !important; border-color: rgba(216,120,128,0.20) !important; color: var(--red) !important; }
+.chip.pick  { background: rgba(94,160,216,0.08) !important; border-color: rgba(94,160,216,0.20) !important; color: var(--blue) !important; }
+.chip.gold  { background: rgba(200,144,80,0.09) !important; border-color: rgba(200,144,80,0.20) !important; color: var(--gold) !important; }
+.chip.green { background: rgba(76,184,122,0.08) !important; border-color: rgba(76,184,122,0.20) !important; color: var(--neon) !important; }
+
+/* ── CONFIDENCE BADGES ── */
+.conf-badge {
+  border-radius: 9999px !important;
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-weight: 500 !important; letter-spacing: -0.01em !important;
+  border: 0.5px solid !important;
+}
+.conf-high   { background: rgba(76,184,122,0.08) !important; border-color: rgba(76,184,122,0.28) !important; color: var(--neon) !important; }
+.conf-medium { background: rgba(200,144,80,0.09) !important; border-color: rgba(200,144,80,0.18) !important; color: var(--gold) !important; }
+.conf-low    { background: rgba(216,120,128,0.09) !important; border-color: rgba(216,120,128,0.18) !important; color: var(--red) !important; }
+
+/* ── KEY STATUS ── */
+.key-status { border-radius: 9999px !important; border: 0.5px solid !important; font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important; font-weight: 500 !important; letter-spacing: -0.01em !important; }
+.key-ok      { background: rgba(76,184,122,0.08) !important; border-color: rgba(76,184,122,0.28) !important; color: var(--neon) !important; }
+.key-missing { background: rgba(216,120,128,0.09) !important; border-color: rgba(216,120,128,0.18) !important; color: var(--red) !important; }
+
+/* ── STAT BAR ── */
+.stat-bar-bg { background: rgba(255,255,255,0.06) !important; border-radius: 9999px !important; }
+.stat-bar-fill { border-radius: 9999px !important; }
+
+/* ── INFO ROW ── */
+.info-row { border-bottom: 0.5px solid rgba(255,255,255,0.06) !important; }
+.info-key  { color: var(--text3) !important; }
+
+/* ── H2H BAR ── */
+.h2h-bar-wrap { border-radius: 9999px !important; height: 5px !important; }
+.pred-bar-wrap { border-radius: 9999px !important; height: 5px !important; }
+
+/* ── HERO ROW IMAGE ── */
+.hero-row img { border-radius: 12px !important; }
+
+/* ── SECTION LABELS ── */
+.section-label, .priority-col-hdr {
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-size: 10px !important; font-weight: 600 !important;
+  letter-spacing: 0.06em !important; text-transform: uppercase !important;
+  color: var(--text4) !important;
+}
+.priority-col-hdr {
+  border-bottom: 0.5px solid rgba(255,255,255,0.08) !important;
+}
+
+/* ── AI INSIGHT ── */
+.ai-insight {
+  background: rgba(168,136,204,0.07) !important;
+  border: 0.5px solid rgba(168,136,204,0.13) !important;
+  border-radius: 14px !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05) !important;
+}
+.ai-insight p { color: var(--text2) !important; font-size: 13px !important; letter-spacing: -0.01em !important; line-height: 1.65 !important; }
+
+/* ── MODAL ── */
+.modal-overlay { background: rgba(7,7,12,0.80) !important; backdrop-filter: blur(20px) !important; }
+.modal {
+  background: rgba(16,16,26,0.76) !important;
+  backdrop-filter: blur(40px) saturate(135%) !important;
+  border: 0.5px solid rgba(255,255,255,0.09) !important;
+  border-radius: 28px !important;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.07) !important;
+}
+
+/* ── LOADING BAR ── */
+.loading-bar { background: rgba(255,255,255,0.06) !important; border-radius: 9999px !important; }
+.loading-bar-fill { background: var(--accent) !important; }
+
+/* ── TOAST ── */
+.toast {
+  background: rgba(16,16,26,0.76) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 0.5px solid rgba(255,255,255,0.09) !important;
+  border-radius: 9999px !important;
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-size: 13px !important; font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08) !important;
+}
+
+/* ── DIVIDER ── */
+.divider { background: rgba(255,255,255,0.06) !important; }
+
+/* ── SPINNER ── */
+.spinner { border-color: rgba(255,255,255,0.07) !important; border-top-color: var(--accent) !important; }
+
+/* ═══════════════════════════════════════════════════════ */
+</style>
+<script src="warr-theme.js"></script>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <a class="nav-brand" href="index.html">
+    <span class="nav-brand-name">Warr.GG</span>
+    <span class="nav-brand-sub">MLBB Intel</span>
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="draft_board.html">Draft</a>
+    <a class="nav-link" href="ai_battle.html">AI Battle</a>
+    <a class="nav-link" href="scout.html">Scout</a>
+    <a class="nav-link active" href="stats.html">Analysis</a>
+    <a class="nav-link" href="patch_meta.html">Patch</a>
+  </div>
+  <div class="nav-right">
+  <div class="theme-switcher" title="Switch theme">
+    <button class="theme-btn" data-t="dark" title="Dark">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+    </button>
+    <button class="theme-btn" data-t="light" title="Light">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+    </button>
+    <button class="theme-btn" data-t="neon" title="Neon">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z"/></svg>
+    </button>
+  </div>
+    <div id="authChip"></div>
+  </div>
+  <button class="mobile-menu-btn" onclick="document.getElementById('mobileNav').classList.toggle('open')" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+<div class="mobile-nav" id="mobileNav">
+  <a class="mobile-nav-link" href="draft_board.html">Draft</a>
+  <a class="mobile-nav-link" href="ai_battle.html">AI Battle</a>
+  <a class="mobile-nav-link" href="scout.html">Scout</a>
+  <a class="mobile-nav-link active" href="stats.html">Analysis</a>
+  <a class="mobile-nav-link" href="patch_meta.html">Patch</a>
+</div>
+
+<div class="page-body">
+
+<!-- PATCH MODAL -->
+<div id="patchModal" style="display:none;" class="modal-overlay">
+  <div class="modal">
+    <div style="background:linear-gradient(135deg,#14100a,#221808);padding:16px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--gold-border);">
+      <span style="font-size:18px;"></span>
+      <div>
+        <div style="font-size:13px;font-weight:700;font-family:var(--font-head);color:var(--gold);">Refresh Tier List from Latest Patch</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">Claude searches for the latest MLBB patch and updates hero tiers in the Draft Simulator</div>
+      </div>
+      <button onclick="closePatchModal()" style="margin-left:auto;background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;line-height:1;">✕</button>
+    </div>
+
+    <div id="patchStatus" style="display:none;padding:14px 20px;">
+      <div style="font-size:11px;color:var(--text3);font-style:italic;margin-bottom:6px;" id="patchStatusText">Analyzing patch...</div>
+      <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+    </div>
+
+    <div id="patchResults" style="display:none;">
+      <div id="patchInfo" style="padding:12px 20px;font-size:11px;color:var(--text2);border-bottom:1px solid rgba(255,255,255,.05);"></div>
+      <div style="padding:14px 20px 0;">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:12px;">
+          <span style="color:var(--gold);font-weight:600;">Gold = AI suggestion</span> · White = your override · Click hero to cycle tier
+        </div>
+        <div id="patchTierGrid"></div>
+      </div>
+      <div style="padding:14px 20px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--border);margin-top:14px;">
+        <button onclick="applyPatchTiers()" class="btn btn-accent">✓ Apply to Draft Simulator</button>
+        <button onclick="closePatchModal()" class="btn btn-ghost">Cancel</button>
+        <span style="font-size:10px;color:var(--text3);margin-left:auto;" id="patchOverrideCount"></span>
+      </div>
+    </div>
+
+    <div id="patchError" style="display:none;padding:28px;text-align:center;">
+      
+      <div style="font-size:12px;color:var(--text2);" id="patchErrorText"></div>
+      <button onclick="runPatchAnalysis()" class="btn btn-ghost" style="margin-top:12px;">Retry</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="page">
+
+  <!-- API KEY -->
+  <div class="key-card" id="apiKeyCard">
+    
+    <div style="flex:1;">
+      <div style="font-size:12px;font-weight:700;color:var(--text);">Anthropic API Key</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px;">Required for AI-powered scouting reports and patch tier updates</div>
+    </div>
+    <span class="key-status key-missing" id="keyStatus">Not Set</span>
+    <input type="password" id="apiKeyInput" placeholder="sk-ant-..." style="width:210px;font-size:11px;">
+    <button class="btn btn-accent btn-sm" onclick="saveApiKey()">Save</button>
+  </div>
+
+  <!-- SETUP -->
+  <div class="card">
+    <div class="card-hdr">
+      <span></span>
+      <span class="card-hdr-title">Pre-Match Setup</span>
+      <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:4px;">Select teams for scouting report</span>
+      <div id="leagueFilterPills" style="margin-left:auto;display:flex;gap:5px;flex-wrap:wrap;"></div>
+    </div>
+    <div class="card-body">
+      <div class="setup-grid">
+        <div>
+          <div class="form-label" style="color:var(--blue);">Blue Side (Us)</div>
+          <select id="blueTeamSel" style="width:100%;" onchange="onTeamChange()">
+            <option value="">— Select our team —</option>
+          </select>
+        </div>
+        <div>
+          <div class="form-label" style="color:var(--red);">Red Side (Enemy)</div>
+          <select id="redTeamSel" style="width:100%;" onchange="onTeamChange()">
+            <option value="">— Select enemy team —</option>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <button class="btn btn-accent" onclick="generateReport()" id="generateBtn" disabled>Generate</button>
+        </div>
+      </div>
+      <div id="noScoutMsg" style="display:none;margin-top:10px;padding:9px 13px;background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:6px;font-size:12px;color:var(--gold);">
+        No scout data. <a href="scout.html" style="color:var(--gold);font-weight:700;">Log matches in Scout →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- REPORT OUTPUT -->
+  <div id="reportOutput">
+    <div class="empty-state">
+      <div class="big"></div>
+      <div style="font-size:14px;font-weight:700;font-family:var(--font-head);color:var(--text2);margin-bottom:8px;">Pre-Match Scouting Report</div>
+      <div style="font-size:12px;line-height:1.8;color:var(--text3);">
+        Select both teams and click <span style="color:var(--gold);font-weight:600;">Generate</span><br>
+        to get a full breakdown of tendencies, picks, bans, and AI strategy.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SCOUT_KEY = 'warr_scout_data';
+const DRAFT_KEY = 'mlbb_draft_data';
+const MEM_KEY   = 'mlbb_ai_draft_memory';
+let DB = {matches:[], teams:{}};
+let patchSuggestions = {};
+let _reportLeagueFilter = 'all';
+
+// Hero name → portrait id mapping for names that don't survive simple normalization
+const HERO_NAME_TO_ID = {
+  'Yi Sun-shin':'yss','Yi Sun-Shin':'yss','Yi Sun Shin':'yss','yi sun-shin':'yss',
+  'Lapu-Lapu':'lapulapu','Lapu Lapu':'lapulapu',
+  'Popol & Kupa':'popol','Popol and Kupa':'popol',
+  'Luo Yi':'luoyi','Luo-Yi':'luoyi',
+  'X.Borg':'xborg','X-Borg':'xborg',
+};
+function nameToId(name) {
+  if (!name) return '';
+  if (HERO_NAME_TO_ID[name]) return HERO_NAME_TO_ID[name];
+  // Strip spaces, hyphens, apostrophes, dots, & — then any remaining non-alphanumeric
+  return name.toLowerCase().replace(/[\s\-'&\.]/g,'').replace(/[^a-z0-9]/g,'');
+}
+
+// ══════ API HELPERS ══════
+async function callClaude(body) {
+  const key = localStorage.getItem('warr_api_key')||'';
+  if (!key) throw new Error('NO_API_KEY');
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) { const e = await resp.json().catch(()=>({})); throw new Error(e.error?.message||'HTTP '+resp.status); }
+  return resp.json();
+}
+
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.className='toast', 2800);
+}
+
+// ══════ API KEY ══════
+function saveApiKey() {
+  const v = document.getElementById('apiKeyInput').value.trim();
+  if (!v.startsWith('sk-ant-')) { toast('Key must start with sk-ant-'); return; }
+  localStorage.setItem('warr_api_key', v);
+  document.getElementById('apiKeyInput').value = '';
+  updateKeyStatus();
+  toast('✓ API key saved');
+}
+function updateKeyStatus() {
+  const key = localStorage.getItem('warr_api_key')||'';
+  const el = document.getElementById('keyStatus');
+  const card = document.getElementById('apiKeyCard');
+  if (key) {
+    el.textContent = '✓ Saved';
+    el.className = 'key-status key-ok';
+    card.style.borderColor = 'rgba(52,209,122,.25)';
+  } else {
+    el.textContent = 'Not Set';
+    el.className = 'key-status key-missing';
+    card.style.borderColor = 'var(--border)';
+  }
+}
+
+// ══════ LOAD DATA ══════
+function loadDB() {
+  try {
+    const r = localStorage.getItem(SCOUT_KEY);
+    return r ? JSON.parse(r) : {matches:[], teams:{}};
+  } catch(e) { return {matches:[], teams:{}}; }
+}
+
+async function loadDBFromSupabase() {
+  // Always load localStorage as base (Supabase may be unconfigured)
+  const localDB = loadDB();
+  try {
+    const matches = await WDB.getAllMatches();
+    if (matches && matches.length > 0) {
+      // Merge: Supabase data + any local-only matches not in Supabase
+      const sbIds = new Set(matches.map(m => m.id).filter(Boolean));
+      const localOnly = (localDB.matches || []).filter(m => m.id && !sbIds.has(m.id));
+      DB = { matches: [...matches, ...localOnly], teams: {} };
+    } else {
+      // Supabase returned empty — use localStorage data
+      DB = localDB;
+    }
+  } catch(e) {
+    console.warn('Supabase load failed, using localStorage:', e.message);
+    DB = localDB;
+  }
+  rebuildTeamsLocal();
+}
+
+function rebuildTeamsLocal() {
+  DB.teams = {};
+  (DB.matches||[]).forEach(m => {
+    [m.blueTeam, m.redTeam].forEach(n => {
+      if (n && !DB.teams[n]) DB.teams[n] = { name: n };
+    });
+  });
+}
+
+async function init() {
+  updateKeyStatus();
+  (async () => {
+  const ok = await WAuth.requireAuth();
+  if (!ok) return; // redirecting to auth.html
+})();
+WAuth.renderAuthChip('authChip');
+  await loadDBFromSupabase();
+  const teams = Object.keys(DB.teams||{}).sort();
+  const blueSel = document.getElementById('blueTeamSel');
+  const redSel  = document.getElementById('redTeamSel');
+
+  if (!teams.length) {
+    document.getElementById('noScoutMsg').style.display = 'block';
+    return;
+  }
+
+  teams.forEach(name => {
+    const o1 = document.createElement('option'); o1.value = name; o1.textContent = name; blueSel.appendChild(o1);
+    const o2 = document.createElement('option'); o2.value = name; o2.textContent = name; redSel.appendChild(o2);
+  });
+
+  // Build league filter pills
+  const leagues = [...new Set((DB.matches||[]).map(m=>m.league).filter(Boolean))].sort();
+  const pillsEl = document.getElementById('leagueFilterPills');
+  if (leagues.length > 1) {
+    const allBtn = document.createElement('button');
+    allBtn.className = 'btn btn-ghost btn-sm active-league';
+    allBtn.textContent = 'All';
+    allBtn.onclick = () => { _reportLeagueFilter='all'; updateLeaguePills(); };
+    allBtn.style.padding='3px 8px';allBtn.style.fontSize='10px';
+    pillsEl.appendChild(allBtn);
+
+    leagues.forEach(l => {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-ghost btn-sm';
+      btn.textContent = l;
+      btn.style.padding='3px 8px';btn.style.fontSize='10px';
+      btn.onclick = () => { _reportLeagueFilter=l; updateLeaguePills(); };
+      btn.dataset.league = l;
+      pillsEl.appendChild(btn);
+    });
+  }
+}
+
+function updateLeaguePills() {
+  document.querySelectorAll('#leagueFilterPills button').forEach(btn => {
+    const l = btn.dataset.league||'all';
+    btn.style.borderColor = l===_reportLeagueFilter ? 'var(--accent-border)' : '';
+    btn.style.color = l===_reportLeagueFilter ? 'var(--accent)' : '';
+    btn.style.background = l===_reportLeagueFilter ? 'var(--accent-dim)' : '';
+  });
+}
+
+function onTeamChange() {
+  const b = document.getElementById('blueTeamSel').value;
+  const r = document.getElementById('redTeamSel').value;
+  document.getElementById('generateBtn').disabled = !(b && r && b !== r);
+}
+
+// ══════ STATS HELPERS ══════
+function getFilteredMatches() {
+  if (_reportLeagueFilter === 'all') return DB.matches||[];
+  return (DB.matches||[]).filter(m => m.league === _reportLeagueFilter);
+}
+
+function getTeamMatches(name) {
+  return getFilteredMatches().filter(m => m.blueTeam===name || m.redTeam===name);
+}
+
+function getTeamStats(name, vsOpponent=null) {
+  const allMatches = getTeamMatches(name);
+  if (!allMatches.length) return null;
+  const t = DB.teams?.[name] || {};
+
+  const wins = allMatches.filter(m => (m.blueTeam===name&&m.winner==='blue')||(m.redTeam===name&&m.winner==='red')).length;
+  const blueG = allMatches.filter(m=>m.blueTeam===name);
+  const redG  = allMatches.filter(m=>m.redTeam===name);
+  const blueWins = blueG.filter(m=>m.winner==='blue').length;
+  const redWins  = redG.filter(m=>m.winner==='red').length;
+
+  // Recent form (last 5)
+  const sorted = [...allMatches].sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const form = sorted.slice(-5).map(m => {
+    return (m.blueTeam===name&&m.winner==='blue')||(m.redTeam===name&&m.winner==='red') ? 'W' : 'L';
+  });
+
+  // Streak
+  let streak=0, streakType=null;
+  for (let i=sorted.length-1;i>=0;i--) {
+    const m=sorted[i], won=(m.blueTeam===name&&m.winner==='blue')||(m.redTeam===name&&m.winner==='red');
+    const r = won?'W':'L';
+    if (streakType===null){streakType=r;streak=1;}
+    else if (r===streakType) streak++;
+    else break;
+  }
+
+  // Pick/ban stats
+  const pickC={}, banC={}, pickW={}, banRecC={};
+  allMatches.forEach(m => {
+    const ours = m.blueTeam===name;
+    const won  = (ours&&m.winner==='blue')||(!ours&&m.winner==='red');
+    const picks = ours?(m.bluePicks||[]):(m.redPicks||[]);
+    const bans  = ours?(m.blueBans||[]) :(m.redBans||[]);
+    const oppBans = ours?(m.redBans||[]):(m.blueBans||[]);
+    picks.forEach(p=>{ const n=p.name||p; pickC[n]=(pickC[n]||0)+1; if(won) pickW[n]=(pickW[n]||0)+1; });
+    bans.forEach(b=>{ const n=b.name||b; banC[n]=(banC[n]||0)+1; });
+    oppBans.forEach(b=>{ const n=b.name||b; banRecC[n]=(banRecC[n]||0)+1; });
+  });
+
+  // First picks
+  const fpC={};
+  allMatches.forEach(m => {
+    const ours=m.blueTeam===name, picks=ours?(m.bluePicks||[]):(m.redPicks||[]);
+    if (picks[0]){const n=picks[0].name||picks[0];fpC[n]=(fpC[n]||0)+1;}
+  });
+
+  const topPicks = Object.entries(pickC).sort((a,b)=>b[1]-a[1]).slice(0,10)
+    .map(([n,c])=>({name:n,count:c,wr:pickW[n]?Math.round(pickW[n]/c*100):0}));
+  const topBans = Object.entries(banC).sort((a,b)=>b[1]-a[1]).slice(0,8)
+    .map(([n,c])=>({name:n,count:c}));
+  const bansReceived = Object.entries(banRecC).sort((a,b)=>b[1]-a[1]).slice(0,8)
+    .map(([n,c])=>({name:n,count:c}));
+  const topFirstPick = Object.entries(fpC).sort((a,b)=>b[1]-a[1]).slice(0,5)
+    .map(([n,c])=>({name:n,count:c}));
+
+  // VS-opponent specific
+  let vsData = null;
+  if (vsOpponent) {
+    const vsMatches = allMatches.filter(m=>m.blueTeam===vsOpponent||m.redTeam===vsOpponent);
+    if (vsMatches.length > 0) {
+      const vpc={}, vbc={}, vpw={}, vbrc={};
+      vsMatches.forEach(m => {
+        const ours=m.blueTeam===name;
+        const won=(ours&&m.winner==='blue')||(!ours&&m.winner==='red');
+        const picks=ours?(m.bluePicks||[]):(m.redPicks||[]);
+        const bans=ours?(m.blueBans||[]):(m.redBans||[]);
+        const oppBans=ours?(m.redBans||[]):(m.blueBans||[]);
+        picks.forEach(p=>{const n=p.name||p;vpc[n]=(vpc[n]||0)+1;if(won)vpw[n]=(vpw[n]||0)+1;});
+        bans.forEach(b=>{const n=b.name||b;vbc[n]=(vbc[n]||0)+1;});
+        oppBans.forEach(b=>{const n=b.name||b;vbrc[n]=(vbrc[n]||0)+1;});
+      });
+      vsData = {
+        games: vsMatches.length,
+        wins: vsMatches.filter(m=>(m.blueTeam===name&&m.winner==='blue')||(m.redTeam===name&&m.winner==='red')).length,
+        topPicks: Object.entries(vpc).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([n,c])=>({name:n,count:c,wr:vpw[n]?Math.round(vpw[n]/c*100):0})),
+        topBans:  Object.entries(vbc).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([n,c])=>({name:n,count:c})),
+        bansReceived: Object.entries(vbrc).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([n,c])=>({name:n,count:c})),
+      };
+    }
+  }
+
+  return {
+    name, total:allMatches.length, wins, losses:allMatches.length-wins,
+    wr: Math.round(wins/allMatches.length*100),
+    blueSide: blueG.length, blueWR: blueG.length?Math.round(blueWins/blueG.length*100):null,
+    redSide:  redG.length,  redWR:  redG.length ?Math.round(redWins/redG.length*100):null,
+    topPicks, topBans, topFirstPick, bansReceived, vsData, form,
+    streak: {type:streakType,count:streak},
+    winCondition: t.winCondition||'',
+    coachNotes:   t.coachNotes||'',
+    leagues: t.leagues||[],
+    poolDepth: t.poolDepth||0,
+  };
+}
+
+function getHeadToHead(blue, red) {
+  const matches = getFilteredMatches().filter(m =>
+    (m.blueTeam===blue&&m.redTeam===red)||(m.blueTeam===red&&m.redTeam===blue)
+  );
+  const blueWins = matches.filter(m=>(m.blueTeam===blue&&m.winner==='blue')||(m.redTeam===blue&&m.winner==='red')).length;
+  return {total:matches.length, blueWins, redWins:matches.length-blueWins, matches};
+}
+
+// ══════ RENDER HELPERS ══════
+function wrColor(wr) {
+  if (wr===null||wr===undefined) return 'var(--text3)';
+  if (wr>=60) return 'var(--green)';
+  if (wr>=50) return 'var(--text)';
+  if (wr>=40) return 'var(--gold)';
+  return 'var(--red)';
+}
+
+function heroImg(name, size=28) {
+  const h = name ? (typeof name==='object' ? name : {id:nameToId(name), name}) : null;
+  return h ? `<img src="./portraits/${h.id||h.name}.png" onerror="this.src=''" style="width:${size}px;height:${size}px;border-radius:10px;object-fit:cover;background:var(--surface3);flex-shrink:0;">` : '';
+}
+
+function heroRowHtml(name, sub1='', sub2='', sub1Color='var(--text2)') {
+  const h = typeof name==='string' ? {id:nameToId(name),name} : name;
+  return `<div class="hero-row">
+    <img src="./portraits/${h.id}.png" onerror="this.src=''" style="width:28px;height:28px;border-radius:10px;object-fit:cover;background:var(--surface3);">
+    <div class="hero-row-name">${h.name}</div>
+    ${sub1?`<span class="hero-row-meta" style="color:${sub1Color};">${sub1}</span>`:''}
+    ${sub2?`<span class="hero-row-meta" style="color:var(--text3);font-size:9px;">${sub2}</span>`:''}
+  </div>`;
+}
+
+function formDotsHtml(form) {
+  return `<div class="form-dots" title="Recent form (oldest→newest)">${(form||[]).map(r=>`<div class="form-dot ${r==='W'?'w':'l'}" title="${r}"></div>`).join('')}</div>`;
+}
+
+function statBar(label, val, max, color) {
+  const pct = max>0 ? Math.min(100, Math.round(val/max*100)) : 0;
+  return `<div class="stat-bar-row">
+    <div class="stat-bar-label">${label}</div>
+    <div class="stat-bar-bg"><div class="stat-bar-fill" style="width:${pct}%;background:${color};"></div></div>
+    <div class="stat-bar-val" style="color:${color};">${val}</div>
+  </div>`;
+}
+
+// ══════ GENERATE REPORT ══════
+async function generateReport() {
+  const blueName = document.getElementById('blueTeamSel').value;
+  const redName  = document.getElementById('redTeamSel').value;
+  if (!blueName || !redName) return;
+
+  const blueStats = getTeamStats(blueName, redName);
+  const redStats  = getTeamStats(redName, blueName);
+  const h2h       = getHeadToHead(blueName, redName);
+
+  const out = document.getElementById('reportOutput');
+  out.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:20px;color:var(--text3);font-size:12px;"><div class="spinner"></div> Building scouting report…</div>`;
+
+  out.innerHTML = buildStaticReport(blueName, redName, blueStats, redStats, h2h);
+
+  const key = localStorage.getItem('warr_api_key')||'';
+  if (!key) {
+    const aiEl = document.getElementById('aiReportSection');
+    if (aiEl) aiEl.innerHTML = `
+      <div class="report-hdr"><span class="report-hdr-title">AI Draft Strategy</span></div>
+      <div class="report-body" style="text-align:center;padding:24px;">
+        
+        <div style="font-size:12px;color:var(--text3);">Add your Anthropic API key to unlock AI-powered strategy.</div>
+      </div>`;
+    return;
+  }
+  await runAIReport(blueName, redName, blueStats, redStats, h2h);
+}
+
+// ══════ STATIC REPORT ══════
+function buildStaticReport(blueName, redName, blueStats, redStats, h2h) {
+  const blueWR = blueStats?.wr??50;
+  const redWR  = redStats?.wr??50;
+  const totalWR = blueWR + redWR;
+  const blueFlexPct = totalWR > 0 ? Math.round(blueWR/totalWR*100) : 50;
+  const redFlexPct  = 100-blueFlexPct;
+
+  const h2hBar = h2h.total > 0 ? `
+    <div class="h2h-bar-wrap">
+      <div class="h2h-bar-blue" style="flex:${h2h.blueWins};"></div>
+      <div class="h2h-bar-red"  style="flex:${h2h.redWins};"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:4px;">
+      <span style="color:var(--blue);font-weight:700;">${h2h.blueWins}W</span>
+      <span style="color:var(--text3);">${h2h.total} games</span>
+      <span style="color:var(--red);font-weight:700;">${h2h.redWins}W</span>
+    </div>` :
+    `<div style="font-size:11px;color:var(--text3);text-align:center;padding:8px 0;">No previous head-to-head on record</div>`;
+
+  return `
+    <!-- MATCHUP HEADER -->
+    <div class="report-section">
+      <div class="report-hdr">
+        
+        <span class="report-hdr-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
+          <span style="color:var(--blue);">${blueName}</span>
+          <span style="color:var(--text3);font-weight:400;font-size:10px;">vs</span>
+          <span style="color:var(--red);">${redName}</span>
+          ${h2h.total>0 ? `<span style="padding:2px 9px;background:var(--surface3);border:1px solid var(--border2);border-radius:10px;font-size:10px;font-weight:400;margin-left:4px;font-family:var(--font-mono);"><span style="color:var(--blue);">${h2h.blueWins}</span> – <span style="color:var(--red);">${h2h.redWins}</span> <span style="color:var(--text3);font-size:9px;">H2H</span></span>` : ''}
+        </span>
+        ${_reportLeagueFilter!=='all'?`<span style="margin-left:auto;font-size:9px;color:var(--text3);font-family:var(--font-head);letter-spacing:.5px;">${_reportLeagueFilter} ONLY</span>`:''}
+      </div>
+      <div class="report-body">
+        <div style="display:grid;grid-template-columns:1fr 60px 1fr;gap:12px;align-items:center;">
+          <div style="text-align:center;">
+            <div style="font-size:22px;font-weight:800;font-family:var(--font-head);color:var(--blue);">${blueName}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px;">Blue Side</div>
+            <div style="font-size:24px;font-weight:800;font-family:var(--font-head);color:${wrColor(blueStats?.wr??null)};margin-top:4px;">${blueStats?blueStats.wr+'%':'—'}</div>
+            <div style="font-size:9px;color:var(--text3);margin-top:1px;">WIN RATE</div>
+            ${blueStats?`<div style="display:flex;justify-content:center;margin-top:6px;">${formDotsHtml(blueStats.form)}</div>`:''}
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:12px;font-weight:700;font-family:var(--font-head);color:var(--text3);letter-spacing:2px;">VS</div>
+            <div style="margin-top:8px;">${h2hBar}</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:22px;font-weight:800;font-family:var(--font-head);color:var(--red);">${redName}</div>
+            <div style="font-size:11px;color:var(--text3);margin-top:2px;">Red Side</div>
+            <div style="font-size:24px;font-weight:800;font-family:var(--font-head);color:${wrColor(redStats?.wr??null)};margin-top:4px;">${redStats?redStats.wr+'%':'—'}</div>
+            <div style="font-size:9px;color:var(--text3);margin-top:1px;">WIN RATE</div>
+            ${redStats?`<div style="display:flex;justify-content:center;margin-top:6px;">${formDotsHtml(redStats.form)}</div>`:''}
+          </div>
+        </div>
+        ${blueStats&&redStats?`
+          <div class="divider"></div>
+          <div style="font-size:9px;color:var(--text3);margin-bottom:4px;font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;">Form WR Balance</div>
+          <div class="pred-bar-wrap">
+            <div class="pred-bar-blue" style="flex:${blueFlexPct};"></div>
+            <div class="pred-bar-red" style="flex:${redFlexPct};"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;margin-top:3px;">
+            <span style="color:var(--blue);">${blueFlexPct}%</span>
+            <span style="color:var(--red);">${redFlexPct}%</span>
+          </div>`:''}
+      </div>
+    </div>
+
+    <!-- TEAM CARDS -->
+    <div class="team-grid-2">
+      ${buildTeamCard(blueStats, 'blue', blueName)}
+      ${buildTeamCard(redStats, 'red', redName)}
+    </div>
+
+    <!-- PRIORITY TARGETS -->
+    ${buildPrioritySection(blueName, redName, blueStats, redStats)}
+
+    <!-- AI REPORT PLACEHOLDER -->
+    <div class="report-section" id="aiReportSection">
+      <div class="report-hdr">
+        <div class="spinner"></div>
+        <span class="report-hdr-title" style="color:var(--blue);">AI Draft Strategy</span>
+        <span style="font-size:10px;color:var(--text3);margin-left:4px;">Generating…</span>
+      </div>
+      <div class="report-body">
+        <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+      </div>
+    </div>
+
+    <!-- AI MEMORY -->
+    ${buildMemorySection()}
+  `;
+}
+
+function buildTeamCard(stats, side, name) {
+  if (!stats) return `<div class="report-section" style="padding:20px;color:var(--text3);font-size:12px;text-align:center;">No scout data for <strong>${name}</strong>.</div>`;
+  const color  = side==='blue'?'var(--blue)':'var(--red)';
+  const maxPick = stats.topPicks[0]?.count||1;
+  const maxBan  = stats.topBans[0]?.count||1;
+  const streakLabel = stats.streak?.count>1 ? `<span style="font-size:9px;font-weight:700;font-family:var(--font-head);color:${stats.streak.type==='W'?'var(--green)':'var(--red)'};">${stats.streak.type}${stats.streak.count}</span>` : '';
+
+  return `<div class="report-section">
+    <div class="report-hdr" style="background:${side==='blue'?'rgba(79,142,247,.06)':'rgba(240,82,82,.06)'};border-bottom-color:${side==='blue'?'rgba(79,142,247,.2)':'rgba(240,82,82,.2)'};">
+      <span style="font-size:15px;">${side==='blue'?'B':'R'}</span>
+      <div>
+        <div style="font-size:13px;font-weight:700;font-family:var(--font-head);">${stats.name}</div>
+        <div style="font-size:10px;color:var(--text3);">${side==='blue'?'Blue Side — Us':'Red Side — Enemy'}</div>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+        ${formDotsHtml(stats.form)}
+        ${streakLabel}
+      </div>
+    </div>
+    <div class="report-body">
+      <div class="info-row"><span class="info-key">Record</span><span class="info-val">${stats.wins}W ${stats.losses}L (${stats.total}g)</span></div>
+      <div class="info-row"><span class="info-key">Win Rate</span><span class="info-val" style="color:${wrColor(stats.wr)};">${stats.wr}%</span></div>
+      <div class="info-row"><span class="info-key">Blue Side</span><span class="info-val">${stats.blueSide>0?`${stats.blueWR}% (${stats.blueSide}g)`:'—'}</span></div>
+      <div class="info-row"><span class="info-key">Red Side</span><span class="info-val">${stats.redSide>0?`${stats.redWR}% (${stats.redSide}g)`:'—'}</span></div>
+      <div class="info-row"><span class="info-key">Pool Depth</span><span class="info-val">${stats.poolDepth} heroes</span></div>
+      ${stats.winCondition?`<div class="info-row"><span class="info-key">Win Condition</span><span class="info-val" style="max-width:160px;text-align:right;font-size:10px;">${stats.winCondition}</span></div>`:''}
+      <div style="margin-top:12px;">
+        <div class="section-label">Top Picks</div>
+        ${stats.topPicks.slice(0,6).map(p => statBar(p.name, p.count, maxPick, color)).join('')}
+      </div>
+      <div style="margin-top:12px;">
+        <div class="section-label">Top Bans</div>
+        ${stats.topBans.slice(0,5).map(b => statBar(b.name, b.count, maxBan, 'var(--red)')).join('')}
+      </div>
+      ${stats.coachNotes?`<div style="margin-top:10px;padding:8px 10px;background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:6px;font-size:11px;color:var(--text2);line-height:1.55;"> ${stats.coachNotes}</div>`:''}
+    </div>
+  </div>`;
+}
+
+function buildPrioritySection(blueName, redName, blueStats, redStats) {
+  if (!redStats) return '';
+  const vsGames = redStats.vsData?.games||0;
+  const vsLabel = vsGames>0?`<span style="font-size:9px;color:var(--cyan);margin-left:6px;font-family:var(--font-mono);">${vsGames}g H2H</span>`:`<span style="font-size:9px;color:var(--text3);margin-left:6px;font-style:italic;">overall</span>`;
+  const enemyPicks = vsGames>0 ? redStats.vsData.topPicks : redStats.topPicks;
+  const enemyBans  = vsGames>0 ? redStats.vsData.topBans  : redStats.topBans;
+  const ourPicks   = blueStats?.topPicks||[];
+  const theirSigs  = redStats.bansReceived?.slice(0,5)||[];
+
+  const mustBan = enemyPicks.filter(p=>p.count>=2).slice(0,5);
+  const theirBans = enemyBans.slice(0,5);
+  const ourCore   = ourPicks.filter(p=>p.count>=2).slice(0,5);
+
+  return `<div class="report-section">
+    <div class="report-hdr">
+      <span></span>
+      <span class="report-hdr-title">Priority Targets</span>
+      ${vsLabel}
+    </div>
+    <div class="report-body">
+      <div class="three-col">
+        <!-- BAN TARGETS -->
+        <div>
+          <div class="section-label" style="color:var(--red);">Must Ban</div>
+          ${mustBan.length ? mustBan.map(p => heroRowHtml(
+            {id:nameToId(p.name),name:p.name},
+            p.wr+'%WR', p.count+'g', wrColor(p.wr)
+          )).join('') : `<div style="font-size:11px;color:var(--text3);">Not enough data</div>`}
+          ${theirSigs.length?`
+            <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">
+              <div class="section-label" style="font-size:8px;">SIGNATURE / ALWAYS TARGETED</div>
+              ${theirSigs.map(b=>heroRowHtml({id:nameToId(b.name),name:b.name},'×'+b.count,'banned vs them','var(--text3)')).join('')}
+            </div>`:''}
+        </div>
+
+        <!-- WHAT THEY BAN -->
+        <div>
+          <div class="section-label" style="color:var(--blue);">They Ban Us</div>
+          ${theirBans.length ? theirBans.map(b => heroRowHtml(
+            {id:nameToId(b.name),name:b.name},
+            '×'+b.count, '', 'var(--text3)'
+          )).join('') : `<div style="font-size:11px;color:var(--text3);">Not enough data</div>`}
+          ${blueStats?.bansReceived?.length?`
+            <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">
+              <div class="section-label" style="font-size:8px;">OVERALL BANNED vs US</div>
+              ${blueStats.bansReceived.slice(0,4).map(b=>heroRowHtml({id:nameToId(b.name),name:b.name},'×'+b.count,'','var(--text3)')).join('')}
+            </div>`:''}
+        </div>
+
+        <!-- OUR CORE -->
+        <div>
+          <div class="section-label" style="color:var(--green);">Our Core Picks</div>
+          ${ourCore.length ? ourCore.map(p => heroRowHtml(
+            {id:nameToId(p.name),name:p.name},
+            p.wr+'%WR', p.count+'g', wrColor(p.wr)
+          )).join('') : `<div style="font-size:11px;color:var(--text3);">Log more matches to populate</div>`}
+        </div>
+      </div>
+
+      <!-- FIRST PICKS + H2H PICKS -->
+      ${redStats.topFirstPick?.length?`
+        <div class="divider"></div>
+        <div class="section-label">Enemy First Picks (when they have pick priority)</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;">
+          ${redStats.topFirstPick.map(p=>`<span class="chip gold">${p.name} ×${p.count}</span>`).join('')}
+        </div>`:''}
+
+      ${vsGames>0&&redStats.vsData?.topPicks?.length?`
+        <div style="margin-top:12px;">
+          <div class="section-label" style="color:var(--cyan);">Their Draft vs Us</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            ${redStats.vsData.topPicks.map(p=>`<span class="chip" style="border-color:rgba(34,211,238,.3);color:var(--cyan);background:rgba(34,211,238,.08);">${p.name} ×${p.count} ${p.wr}%WR</span>`).join('')}
+          </div>
+        </div>`:''}
+    </div>
+  </div>`;
+}
+
+function buildMemorySection() {
+  let mem={};
+  try{mem=JSON.parse(localStorage.getItem(MEM_KEY)||'{}');}catch(e){}
+  const entries = Object.entries(mem).filter(([,v])=>v.seen>=2).sort((a,b)=>b[1].seen-a[1].seen).slice(0,14);
+  if (!entries.length) return '';
+  return `<div class="report-section">
+    <div class="report-hdr"><span class="report-hdr-title">AI Memory — Our Hero Performance</span><span style="font-size:10px;color:var(--text3);margin-left:4px;">from AI Battle games</span></div>
+    <div class="report-body">
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        ${entries.map(([name,v])=>{
+          const wr=v.wins&&v.seen?Math.round(v.wins/v.seen*100):0;
+          const col=wrColor(wr);
+          return `<span class="chip" style="border-color:${col}25;background:${col}0a;color:${col};">${name} <span style="opacity:.6;font-size:9px;">${v.seen}g ${wr}%</span></span>`;
+        }).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ══════ AI REPORT ══════
+async function runAIReport(blueName, redName, blueStats, redStats, h2h) {
+  const aiSection = document.getElementById('aiReportSection');
+  if (!aiSection) return;
+
+  const profile = (stats, side) => {
+    if (!stats) return `No data for ${side}.`;
+    const vs = stats.vsData ? `\nVS THIS OPPONENT (${stats.vsData.games}g, ${stats.vsData.wins}W):\n  Picks: ${stats.vsData.topPicks.map(p=>`${p.name}(${p.count}g,${p.wr}%WR)`).join(', ')||'N/A'}\n  Bans: ${stats.vsData.topBans.map(b=>`${b.name}(${b.count}x)`).join(', ')||'N/A'}` : '';
+    return `${stats.name} | ${stats.total}g | ${stats.wr}%WR | Blue:${stats.blueWR??'N/A'}% | Red:${stats.redWR??'N/A'}%
+Picks: ${stats.topPicks.slice(0,6).map(p=>`${p.name}(${p.count}g,${p.wr}%WR)`).join(', ')}
+Bans: ${stats.topBans.slice(0,5).map(b=>`${b.name}(${b.count}x)`).join(', ')}
+Banned against them: ${stats.bansReceived?.slice(0,4).map(b=>`${b.name}(${b.count}x)`).join(', ')||'N/A'}
+First picks: ${stats.topFirstPick?.map(p=>`${p.name}(${p.count}x)`).join(', ')||'unknown'}
+Win Condition: ${stats.winCondition||'unknown'}\nCoach Notes: ${stats.coachNotes||'none'}${vs}`;
+  };
+
+  const prompt = `You are a professional MLBB draft coach. Generate a pre-match scouting report in JSON only (no markdown).
+
+BLUE SIDE (OUR TEAM):
+${profile(blueStats,'blue')}
+
+RED SIDE (ENEMY):
+${profile(redStats,'red')}
+
+HEAD TO HEAD: ${h2h.total}g — Blue: ${h2h.blueWins}W, Red: ${h2h.redWins}W
+
+Respond ONLY with JSON matching this exact schema:
+{
+  "banPhase1": {
+    "priority": ["Hero1","Hero2","Hero3"],
+    "reasoning": "max 25 words"
+  },
+  "banPhase2": {
+    "priority": ["Hero1","Hero2"],
+    "reasoning": "max 20 words"
+  },
+  "firstPick": {
+    "heroes": ["Hero1","Hero2"],
+    "reasoning": "max 20 words"
+  },
+  "pickStrategy": "max 30 words on overall pick approach",
+  "enemyWeaknesses": ["weakness 1","weakness 2","weakness 3"],
+  "ourAdvantages": ["advantage 1","advantage 2"],
+  "keyMatchups": ["matchup 1","matchup 2"],
+  "comps": {
+    "suggested": "comp type e.g. Protect Hypercarry",
+    "avoid": "comp type to avoid against them"
+  },
+  "winCondition": "max 30 words",
+  "watchOut": "max 15 words — biggest enemy threat",
+  "confidence": "high|medium|low",
+  "confidenceReason": "max 12 words"
+}`;
+
+  try {
+    const d = await callClaude({model:'claude-sonnet-4-6', max_tokens:900, messages:[{role:'user',content:prompt}]});
+    const raw = (d.content||[]).map(x=>x.text||'').join('');
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('No JSON');
+    const r = JSON.parse(m[0]);
+    renderAIReport(r, aiSection);
+  } catch(e) {
+    const msg = e.message==='NO_API_KEY' ? 'Add your API key above to enable AI analysis.' : `AI analysis failed: ${e.message}`;
+    aiSection.innerHTML = `
+      <div class="report-hdr"><span class="report-hdr-title">AI Draft Strategy</span></div>
+      <div class="report-body"><div style="font-size:12px;color:var(--text3);">${msg}</div></div>`;
+  }
+}
+
+function renderAIReport(r, section) {
+  const confClass = r.confidence==='high'?'conf-high':r.confidence==='medium'?'conf-medium':'conf-low';
+
+  section.innerHTML = `
+    <div class="report-hdr">
+      
+      <span class="report-hdr-title" style="color:var(--blue);">AI Draft Strategy</span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+        <span class="conf-badge ${confClass}">${(r.confidence||'?').toUpperCase()}</span>
+        <span style="font-size:10px;color:var(--text3);">${r.confidenceReason||''}</span>
+      </div>
+    </div>
+    <div class="report-body">
+
+      <div class="three-col" style="margin-bottom:14px;">
+        <div>
+          <div class="section-label" style="color:var(--red);">Ban Phase 1 Priority</div>
+          ${(r.banPhase1?.priority||[]).map((h,i) => `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.03);">
+            <span style="font-size:10px;font-family:var(--font-mono);color:var(--text3);min-width:14px;">#${i+1}</span>
+            <span style="font-size:11px;font-weight:600;">${h}</span>
+          </div>`).join('')}
+          ${r.banPhase1?.reasoning?`<div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.55;">${r.banPhase1.reasoning}</div>`:''}
+        </div>
+        <div>
+          <div class="section-label" style="color:var(--red);">Ban Phase 2 Priority</div>
+          ${(r.banPhase2?.priority||[]).map((h,i) => `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.03);">
+            <span style="font-size:10px;font-family:var(--font-mono);color:var(--text3);min-width:14px;">#${i+1}</span>
+            <span style="font-size:11px;font-weight:600;">${h}</span>
+          </div>`).join('')}
+          ${r.banPhase2?.reasoning?`<div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.55;">${r.banPhase2.reasoning}</div>`:''}
+        </div>
+        <div>
+          <div class="section-label" style="color:var(--blue);">First Pick Targets</div>
+          ${(r.firstPick?.heroes||[]).map(h=>`<div style="font-size:11px;font-weight:600;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.03);">${h}</div>`).join('')}
+          ${r.firstPick?.reasoning?`<div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.55;">${r.firstPick.reasoning}</div>`:''}
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="two-col" style="margin-bottom:14px;">
+        <div style="background:rgba(52,209,122,.04);border:1px solid rgba(52,209,122,.12);border-radius:8px;padding:12px;">
+          <div class="section-label" style="color:var(--green);">Our Advantages</div>
+          ${(r.ourAdvantages||[]).map(a=>`<div style="font-size:11px;color:var(--text2);padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);">• ${a}</div>`).join('')}
+        </div>
+        <div style="background:rgba(240,82,82,.04);border:1px solid rgba(240,82,82,.12);border-radius:8px;padding:12px;">
+          <div class="section-label" style="color:var(--red);"> Enemy Weaknesses</div>
+          ${(r.enemyWeaknesses||[]).map(w=>`<div style="font-size:11px;color:var(--text2);padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);">• ${w}</div>`).join('')}
+        </div>
+      </div>
+
+      ${r.comps?`
+        <div class="two-col" style="margin-bottom:14px;">
+          <div style="background:var(--blue-dim);border:1px solid var(--blue-border);border-radius:8px;padding:11px;">
+            <div class="section-label" style="color:var(--blue);">Suggested Comp</div>
+            <div style="font-size:12px;font-weight:600;">${r.comps.suggested||'—'}</div>
+          </div>
+          <div style="background:var(--red-dim);border:1px solid var(--red-border);border-radius:8px;padding:11px;">
+            <div class="section-label" style="color:var(--red);">Avoid Comp</div>
+            <div style="font-size:12px;font-weight:600;">${r.comps.avoid||'—'}</div>
+          </div>
+        </div>`:''}
+
+      ${(r.keyMatchups||[]).length?`
+        <div style="margin-bottom:14px;">
+          <div class="section-label">Key Matchups to Watch</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            ${(r.keyMatchups||[]).map(m=>`<span class="chip">${m}</span>`).join('')}
+          </div>
+        </div>`:''}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div style="background:rgba(79,142,247,.06);border:1px solid rgba(79,142,247,.18);border-radius:8px;padding:12px;">
+          <div class="section-label" style="color:var(--blue);">How We Win</div>
+          <div style="font-size:12px;line-height:1.65;color:var(--text);">${r.winCondition||'—'}</div>
+        </div>
+        <div style="background:var(--red-dim);border:1px solid rgba(240,82,82,.15);border-radius:8px;padding:12px;">
+          <div class="section-label" style="color:var(--red);">Watch Out</div>
+          <div style="font-size:12px;line-height:1.65;color:var(--text);">${r.watchOut||'—'}</div>
+        </div>
+      </div>
+
+      ${r.pickStrategy?`<div style="margin-top:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;font-size:11px;color:var(--text2);line-height:1.6;"> <strong>Pick Strategy:</strong> ${r.pickStrategy}</div>`:''}
+
+    </div>`;
+}
+
+// ══════ PATCH MODAL ══════
+function openPatchModal() {
+  document.getElementById('patchModal').style.display = 'flex';
+  ['patchStatus','patchResults','patchError'].forEach(id => document.getElementById(id).style.display='none');
+  patchSuggestions = {};
+  runPatchAnalysis();
+}
+function closePatchModal() { document.getElementById('patchModal').style.display='none'; }
+
+async function runPatchAnalysis() {
+  const statusEl  = document.getElementById('patchStatus');
+  const resultsEl = document.getElementById('patchResults');
+  const errorEl   = document.getElementById('patchError');
+  statusEl.style.display='block'; resultsEl.style.display='none'; errorEl.style.display='none';
+  document.getElementById('patchStatusText').textContent='Claude searching for latest MLBB patch…';
+
+  const key = localStorage.getItem('warr_api_key')||'';
+  if (!key) {
+    statusEl.style.display='none'; errorEl.style.display='block';
+    document.getElementById('patchErrorText').textContent='No API key saved — add your key above.';
+    return;
+  }
+
+  let existingTiers = '';
+  try {
+    const dd = JSON.parse(localStorage.getItem(DRAFT_KEY)||'{}');
+    if (dd.tierList) {
+      const byTier = {};
+      Object.entries(dd.tierList).forEach(([n,d]) => { if (!byTier[d.tier]) byTier[d.tier]=[]; byTier[d.tier].push(n); });
+      existingTiers = Object.entries(byTier).map(([t,ns]) => `${t}: ${ns.join(', ')}`).join('\n');
+    }
+  } catch(e){}
+
+  const prompt = `You are an expert MLBB tier list analyst for competitive (MPL-level) play.
+${existingTiers ? `Current tier list:\n${existingTiers}\n\nUpdate hero tiers based on the most recent MLBB patch.` : 'Build a comprehensive MPL-level competitive tier list for the current patch.'}
+
+Return ONLY valid JSON, no markdown, no explanation:
+{"patchVersion":"X.XX.X","patchSummary":"1-2 sentence summary of key meta changes","heroes":[{"name":"HeroName","tier":"S|A|B|C|D","lane":"Gold|Jungle|Mid|EXP|Roam|Flex","reason":"max 8 words why","change":"buff|nerf|meta|unchanged"}]}
+
+S=must ban/pick, A=high priority, B=situational, C=niche, D=off-meta. Include all competitively relevant heroes.`;
+
+  try {
+    const d = await callClaude({
+      model:'claude-sonnet-4-6',
+      max_tokens:2500,
+      tools:[{type:'web_search_20250305',name:'web_search'}],
+      messages:[{role:'user',content:prompt}]
+    });
+    statusEl.style.display='none';
+    const raw = (d.content||[]).map(x=>x.text||'').join('');
+    const mj = raw.match(/\{[\s\S]*\}/);
+    if (!mj) throw new Error('Could not parse patch data');
+    const result = JSON.parse(mj[0]);
+    patchSuggestions = {};
+    (result.heroes||[]).forEach(h => {
+      patchSuggestions[h.name] = {suggestedTier:h.tier, lane:h.lane, reason:h.reason, change:h.change, override:false, overrideTier:h.tier};
+    });
+    document.getElementById('patchInfo').innerHTML = `<strong style="color:var(--text);">Patch ${result.patchVersion||'Latest'}</strong> · ${result.patchSummary||''} <span style="color:var(--text3);font-size:10px;">${Object.keys(patchSuggestions).length} heroes analyzed</span>`;
+    renderPatchTierGrid();
+    resultsEl.style.display='block';
+  } catch(e) {
+    statusEl.style.display='none'; errorEl.style.display='block';
+    document.getElementById('patchErrorText').textContent = e.message==='NO_API_KEY'?'No API key.':'Error: '+e.message;
+  }
+}
+
+function renderPatchTierGrid() {
+  const tiers = ['S','A','B','C','D'];
+  const tierColors = {S:'#f4a534',A:'#9ca3af',B:'#cd7f32',C:'#6b7280',D:'#4b5563'};
+  const changeIcon = {buff:'+',nerf:'-',meta:'~',unchanged:''};
+  const byTier = {};
+  tiers.forEach(t => byTier[t]=[]);
+  Object.entries(patchSuggestions).forEach(([name,d]) => {
+    const t = d.overrideTier||d.suggestedTier;
+    if (byTier[t]) byTier[t].push({name,...d});
+  });
+
+  const grid = document.getElementById('patchTierGrid');
+  grid.innerHTML = tiers.filter(t=>byTier[t].length).map(t => `
+    <div style="margin-bottom:12px;">
+      <div style="font-size:9px;font-weight:700;font-family:'Rajdhani',sans-serif;letter-spacing:1.5px;text-transform:uppercase;color:${tierColors[t]};margin-bottom:6px;">${t} TIER</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        ${byTier[t].map(h => `<div onclick="togglePatchOverride('${h.name}')" title="${h.reason||''}"
+          style="padding:3px 9px;border-radius:10px;cursor:pointer;font-size:11px;font-weight:600;user-select:none;
+            background:${h.override?'rgba(255,255,255,.07)':'rgba(244,165,52,.1)'};
+            border:1px solid ${h.override?'rgba(255,255,255,.14)':'rgba(244,165,52,.3)'};
+            color:${h.override?'var(--text)':'#f4a534'};">
+          ${changeIcon[h.change]||''} ${h.name}
+        </div>`).join('')}
+      </div>
+    </div>`).join('');
+
+  const oc = Object.values(patchSuggestions).filter(d=>d.override).length;
+  document.getElementById('patchOverrideCount').textContent = oc ? `${oc} override${oc>1?'s':''}` : '';
+}
+
+function togglePatchOverride(name) {
+  if (!patchSuggestions[name]) return;
+  const tiers = ['S','A','B','C','D'];
+  const cur = patchSuggestions[name].overrideTier || patchSuggestions[name].suggestedTier;
+  patchSuggestions[name].overrideTier = tiers[(tiers.indexOf(cur)+1)%tiers.length];
+  patchSuggestions[name].override = patchSuggestions[name].overrideTier !== patchSuggestions[name].suggestedTier;
+  renderPatchTierGrid();
+}
+
+function applyPatchTiers() {
+  if (!Object.keys(patchSuggestions).length) { closePatchModal(); return; }
+  let dd = {};
+  try { dd = JSON.parse(localStorage.getItem(DRAFT_KEY)||'{}'); } catch(e){}
+  if (!dd.tierList) dd.tierList = {};
+  if (!dd.metaLanes) dd.metaLanes = {};
+  let applied = 0;
+  Object.entries(patchSuggestions).forEach(([name,d]) => {
+    const tier = d.overrideTier || d.suggestedTier;
+    if (!dd.tierList[name]) dd.tierList[name] = {};
+    dd.tierList[name].tier = tier;
+    if (d.lane) dd.metaLanes[name] = d.lane;
+    applied++;
+  });
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(dd));
+  toast(`✓ Applied ${applied} hero tiers to Draft Simulator`);
+  closePatchModal();
+}
+
+// ══════ INIT ══════
+init().catch(e => console.error('Init failed:', e));
+</script>
+
+</div><!-- /.page-body -->
+
+</body>
+</html>
