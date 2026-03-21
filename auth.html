@@ -291,16 +291,7 @@ body>*{position:relative;z-index:1;}
 
 // ── DETECT MODE (invite token vs normal login) ─────────────────
 (async () => {
-  // Check if already signed in
-  const user = await WAuth.init();
-  if (user) {
-    const redir = new URLSearchParams(location.search).get('redirect') || 'draft_board.html';
-    window.location.href = redir;
-    return;
-  }
-
-  // Supabase puts invite token in the URL hash: #access_token=...&type=invite
-  // Or uses ?token_hash=...&type=invite (PKCE flow — default for new projects)
+  // Check for invite token FIRST (before session check)
   const hash  = new URLSearchParams(location.hash.replace('#',''));
   const query = new URLSearchParams(location.search);
   const type  = hash.get('type') || query.get('type') || '';
@@ -317,13 +308,23 @@ body>*{position:relative;z-index:1;}
       // PKCE flow (new projects) — verify the token hash
       const { error } = await WAuth._sb().auth.verifyOtp({ token_hash: tokenHash, type: 'invite' });
       if (error) {
-        // Token may be expired — show helpful message
         document.getElementById('authMsg').textContent = 'Invite link expired or already used. Ask admin to resend.';
         document.getElementById('authMsg').className = 'auth-msg show err';
         return;
       }
     }
+    // Clean the URL so refreshing doesn't re-trigger invite mode
+    history.replaceState(null, '', location.pathname);
     showPanel('invite');
+    return;
+  }
+
+  // No invite token — check if already signed in
+  const user = await WAuth.init();
+  if (user) {
+    const redir = new URLSearchParams(location.search).get('redirect') || 'draft_board.html';
+    window.location.href = redir;
+    return;
   }
 })();
 
