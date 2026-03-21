@@ -300,17 +300,28 @@ body>*{position:relative;z-index:1;}
   }
 
   // Supabase puts invite token in the URL hash: #access_token=...&type=invite
-  // It also may use ?token_hash=...&type=invite (PKCE flow)
+  // Or uses ?token_hash=...&type=invite (PKCE flow — default for new projects)
   const hash  = new URLSearchParams(location.hash.replace('#',''));
   const query = new URLSearchParams(location.search);
   const type  = hash.get('type') || query.get('type') || '';
 
   if (type === 'invite' || type === 'signup') {
-    // Invite flow — exchange token first so session is ready for password update
     const accessToken  = hash.get('access_token');
     const refreshToken = hash.get('refresh_token');
+    const tokenHash    = query.get('token_hash');
+
     if (accessToken) {
+      // Implicit flow (older projects)
       await WAuth._sb().auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+    } else if (tokenHash) {
+      // PKCE flow (new projects) — verify the token hash
+      const { error } = await WAuth._sb().auth.verifyOtp({ token_hash: tokenHash, type: 'invite' });
+      if (error) {
+        // Token may be expired — show helpful message
+        document.getElementById('authMsg').textContent = 'Invite link expired or already used. Ask admin to resend.';
+        document.getElementById('authMsg').className = 'auth-msg show err';
+        return;
+      }
     }
     showPanel('invite');
   }
