@@ -147,17 +147,27 @@ const WAuth = {
 
 const WDB = {
 
-  // ── SCOUT MATCHES — shared, all signed-in users see them ─────
+  // ── SCOUT MATCHES — public leagues shared; Scrims/Other private to creator ─────
 
-  /** Fetch all scout matches from cloud */
+  // Leagues visible to ALL users
+  PUBLIC_LEAGUES: ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series'],
+
+  /** Fetch scout matches — public leagues for everyone, private leagues only own */
   async loadMatches() {
     const { data, error } = await _sbClient
       .from('scout_matches')
       .select('id, data, created_by')
       .order('created_at', { ascending: false });
     if (error) throw error;
-    // Merge Supabase row id into each data object (in case local id drifted)
-    return (data || []).map(row => ({ ...row.data, id: row.id }));
+    const userId = WAuth.getUser()?.id || null;
+    return (data || [])
+      .filter(row => {
+        const league = row.data?.league || '';
+        const isPublic = WDB.PUBLIC_LEAGUES.includes(league);
+        const isOwn = row.created_by === userId;
+        return isPublic || isOwn; // show public leagues OR your own private matches
+      })
+      .map(row => ({ ...row.data, id: row.id, _createdBy: row.created_by }));
   },
 
   /** Upsert a single match to cloud (insert or update by id) */

@@ -270,28 +270,38 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
   .hero-img { width: 88px; height: 88px; }
 }
 @media (max-width: 640px) {
-  .draft-layout { grid-template-columns: 1fr; }
-  .team-panel.blue-panel { grid-column: 1; border-right: none; border-bottom: 1px solid var(--border); }
-  .team-panel.red-panel { grid-column: 1; border-left: none; }
-  .pool-section { grid-column: 1; }
-  .topbar { padding: 0 12px; gap: 6px; flex-wrap: nowrap; overflow-x: auto; }
-  .tab-btn { padding: 4px 8px; font-size: 10px; flex-shrink: 0; }
-  .setup-title { font-size: 26px; }
-  #setup { padding: 0 12px; margin: 28px auto; }
+  /* Teams side-by-side, pool below */
+  .draft-layout { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; }
+  .team-panel.blue-panel { grid-column: 1; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .team-panel.red-panel  { grid-column: 2; border-left: none; border-bottom: 1px solid var(--border); }
+  .pool-section { grid-column: 1 / -1; }
+  .team-panel { padding: 8px 8px; }
+  .bans-row { gap: 3px; justify-content: center; }
+  .ban-slot { width: 34px; height: 42px; }
+  .ban-slot img { width: 26px; height: 26px; }
+  .pick-slot { min-height: 42px; padding: 4px 6px; gap: 5px; }
+  .slot-img { width: 32px; height: 32px; }
+  .slot-hname { font-size: 10px; }
+  .slot-role, .slot-lane, .slot-tier { font-size: 8px; }
+  .topbar { padding: 0 10px; gap: 4px; flex-wrap: nowrap; overflow-x: auto; }
+  .tab-btn { padding: 3px 7px; font-size: 10px; flex-shrink: 0; }
+  .setup-title { font-size: 24px; }
+  #setup { padding: 0 12px; margin: 20px auto; }
   .grid3 { grid-template-columns: 1fr; }
-  .hero-grid { grid-template-columns: repeat(auto-fill, 100px); }
-  .hero-card { width: 100px; }
-  .hero-img { width: 80px; height: 80px; }
+  .hero-grid { grid-template-columns: repeat(auto-fill, 80px); gap: 5px; padding: 10px 12px; }
+  .hero-card { width: 80px; padding: 5px 4px 16px; }
+  .hero-img { width: 64px; height: 64px; }
+  .hero-cname { font-size: 10px; }
+  .hero-crole { font-size: 8px; }
 }
 @media (max-width: 420px) {
-  .hero-grid { grid-template-columns: repeat(auto-fill, 84px); }
-  .hero-card { width: 84px; }
-  .hero-img { width: 64px; height: 64px; }
-  .bans-row { gap: 3px; }
-  .ban-slot { width: 42px; height: 52px; }
-  .ban-slot img { width: 30px; height: 30px; }
-  .pick-slot { min-height: 52px; padding: 5px 8px; gap: 7px; }
-  .slot-img { width: 38px; height: 38px; }
+  .hero-grid { grid-template-columns: repeat(auto-fill, 72px); gap: 4px; }
+  .hero-card { width: 72px; padding: 4px 3px 14px; }
+  .hero-img { width: 58px; height: 58px; }
+  .ban-slot { width: 30px; height: 36px; }
+  .ban-slot img { width: 22px; height: 22px; }
+  .pick-slot { min-height: 38px; padding: 3px 5px; gap: 4px; }
+  .slot-img { width: 28px; height: 28px; }
   /* iOS: prevent auto-zoom on input focus */
   input, select, textarea { font-size: 16px !important; }
 }

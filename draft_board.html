@@ -268,34 +268,44 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
   .hero-img { width: 88px; height: 88px; }
 }
 @media (max-width: 640px) {
-  .draft-layout { grid-template-columns: 1fr; }
-  .team-panel.blue-panel, .team-panel.red-panel { grid-column: 1; border: none; border-bottom: 1px solid var(--border); }
-  .team-panel.blue-panel { grid-row: 1; }
-  .team-panel.red-panel { grid-row: 2; }
-  .pool-section { grid-column: 1; grid-row: 3; }
-  .series-bar { padding: 6px 12px; gap: 6px; }
-  .mode-btns { gap: 3px; }
-  .mode-btn { padding: 3px 8px; font-size: 10px; }
+  /* Keep teams side-by-side — stack only the pool below */
+  .draft-layout { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; }
+  .team-panel.blue-panel { grid-column: 1; grid-row: 1; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .team-panel.red-panel  { grid-column: 2; grid-row: 1; border-left: none; border-bottom: 1px solid var(--border); }
+  .pool-section { grid-column: 1 / -1; grid-row: 2; }
+  .team-panel { padding: 8px 10px; }
+  .team-name-input { font-size: 11px; }
+  .bans-row { gap: 3px; justify-content: center; }
+  .ban-slot { width: 36px; height: 44px; }
+  .ban-slot img { width: 28px; height: 28px; }
+  .picks-col { gap: 4px; }
+  .pick-slot { min-height: 44px; padding: 4px 6px; gap: 6px; }
+  .slot-img { width: 34px; height: 34px; }
+  .slot-hname { font-size: 10px; }
+  .slot-role, .slot-lane, .slot-tier, .slot-order { font-size: 8px; }
+  .series-bar { padding: 6px 10px; gap: 4px; }
+  .mode-btns { gap: 2px; }
+  .mode-btn { padding: 3px 7px; font-size: 9px; }
   .our-side-picker { margin-left: 0; }
   .series-actions { flex-wrap: wrap; gap: 4px; }
-  .topbar { padding: 0 12px; gap: 6px; }
-  .tab-btn { padding: 4px 8px; font-size: 10px; }
-  .hero-grid { grid-template-columns: repeat(auto-fill, 100px); }
-  .hero-card { width: 100px; }
-  .hero-img { width: 80px; height: 80px; }
+  .topbar { padding: 0 10px; gap: 4px; }
+  .tab-btn { padding: 3px 7px; font-size: 10px; }
+  .hero-grid { grid-template-columns: repeat(auto-fill, 80px); gap: 5px; padding: 10px 12px; }
+  .hero-card { width: 80px; padding: 5px 4px 16px; }
+  .hero-img { width: 64px; height: 64px; }
+  .hero-cname { font-size: 10px; }
+  .hero-crole { font-size: 8px; }
   .pool-header { padding: 8px 10px; }
   .seq-bar { padding: 5px 10px; }
 }
 @media (max-width: 420px) {
-  .topbar-logo { font-size: 14px; }
-  .hero-grid { grid-template-columns: repeat(auto-fill, 84px); }
-  .hero-card { width: 84px; }
-  .hero-img { width: 64px; height: 64px; }
-  .team-panel { padding: 10px 12px; }
-  .bans-row { gap: 3px; }
-  .ban-slot { width: 42px; height: 52px; }
-  .ban-slot img { width: 30px; height: 30px; }
-  /* iOS: prevent auto-zoom on input focus (requires font-size ≥ 16px) */
+  .topbar-logo { font-size: 13px; }
+  .hero-grid { grid-template-columns: repeat(auto-fill, 72px); gap: 4px; }
+  .hero-card { width: 72px; padding: 4px 3px 14px; }
+  .hero-img { width: 58px; height: 58px; }
+  .ban-slot { width: 32px; height: 38px; }
+  .ban-slot img { width: 24px; height: 24px; }
+  /* iOS: prevent auto-zoom on input focus */
   input, select, textarea { font-size: 16px !important; }
 }
 
@@ -1536,11 +1546,13 @@ function renderPool(){
     let cls='hero-card';if(isBan)cls+=' banned';if(isPick)cls+=' picked';
     const u=imgUrl(h);
     const lane=getHeroLane(h);
-    const laneCol=LANE_COLORS[lane]||'#94a3b8';
-    return`<div class="${cls}" ${isUsed?'':'onclick="selectHero(\''+h.id+'\')"'} title="${h.name} · ${h.role} · ${lane}" style="${isUsed?'pointer-events:none;':''}">
+    // When filtering by a specific lane, show that lane — not the hero's primary lane
+    const displayLane=(isLaneMode && activeLane!=='All') ? activeLane : lane;
+    const laneCol=LANE_COLORS[displayLane]||'#94a3b8';
+    return`<div class="${cls}" ${isUsed?'':'onclick="selectHero(\''+h.id+'\')"'} title="${h.name} · ${h.role} · ${displayLane}" style="${isUsed?'pointer-events:none;':''}">
       <img src="${u}" class="hero-img" alt="${h.name}" onerror="if(this.dataset.t){this.src='${fbImg(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${imgUrlName(h)}'}">
       <div class="hero-cname">${h.name}</div>
-      <div class="hero-crole" style="color:${isLaneMode?(LANE_COLORS[lane]||'var(--text3)'):rc(h.role)}">${isLaneMode?lane:h.role.split('/')[0]}</div>
+      <div class="hero-crole" style="color:${isLaneMode?(LANE_COLORS[displayLane]||'var(--text3)'):rc(h.role)}">${isLaneMode?displayLane:h.role.split('/')[0]}</div>
       <div class="tier-badge tier-${h.tier}">${h.tier}</div>
       ${h.mp==='mustban'?'<div class="meta-badge mb-ban">BAN</div>':h.mp==='highpick'?'<div class="meta-badge mb-pick">HOT</div>':''}
       ${isBan?'<div class="banned-overlay">✕</div>':isPick?'<div class="banned-overlay" style="background:rgba(59,130,246,.15);color:rgba(59,130,246,.7);">✓</div>':''}
