@@ -112,8 +112,9 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
 .team-stripe { width: 3px; height: 32px; border-radius: 2px; flex-shrink: 0; }
 .blue-stripe { background: var(--blue); }
 .red-stripe { background: var(--red); }
-.team-name-input { background: transparent; border: none; border-bottom: 1px solid var(--border); color: var(--text); font-family: -apple-system,'SF Pro Text','Inter','Helvetica Neue',sans-serif; font-size: 14px; font-weight: 700; width: 150px; outline: none; padding: 2px 0; }
-.team-name-input:focus { border-bottom-color: var(--blue); }
+.team-name-select { background: transparent; border: none; border-bottom: 1px solid var(--border); color: var(--text); font-family: -apple-system,'SF Pro Text','Inter','Helvetica Neue',sans-serif; font-size: 14px; font-weight: 700; width: 160px; outline: none; padding: 2px 2px; cursor: pointer; appearance: none; -webkit-appearance: none; }
+.team-name-select:focus { border-bottom-color: var(--blue); }
+.team-name-select option { background: #161620; color: var(--text); font-weight: 600; }
 .side-tag { font-size: 10px; color: var(--text3); font-weight: 500; text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
 .our-label { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 8px; margin-left: 6px; }
 .our-blue { background: var(--blue-dim); color: var(--blue); border: 1px solid var(--blue-border); }
@@ -277,7 +278,7 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
   .team-panel.red-panel  { grid-column: 2; grid-row: 1; border-left: none; border-bottom: 1px solid var(--border); }
   .pool-section { grid-column: 1 / -1; grid-row: 2; }
   .team-panel { padding: 8px 10px; }
-  .team-name-input { font-size: 11px; }
+  .team-name-select { font-size: 11px; }
   .bans-row { gap: 3px; justify-content: center; }
   .ban-slot { width: 36px; height: 44px; }
   .ban-slot img { width: 28px; height: 28px; }
@@ -871,11 +872,11 @@ select {
       <div class="team-stripe blue-stripe"></div>
       <div>
         <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
-          <input class="team-name-input" id="blueTeamName" value="Blue Team" maxlength="28" list="teamListBlue" oninput="updateSeriesScore();updateScoutBadges();checkNewTeam('blue')" onfocus="if(this.value==='Blue Team')this.value=''" onblur="if(this.value==='')this.value='Blue Team';updateScoutBadges();checkNewTeam('blue')" placeholder="Team name..."/>
-          <datalist id="teamListBlue"></datalist>
+          <select class="team-name-select" id="blueTeamName" onchange="updateSeriesScore();updateScoutBadges()">
+            <option value="Blue Team">Blue Team</option>
+          </select>
           <span class="our-label our-blue" id="ourBlueLbl" style="display:none;">US</span>
           <span id="blueScoutBadge" title="Scouting data available" style="display:none;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;background:rgba(168,85,247,.15);color:#a855f7;border:1px solid rgba(168,85,247,.3);">SCOUT</span>
-          <span id="blueNewTeamBtn" title="Create profile for this team" style="display:none;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.3);cursor:pointer;" onclick="createTeamProfile('blue')">+ New Profile</span>
         </div>
         <div class="side-tag">Blue Side</div>
         <div id="blueObjStats" style="display:none;font-size:9px;color:var(--text3);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap;"></div>
@@ -912,11 +913,11 @@ select {
       <div class="team-stripe red-stripe"></div>
       <div>
         <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
-          <input class="team-name-input" id="redTeamName" value="Red Team" maxlength="28" list="teamListRed" oninput="updateSeriesScore();updateScoutBadges();checkNewTeam('red')" onfocus="if(this.value==='Red Team')this.value=''" onblur="if(this.value==='')this.value='Red Team';updateScoutBadges();checkNewTeam('red')" placeholder="Team name..."/>
-          <datalist id="teamListRed"></datalist>
+          <select class="team-name-select" id="redTeamName" onchange="updateSeriesScore();updateScoutBadges()">
+            <option value="Red Team">Red Team</option>
+          </select>
           <span class="our-label our-red" id="ourRedLbl" style="display:none;">US</span>
           <span id="redScoutBadge" title="Scouting data available" style="display:none;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;background:rgba(168,85,247,.15);color:#a855f7;border:1px solid rgba(168,85,247,.3);">SCOUT</span>
-          <span id="redNewTeamBtn" title="Create profile for this team" style="display:none;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.3);cursor:pointer;" onclick="createTeamProfile('red')">+ New Profile</span>
         </div>
         <div class="side-tag">Red Side</div>
         <div id="redObjStats" style="display:none;font-size:9px;color:var(--text3);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap;"></div>
@@ -1189,22 +1190,21 @@ function rc(r){const m={'MM':'#f59e0b','Mage':'#a855f7','Tank':'#3b82f6','Fighte
 function tc(t){return{S:'#f59e0b',A:'#9ca3af',B:'#b45309',C:'#4b5563'}[t]||'#4b5563';}
 function sideNames(){return{bt:document.getElementById('blueTeamName').value.trim()||'Blue Team',rt:document.getElementById('redTeamName').value.trim()||'Red Team'};}
 function teamHasTendency(name){ return !!TEAM_TENDENCIES[name]; }
-// Show scouting badge next to team name if tendencies exist
 function updateTeamDropdowns(){
-  const names = Object.keys(TEAM_TENDENCIES).sort();
-  const opts = names.map(n=>`<option value="${n}">`).join('');
-  const dlB = document.getElementById('teamListBlue');
-  const dlR = document.getElementById('teamListRed');
-  if(dlB) dlB.innerHTML = opts;
-  if(dlR) dlR.innerHTML = opts;
-}
-function checkNewTeam(side){
-  const name = document.getElementById(side+'TeamName').value.trim();
-  const btn = document.getElementById(side+'NewTeamBtn');
-  const scout = document.getElementById(side+'ScoutBadge');
-  if(!name || name==='Blue Team' || name==='Red Team') { btn.style.display='none'; return; }
-  if(TEAM_TENDENCIES[name]){ btn.style.display='none'; scout.style.display='inline'; }
-  else { btn.style.display='inline'; scout.style.display='none'; }
+  // Merge names from both TEAM_TENDENCIES (Excel) and Scout DB
+  const tendNames = Object.keys(TEAM_TENDENCIES);
+  let scoutNames = [];
+  try { scoutNames = Object.keys(loadScoutDB().teams||{}); } catch(e){}
+  const allNames = [...new Set([...tendNames, ...scoutNames])].sort();
+  const buildOpts = (currentVal, defaultLabel) => {
+    const base = `<option value="${defaultLabel}">${defaultLabel}</option>`;
+    const items = allNames.map(n=>`<option value="${n}"${n===currentVal?' selected':''}>${n}</option>`).join('');
+    return base + items;
+  };
+  const bSel = document.getElementById('blueTeamName');
+  const rSel = document.getElementById('redTeamName');
+  if(bSel) bSel.innerHTML = buildOpts(bSel.value,'Blue Team');
+  if(rSel) rSel.innerHTML = buildOpts(rSel.value,'Red Team');
 }
 function createTeamProfile(side){
   const name = document.getElementById(side+'TeamName').value.trim();
@@ -1218,7 +1218,6 @@ function createTeamProfile(side){
   } catch(e){}
   updateTeamDropdowns();
   updateScoutBadges();
-  checkNewTeam(side);
   toast(`✓ Profile created for "${name}" — fill in details via Excel import`);
 }
 function updateScoutBadges(){
@@ -2053,6 +2052,11 @@ async function analyzeDraft(){
     highPicks.length?`HighPick:${highPicks.join(',')}`:''
   ].filter(Boolean).join('\n');
 
+  // Build scout context for the analysis prompt
+  const blueScoutCtx = buildScoutContext(bt, 'blue');
+  const redScoutCtx  = buildScoutContext(rt, 'red');
+  const scoutSummary = (blueScoutCtx||redScoutCtx) ? `\nSCOUT DATABASE:${blueScoutCtx}${redScoutCtx}` : '';
+
   const prompt = `MLBB Draft Coach. ${leanMeta}${scoutSummary}${historyCtx}
 BLUE(${bt}) bans:${bBans} picks:${bPicks}
 RED(${rt}) bans:${rBans} picks:${rPicks}
@@ -2281,15 +2285,47 @@ function renderAnalysis(a,bt,rt,partial=false){
   </div>
 
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px;">
-    ${cats.map(c=>{const bs=a.blueScores?.[c.k]||50,rs=a.redScores?.[c.k]||50;return`<div>
-      <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:3px;display:flex;justify-content:space-between;">
-        <span>${c.l}</span><span><span style="color:#4499ff">${bs}</span><span style="color:var(--muted)">/</span><span style="color:#ff6677">${rs}</span></span>
-      </div>
-      <div style="display:flex;gap:2px;height:5px;">
-        <div style="flex:1;background:var(--border);border-radius:2px;overflow:hidden;"><div style="height:100%;background:linear-gradient(90deg,#4499ff,#0055dd);width:${bs}%;"></div></div>
-        <div style="flex:1;background:var(--border);border-radius:2px;overflow:hidden;"><div style="height:100%;background:linear-gradient(90deg,#ff6677,#cc1133);width:${rs}%;"></div></div>
-      </div>
-    </div>`;}).join('')}
+    ${(()=>{
+      const bpAn = getScoutTeamProfile(bt);
+      const rpAn = getScoutTeamProfile(rt);
+      return cats.map(c=>{
+        let bs=a.blueScores?.[c.k]||50, rs=a.redScores?.[c.k]||50;
+        let subLabel = '';
+        // Blend objective control score with actual scout data if available
+        if(c.k==='objectiveControl') {
+          const bTurt = bpAn?.turtleCtrl, bLord = bpAn?.lordCtrl;
+          const rTurt = rpAn?.turtleCtrl, rLord = rpAn?.lordCtrl;
+          if(bTurt!==null&&bTurt!==undefined || rTurt!==null&&rTurt!==undefined) {
+            // Override objectiveControl score with scout-weighted average
+            const bObj = [bTurt,bLord].filter(v=>v!=null);
+            const rObj = [rTurt,rLord].filter(v=>v!=null);
+            if(bObj.length) bs = Math.round(bObj.reduce((a,v)=>a+v,0)/bObj.length);
+            if(rObj.length) rs = Math.round(rObj.reduce((a,v)=>a+v,0)/rObj.length);
+            // Show the actual turtle/lord numbers as sub-labels
+            const bParts = [bTurt!=null?`🐢${bTurt}`:null, bLord!=null?`👑${bLord}`:null].filter(Boolean);
+            const rParts = [rTurt!=null?`🐢${rTurt}`:null, rLord!=null?`👑${rLord}`:null].filter(Boolean);
+            if(bParts.length||rParts.length) {
+              const bStr = bParts.join(' ');
+              const rStr = rParts.join(' ');
+              subLabel = `<div style="display:flex;justify-content:space-between;margin-top:3px;">
+                <span style="font-size:8px;color:#4CB87A;font-weight:600;">${bStr}</span>
+                <span style="font-size:8px;color:#C89050;font-weight:600;">${rStr}</span>
+              </div>`;
+            }
+          }
+        }
+        return`<div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:3px;display:flex;justify-content:space-between;">
+            <span>${c.l}</span><span><span style="color:#4499ff">${bs}</span><span style="color:var(--muted)">/</span><span style="color:#ff6677">${rs}</span></span>
+          </div>
+          <div style="display:flex;gap:2px;height:5px;">
+            <div style="flex:1;background:var(--border);border-radius:2px;overflow:hidden;"><div style="height:100%;background:linear-gradient(90deg,#4499ff,#0055dd);width:${bs}%;"></div></div>
+            <div style="flex:1;background:var(--border);border-radius:2px;overflow:hidden;"><div style="height:100%;background:linear-gradient(90deg,#ff6677,#cc1133);width:${rs}%;"></div></div>
+          </div>
+          ${subLabel}
+        </div>`;
+      }).join('');
+    })()}
   </div>
 
   <div style="border:1px solid var(--border);border-radius:6px;padding:16px;background:rgba(255,255,255,.02);margin-bottom:12px;position:relative;overflow:hidden;">
@@ -2893,13 +2929,8 @@ function getScoutTeamNames() {
   } catch(e){ return []; }
 }
 
-function updateScoutTeamDropdowns() {
-  const names = getScoutTeamNames();
-  ['teamListBlue','teamListRed'].forEach(id=>{
-    const dl = document.getElementById(id);
-    if(dl) dl.innerHTML = names.map(n=>`<option value="${n}">`).join('');
-  });
-}
+// Merged into updateTeamDropdowns() — kept as alias for backwards compat
+function updateScoutTeamDropdowns() { updateTeamDropdowns(); }
 
 function updateScoutBadges() {
   const {bt,rt} = sideNames();
@@ -4319,6 +4350,8 @@ function computeHeroScoutStats(matches) {
       }
     });
     renderPool(); // redraw cards with WR badges now that stats loaded
+    updateTeamDropdowns(); // populate team selects with scout team names
+    updateScoutBadges();
   } catch(e) { /* fail silently — defaults still apply */ }
 })();
 WAuth.renderAuthChip('authChip');
