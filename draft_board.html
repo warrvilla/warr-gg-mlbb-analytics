@@ -173,7 +173,7 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
 .hero-card.picked { opacity: .3; cursor: not-allowed; }
 .hero-img { width: 106px; height: 106px; margin: 0 auto 5px; border-radius: 7px; object-fit: cover; display: block; background: var(--surface); border: 1px solid var(--border); flex-shrink: 0; }
 .hero-cname { font-size: 11px; font-weight: 700; color: var(--text); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hero-crole { font-size: 9px; color: var(--text3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hero-crole { font-size: 9px; color: #94a3b8; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tier-badge { position: absolute; top: 4px; right: 4px; font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 8px; }
 .tier-S { background: var(--gold); color: #000; } .tier-A { background: #9ca3af; color: #000; } .tier-B { background: #b45309; color: #fff; } .tier-C { background: #374151; color: #9ca3af; }
 .meta-badge { position: absolute; top: 3px; left: 3px; font-size: 6px; font-weight: 700; padding: 1px 3px; border-radius: 2px; }
@@ -1552,7 +1552,7 @@ function renderPool(){
     return`<div class="${cls}" ${isUsed?'':'onclick="selectHero(\''+h.id+'\')"'} title="${h.name} · ${h.role} · ${displayLane}" style="${isUsed?'pointer-events:none;':''}">
       <img src="${u}" class="hero-img" alt="${h.name}" onerror="if(this.dataset.t){this.src='${fbImg(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${imgUrlName(h)}'}">
       <div class="hero-cname">${h.name}</div>
-      <div class="hero-crole" style="color:${isLaneMode?(LANE_COLORS[displayLane]||'var(--text3)'):rc(h.role)}">${isLaneMode?displayLane:h.role.split('/')[0]}</div>
+      <div class="hero-crole" style="color:${LANE_COLORS[displayLane]||'#94a3b8'}">${isLaneMode?displayLane:h.role.split('/')[0]}</div>
       <div class="tier-badge tier-${h.tier}">${h.tier}</div>
       ${h.mp==='mustban'?'<div class="meta-badge mb-ban">BAN</div>':h.mp==='highpick'?'<div class="meta-badge mb-pick">HOT</div>':''}
       ${isBan?'<div class="banned-overlay">✕</div>':isPick?'<div class="banned-overlay" style="background:rgba(59,130,246,.15);color:rgba(59,130,246,.7);">✓</div>':''}

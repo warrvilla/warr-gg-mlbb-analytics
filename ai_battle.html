@@ -162,7 +162,7 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
 .hero-card.lkd{opacity:.5;cursor:not-allowed;}
 .hero-img{width:106px;height:106px;margin:0 auto 5px;border-radius:7px;object-fit:cover;display:block;background:var(--surface);border:1px solid var(--border);}
 .hero-cname{font-size:11px;font-weight:700;color:var(--text);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.hero-crole{font-size:9px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hero-crole{font-size:9px;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .tier-badge{position:absolute;top:4px;right:4px;font-size:8px;font-weight:700;padding:1px 4px;border-radius:8px;}
 .tier-S{background:var(--gold);color:#000;}.tier-A{background:#9ca3af;color:#000;}.tier-B{background:#b45309;color:#fff;}.tier-C{background:#374151;color:#9ca3af;}
 .meta-badge{position:absolute;top:3px;left:3px;font-size:6px;font-weight:700;padding:1px 3px;border-radius:2px;}
@@ -1439,10 +1439,12 @@ function renderPool(){
     const u=iu(h);
     const hls=getHeroLanesAB(h);
     const primary=hls[0]||'Flex';
-    const pc=LANE_COLORS_AB[primary]||'#94a3b8';
-    return`<div class="${cls}" data-id="${h.id}" ${used||locked?'data-locked="1"':''} onclick="if(!this.dataset.locked)pick(this.dataset.id)" title="${h.name} · ${h.role} · ${primary} · ${h.tier}">
+    // Show filtered lane label when a specific lane is active
+    const displayLaneAB=(isLaneModeAB && alane!=='All') ? alane : primary;
+    const pc=LANE_COLORS_AB[displayLaneAB]||'#94a3b8';
+    return`<div class="${cls}" data-id="${h.id}" ${used||locked?'data-locked="1"':''} onclick="if(!this.dataset.locked)pick(this.dataset.id)" title="${h.name} · ${h.role} · ${displayLaneAB} · ${h.tier}">
       <img src="${u}" class="hero-img" alt="${h.name}" onerror="if(this.dataset.t){this.src='${fb(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${iun(h)}';}">
-      <div class="hero-cname">${h.name}</div><div class="hero-crole" style="color:${isLaneModeAB?(LANE_COLORS_AB[primary]||'var(--text3)'):rc(h.role)}">${isLaneModeAB?primary:h.role.split('/')[0]}</div>
+      <div class="hero-cname">${h.name}</div><div class="hero-crole" style="color:${LANE_COLORS_AB[displayLaneAB]||'#94a3b8'}">${isLaneModeAB?displayLaneAB:h.role.split('/')[0]}</div>
       <div class="tier-badge tier-${h.tier}">${h.tier}</div>
       ${h.mp==='mustban'?'<div class="meta-badge mb-ban">BAN</div>':h.mp==='highpick'?'<div class="meta-badge mb-pick">HOT</div>':''}
       ${ban?'<div class="banned-overlay">✕</div>':pick?'<div class="banned-overlay" style="background:rgba(79,142,247,.15);color:rgba(79,142,247,.7);">✓</div>':''}
