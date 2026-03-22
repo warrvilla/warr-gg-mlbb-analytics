@@ -155,12 +155,12 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
 .lane-section-header{display:flex;align-items:center;gap:8px;padding:8px 0 8px;}
 .lane-section-cards{display:flex;flex-wrap:wrap;gap:8px;padding-bottom:8px;}
 .hero-grid::-webkit-scrollbar{width:4px;}.hero-grid::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
-.hero-card{border:1px solid var(--border);border-radius:8px;padding:7px 6px 20px;cursor:pointer;transition:all .12s;text-align:center;background:var(--surface2);position:relative;user-select:none;overflow:hidden;width:130px;box-sizing:border-box;}
+.hero-card{border:1px solid var(--border);border-radius:8px;padding:7px 6px 6px;cursor:pointer;transition:all .12s;text-align:center;background:var(--surface2);position:relative;user-select:none;overflow:hidden;width:130px;height:152px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;}
 .hero-card:hover:not(.banned):not(.picked):not(.lkd){border-color:var(--accent);background:var(--accent-dim);transform:translateY(-2px);box-shadow:0 4px 16px rgba(168,136,204,0.11);}
 .hero-card.banned{opacity:.2;cursor:not-allowed;filter:grayscale(1);}
 .hero-card.picked{opacity:.3;cursor:not-allowed;}
 .hero-card.lkd{opacity:.5;cursor:not-allowed;}
-.hero-img{width:106px;height:106px;margin:0 auto 5px;border-radius:7px;object-fit:cover;display:block;background:var(--surface);border:1px solid var(--border);}
+.hero-img{width:106px;height:106px;margin:0 auto 4px;border-radius:7px;object-fit:cover;display:block;background:var(--surface);border:1px solid var(--border);flex-shrink:0;}
 .hero-cname{font-size:11px;font-weight:700;color:var(--text);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .hero-crole{font-size:9px;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .tier-badge{position:absolute;top:4px;right:4px;font-size:8px;font-weight:700;padding:1px 4px;border-radius:8px;}
@@ -266,7 +266,7 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
 }
 @media (max-width: 768px) {
   .hero-grid { grid-template-columns: repeat(auto-fill, 110px); }
-  .hero-card { width: 110px; }
+  .hero-card { width: 110px; height: 134px; }
   .hero-img { width: 88px; height: 88px; }
 }
 @media (max-width: 640px) {
@@ -289,14 +289,14 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
   #setup { padding: 0 12px; margin: 20px auto; }
   .grid3 { grid-template-columns: 1fr; }
   .hero-grid { grid-template-columns: repeat(auto-fill, 80px); gap: 5px; padding: 10px 12px; }
-  .hero-card { width: 80px; padding: 5px 4px 16px; }
+  .hero-card { width: 80px; height: 106px; padding: 5px 4px 5px; }
   .hero-img { width: 64px; height: 64px; }
   .hero-cname { font-size: 10px; }
   .hero-crole { font-size: 8px; }
 }
 @media (max-width: 420px) {
   .hero-grid { grid-template-columns: repeat(auto-fill, 72px); gap: 4px; }
-  .hero-card { width: 72px; padding: 4px 3px 14px; }
+  .hero-card { width: 72px; height: 97px; padding: 4px 3px 4px; }
   .hero-img { width: 58px; height: 58px; }
   .ban-slot { width: 30px; height: 36px; }
   .ban-slot img { width: 22px; height: 22px; }

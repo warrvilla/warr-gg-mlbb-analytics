@@ -1261,7 +1261,9 @@ const DB_MODULE = (() => {
     return 'sid_' + _hashStr(_seriesKey_raw(m));
   }
 
-  return { load, save, getMatches, getTeams, upsertMatch, deleteMatch, upsertTeam, deleteTeam, rebuildTeams, getSeriesId, _hashStr, _seriesKey_raw };
+  function resetMatches(newMatches) { _db.matches = newMatches || []; }
+
+  return { load, save, getMatches, getTeams, upsertMatch, deleteMatch, upsertTeam, deleteTeam, rebuildTeams, resetMatches, getSeriesId, _hashStr, _seriesKey_raw };
 })();
 
 // ── SUPABASE INTEGRATION ──────────────────────────────────────
@@ -1282,13 +1284,17 @@ async function loadFromSupabase() {
   try {
     const cloudMatches = await WDB.loadMatches();
     const cloudIds = new Set(cloudMatches.map(m => m.id));
-    // Keep local-only matches (not yet on cloud) and upload them
-    const localOnly = DB_MODULE.getMatches().filter(m => !cloudIds.has(m.id));
-    // Replace DB with cloud data + any local-only ones
-    cloudMatches.forEach(m => DB_MODULE.upsertMatch(m));
-    // Upload local-only silently
+    const userId = WAuth.getUser()?.id || null;
+    // Only keep local-only matches that belong to the CURRENT user (prevents stale
+    // data from a previously-logged-in user from leaking into the current session)
+    const localOnly = DB_MODULE.getMatches().filter(m =>
+      !cloudIds.has(m.id) && (m._createdBy === userId || (!m._createdBy && userId === null))
+    );
+    // Replace entire match list with authoritative cloud data first
+    DB_MODULE.resetMatches(cloudMatches.slice());
+    // Then merge in any truly local-only matches for current user and upload them
     for (const m of localOnly) {
-      DB_MODULE.upsertMatch(m); // ensure in memory
+      DB_MODULE.upsertMatch(m);
       WDB.saveMatch(m).catch(() => {});
     }
     DB_MODULE.rebuildTeams();
