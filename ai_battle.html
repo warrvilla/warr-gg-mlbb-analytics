@@ -6,6 +6,7 @@
 <title>AI Battle — Warr.GG</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="warr-lib.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <link rel="stylesheet" href="warr-styles.css">
 <style>
 :root {
@@ -225,6 +226,15 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
 .rpt{font-size:8px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px;}
 .rtag{display:inline-block;margin:2px;padding:2px 7px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;font-size:9px;color:var(--text);}
 .rasummary{margin:12px 0;padding:11px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:10px;line-height:1.75;color:var(--text);text-align:left;display:none;}
+.rbreakdown{margin:14px 0 4px;text-align:left;}
+.rbd-title{font-size:10px;font-weight:700;font-family:var(--font-head);letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:8px;}
+.rbd-row{display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--surface2);border-radius:6px;margin-bottom:4px;border-left:3px solid var(--ai);}
+.rbd-img{width:28px;height:28px;border-radius:5px;object-fit:cover;flex-shrink:0;}
+.rbd-info{flex:1;min-width:0;}
+.rbd-name{font-size:11px;font-weight:700;color:var(--text);}
+.rbd-reason{font-size:9px;color:var(--text3);margin-top:1px;}
+.rbd-conf{font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;flex-shrink:0;}
+.rbd-high{background:rgba(74,222,128,.15);color:#4ade80;} .rbd-medium{background:rgba(250,204,21,.12);color:#facc15;} .rbd-low{background:rgba(156,163,175,.12);color:#9ca3af;}
 .rbtns{display:flex;gap:7px;margin-top:16px;justify-content:center;flex-wrap:wrap;}
 .rbtn{padding:9px 20px;font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:1px;border-radius:8px;border:1px solid;cursor:pointer;transition:all .15s;}
 .rbp{border-color:var(--ai-border);background:var(--ai-dim);color:var(--ai);}
@@ -821,8 +831,10 @@ input:focus, .search-input:focus {
     <div class="rpicks"><div class="rpt" id="rptYou">Your Picks</div><div id="rpYou"></div></div>
     <div class="rpicks"><div class="rpt">Warr.GG AI Picks</div><div id="rpAI"></div></div>
     <div class="rasummary" id="rasummary"></div>
+    <div class="rbreakdown" id="rbreakdown"></div>
     <div class="rbtns">
       <button class="rbtn rbp" onclick="this.textContent='Analyzing…';this.disabled=true;runAnalysis().finally(()=>{this.textContent='Full Analysis';this.disabled=false;})">Full Analysis</button>
+      <button class="rbtn rbs" onclick="captureResult()" title="Save as PNG">📸 Screenshot</button>
       <button class="rbtn rbs" onclick="rematch()">↺ Rematch</button>
       <button class="rbtn rbs" onclick="goSetup()">Setup</button>
     </div>
@@ -1751,6 +1763,35 @@ function isCounteredBy(h, oppPicks){
   return oppPicks.some(op=>COUNTERS[h.name]?.includes(op.name));
 }
 
+// ── Team composition helpers ──
+function getHeroRole(heroName) {
+  const h = HEROES.find(x => x.name === heroName);
+  return h ? (h.role||'').split('/')[0].trim() : '';
+}
+function getTeamComp(picks) {
+  const comp = { Tank:0, Fighter:0, Mage:0, Marksman:0, Support:0, Assassin:0 };
+  picks.forEach(h => {
+    const r = getHeroRole(h.name);
+    if (r in comp) comp[r]++;
+  });
+  return comp;
+}
+function compScoreAdjust(h, myPicks) {
+  const comp = getTeamComp(myPicks);
+  const role = getHeroRole(h.name);
+  const hasFrontline = comp.Tank > 0 || comp.Fighter > 0;
+  const roleCount = comp[role] || 0;
+
+  // Penalise stacking same role (3rd+ of same role)
+  const stackPenalty = roleCount >= 2 ? -25 : 0;
+  // Bonus for being the FIRST tank/fighter if team has none yet
+  const frontlineBonus = !hasFrontline && (role === 'Tank' || role === 'Fighter') ? 20 : 0;
+  // Softer bonus for second fighter/tank to add bruiser layer
+  const bruiserBonus = hasFrontline && comp.Tank + comp.Fighter < 2 && (role === 'Tank' || role === 'Fighter') ? 8 : 0;
+
+  return stackPenalty + frontlineBonus + bruiserBonus;
+}
+
 function localAI(step){
   const usedIds=[...ST.bb,...ST.rb,...ST.bp,...ST.rp].map(h=>h.id);
   const avail=HEROES.filter(h=>!usedIds.includes(h.id));
@@ -1826,18 +1867,24 @@ function localAI(step){
       return lc.some(x=>x.name===h.name);
     }).length*15;
     const metaBonus=h.mp==='highpick'?12:h.mp==='mustban'?6:0;
-    return{hero:h,score:ts+fillsNeeded+alreadyCovered+countersOpp+vuln+beatsHumanFavs+metaBonus+Math.random()*5};
+    const compAdj=compScoreAdjust(h,myP);
+    return{hero:h,score:ts+fillsNeeded+alreadyCovered+countersOpp+vuln+beatsHumanFavs+metaBonus+compAdj+Math.random()*5};
   }).sort((a,b)=>b.score-a.score);
 
   const h=scored[0]?.hero||avail[0];
   const ln=lane(h);
   const countered=oppP.filter(op=>fullCounterList(op.name).some(x=>x.name===h.name));
   const learnedFor=countered.filter(op=>getLearnedCounters(op.name).some(x=>x.name===h.name));
+  const comp=getTeamComp(myP);
+  const hasFrontline=comp.Tank>0||comp.Fighter>0;
+  const role=getHeroRole(h.name);
+  const needsFrontline=!hasFrontline&&(role==='Tank'||role==='Fighter');
   h._r=countered.length
     ?`Counters ${countered.slice(0,2).map(x=>x.name).join('+')}${learnedFor.length?' (learned)':''}`
+    :needsFrontline?`Frontline anchor — team needs Tank/Fighter`
     :myNeeded.includes(ln)?`Fills ${ln} lane`
-    :`Best available (${t}-tier)`;
-  h._c=countered.length?'high':'medium';return h;
+    :`Best available (${TIER_LIST[h.name]?.tier||h.tier}-tier)`;
+  h._c=countered.length?'high':needsFrontline?'high':'medium';return h;
 }
 
 function buildMeta(){
@@ -2069,6 +2116,24 @@ function showResult(){
   }).join('');
   document.getElementById('rpYou').innerHTML=`<div style="display:flex;gap:6px;flex-wrap:wrap;">${pickRow(pp)}</div>`;
   document.getElementById('rpAI').innerHTML=`<div style="display:flex;gap:6px;flex-wrap:wrap;">${pickRow(aip)}</div>`;
+  // Build AI pick breakdown panel
+  const bdEl = document.getElementById('rbreakdown');
+  if (bdEl && aip.length) {
+    const rows = aip.map(h => {
+      const conf = h._c || 'medium';
+      const u = iu(h);
+      return `<div class="rbd-row">
+        <img class="rbd-img" src="${u}" onerror="this.src='${fb(h)}'" alt="${h.name}">
+        <div class="rbd-info">
+          <div class="rbd-name">${h.name} <span style="font-size:9px;color:var(--text3);font-weight:400;">· ${lane(h)}</span></div>
+          <div class="rbd-reason">${h._r || 'Best available'}</div>
+        </div>
+        <span class="rbd-conf rbd-${conf}">${conf.charAt(0).toUpperCase()+conf.slice(1)}</span>
+      </div>`;
+    }).join('');
+    bdEl.innerHTML = `<div class="rbd-title">AI Draft Reasoning</div>${rows}`;
+  }
+
   // Compute outcome from local analysis for immediate memory recording
   // (will be overwritten with accurate result when runAnalysis completes)
   const localResult=localAnalysis(
@@ -2086,6 +2151,20 @@ function showResult(){
   const aiBans=aiSide==='blue'?ST.bb:ST.rb;
   const saved=saveMatchToScout(pp,aip,pBans,aiBans,pw);
   if(saved)toast('Match saved to Scout history');
+}
+
+async function captureResult() {
+  const el = document.getElementById('result');
+  if (!el) return;
+  toast('Capturing…');
+  try {
+    const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#07070C', useCORS: true, allowTaint: true });
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = `ai-battle-${new Date().toISOString().slice(0,10)}.png`;
+    link.click();
+    toast('Saved as PNG ✓');
+  } catch(e) { toast('Screenshot failed', 'error'); }
 }
 
 // ═══════ FULL ANALYSIS ═══════

@@ -460,6 +460,9 @@ body {
 }
 .lane-pill.assigned { border-style: solid; }
 .lane-pill:hover { border-color: var(--text2); }
+.lane-picker-pop { position:absolute; right:0; top:calc(100% + 4px); z-index:80; background:var(--surface2); border:1px solid var(--border2); border-radius:8px; padding:6px; display:flex; gap:4px; flex-wrap:wrap; width:176px; box-shadow:0 8px 24px rgba(0,0,0,.55); }
+.lane-picker-pop button { padding:3px 8px; border-radius:5px; font-size:9px; font-weight:700; font-family:var(--font-head); border:1px solid; background:transparent; cursor:pointer; letter-spacing:.5px; transition:opacity .1s; }
+.lane-picker-pop button:hover { opacity:.8; }
 .phase-divider {
   font-size: 9px;
   font-weight: 700;
@@ -1803,7 +1806,8 @@ function _openMatchModal(m) {
           <div class="divider"></div>
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;flex-wrap:wrap;">
             <span style="font-size:11px;font-weight:700;color:var(--text2);font-family:var(--font-head);">HERO POOL</span>
-            <input class="form-input" style="flex:1;max-width:180px;padding:4px 8px;font-size:11px;" placeholder="Search hero…"
+            <span id="draftPoolCount" style="font-size:9px;color:var(--text3);font-family:var(--font-mono);"></span>
+            <input class="form-input" style="flex:1;max-width:180px;padding:4px 8px;font-size:11px;" placeholder="🔍 Search hero…"
               oninput="draftHeroSearch=this.value;renderHeroPool()" value="${draftHeroSearch}">
             <span style="font-size:11px;font-weight:700;" id="draftStepHint"></span>
           </div>
@@ -1855,7 +1859,7 @@ function renderDraftBoard() {
       const lc = LANE_COLORS[sl.lane] || '';
       const laneBtn = !isBan ? `<span class="lane-pill ${sl.lane?'assigned':''}"
         style="${sl.lane ? `background:${lc}22;color:${lc};border-color:${lc}88;` : ''}"
-        onclick="cycleDraftLane(${i})" title="Click to cycle lane">${sl.lane || '+ lane'}</span>` : '';
+        onclick="showLanePicker(${i},this)" title="Click to set lane" style="position:relative;">${sl.lane || '+ lane'}</span>` : '';
       return `<div class="${cls}" data-step="${i}">
         ${label}
         <img src="./portraits/${sl.heroId}.png" onerror="this.style.display='none'" style="width:26px;height:26px;border-radius:8px;object-fit:cover;flex-shrink:0;">
@@ -1976,6 +1980,10 @@ function renderHeroPool() {
     return true;
   });
 
+  // Show hero count (helpful when search/filter is active)
+  const countEl = document.getElementById('draftPoolCount');
+  if (countEl) countEl.textContent = sq || draftLaneFilter !== 'All' ? `${heroes.length} hero${heroes.length!==1?'es':''}` : '';
+
   grid.innerHTML = heroes.map(h => {
     const used = usedNames.has(h.name);
     const enc = h.name.replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;');
@@ -2074,13 +2082,33 @@ function undoDraftStep()  { if (draftStepIndex <= 0) return; draftStepIndex--; d
 function clearDraftSlot(i){ draftSlots[i] = null; if (draftStepIndex > i) draftStepIndex = i; renderDraftBoard(); }
 function resetDraft()     { if (!confirm('Reset entire draft?')) return; draftStepIndex=0; draftSlots=Array(DRAFT_STEPS.length).fill(null); renderDraftBoard(); }
 
-function cycleDraftLane(i) {
-  const sl = draftSlots[i];
-  if (!sl || sl.type==='ban') return;
-  const idx = LANES.indexOf(sl.lane);
-  sl.lane = idx >= 0 ? (idx < LANES.length-1 ? LANES[idx+1] : null) : LANES[0];
+function showLanePicker(idx, el) {
+  document.querySelectorAll('.lane-picker-pop').forEach(p => p.remove());
+  const pop = document.createElement('div');
+  pop.className = 'lane-picker-pop';
+  const laneButtons = LANES.map(l => {
+    const c = LANE_COLORS[l] || '#94a3b8';
+    return `<button style="color:${c};border-color:${c}66;background:${c}11;" onclick="setLaneFromPicker(${idx},'${l}')">${l}</button>`;
+  }).join('');
+  pop.innerHTML = laneButtons + `<button style="color:var(--text3);border-color:var(--border2);" onclick="setLaneFromPicker(${idx},null)">None</button>`;
+  el.style.position = 'relative';
+  el.appendChild(pop);
+  setTimeout(() => {
+    const dismiss = e => {
+      if (!pop.contains(e.target) && e.target !== el) {
+        pop.remove();
+        document.removeEventListener('click', dismiss);
+      }
+    };
+    document.addEventListener('click', dismiss);
+  }, 0);
+}
+function setLaneFromPicker(idx, l) {
+  if (draftSlots[idx]) draftSlots[idx].lane = l || null;
+  document.querySelectorAll('.lane-picker-pop').forEach(p => p.remove());
   renderDraftBoard();
 }
+function cycleDraftLane(i) { showLanePicker(i, event?.target); } // kept as fallback
 
 // ══════════════════════════════════════════════════════════════
 // SAVE MATCH

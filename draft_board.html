@@ -6,6 +6,7 @@
 <title>Draft Board — Warr.GG</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="warr-lib.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <link rel="stylesheet" href="warr-styles.css">
 <style>
 :root {
@@ -176,6 +177,8 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
 .hero-crole { font-size: 9px; color: #94a3b8; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tier-badge { position: absolute; top: 4px; right: 4px; font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 8px; }
 .tier-S { background: var(--gold); color: #000; } .tier-A { background: #9ca3af; color: #000; } .tier-B { background: #b45309; color: #fff; } .tier-C { background: #374151; color: #9ca3af; }
+.wr-badge { position: absolute; bottom: 3px; left: 0; right: 0; text-align: center; font-size: 8px; font-weight: 700; font-family: var(--font-mono); pointer-events: none; }
+.wr-high { color: #4ade80; } .wr-mid { color: #facc15; } .wr-low { color: #f87171; }
 .meta-badge { position: absolute; top: 3px; left: 3px; font-size: 6px; font-weight: 700; padding: 1px 3px; border-radius: 2px; }
 .mb-ban { background: rgba(239,68,68,.85); color: #fff; }
 .mb-pick { background: rgba(59,130,246,.85); color: #fff; }
@@ -843,6 +846,7 @@ select {
     </div>
     <input type="file" id="dataSheetInput" accept=".xlsx" style="display:none;" onchange="loadDataSheet(event)">
     <button class="db-btn" onclick="loadFromSupabase()" style="font-size:9px;letter-spacing:.08em;">Sync</button>
+    <button class="db-btn" onclick="captureDraft()" style="font-size:9px;letter-spacing:.08em;" title="Save draft as PNG">📸</button>
   </div>
 </div>
 
@@ -1101,6 +1105,7 @@ let M7_HEROES = []; // Populated from imported sheet data
 let PATCH_VERSION = null;
 let TIER_LIST = {};
 let LANE_TIERS = {}; // { heroName: { Gold:"S", Roam:"B" } } — tier per lane
+let heroScoutStats = {}; // { heroName: { picks, wins, winRate } } — from scout matches
 
 try {
   const saved = localStorage.getItem('mlbb_draft_data');
@@ -1556,6 +1561,7 @@ function renderPool(){
       <div class="hero-crole" style="color:${LANE_COLORS[displayLane]||'#94a3b8'}">${isLaneMode?displayLane:h.role.split('/')[0]}</div>
       <div class="tier-badge tier-${h.tier}">${h.tier}</div>
       ${h.mp==='mustban'?'<div class="meta-badge mb-ban">BAN</div>':h.mp==='highpick'?'<div class="meta-badge mb-pick">HOT</div>':''}
+      ${heroScoutStats[h.name]!=null?(()=>{const wr=heroScoutStats[h.name].winRate;const cls=wr>=55?'wr-high':wr>=45?'wr-mid':'wr-low';return`<div class="wr-badge ${cls}">${wr}%</div>`;})():''}
       ${isBan?'<div class="banned-overlay">✕</div>':isPick?'<div class="banned-overlay" style="background:rgba(59,130,246,.15);color:rgba(59,130,246,.7);">✓</div>':''}
     </div>`;
   }
@@ -3253,6 +3259,21 @@ async function saveToSupabase() {
   }
 }
 
+async function captureDraft() {
+  const el = document.querySelector('.draft-layout') || document.body;
+  toast('Capturing draft…');
+  try {
+    const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#07070C', useCORS: true, allowTaint: true });
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = `mlbb-draft-${new Date().toISOString().slice(0,10)}.png`;
+    link.click();
+    toast('Draft saved as PNG ✓', 'success');
+  } catch(e) {
+    toast('Screenshot failed: ' + e.message, 'error');
+  }
+}
+
 function showLoading(show) {
   const el = document.getElementById('loadingOverlay');
   if (el) el.className = show ? 'loading-overlay show' : 'loading-overlay';
@@ -4157,22 +4178,49 @@ async function _deleteSavedDraft(id, btn) {
   }
 }
 
+function computeHeroScoutStats(matches) {
+  const stats = {};
+  matches.forEach(m => {
+    const sides = [
+      { picks: m.bluePicks || [], won: m.winner === 'blue' },
+      { picks: m.redPicks  || [], won: m.winner === 'red'  },
+    ];
+    sides.forEach(({ picks, won }) => {
+      picks.forEach(p => {
+        const name = p.name || p;
+        if (!name) return;
+        if (!stats[name]) stats[name] = { picks: 0, wins: 0 };
+        stats[name].picks++;
+        if (won) stats[name].wins++;
+      });
+    });
+  });
+  // Only show WR for heroes with 3+ picks (avoid noise from single games)
+  Object.entries(stats).forEach(([n, s]) => {
+    if (s.picks >= 3) s.winRate = Math.round(s.wins / s.picks * 100);
+    else delete stats[n];
+  });
+  return stats;
+}
+
 // Init Supabase auth chip + apply scout role corrections to HERO_LANES
 (async () => {
   const ok = await WAuth.requireAuth();
   if (!ok) return;
-  // Patch HERO_LANES with observed lanes from scout data
   try {
+    const matches = await WDB.loadMatches();
+    heroScoutStats = computeHeroScoutStats(matches);
+    // Patch HERO_LANES with observed lanes from scout data
     const scoutRoles = await WDB.computeHeroRoles(2);
     Object.entries(scoutRoles).forEach(([hero, primaryLane]) => {
       if (!HERO_LANES[hero]) {
         HERO_LANES[hero] = [primaryLane];
       } else if (HERO_LANES[hero][0] !== primaryLane) {
-        // Move scout-observed primary lane to front, keep others as secondaries
         const rest = HERO_LANES[hero].filter(l => l !== primaryLane);
         HERO_LANES[hero] = [primaryLane, ...rest];
       }
     });
+    renderPool(); // redraw cards with WR badges now that stats loaded
   } catch(e) { /* fail silently — defaults still apply */ }
 })();
 WAuth.renderAuthChip('authChip');
