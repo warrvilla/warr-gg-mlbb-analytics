@@ -264,6 +264,11 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
   .team-panel.red-panel { grid-column: 2; border-left: 1px solid var(--border); }
   .pool-section { grid-column: 1 / -1; }
 }
+@media (max-width: 768px) {
+  .hero-grid { grid-template-columns: repeat(auto-fill, 110px); }
+  .hero-card { width: 110px; }
+  .hero-img { width: 88px; height: 88px; }
+}
 @media (max-width: 640px) {
   .draft-layout { grid-template-columns: 1fr; }
   .team-panel.blue-panel { grid-column: 1; border-right: none; border-bottom: 1px solid var(--border); }
@@ -2240,7 +2245,14 @@ function renderAnalysis(a,bt,rt){
 updateMemChip();
 (async () => {
   const ok = await WAuth.requireAuth();
-  if (!ok) return; // redirecting to auth.html
+  if (!ok) return;
+  // Patch LANES_MAP with observed lanes from scout match data
+  try {
+    const scoutRoles = await WDB.computeHeroRoles(2);
+    Object.entries(scoutRoles).forEach(([hero, primaryLane]) => {
+      LANES_MAP[hero] = primaryLane;
+    });
+  } catch(e) { /* fail silently — defaults still apply */ }
 })();
 WAuth.renderAuthChip('authChip');
 </script>

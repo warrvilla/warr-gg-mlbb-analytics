@@ -212,6 +212,32 @@ const WDB = {
     const { error } = await _sbClient.from('draft_saves').delete().eq('id', id);
     if (error) throw error;
   },
+
+  /**
+   * Compute hero → primary lane from scout match data.
+   * Returns { heroName: 'Gold'|'Jungle'|'Mid'|'EXP'|'Roam' }
+   * Only includes heroes with >= minSamples observations to avoid noise.
+   */
+  async computeHeroRoles(minSamples = 2) {
+    let matches;
+    try { matches = await this.loadMatches(); } catch(e) { return {}; }
+    const counts = {}; // { heroName: { Gold: n, Jungle: n, ... } }
+    matches.forEach(m => {
+      [...(m.bluePicks || []), ...(m.redPicks || [])].forEach(p => {
+        if (!p || !p.name || !p.lane) return;
+        if (!counts[p.name]) counts[p.name] = {};
+        counts[p.name][p.lane] = (counts[p.name][p.lane] || 0) + 1;
+      });
+    });
+    const result = {};
+    Object.entries(counts).forEach(([hero, laneCounts]) => {
+      const total = Object.values(laneCounts).reduce((a,b) => a+b, 0);
+      if (total < minSamples) return;
+      const sorted = Object.entries(laneCounts).sort((a,b) => b[1]-a[1]);
+      result[hero] = sorted[0][0]; // most common lane
+    });
+    return result;
+  },
 };
 
 // ═══════════════════════════════════════════════════════════════

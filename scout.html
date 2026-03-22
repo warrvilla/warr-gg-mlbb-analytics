@@ -745,24 +745,56 @@ body {
 .del-btn:hover { border-color: var(--red); color: var(--red); background: var(--red-dim); }
 
 /* ── MOBILE RESPONSIVE ── */
+/* Desktop-only elements (hide on mobile) */
+.mobile-league-select { display: none; }
+
 @media (max-width: 768px) {
   .page { flex-direction: column; height: auto; }
-  .sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); max-height: 160px; overflow-y: auto; }
+  .sidebar {
+    width: 100%; flex-direction: row; flex-wrap: nowrap;
+    border-right: none; border-bottom: 1px solid var(--border);
+    overflow-x: auto; overflow-y: hidden;
+    padding: 6px 10px; gap: 4px; align-items: center;
+  }
   .sidebar-section { display: none; }
-  .sidebar-btn { width: auto; padding: 6px 10px; font-size: 11px; border-left: none; border-bottom: 2px solid transparent; }
+  .sidebar-btn { width: auto; padding: 7px 14px; font-size: 12px; border-left: none; border-bottom: 2px solid transparent; white-space: nowrap; flex-shrink: 0; }
   .sidebar-btn.active { border-bottom-color: var(--accent); background: var(--accent-dim); }
   .main { padding: 14px 16px; }
   /* Modal — full-width sheet on tablet */
   .modal-overlay { padding: 0; align-items: flex-end; }
   .modal { border-radius: 20px 20px 0 0; max-height: 92vh; max-width: 100% !important; }
 }
+
 @media (max-width: 480px) {
+  /* Sidebar: only show 3 view tabs + a league dropdown */
+  .sidebar { padding: 0; border-bottom: 1px solid var(--border); flex-direction: column; height: auto; }
+  .sidebar-inner-tabs { display: flex; flex-direction: row; width: 100%; }
+  .desktop-only { display: none !important; }
+  .mobile-league-select {
+    display: block;
+    width: 100%;
+    background: var(--surface2);
+    border: none;
+    border-top: 1px solid var(--border);
+    color: var(--text);
+    font-size: 13px;
+    padding: 9px 14px;
+    font-family: var(--font-body);
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+  }
+  .sidebar-btn { width: 33.33%; text-align: center; justify-content: center; padding: 10px 8px; font-size: 12px; border-bottom: 2px solid transparent; border-left: none; }
+  .sidebar-btn.active { border-bottom-color: var(--accent); background: var(--accent-dim); }
   .team-grid { grid-template-columns: 1fr; }
   .meta-table { font-size: 11px; }
   .meta-table th, .meta-table td { padding: 5px 7px; }
   .card { padding: 12px 14px; }
   .main { padding: 10px 12px; }
-  /* Modal body — more scrollable room */
+  /* Modal */
   .modal { max-height: 94vh; }
   .modal-header { padding: 12px 14px; }
   .modal-body { padding: 14px; }
@@ -771,18 +803,15 @@ body {
   /* Form rows stack on phone */
   .form-row { flex-direction: column !important; }
   .form-group { flex: unset !important; min-width: unset !important; }
-  /* Input font-size 16px prevents iOS auto-zoom */
-  .form-input, input[type="text"], input[type="number"], select {
-    font-size: 16px !important;
-  }
-  /* Sidebar compact pill scroll */
-  .sidebar { max-height: 52px; overflow-x: auto; overflow-y: hidden; flex-wrap: nowrap; }
-  .sidebar-btn { white-space: nowrap; flex-shrink: 0; }
-  /* Hero grid — 5 per row on phone, slightly bigger tap */
+  /* iOS zoom fix */
+  .form-input, input[type="text"], input[type="number"], select { font-size: 16px !important; }
+  /* Hero grid */
   .hc { min-width: 52px; }
   .hc img { width: 32px; height: 32px; }
   /* Match list cards */
   .match-card { padding: 10px 12px !important; }
+  /* Add match FAB */
+  .fab-add { display: flex; }
 }
 
 /* ═══════════ APPLE LIQUID GLASS PATCH ═══════════ */
@@ -861,6 +890,7 @@ body::after {
 <div class="page">
   <div class="sidebar">
     <div class="sidebar-section">Views</div>
+    <div class="sidebar-inner-tabs">
     <button class="sidebar-btn active" id="sb-matches" onclick="showView('matches')">
       <span>Matches</span>
       <span class="sidebar-count" id="sc-matches">0</span>
@@ -872,33 +902,47 @@ body::after {
     <button class="sidebar-btn" id="sb-meta" onclick="showView('meta')">
       <span>Hero Meta</span>
     </button>
+    </div>
 
-    <div class="sidebar-section">League Filter</div>
-    <button class="sidebar-btn" id="sb-all" onclick="setLeagueFilter('all')">
+    <!-- Mobile league dropdown (hidden on desktop) -->
+    <select class="mobile-league-select" id="mobileLeagueSelect" onchange="setLeagueFilter(this.value)">
+      <option value="all">All Leagues</option>
+      <option value="MPL PH">MPL PH</option>
+      <option value="MPL MY">MPL MY</option>
+      <option value="MPL ID">MPL ID</option>
+      <option value="MPL SG">MPL SG</option>
+      <option value="MSC">MSC</option>
+      <option value="M-Series">M-Series</option>
+      <option value="Scrims">Scrims</option>
+      <option value="Other">Other</option>
+    </select>
+
+    <div class="sidebar-section desktop-only">League Filter</div>
+    <button class="sidebar-btn desktop-only" id="sb-all" onclick="setLeagueFilter('all')">
       <span>All Leagues</span>
     </button>
-    <button class="sidebar-btn" id="sb-MPL PH" onclick="setLeagueFilter('MPL PH')">
+    <button class="sidebar-btn desktop-only" id="sb-MPL PH" onclick="setLeagueFilter('MPL PH')">
       <div class="league-dot" style="background:#60a5fa;box-shadow:0 0 5px #60a5fa66;"></div> MPL PH
     </button>
-    <button class="sidebar-btn" id="sb-MPL MY" onclick="setLeagueFilter('MPL MY')">
+    <button class="sidebar-btn desktop-only" id="sb-MPL MY" onclick="setLeagueFilter('MPL MY')">
       <div class="league-dot" style="background:#c084fc;box-shadow:0 0 5px #c084fc66;"></div> MPL MY
     </button>
-    <button class="sidebar-btn" id="sb-MPL ID" onclick="setLeagueFilter('MPL ID')">
+    <button class="sidebar-btn desktop-only" id="sb-MPL ID" onclick="setLeagueFilter('MPL ID')">
       <div class="league-dot" style="background:#f87171;box-shadow:0 0 5px #f8717166;"></div> MPL ID
     </button>
-    <button class="sidebar-btn" id="sb-MPL SG" onclick="setLeagueFilter('MPL SG')">
+    <button class="sidebar-btn desktop-only" id="sb-MPL SG" onclick="setLeagueFilter('MPL SG')">
       <div class="league-dot" style="background:#4ade80;box-shadow:0 0 5px #4ade8066;"></div> MPL SG
     </button>
-    <button class="sidebar-btn" id="sb-MSC" onclick="setLeagueFilter('MSC')">
+    <button class="sidebar-btn desktop-only" id="sb-MSC" onclick="setLeagueFilter('MSC')">
       <div class="league-dot" style="background:#fbbf24;box-shadow:0 0 5px #fbbf2466;"></div> MSC
     </button>
-    <button class="sidebar-btn" id="sb-M-Series" onclick="setLeagueFilter('M-Series')">
+    <button class="sidebar-btn desktop-only" id="sb-M-Series" onclick="setLeagueFilter('M-Series')">
       <div class="league-dot" style="background:#22d3ee;box-shadow:0 0 5px #22d3ee66;"></div> M-Series
     </button>
-    <button class="sidebar-btn" id="sb-Scrims" onclick="setLeagueFilter('Scrims')">
+    <button class="sidebar-btn desktop-only" id="sb-Scrims" onclick="setLeagueFilter('Scrims')">
       <div class="league-dot" style="background:#fb923c;box-shadow:0 0 5px #fb923c66;"></div> Scrims (Private)
     </button>
-    <button class="sidebar-btn" id="sb-Other" onclick="setLeagueFilter('Other')">
+    <button class="sidebar-btn desktop-only" id="sb-Other" onclick="setLeagueFilter('Other')">
       <div class="league-dot" style="background:var(--text3);"></div> Other
     </button>
   </div>
@@ -1309,10 +1353,22 @@ let _searchDebounce = null;
 // ══════════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════════
-// Init auth chip
+// Init auth chip + apply scout role corrections to HERO_LANES_MAP
 (async () => {
   const ok = await WAuth.requireAuth();
-  if (!ok) return; // redirecting to auth.html
+  if (!ok) return;
+  // After loading matches, patch HERO_LANES_MAP with observed primary lanes
+  try {
+    const scoutRoles = await WDB.computeHeroRoles(2);
+    Object.entries(scoutRoles).forEach(([hero, primaryLane]) => {
+      if (!HERO_LANES_MAP[hero]) {
+        HERO_LANES_MAP[hero] = [primaryLane];
+      } else if (HERO_LANES_MAP[hero][0] !== primaryLane) {
+        const rest = HERO_LANES_MAP[hero].filter(l => l !== primaryLane);
+        HERO_LANES_MAP[hero] = [primaryLane, ...rest];
+      }
+    });
+  } catch(e) { /* fail silently */ }
 })();
 WAuth.renderAuthChip('authChip');
 // Auto-load from Supabase on page load
@@ -1337,6 +1393,9 @@ function showView(v) {
 
 function setLeagueFilter(lf) {
   leagueFilter = lf;
+  // Sync mobile dropdown
+  const sel = document.getElementById('mobileLeagueSelect');
+  if (sel) sel.value = lf;
   // Clear all league sidebar active states
   document.querySelectorAll('.sidebar-btn[id^="sb-"]').forEach(el => {
     const id = el.id.replace('sb-','');
@@ -2153,8 +2212,8 @@ function renderTeams() {
       <div class="team-stat-row"><span class="team-stat-label">Blue Side</span><span class="team-stat-val">${t.blueSideWR!==null?t.blueSideWR+'%':'-'} <span style="color:var(--text3);font-size:10px;">(${t.blueSideGames||0}g)</span></span></div>
       <div class="team-stat-row"><span class="team-stat-label">Red Side</span><span class="team-stat-val">${t.redSideWR!==null?t.redSideWR+'%':'-'} <span style="color:var(--text3);font-size:10px;">(${t.redSideGames||0}g)</span></span></div>
       <div class="team-stat-row"><span class="team-stat-label">Pool Depth</span><span class="team-stat-val">${t.poolDepth||0} heroes</span></div>
-      ${t.turtleCtrl!==null?`<div class="team-stat-row"><span class="team-stat-label">🐢 Turtle Ctrl</span><span class="team-stat-val" style="color:var(--neon);">${t.turtleCtrl}% <span style="color:var(--text3);font-size:10px;">(${t.turtleTotal})</span></span></div>`:''}
-      ${t.lordCtrl!==null?`<div class="team-stat-row"><span class="team-stat-label">👑 Lord Ctrl</span><span class="team-stat-val" style="color:var(--gold);">${t.lordCtrl}% <span style="color:var(--text3);font-size:10px;">(${t.lordTotal})</span></span></div>`:''}
+      ${t.turtleCtrl!==null?`<div class="team-stat-row"><span class="team-stat-label">Turtle Ctrl</span><span class="team-stat-val" style="color:var(--neon);">${t.turtleCtrl}% <span style="color:var(--text3);font-size:10px;">(${t.turtleTotal})</span></span></div>`:''}
+      ${t.lordCtrl!==null?`<div class="team-stat-row"><span class="team-stat-label">Lord Ctrl</span><span class="team-stat-val" style="color:var(--gold);">${t.lordCtrl}% <span style="color:var(--text3);font-size:10px;">(${t.lordTotal})</span></span></div>`:''}
       ${tpc ? `<div style="font-size:8px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-top:8px;margin-bottom:4px;">TOP PICKS</div><div class="hero-chips">${tpc}</div>` : ''}
       ${tbc ? `<div style="font-size:8px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-top:6px;margin-bottom:4px;">TOP BANS</div><div class="hero-chips">${tbc}</div>` : ''}
       ${t.coachNotes ? `<div style="margin-top:8px;padding-top:7px;border-top:1px solid var(--border);font-size:10px;color:var(--text3);font-style:italic;line-height:1.5;">${t.coachNotes.slice(0,90)}${t.coachNotes.length>90?'…':''}</div>` : ''}
@@ -2196,8 +2255,8 @@ function openTeamEditor(teamName) {
               <div class="stat-chip"><div class="stat-chip-val">${t.blueSideWR!==null?t.blueSideWR+'%':'—'}</div><div class="stat-chip-label">Blue WR</div></div>
               <div class="stat-chip"><div class="stat-chip-val">${t.redSideWR!==null?t.redSideWR+'%':'—'}</div><div class="stat-chip-label">Red WR</div></div>
               <div class="stat-chip"><div class="stat-chip-val">${t.poolDepth||0}</div><div class="stat-chip-label">Pool</div></div>
-              ${t.turtleCtrl!==null?`<div class="stat-chip"><div class="stat-chip-val" style="color:var(--neon);">${t.turtleCtrl}%</div><div class="stat-chip-label">🐢 Ctrl</div></div>`:''}
-              ${t.lordCtrl!==null?`<div class="stat-chip"><div class="stat-chip-val" style="color:var(--gold);">${t.lordCtrl}%</div><div class="stat-chip-label">👑 Ctrl</div></div>`:''}
+              ${t.turtleCtrl!==null?`<div class="stat-chip"><div class="stat-chip-val" style="color:var(--neon);">${t.turtleCtrl}%</div><div class="stat-chip-label">Turtle</div></div>`:''}
+              ${t.lordCtrl!==null?`<div class="stat-chip"><div class="stat-chip-val" style="color:var(--gold);">${t.lordCtrl}%</div><div class="stat-chip-label">Lord</div></div>`:''}
             </div>
             <div style="display:flex;gap:16px;flex-wrap:wrap;">
               <div>
@@ -2259,21 +2318,13 @@ function renderMeta() {
   const leagueCounts = {'all': all.length};
   LEAGUES.forEach(l => leagueCounts[l] = all.filter(m=>m.league===l).length);
 
+  // Use the sidebar league filter instead of a redundant in-meta league filter
+  metaLeague = leagueFilter || 'all';
+
   area.innerHTML = `
     <div class="page-header">
       <div class="page-title">Hero Meta</div>
-      <div class="page-sub">Pick & ban rates across your match log</div>
-    </div>
-    <div class="filter-row" style="margin-bottom:6px;">
-      <span style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1.5px;text-transform:uppercase;flex-shrink:0;">LEAGUE</span>
-      ${['all',...LEAGUES].map(l => {
-        const active = metaLeague===l;
-        const cnt = leagueCounts[l]||0;
-        const noData = l!=='all' && cnt===0;
-        return `<button class="filter-badge${active?' active':''}" ${noData?'disabled style="opacity:.35;cursor:not-allowed;"':''} onclick="metaLeague='${l}';renderMeta()">
-          ${l==='all'?'All':l}${cnt&&l!=='all'?` <span style="font-size:9px;opacity:.55;">(${cnt})</span>`:''}
-        </button>`;
-      }).join('')}
+      <div class="page-sub">Pick & ban rates across your match log${metaLeague!=='all'?' · '+metaLeague:''}</div>
     </div>
     <div class="filter-row">
       <span style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1.5px;text-transform:uppercase;flex-shrink:0;">SORT</span>

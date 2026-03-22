@@ -262,6 +262,11 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
   .team-panel.red-panel { border-left: none; border-top: none; grid-column: 2; grid-row: 1; }
   .pool-section { grid-column: 1 / -1; grid-row: 2; }
 }
+@media (max-width: 768px) {
+  .hero-grid { grid-template-columns: repeat(auto-fill, 110px); }
+  .hero-card { width: 110px; }
+  .hero-img { width: 88px; height: 88px; }
+}
 @media (max-width: 640px) {
   .draft-layout { grid-template-columns: 1fr; }
   .team-panel.blue-panel, .team-panel.red-panel { grid-column: 1; border: none; border-bottom: 1px solid var(--border); }
@@ -4139,10 +4144,23 @@ async function _deleteSavedDraft(id, btn) {
   }
 }
 
-// Init Supabase auth chip
+// Init Supabase auth chip + apply scout role corrections to HERO_LANES
 (async () => {
   const ok = await WAuth.requireAuth();
-  if (!ok) return; // redirecting to auth.html
+  if (!ok) return;
+  // Patch HERO_LANES with observed lanes from scout data
+  try {
+    const scoutRoles = await WDB.computeHeroRoles(2);
+    Object.entries(scoutRoles).forEach(([hero, primaryLane]) => {
+      if (!HERO_LANES[hero]) {
+        HERO_LANES[hero] = [primaryLane];
+      } else if (HERO_LANES[hero][0] !== primaryLane) {
+        // Move scout-observed primary lane to front, keep others as secondaries
+        const rest = HERO_LANES[hero].filter(l => l !== primaryLane);
+        HERO_LANES[hero] = [primaryLane, ...rest];
+      }
+    });
+  } catch(e) { /* fail silently — defaults still apply */ }
 })();
 WAuth.renderAuthChip('authChip');
 

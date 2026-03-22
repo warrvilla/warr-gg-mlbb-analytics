@@ -673,10 +673,8 @@ body { overflow-x: hidden; }
 
 <script src="warr-lib.js"></script>
 <script>
-// index.html: require login, then update nav chip to show the logged-in user
+// index.html: homepage is public — just render the auth chip (sign in/out state)
 (async () => {
-  const ok = await WAuth.requireAuth();
-  if (!ok) return;
   await WAuth.renderAuthChip('authChip');
 })();
 </script>
