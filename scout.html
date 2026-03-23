@@ -1368,7 +1368,7 @@ let _searchDebounce = null;
   if (!ok) return;
   // After loading matches, patch HERO_LANES_MAP with observed primary lanes
   try {
-    const scoutRoles = await WDB.computeHeroRoles(2);
+    const scoutRoles = await WDB.computeHeroRoles(1);
     Object.entries(scoutRoles).forEach(([hero, primaryLane]) => {
       if (!HERO_LANES_MAP[hero]) {
         HERO_LANES_MAP[hero] = [primaryLane];
