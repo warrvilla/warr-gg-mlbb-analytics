@@ -221,8 +221,7 @@
   <!-- Page heading -->
   <div class="page-heading">
     <div>
-      <div class="page-heading-title">🎴 Meta Export</div>
-      <div class="page-heading-sub">YouTube 1500×1500 · Lane Meta Cards</div>
+      <div class="page-heading-title">Meta Export</div>
     </div>
   </div>
 
@@ -244,15 +243,15 @@
   <div class="legend-bar">
     <span class="legend-tier" style="color:#F59E0B;">S</span> Top Tier
     <span class="legend-sep">·</span>
-    <span class="legend-tier" style="color:#9CA3AF;">A</span> Strong Pick
+    <span class="legend-tier" style="color:#9CA3AF;">A</span> Strong
     <span class="legend-sep">·</span>
     <span class="legend-tier" style="color:#C89050;">B</span> Situational
     <span class="legend-sep">|</span>
-    <span style="color:var(--text2);font-weight:700;">%</span> = Scout Win Rate
+    <span style="color:#5EA0D8;font-weight:700;">PRES%</span> Presence (picks + bans)
     <span class="legend-sep">·</span>
-    <span style="color:#D87880;font-weight:700;">BAN</span> Must Ban
+    <span style="color:#4CB87A;font-weight:700;">WR%</span> Win Rate
     <span class="legend-sep">·</span>
-    <span style="color:#F97316;font-weight:700;">HOT</span> Priority Pick
+    <span style="color:#E09098;font-weight:700;">BAN</span> Must Ban
     <span class="legend-drag">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
       Click and drag to scroll
@@ -534,6 +533,7 @@ function loadScoutStats() {
     scoutMatchCount = matches.length;
     const heroData = {};
     matches.forEach(m => {
+      // Picks
       const sides = [
         { picks: m.bluePicks||[], winner: m.winner === 'blue' },
         { picks: m.redPicks||[], winner: m.winner === 'red' },
@@ -541,16 +541,29 @@ function loadScoutStats() {
       sides.forEach(({ picks, winner }) => {
         (picks||[]).forEach(p => {
           const name = p.name || p;
-          if (!heroData[name]) heroData[name] = { picks:0, wins:0 };
+          if (!heroData[name]) heroData[name] = { picks:0, wins:0, bans:0 };
           heroData[name].picks++;
           if (winner) heroData[name].wins++;
         });
       });
+      // Bans
+      [...(m.blueBans||[]), ...(m.redBans||[])].forEach(b => {
+        const name = b.name || b;
+        if (!heroData[name]) heroData[name] = { picks:0, wins:0, bans:0 };
+        heroData[name].bans++;
+      });
     });
     heroScoutStats = {};
     Object.entries(heroData).forEach(([name, d]) => {
-      if (d.picks >= 3) {
-        heroScoutStats[name] = { picks: d.picks, wins: d.wins, winRate: Math.round(d.wins/d.picks*100) };
+      const total = d.picks + d.bans;
+      if (total >= 2) { // lower threshold so bans-only heroes still surface
+        heroScoutStats[name] = {
+          picks:    d.picks,
+          wins:     d.wins,
+          bans:     d.bans,
+          winRate:  d.picks > 0 ? Math.round(d.wins / d.picks * 100) : null,
+          presence: Math.round(total / scoutMatchCount * 100),
+        };
       }
     });
   } catch(e) { console.warn('Scout load error:', e); }
@@ -569,10 +582,19 @@ function getHeroScore(h) {
 }
 
 function getTopForLane(lane) {
-  return ALL_HEROES
-    .filter(h => getHeroLane(h) === lane)
-    .sort((a, b) => getHeroScore(b) - getHeroScore(a))
-    .slice(0, 12); // up to 12 heroes per lane for better coverage
+  const pool = ALL_HEROES.filter(h => getHeroLane(h) === lane);
+  // When scout data exists, sort by presence% (pick+ban / total games) — the most
+  // effective competitive metric: high presence = hero must be dealt with every draft.
+  // Tie-break (and no-data fallback) by composite meta score.
+  if (scoutMatchCount > 0) {
+    return pool.sort((a, b) => {
+      const pa = heroScoutStats[a.name]?.presence ?? 0;
+      const pb = heroScoutStats[b.name]?.presence ?? 0;
+      if (pb !== pa) return pb - pa;
+      return getHeroScore(b) - getHeroScore(a);
+    }).slice(0, 12);
+  }
+  return pool.sort((a, b) => getHeroScore(b) - getHeroScore(a)).slice(0, 12);
 }
 
 function getRoleColor(role) {
@@ -592,134 +614,168 @@ function imgSrc(name) {
   return `portraits/${name}.png`;
 }
 
+// ── Full role name map (no abbreviations) ───────────────────────────────────
+function fullRoleName(role) {
+  const first = (role || '').split('/')[0].trim();
+  const MAP = { MM:'Marksman', Support:'Support', Mage:'Mage', Tank:'Tank',
+                Fighter:'Fighter', Assassin:'Assassin' };
+  return MAP[first] || first;
+}
+
 // ── Card Rendering ──────────────────────────────────────────────────────────
 function buildCard(lane) {
   const cfg         = LANE_CONFIG[lane];
   const heroes      = getTopForLane(lane).slice(0, 10);
   const filterLabel = currentFilter === 'all' ? 'All Leagues' : currentFilter;
-  const patchLabel  = patchVersion ? `PATCH ${patchVersion}` : 'META 2025';
+  const patchLabel  = patchVersion ? `Patch ${patchVersion}` : 'Meta 2025';
   const scoutLabel  = scoutMatchCount > 0
-    ? `${scoutMatchCount} matches · ${filterLabel}`
-    : 'Default ranking';
+    ? `Based on ${scoutMatchCount} matches · Sorted by Presence`
+    : 'Sorted by tier score';
 
-  // Tier colors (text only, no backgrounds — keeps it refined)
+  // Tier colors
   const TIER_C = { S:'#F59E0B', A:'#9CA3AF', B:'#C89050', C:'#6B7280' };
 
-  // Rank accent colors (gold/silver/bronze, then muted)
-  const RANK_C = ['#F59E0B','#9CA3AF','#C89050',
-                  'rgba(240,240,248,.35)','rgba(240,240,248,.3)',
-                  'rgba(240,240,248,.25)','rgba(240,240,248,.22)',
-                  'rgba(240,240,248,.2)','rgba(240,240,248,.18)','rgba(240,240,248,.16)'];
+  // Rank accent (gold / silver / bronze / muted)
+  const RANK_C = ['#F5B942','#B8C4D0','#C89050',
+                  'rgba(240,240,248,.38)','rgba(240,240,248,.32)',
+                  'rgba(240,240,248,.26)','rgba(240,240,248,.22)',
+                  'rgba(240,240,248,.19)','rgba(240,240,248,.17)','rgba(240,240,248,.15)'];
 
   /* ── Pixel budget (750 × 750 px):
        Top bar   :   4 px
        Header    : 112 px
        Divider   :   1 px
-       Rows×10   : 540 px  (54px each, alternating bg)
+       Rows×10   : 540 px  (54px each)
        Footer    :  93 px
        Total     : 750 px  ✓
-     Portrait at 44px display → 88px captured (downscale from 128px = crisp)
+     Portrait: 44px display → 88px captured (from 128px src = crisp)
   ─────────────────────────────────────────────────────────────── */
 
   const heroRows = heroes.map((h, i) => {
-    const rank     = i + 1;
-    const rc       = RANK_C[i];
-    const tc       = TIER_C[h.tier] || TIER_C.C;
+    const rank      = i + 1;
+    const rc        = RANK_C[i];
+    const tc        = TIER_C[h.tier] || TIER_C.C;
     const roleColor = getRoleColor(h.role);
-    const shortRole = h.role.split('/')[0];
-    const wr        = heroScoutStats[h.name]?.winRate;
-    const wrColor   = wr !== undefined ? (wr >= 55 ? '#4CB87A' : wr >= 45 ? '#C89050' : '#D87880') : null;
-    const score     = Math.min(10, getHeroScore(h));
-    const barW      = Math.round(score / 10 * 100);
+    const roleName  = fullRoleName(h.role);
+    const stats     = heroScoutStats[h.name];
+    const wr        = stats?.winRate;
+    const pres      = stats?.presence;
+    const wrColor   = wr  !== null && wr  !== undefined ? (wr  >= 55 ? '#4CB87A' : wr  >= 45 ? '#C89050' : '#D87880') : null;
+    const presColor = pres !== undefined ? (pres >= 70 ? '#EF4444' : pres >= 40 ? '#F59E0B' : '#5EA0D8') : null;
     const isMustban = h.mp === 'mustban';
-    const isHot     = h.mp === 'highpick' || h.mp === 'mustpick';
-    const rowBg     = i % 2 === 0 ? 'rgba(255,255,255,.022)' : 'transparent';
+    // Alternating glass rows — lighter for odd
+    const rowBg     = i % 2 === 0 ? 'rgba(255,255,255,.028)' : 'rgba(255,255,255,.008)';
 
-    return `<div style="display:flex;align-items:center;height:54px;padding:0 22px;background:${rowBg};border-bottom:1px solid rgba(255,255,255,.03);box-sizing:border-box;">
+    return `<div style="display:flex;align-items:center;height:54px;padding:0 20px;background:${rowBg};border-bottom:1px solid rgba(255,255,255,.025);box-sizing:border-box;">
+
       <!-- Rank -->
-      <div style="width:26px;text-align:right;font-size:${rank<=3?'17':'13'}px;font-weight:900;color:${rc};font-family:'Inter',sans-serif;flex-shrink:0;margin-right:14px;line-height:1;">${rank}</div>
-      <!-- Portrait (44×44 → 88px captured from 128px src = crisp) -->
+      <div style="width:24px;text-align:right;font-size:${rank<=3?'16':'12'}px;font-weight:900;color:${rc};font-family:'Inter',sans-serif;flex-shrink:0;margin-right:13px;line-height:1;letter-spacing:-.5px;">${rank}</div>
+
+      <!-- Portrait -->
       <img src="${imgSrc(h.name)}"
            onerror="this.onerror=null;this.src='portraits/${h.id}.png';this.onerror=function(){this.style.background='#1A1A28'}"
            alt="${h.name}"
-           style="width:44px;height:44px;border-radius:7px;object-fit:cover;flex-shrink:0;background:#0E0E1A;display:block;margin-right:13px;">
-      <!-- Hero name + badges -->
-      <div style="flex:1;min-width:0;margin-right:10px;">
-        <div style="font-size:14px;font-weight:700;color:#F0F0F8;font-family:'Inter',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;letter-spacing:-.1px;">${h.name}</div>
-        <div style="display:flex;align-items:center;gap:4px;margin-top:3px;">
-          <div style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:4px;background:${roleColor}1A;color:${roleColor};border:1px solid ${roleColor}40;font-family:'Inter',sans-serif;">${shortRole}</div>
-          ${isMustban ? `<div style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(216,120,128,.12);color:#D87880;border:1px solid rgba(216,120,128,.32);font-family:'Inter',sans-serif;">BAN</div>` : ''}
-          ${isHot ? `<div style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(249,115,22,.1);color:#F97316;border:1px solid rgba(249,115,22,.28);font-family:'Inter',sans-serif;">HOT</div>` : ''}
+           style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;background:#0E0E1A;display:block;margin-right:12px;border:1px solid rgba(255,255,255,.1);box-shadow:0 2px 8px rgba(0,0,0,.5);">
+
+      <!-- Hero name + role + BAN badge -->
+      <div style="flex:1;min-width:0;margin-right:8px;">
+        <div style="font-size:13.5px;font-weight:600;color:rgba(240,240,248,.95);font-family:'Inter',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;letter-spacing:-.2px;">${h.name}</div>
+        <div style="display:flex;align-items:center;gap:5px;margin-top:3px;">
+          <div style="font-size:9px;font-weight:500;padding:2px 7px;border-radius:20px;background:rgba(255,255,255,.07);color:rgba(240,240,248,.55);border:1px solid rgba(255,255,255,.1);font-family:'Inter',sans-serif;letter-spacing:.1px;">${roleName}</div>
+          ${isMustban ? `<div style="font-size:8px;font-weight:700;padding:2px 7px;border-radius:20px;background:rgba(216,120,128,.1);color:#E09098;border:1px solid rgba(216,120,128,.28);font-family:'Inter',sans-serif;letter-spacing:.3px;">BAN</div>` : ''}
         </div>
       </div>
-      <!-- Tier badge -->
-      <div style="width:20px;height:20px;border-radius:5px;background:rgba(0,0,0,.5);border:1px solid ${tc}44;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:${tc};font-family:'Inter',sans-serif;flex-shrink:0;margin-right:12px;">${h.tier}</div>
-      <!-- Win Rate -->
-      <div style="width:38px;text-align:right;flex-shrink:0;margin-right:12px;">
-        ${wr !== undefined
-          ? `<div style="font-size:12px;font-weight:800;color:${wrColor};font-family:'Inter',sans-serif;letter-spacing:-.2px;">${wr}%</div>`
-          : `<div style="font-size:11px;color:rgba(255,255,255,.15);font-family:'Inter',sans-serif;">—</div>`}
+
+      <!-- Tier badge — glass pill -->
+      <div style="width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.05);border:1px solid ${tc}55;box-shadow:inset 0 1px 0 rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:${tc};font-family:'Inter',sans-serif;flex-shrink:0;margin-right:10px;">${h.tier}</div>
+
+      <!-- Presence % -->
+      <div style="width:42px;text-align:right;flex-shrink:0;margin-right:10px;">
+        ${pres !== undefined
+          ? `<div style="font-size:12px;font-weight:700;color:${presColor};font-family:'Inter',sans-serif;letter-spacing:-.3px;line-height:1;">${pres}%</div>
+             <div style="font-size:7px;font-weight:600;color:rgba(240,240,248,.22);font-family:'Inter',sans-serif;letter-spacing:.3px;margin-top:1px;">PRES</div>`
+          : `<div style="font-size:11px;color:rgba(255,255,255,.12);font-family:'Inter',sans-serif;">—</div>`}
       </div>
-      <!-- Score bar -->
-      <div style="width:54px;flex-shrink:0;">
-        <div style="height:3px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;">
-          <div style="height:100%;width:${barW}%;background:${cfg.gradient};border-radius:3px;"></div>
-        </div>
+
+      <!-- Win Rate % -->
+      <div style="width:34px;text-align:right;flex-shrink:0;">
+        ${wr !== null && wr !== undefined
+          ? `<div style="font-size:12px;font-weight:700;color:${wrColor};font-family:'Inter',sans-serif;letter-spacing:-.3px;line-height:1;">${wr}%</div>
+             <div style="font-size:7px;font-weight:600;color:rgba(240,240,248,.22);font-family:'Inter',sans-serif;letter-spacing:.3px;margin-top:1px;">WR</div>`
+          : `<div style="font-size:11px;color:rgba(255,255,255,.12);font-family:'Inter',sans-serif;">—</div>`}
       </div>
+
     </div>`;
   }).join('');
 
-  return `<div class="meta-card" id="card-${lane}">
+  return `<div class="meta-card" id="card-${lane}" style="background:linear-gradient(160deg,#070710 0%,#04040B 100%);">
 
-    <!-- Top accent bar (4px) -->
-    <div style="height:4px;background:${cfg.gradient};flex-shrink:0;"></div>
+    <!-- Top accent bar (4px) — glass shimmer -->
+    <div style="height:4px;background:${cfg.gradient};flex-shrink:0;box-shadow:0 0 12px ${cfg.color}66;"></div>
 
-    <!-- Header (112px) -->
-    <div style="height:112px;flex-shrink:0;padding:16px 24px 0;display:flex;flex-direction:column;justify-content:center;background:linear-gradient(180deg,${cfg.color}0C 0%,transparent 100%);">
+    <!-- Header (112px) — Liquid Glass panel -->
+    <div style="height:112px;flex-shrink:0;padding:15px 22px 0;display:flex;flex-direction:column;justify-content:center;
+      background:linear-gradient(180deg,rgba(255,255,255,.055) 0%,rgba(255,255,255,.018) 60%,transparent 100%);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.16),inset 0 -1px 0 rgba(255,255,255,.04);
+      border-bottom:1px solid rgba(255,255,255,.07);">
+
       <!-- Logo row -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
         <div style="display:flex;align-items:center;gap:6px;">
-          <div style="width:6px;height:6px;border-radius:50%;background:${cfg.color};flex-shrink:0;"></div>
-          <div style="font-size:10px;font-weight:800;color:rgba(240,240,248,.38);letter-spacing:2px;font-family:'Inter',sans-serif;text-transform:uppercase;">warr.gg</div>
+          <div style="width:5px;height:5px;border-radius:50%;background:${cfg.color};flex-shrink:0;box-shadow:0 0 6px ${cfg.color}88;"></div>
+          <div style="font-size:9px;font-weight:700;color:rgba(240,240,248,.32);letter-spacing:2.5px;font-family:'Inter',sans-serif;text-transform:uppercase;">warr.gg</div>
         </div>
         <div style="display:flex;gap:5px;">
-          <div style="font-size:9px;font-weight:700;padding:3px 10px;border-radius:20px;background:${cfg.color}18;color:${cfg.color};border:1px solid ${cfg.color}38;font-family:'Inter',sans-serif;letter-spacing:.4px;">${patchLabel}</div>
-          <div style="font-size:9px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(255,255,255,.04);color:rgba(240,240,248,.3);border:1px solid rgba(255,255,255,.07);font-family:'Inter',sans-serif;">${filterLabel.toUpperCase()}</div>
+          <div style="font-size:8.5px;font-weight:600;padding:3px 11px;border-radius:20px;background:rgba(255,255,255,.06);color:rgba(240,240,248,.5);border:1px solid rgba(255,255,255,.1);font-family:'Inter',sans-serif;box-shadow:inset 0 1px 0 rgba(255,255,255,.1);letter-spacing:.3px;">${patchLabel}</div>
+          <div style="font-size:8.5px;font-weight:600;padding:3px 11px;border-radius:20px;background:${cfg.color}16;color:${cfg.color};border:1px solid ${cfg.color}35;font-family:'Inter',sans-serif;box-shadow:inset 0 1px 0 rgba(255,255,255,.08);letter-spacing:.3px;">${filterLabel.toUpperCase()}</div>
         </div>
       </div>
-      <!-- Lane name -->
-      <div style="display:flex;align-items:baseline;gap:10px;">
-        <div style="font-size:26px;font-weight:900;color:#F0F0F8;letter-spacing:2px;text-transform:uppercase;line-height:1;font-family:'Inter',sans-serif;">${lane.toUpperCase()} <span style="color:${cfg.color};">LANE</span></div>
-        <div style="font-size:10px;font-weight:600;color:rgba(240,240,248,.28);letter-spacing:2px;font-family:'Inter',sans-serif;text-transform:uppercase;">${cfg.roleHint}</div>
+
+      <!-- Lane name — clean, Apple-weight typography -->
+      <div style="display:flex;align-items:baseline;gap:9px;">
+        <div style="font-size:25px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;line-height:1;font-family:'Inter',sans-serif;">
+          <span style="color:rgba(240,240,248,.9);">${lane}</span>
+          <span style="color:${cfg.color};"> Lane</span>
+        </div>
+        <div style="font-size:9.5px;font-weight:500;color:rgba(240,240,248,.22);letter-spacing:1.5px;font-family:'Inter',sans-serif;text-transform:uppercase;">${cfg.roleHint}</div>
       </div>
     </div>
 
-    <!-- Divider (1px) -->
-    <div style="height:1px;background:linear-gradient(90deg,${cfg.color}55 0%,rgba(255,255,255,.04) 60%,transparent 100%);flex-shrink:0;"></div>
+    <!-- Column headers row -->
+    <div style="display:flex;align-items:center;height:22px;padding:0 20px;background:rgba(255,255,255,.018);border-bottom:1px solid rgba(255,255,255,.05);box-sizing:border-box;flex-shrink:0;">
+      <div style="flex:1;"></div>
+      <div style="width:22px;margin-right:10px;"></div>
+      <div style="width:42px;text-align:right;font-size:7px;font-weight:700;color:rgba(240,240,248,.22);font-family:'Inter',sans-serif;letter-spacing:.8px;margin-right:10px;">PRES%</div>
+      <div style="width:34px;text-align:right;font-size:7px;font-weight:700;color:rgba(240,240,248,.22);font-family:'Inter',sans-serif;letter-spacing:.8px;">WR%</div>
+    </div>
 
-    <!-- Hero rows (10 × 54px = 540px) -->
+    <!-- Hero rows (10 × 51.8px ≈ 518px + 22px header = 540px) -->
     <div style="flex:1;">
       ${heroRows}
     </div>
 
-    <!-- Footer / legend (93px) -->
-    <div style="height:93px;flex-shrink:0;border-top:1px solid rgba(255,255,255,.05);background:rgba(0,0,0,.35);padding:12px 22px;display:flex;flex-direction:column;justify-content:center;gap:8px;">
-      <!-- Tier + WR legend -->
-      <div style="display:flex;align-items:center;gap:14px;flex-wrap:nowrap;">
-        <div style="display:flex;align-items:center;gap:3px;font-size:9px;font-family:'Inter',sans-serif;font-weight:600;color:rgba(240,240,248,.32);"><span style="color:#F59E0B;font-weight:800;">S</span>&nbsp;Top Tier</div>
-        <div style="width:1px;height:8px;background:rgba(255,255,255,.1);"></div>
-        <div style="display:flex;align-items:center;gap:3px;font-size:9px;font-family:'Inter',sans-serif;font-weight:600;color:rgba(240,240,248,.32);"><span style="color:#9CA3AF;font-weight:800;">A</span>&nbsp;Strong</div>
-        <div style="width:1px;height:8px;background:rgba(255,255,255,.1);"></div>
-        <div style="display:flex;align-items:center;gap:3px;font-size:9px;font-family:'Inter',sans-serif;font-weight:600;color:rgba(240,240,248,.32);"><span style="color:#C89050;font-weight:800;">B</span>&nbsp;Situational</div>
-        <div style="width:1px;height:8px;background:rgba(255,255,255,.1);"></div>
-        <div style="font-size:9px;font-family:'Inter',sans-serif;font-weight:600;color:rgba(240,240,248,.28);">% = Scout Win Rate</div>
+    <!-- Footer — frosted glass -->
+    <div style="height:93px;flex-shrink:0;border-top:1px solid rgba(255,255,255,.06);
+      background:linear-gradient(180deg,rgba(255,255,255,.025) 0%,rgba(0,0,0,.2) 100%);
+      padding:12px 22px;display:flex;flex-direction:column;justify-content:center;gap:8px;">
+
+      <!-- Legend -->
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:nowrap;">
+        <div style="display:flex;align-items:center;gap:3px;font-size:8.5px;font-family:'Inter',sans-serif;font-weight:500;color:rgba(240,240,248,.28);"><span style="color:#F59E0B;font-weight:800;">S</span>&nbsp;Top Tier</div>
+        <div style="width:1px;height:7px;background:rgba(255,255,255,.08);"></div>
+        <div style="display:flex;align-items:center;gap:3px;font-size:8.5px;font-family:'Inter',sans-serif;font-weight:500;color:rgba(240,240,248,.28);"><span style="color:#9CA3AF;font-weight:800;">A</span>&nbsp;Strong</div>
+        <div style="width:1px;height:7px;background:rgba(255,255,255,.08);"></div>
+        <div style="display:flex;align-items:center;gap:3px;font-size:8.5px;font-family:'Inter',sans-serif;font-weight:500;color:rgba(240,240,248,.28);"><span style="color:#C89050;font-weight:800;">B</span>&nbsp;Situational</div>
+        <div style="width:1px;height:7px;background:rgba(255,255,255,.08);"></div>
+        <div style="font-size:8.5px;font-family:'Inter',sans-serif;font-weight:500;color:rgba(240,240,248,.22);">PRES% = Pick + Ban rate</div>
         <div style="margin-left:auto;display:flex;align-items:center;gap:5px;">
-          <div style="width:4px;height:4px;border-radius:50%;background:${cfg.color};opacity:.6;"></div>
-          <div style="font-size:9px;font-weight:800;color:rgba(240,240,248,.28);letter-spacing:1.5px;font-family:'Inter',sans-serif;text-transform:uppercase;">warr.gg</div>
+          <div style="width:4px;height:4px;border-radius:50%;background:${cfg.color};opacity:.7;box-shadow:0 0 4px ${cfg.color}88;"></div>
+          <div style="font-size:9px;font-weight:700;color:rgba(240,240,248,.25);letter-spacing:2px;font-family:'Inter',sans-serif;text-transform:uppercase;">warr.gg</div>
         </div>
       </div>
-      <!-- Scout info line -->
-      <div style="font-size:8px;color:rgba(240,240,248,.16);font-family:'Inter',sans-serif;letter-spacing:.4px;">${scoutLabel} · MLBB Draft Intelligence</div>
+
+      <!-- Scout info -->
+      <div style="font-size:8px;color:rgba(240,240,248,.14);font-family:'Inter',sans-serif;letter-spacing:.3px;">${scoutLabel} · MLBB Draft Intelligence</div>
     </div>
 
   </div>`;
