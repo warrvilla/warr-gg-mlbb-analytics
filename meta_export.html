@@ -417,6 +417,7 @@ const HERO_LANES = {
   'Aldous':['EXP','Jungle'],'Argus':['EXP','Jungle'],'Barats':['Jungle','EXP'],
   'Bane':['EXP','Jungle'],
   'Freya':['Gold'],
+  'Alice':['Mid','Roam'],
   'Zhuxin':['Mid'],'Yve':['Mid'],'Pharsa':['Mid'],'Kagura':['Mid'],'Zetian':['Mid'],
   'Valentina':['Mid'],'Xavier':['Mid'],'Novaria':['Mid'],'Lylia':['Mid'],
   'Lunox':['Mid'],'Kadita':['Mid'],'Luo Yi':['Mid'],'Odette':['Mid'],
@@ -426,10 +427,11 @@ const HERO_LANES = {
   'Harith':['Gold'],'Harley':['Mid','Jungle'],'Selena':['Mid','Roam'],
   'Valir':['Mid','Roam'],
   'Faramis':['Roam','Mid'],
+  'Aulus':['EXP'],'Guinevere':['EXP'],
   'Yu Zhong':['EXP'],'Arlott':['EXP'],'Cici':['EXP'],'Gatotkaca':['EXP'],
   'Esmeralda':['EXP'],'Dyrroth':['EXP'],'Terizla':['EXP'],'Thamuz':['EXP'],
   'Khaleed':['EXP'],'Paquito':['EXP'],'Leomord':['Jungle'],'Silvanna':['EXP'],
-  'Badang':['EXP'],'Ruby':['EXP','Roam'],'Guinevere':['EXP'],
+  'Badang':['EXP'],'Ruby':['EXP','Roam'],
   'Hilda':['EXP','Roam'],'Masha':['EXP'],'X.Borg':['EXP'],
   'Lapu-Lapu':['EXP'],'Yin':['EXP'],'Lukas':['EXP','Jungle'],'Sora':['EXP'],
   'Julian':['Jungle','Mid'],
@@ -556,7 +558,7 @@ function loadScoutStats() {
     heroScoutStats = {};
     Object.entries(heroData).forEach(([name, d]) => {
       const total = d.picks + d.bans;
-      if (total >= 2) { // lower threshold so bans-only heroes still surface
+      if (total >= 1) { // track any hero with even 1 pick or ban
         heroScoutStats[name] = {
           picks:    d.picks,
           wins:     d.wins,
