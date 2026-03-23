@@ -1672,7 +1672,7 @@ const HERO_LANES = {
   'Granger':['Gold'],'Brody':['Gold'],'Miya':['Gold'],'Bruno':['Gold'],
   'Clint':['Gold'],'Hanabi':['Gold'],'Irithel':['Gold'],'Layla':['Gold'],
   'Lesley':['Gold'],'Melissa':['Gold'],'Moskov':['Gold'],'Natan':['Gold'],
-  'Ixia':['Gold'],'Aulus':['Gold'],'Popol & Kupa':['Gold'],'Obsidia':['Gold'],     
+  'Ixia':['Gold'],'Popol & Kupa':['Gold'],'Obsidia':['Gold'],     
   'Roger':['Gold','Jungle'],       // can jungle
   // ── Jungle ──
   'Yi Sun-shin':['Jungle'],'Hayabusa':['Jungle'],'Lancelot':['Jungle'],
@@ -1699,7 +1699,7 @@ const HERO_LANES = {
   'Yu Zhong':['EXP'],'Arlott':['EXP'],'Cici':['EXP'],'Gatotkaca':['EXP'],
   'Esmeralda':['EXP'],'Dyrroth':['EXP'],'Terizla':['EXP'],'Thamuz':['EXP'],
   'Khaleed':['EXP'],'Paquito':['EXP'],'Leomord':['Jungle'],'Silvanna':['EXP'],
-  'Badang':['EXP'],'Ruby':['EXP','Roam'],'Guinevere':['EXP'],
+  'Aulus':['EXP'],'Badang':['EXP'],'Ruby':['EXP','Roam'],'Guinevere':['Jungle'],
   'Hilda':['EXP','Roam'],'Masha':['EXP'],'X.Borg':['EXP'],
   'Lapu-Lapu':['EXP'],'Sun':['Jungle','EXP'],'Balmond':['Jungle'],'Zilong':['EXP'],
   'Alucard':['EXP'],'Alpha':['Jungle'],'Yin':['EXP'],
@@ -4341,7 +4341,7 @@ function computeHeroScoutStats(matches) {
     const matches = await WDB.loadMatches();
     heroScoutStats = computeHeroScoutStats(matches);
     // Patch HERO_LANES with observed lanes from scout data
-    const scoutRoles = await WDB.computeHeroRoles(2);
+    const scoutRoles = await WDB.computeHeroRoles(1);
     Object.entries(scoutRoles).forEach(([hero, primaryLane]) => {
       if (!HERO_LANES[hero]) {
         HERO_LANES[hero] = [primaryLane];
