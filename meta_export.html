@@ -149,12 +149,16 @@
 /* ── Preview wrapper around card ──────────────────────────────── */
 .card-preview-wrap {
   overflow: hidden;
-  border-radius: 10px;
-  border: 1px solid var(--border);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.08);
   display: inline-block;
   line-height: 0;
-  box-shadow: 0 8px 40px rgba(0,0,0,.7);
+  box-shadow: 0 12px 60px rgba(0,0,0,.8), 0 2px 0 rgba(255,255,255,.04) inset;
   flex-shrink: 0;
+  transition: box-shadow .2s;
+}
+.card-preview-wrap:hover {
+  box-shadow: 0 20px 80px rgba(0,0,0,.9), 0 2px 0 rgba(255,255,255,.06) inset;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -165,10 +169,12 @@
   height: 750px;
   overflow: hidden;
   position: relative;
-  background: #06060E;
+  background: #04040A;
   border-radius: 0;
   flex-shrink: 0;
   font-family: 'Inter', sans-serif;
+  display: flex;
+  flex-direction: column;
 }
 
 /* card top accent bar */
@@ -697,77 +703,118 @@ function buildCard(lane) {
   const filterLabel = currentFilter === 'all' ? 'All Leagues' : currentFilter;
   const patchLabel  = patchVersion ? `PATCH ${patchVersion}` : 'META 2025';
   const scoutLabel  = scoutMatchCount > 0
-    ? `${scoutMatchCount} scouted games · ${filterLabel}`
-    : 'Default meta ranking';
+    ? `${scoutMatchCount} games · ${filterLabel}`
+    : 'Default ranking';
 
-  // Group heroes by tier (S → A → B → C)
-  const tierGroups = {};
-  heroes.forEach(h => {
-    const t = h.tier;
-    if (!tierGroups[t]) tierGroups[t] = [];
-    tierGroups[t].push(h);
-  });
+  // Tier badge style
+  const TIER_C = {
+    S: { color:'#F59E0B', border:'rgba(245,158,11,.55)' },
+    A: { color:'#E0E6F0', border:'rgba(224,230,240,.45)' },
+    B: { color:'#C89050', border:'rgba(200,144,80,.5)' },
+    C: { color:'#6B7280', border:'rgba(107,114,128,.4)' },
+  };
 
-  const TIER_ORDER = ['S','A','B','C'];
+  // 12 heroes max → 4 cols × 3 rows
+  const gridHeroes = heroes.slice(0, 12);
 
-  const tierRowsHtml = TIER_ORDER
-    .filter(t => tierGroups[t] && tierGroups[t].length > 0)
-    .map(t => {
-      const ts = TIER_STYLE[t] || TIER_STYLE.C;
-      const heroCells = tierGroups[t].map(h => {
-        const roleColor  = getRoleColor(h.role);
-        const shortRole  = getShortRole(h.role);
-        const wr         = heroScoutStats[h.name]?.winRate;
-        const wrColor    = wr !== undefined ? (wr >= 55 ? '#4CB87A' : wr >= 45 ? '#C89050' : '#D87880') : null;
-        const wrBadge    = wr !== undefined
-          ? `<div class="chip-wr" style="color:${wrColor};">${wr}%</div>` : '';
-        const mpDot      = h.mp === 'mustban'   ? '🔴'
-                         : h.mp === 'mustpick'  ? '🟡'
-                         : h.mp === 'highpick'  ? '🟠' : '';
+  const heroTiles = gridHeroes.map(h => {
+    const roleColor = getRoleColor(h.role);
+    const shortRole = h.role.split('/')[0];
+    const wr        = heroScoutStats[h.name]?.winRate;
+    const wrColor   = wr !== undefined ? (wr >= 55 ? '#4CB87A' : wr >= 45 ? '#F59E0B' : '#D87880') : null;
+    const tc        = TIER_C[h.tier] || TIER_C.C;
+    const isMustban = h.mp === 'mustban';
+    const isHot     = h.mp === 'highpick' || h.mp === 'mustpick';
+    // Portrait border glows red for mustban, orange for hot picks
+    const portraitBorder = isMustban
+      ? '2px solid rgba(216,120,128,.65)'
+      : isHot ? '2px solid rgba(249,115,22,.55)'
+      : '1.5px solid rgba(255,255,255,.07)';
 
-        return `<div class="hero-chip">
-          <div style="position:relative;display:inline-block;">
-            <img class="chip-portrait"
-                 src="${imgSrc(h.name)}"
-                 onerror="this.onerror=null;this.src='portraits/${h.id}.png';this.onerror=function(){this.style.background='#1E1E2A'}"
-                 alt="${h.name}"
-                 style="border:1px solid ${roleColor}44;">
-            ${mpDot ? `<span class="chip-mp-dot">${mpDot}</span>` : ''}
-          </div>
-          <div class="chip-name">${h.name}</div>
-          <div class="chip-class" style="background:${roleColor}22;color:${roleColor};border:1px solid ${roleColor}44;">${shortRole}</div>
-          ${wrBadge}
-        </div>`;
-      }).join('');
+    return `<div style="position:relative;border-radius:12px;overflow:hidden;border:${portraitBorder};background:#0E0E1A;">
+      <img src="${imgSrc(h.name)}"
+           onerror="this.onerror=null;this.src='portraits/${h.id}.png';this.onerror=function(){this.style.background='#1A1A28'}"
+           alt="${h.name}"
+           style="width:100%;height:100%;object-fit:cover;display:block;">
+      <!-- Bottom gradient overlay -->
+      <div style="position:absolute;bottom:0;left:0;right:0;height:66px;background:linear-gradient(to top,rgba(3,3,9,.96) 0%,rgba(3,3,9,.6) 55%,transparent 100%);"></div>
+      <!-- Hero name + class + WR -->
+      <div style="position:absolute;bottom:0;left:0;right:0;padding:6px 8px 7px;">
+        <div style="font-size:12.5px;font-weight:800;color:#F0F0F8;font-family:'Inter',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.15;letter-spacing:-.1px;">${h.name}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:3px;">
+          <div style="font-size:8px;font-weight:700;padding:1px 5px;border-radius:4px;background:${roleColor}2E;color:${roleColor};border:1px solid ${roleColor}50;font-family:'Inter',sans-serif;letter-spacing:.2px;">${shortRole}</div>
+          ${wr !== undefined ? `<div style="font-size:8.5px;font-weight:800;color:${wrColor};font-family:'Inter',sans-serif;letter-spacing:.2px;">${wr}%</div>` : ''}
+        </div>
+      </div>
+      <!-- Tier badge top-left -->
+      <div style="position:absolute;top:7px;left:7px;min-width:20px;height:20px;padding:0 5px;border-radius:5px;background:rgba(0,0,0,.78);color:${tc.color};border:1px solid ${tc.border};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;font-family:'Inter',sans-serif;">${h.tier}</div>
+      <!-- Ban / Hot badge top-right -->
+      ${isMustban ? `<div style="position:absolute;top:7px;right:7px;font-size:7.5px;font-weight:800;padding:2px 5px;border-radius:4px;background:rgba(216,120,128,.22);color:#D87880;border:1px solid rgba(216,120,128,.5);font-family:'Inter',sans-serif;letter-spacing:.3px;">BAN</div>` : ''}
+      ${isHot ? `<div style="position:absolute;top:7px;right:7px;font-size:7.5px;font-weight:800;padding:2px 5px;border-radius:4px;background:rgba(249,115,22,.18);color:#F97316;border:1px solid rgba(249,115,22,.45);font-family:'Inter',sans-serif;letter-spacing:.3px;">HOT</div>` : ''}
+    </div>`;
+  }).join('');
 
-      return `<div class="tier-row">
-        <div class="tier-label-box" style="background:${ts.bg};color:${ts.color};border:1px solid ${ts.border};">${t}</div>
-        <div class="tier-heroes">${heroCells}</div>
-      </div>`;
-    }).join('');
+  /* ── Pixel budget (750 × 750):
+       Header  : 152px
+       Divider :   3px
+       Grid    : 530px  (flex:1)
+       Footer  :  65px
+       Total   : 750px  ✓
+  ──────────────────────────────
+     Grid inner (16px L/R, 14px top/12px btm):
+       cols  : (750-32-30)/4 = 172px
+       rows  : (530-26-20)/3 = 161px
+  ─────────────────────────────── */
 
   return `<div class="meta-card" id="card-${lane}">
-    <div class="card-top-bar" style="background:${cfg.gradient}"></div>
-    <div class="card-header">
-      <div class="card-logo">
-        <div class="card-logo-dot" style="background:${cfg.color};box-shadow:0 0 8px ${cfg.color}88;"></div>
-        <div class="card-logo-text">warr.gg</div>
+
+    <!-- ── Background layers (absolute, behind everything) ── -->
+    <div style="position:absolute;inset:0;background:linear-gradient(148deg,#0C0C1C 0%,#04040A 55%,#080810 100%);z-index:0;"></div>
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at -6% -6%,${cfg.color}2A 0%,transparent 52%);z-index:0;"></div>
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 110% 110%,${cfg.color}10 0%,transparent 44%);z-index:0;"></div>
+    <!-- Watermark lane name -->
+    <div style="position:absolute;top:8px;left:-6px;font-size:200px;font-weight:900;font-family:'Inter',sans-serif;color:${cfg.color};opacity:.028;letter-spacing:-10px;line-height:1;text-transform:uppercase;user-select:none;pointer-events:none;z-index:0;">${lane}</div>
+
+    <!-- ── HEADER (152px) ── -->
+    <div style="position:relative;z-index:1;height:152px;padding:18px 28px 0;display:flex;flex-direction:column;justify-content:center;flex-shrink:0;">
+      <!-- Top micro row: logo + badges -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:7px;">
+          <div style="width:7px;height:7px;border-radius:50%;background:${cfg.color};box-shadow:0 0 10px ${cfg.color}99;flex-shrink:0;"></div>
+          <div style="font-size:11px;font-weight:800;color:rgba(240,240,248,.45);letter-spacing:2px;font-family:'Inter',sans-serif;text-transform:uppercase;">warr.gg</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <div style="font-size:9px;font-weight:700;padding:3px 11px;border-radius:20px;background:${cfg.color}1C;color:${cfg.color};border:1px solid ${cfg.color}40;font-family:'Inter',sans-serif;letter-spacing:.5px;">${patchLabel}</div>
+          <div style="font-size:9px;font-weight:700;padding:3px 11px;border-radius:20px;background:rgba(255,255,255,.05);color:rgba(240,240,248,.35);border:1px solid rgba(255,255,255,.08);font-family:'Inter',sans-serif;letter-spacing:.5px;">${filterLabel.toUpperCase()}</div>
+        </div>
       </div>
-      <div class="card-lane-title">
-        <div class="card-lane-name" style="color:${cfg.color};text-shadow:0 0 28px ${cfg.color}55;">${cfg.label}</div>
-        <div class="card-lane-sub">${cfg.roleHint} · Top Meta Picks</div>
-      </div>
-      <div class="card-badges">
-        <div class="card-badge" style="background:${cfg.color}22;color:${cfg.color};border:1px solid ${cfg.color}44;">${patchLabel}</div>
-        <div class="card-badge" style="background:rgba(255,255,255,.06);color:rgba(240,240,248,.45);border:1px solid rgba(255,255,255,.1);">${filterLabel.toUpperCase()}</div>
+      <!-- Big lane name row -->
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="font-size:34px;line-height:1;flex-shrink:0;">${cfg.icon}</div>
+        <div>
+          <div style="font-size:44px;font-weight:900;color:${cfg.color};letter-spacing:3px;text-transform:uppercase;line-height:.92;font-family:'Inter',sans-serif;text-shadow:0 0 55px ${cfg.color}40;">${lane.toUpperCase()} LANE</div>
+          <div style="font-size:10px;font-weight:600;color:rgba(240,240,248,.3);letter-spacing:2.5px;margin-top:7px;font-family:'Inter',sans-serif;text-transform:uppercase;">${cfg.roleHint} · TOP META PICKS</div>
+        </div>
       </div>
     </div>
-    <div class="card-divider"></div>
-    <div class="tier-groups">${tierRowsHtml}</div>
-    <div class="card-footer">
-      <div class="footer-brand">warr.gg · MLBB Draft Intelligence</div>
-      <div class="footer-note">${scoutLabel}</div>
+
+    <!-- ── GRADIENT DIVIDER (3px) ── -->
+    <div style="position:relative;z-index:1;height:3px;background:linear-gradient(90deg,${cfg.color}80 0%,${cfg.color}28 40%,transparent 72%);flex-shrink:0;"></div>
+
+    <!-- ── HERO GRID (flex:1 → 530px) ── -->
+    <div style="position:relative;z-index:1;flex:1;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);gap:10px;padding:14px 16px 12px;box-sizing:border-box;">
+      ${heroTiles}
     </div>
+
+    <!-- ── FOOTER (65px) ── -->
+    <div style="position:relative;z-index:1;height:65px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:rgba(0,0,0,.48);border-top:1px solid rgba(255,255,255,.05);">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:5px;height:5px;border-radius:50%;background:${cfg.color};opacity:.65;"></div>
+        <div style="font-size:11px;font-weight:800;color:rgba(240,240,248,.32);letter-spacing:1.5px;font-family:'Inter',sans-serif;text-transform:uppercase;">warr.gg · MLBB Draft Intelligence</div>
+      </div>
+      <div style="font-size:9px;color:rgba(240,240,248,.18);letter-spacing:.5px;font-family:'Inter',sans-serif;">${scoutLabel}</div>
+    </div>
+
   </div>`;
 }
 
