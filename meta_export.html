@@ -413,7 +413,7 @@ const HERO_LANES = {
   'Karina':['Jungle'],'Benedetta':['Jungle'],'Helcurt':['Jungle'],
   'Joy':['Jungle'],'Aamon':['Jungle'],'Natalia':['Jungle'],'Saber':['Jungle'],
   'Hanzo':['Jungle'],'Suyou':['Jungle'],'Fredrinn':['Jungle','EXP'],
-  'Phoveus':['EXP'],'Martis':['Jungle','EXP'],
+  'Phoveus':['Jungle'],'Martis':['Jungle','EXP'],
   'Aldous':['EXP','Jungle'],'Argus':['EXP','Jungle'],'Barats':['Jungle','EXP'],
   'Bane':['EXP','Jungle'],
   'Freya':['Gold'],
@@ -427,7 +427,7 @@ const HERO_LANES = {
   'Harith':['Gold'],'Harley':['Mid','Jungle'],'Selena':['Mid','Roam'],
   'Valir':['Mid','Roam'],
   'Faramis':['Roam','Mid'],
-  'Aulus':['EXP'],'Guinevere':['EXP'],
+  'Aulus':['EXP'],'Guinevere':['Jungle'],
   'Yu Zhong':['EXP'],'Arlott':['EXP'],'Cici':['EXP'],'Gatotkaca':['EXP'],
   'Esmeralda':['EXP'],'Dyrroth':['EXP'],'Terizla':['EXP'],'Thamuz':['EXP'],
   'Khaleed':['EXP'],'Paquito':['EXP'],'Leomord':['Jungle'],'Silvanna':['EXP'],
@@ -569,6 +569,37 @@ function loadScoutStats() {
       }
     });
   } catch(e) { console.warn('Scout load error:', e); }
+}
+
+// ── Dynamic lane correction from localStorage scout data ─────────────────────
+// Mirrors the same logic used by scout.html's computeHeroRoles().
+// Runs on every generateAll() so cards always reflect observed lanes.
+function applyScoutLaneCorrections() {
+  try {
+    const raw = localStorage.getItem('warr_scout_data') || localStorage.getItem('warr_scout_db');
+    const db  = raw ? JSON.parse(raw) : null;
+    if (!db || !db.matches) return;
+
+    // Count how often each hero was observed in each lane
+    const laneCounts = {};
+    db.matches.forEach(m => {
+      [...(m.bluePicks||[]), ...(m.redPicks||[])].forEach(p => {
+        if (!p || !p.name || !p.lane) return;
+        if (!laneCounts[p.name]) laneCounts[p.name] = {};
+        laneCounts[p.name][p.lane] = (laneCounts[p.name][p.lane] || 0) + 1;
+      });
+    });
+
+    // Override HERO_LANES with the most-observed lane per hero (min 1 observation)
+    Object.entries(laneCounts).forEach(([hero, counts]) => {
+      const primaryLane = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+      if (!HERO_LANES[hero]) {
+        HERO_LANES[hero] = [primaryLane];
+      } else if (HERO_LANES[hero][0] !== primaryLane) {
+        HERO_LANES[hero] = [primaryLane, ...HERO_LANES[hero].filter(l => l !== primaryLane)];
+      }
+    });
+  } catch(e) { /* fail silently — static defaults still apply */ }
 }
 
 function getHeroLane(h) {
@@ -816,6 +847,7 @@ async function generateAll() {
   const btn  = document.getElementById('genBtn');
   btn.disabled = true; btn.textContent = '⏳ Generating…';
   loadScoutStats();
+  applyScoutLaneCorrections(); // override static defaults with observed pick lanes
   const grid = document.getElementById('cardsGrid');
   grid.innerHTML = '';
   const lanes = ['Gold','EXP','Mid','Jungle','Roam'];
