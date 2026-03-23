@@ -247,9 +247,9 @@
     <span class="legend-sep">·</span>
     <span class="legend-tier" style="color:#C89050;">B</span> Situational
     <span class="legend-sep">|</span>
-    <span style="color:#5EA0D8;font-weight:700;">PRES%</span> Presence (picks + bans)
+    <span style="font-weight:700;color:var(--text2);">Presence%</span> Pick + Ban rate
     <span class="legend-sep">·</span>
-    <span style="color:#4CB87A;font-weight:700;">WR%</span> Win Rate
+    <span style="font-weight:700;color:var(--text2);">Win Rate%</span> Scout win rate
     <span class="legend-sep">·</span>
     <span style="color:#E09098;font-weight:700;">BAN</span> Must Ban
     <span class="legend-drag">
@@ -655,13 +655,12 @@ function buildCard(lane) {
     const rank      = i + 1;
     const rc        = RANK_C[i];
     const tc        = TIER_C[h.tier] || TIER_C.C;
-    const roleColor = getRoleColor(h.role);
     const roleName  = fullRoleName(h.role);
     const stats     = heroScoutStats[h.name];
     const wr        = stats?.winRate;
     const pres      = stats?.presence;
-    const wrColor   = wr  !== null && wr  !== undefined ? (wr  >= 55 ? '#4CB87A' : wr  >= 45 ? '#C89050' : '#D87880') : null;
-    const presColor = pres !== undefined ? (pres >= 70 ? '#EF4444' : pres >= 40 ? '#F59E0B' : '#5EA0D8') : null;
+    // Flat neutral white for both stats — no color coding
+    const statColor = 'rgba(240,240,248,.78)';
     const isMustban = h.mp === 'mustban';
     // Alternating glass rows — lighter for odd
     const rowBg     = i % 2 === 0 ? 'rgba(255,255,255,.028)' : 'rgba(255,255,255,.008)';
@@ -677,31 +676,29 @@ function buildCard(lane) {
            alt="${h.name}"
            style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;background:#0E0E1A;display:block;margin-right:12px;border:1px solid rgba(255,255,255,.1);box-shadow:0 2px 8px rgba(0,0,0,.5);">
 
-      <!-- Hero name + role + BAN badge -->
+      <!-- Hero name + role (plain text) + BAN badge -->
       <div style="flex:1;min-width:0;margin-right:8px;">
         <div style="font-size:13.5px;font-weight:600;color:rgba(240,240,248,.95);font-family:'Inter',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;letter-spacing:-.2px;">${h.name}</div>
-        <div style="display:flex;align-items:center;gap:5px;margin-top:3px;">
-          <div style="font-size:9px;font-weight:500;padding:2px 7px;border-radius:20px;background:rgba(255,255,255,.07);color:rgba(240,240,248,.55);border:1px solid rgba(255,255,255,.1);font-family:'Inter',sans-serif;letter-spacing:.1px;">${roleName}</div>
-          ${isMustban ? `<div style="font-size:8px;font-weight:700;padding:2px 7px;border-radius:20px;background:rgba(216,120,128,.1);color:#E09098;border:1px solid rgba(216,120,128,.28);font-family:'Inter',sans-serif;letter-spacing:.3px;">BAN</div>` : ''}
+        <div style="display:flex;align-items:center;gap:8px;margin-top:3px;">
+          <div style="font-size:9px;font-weight:400;color:rgba(240,240,248,.35);font-family:'Inter',sans-serif;">${roleName}</div>
+          ${isMustban ? `<div style="font-size:8px;font-weight:700;padding:1px 7px;border-radius:20px;background:rgba(216,120,128,.1);color:#E09098;border:1px solid rgba(216,120,128,.28);font-family:'Inter',sans-serif;letter-spacing:.3px;">BAN</div>` : ''}
         </div>
       </div>
 
       <!-- Tier badge — glass pill -->
       <div style="width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.05);border:1px solid ${tc}55;box-shadow:inset 0 1px 0 rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:${tc};font-family:'Inter',sans-serif;flex-shrink:0;margin-right:10px;">${h.tier}</div>
 
-      <!-- Presence % -->
+      <!-- Presence % — flat neutral, no color coding -->
       <div style="width:42px;text-align:right;flex-shrink:0;margin-right:10px;">
         ${pres !== undefined
-          ? `<div style="font-size:12px;font-weight:700;color:${presColor};font-family:'Inter',sans-serif;letter-spacing:-.3px;line-height:1;">${pres}%</div>
-             <div style="font-size:7px;font-weight:600;color:rgba(240,240,248,.22);font-family:'Inter',sans-serif;letter-spacing:.3px;margin-top:1px;">PRES</div>`
+          ? `<div style="font-size:12px;font-weight:600;color:${statColor};font-family:'Inter',sans-serif;letter-spacing:-.3px;">${pres}%</div>`
           : `<div style="font-size:11px;color:rgba(255,255,255,.12);font-family:'Inter',sans-serif;">—</div>`}
       </div>
 
-      <!-- Win Rate % -->
+      <!-- Win Rate % — flat neutral, no color coding -->
       <div style="width:34px;text-align:right;flex-shrink:0;">
         ${wr !== null && wr !== undefined
-          ? `<div style="font-size:12px;font-weight:700;color:${wrColor};font-family:'Inter',sans-serif;letter-spacing:-.3px;line-height:1;">${wr}%</div>
-             <div style="font-size:7px;font-weight:600;color:rgba(240,240,248,.22);font-family:'Inter',sans-serif;letter-spacing:.3px;margin-top:1px;">WR</div>`
+          ? `<div style="font-size:12px;font-weight:600;color:${statColor};font-family:'Inter',sans-serif;letter-spacing:-.3px;">${wr}%</div>`
           : `<div style="font-size:11px;color:rgba(255,255,255,.12);font-family:'Inter',sans-serif;">—</div>`}
       </div>
 
@@ -737,7 +734,12 @@ function buildCard(lane) {
           <span style="color:rgba(240,240,248,.9);">${lane}</span>
           <span style="color:${cfg.color};"> Lane</span>
         </div>
-        <div style="font-size:9.5px;font-weight:500;color:rgba(240,240,248,.22);letter-spacing:1.5px;font-family:'Inter',sans-serif;text-transform:uppercase;">${cfg.roleHint}</div>
+      </div>
+      <!-- Role hint + league label -->
+      <div style="display:flex;align-items:center;gap:7px;margin-top:5px;">
+        <div style="font-size:9.5px;font-weight:500;color:rgba(240,240,248,.25);letter-spacing:1px;font-family:'Inter',sans-serif;text-transform:uppercase;">${cfg.roleHint}</div>
+        <div style="width:1px;height:7px;background:rgba(255,255,255,.12);"></div>
+        <div style="font-size:9.5px;font-weight:600;color:${cfg.color};opacity:.8;letter-spacing:1px;font-family:'Inter',sans-serif;text-transform:uppercase;">${filterLabel}</div>
       </div>
     </div>
 
@@ -745,8 +747,8 @@ function buildCard(lane) {
     <div style="display:flex;align-items:center;height:22px;padding:0 20px;background:rgba(255,255,255,.018);border-bottom:1px solid rgba(255,255,255,.05);box-sizing:border-box;flex-shrink:0;">
       <div style="flex:1;"></div>
       <div style="width:22px;margin-right:10px;"></div>
-      <div style="width:42px;text-align:right;font-size:7px;font-weight:700;color:rgba(240,240,248,.22);font-family:'Inter',sans-serif;letter-spacing:.8px;margin-right:10px;">PRES%</div>
-      <div style="width:34px;text-align:right;font-size:7px;font-weight:700;color:rgba(240,240,248,.22);font-family:'Inter',sans-serif;letter-spacing:.8px;">WR%</div>
+      <div style="width:42px;text-align:right;font-size:7px;font-weight:600;color:rgba(240,240,248,.2);font-family:'Inter',sans-serif;letter-spacing:.5px;margin-right:10px;">Presence</div>
+      <div style="width:34px;text-align:right;font-size:7px;font-weight:600;color:rgba(240,240,248,.2);font-family:'Inter',sans-serif;letter-spacing:.5px;">Win Rate</div>
     </div>
 
     <!-- Hero rows (10 × 51.8px ≈ 518px + 22px header = 540px) -->
@@ -767,7 +769,7 @@ function buildCard(lane) {
         <div style="width:1px;height:7px;background:rgba(255,255,255,.08);"></div>
         <div style="display:flex;align-items:center;gap:3px;font-size:8.5px;font-family:'Inter',sans-serif;font-weight:500;color:rgba(240,240,248,.28);"><span style="color:#C89050;font-weight:800;">B</span>&nbsp;Situational</div>
         <div style="width:1px;height:7px;background:rgba(255,255,255,.08);"></div>
-        <div style="font-size:8.5px;font-family:'Inter',sans-serif;font-weight:500;color:rgba(240,240,248,.22);">PRES% = Pick + Ban rate</div>
+        <div style="font-size:8.5px;font-family:'Inter',sans-serif;font-weight:500;color:rgba(240,240,248,.22);">Presence = Pick + Ban rate</div>
         <div style="margin-left:auto;display:flex;align-items:center;gap:5px;">
           <div style="width:4px;height:4px;border-radius:50%;background:${cfg.color};opacity:.7;box-shadow:0 0 4px ${cfg.color}88;"></div>
           <div style="font-size:9px;font-weight:700;color:rgba(240,240,248,.25);letter-spacing:2px;font-family:'Inter',sans-serif;text-transform:uppercase;">warr.gg</div>
