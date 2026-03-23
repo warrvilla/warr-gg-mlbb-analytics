@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meta Export — Warr.GG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root {
+  --bg:#07070C; --surface:#101018; --surface2:#161620; --surface3:#1E1E2A;
+  --border:rgba(255,255,255,0.07);
+  --text:#F0F0F8; --text2:rgba(240,240,248,0.54); --text3:rgba(240,240,248,0.28);
+  --gold:#F59E0B; --exp:#F97316; --mid:#A855F7; --jungle:#22C55E; --roam:#5EA0D8;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { background:#0a0a14; color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; padding:20px; }
+
+.page-header { max-width:900px; margin:0 auto 28px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.logo { font-family:'Rajdhani',sans-serif; font-weight:700; font-size:22px; display:flex; align-items:center; gap:8px; }
+.logo-dot { width:10px; height:10px; background:#5EA0D8; border-radius:50%; box-shadow:0 0 10px #5EA0D8; }
+.page-title { font-size:13px; font-weight:600; color:var(--text2); letter-spacing:1px; }
+.filter-bar { max-width:900px; margin:0 auto 24px; background:#101018; border:1px solid rgba(255,255,255,.07); border-radius:10px; padding:14px 18px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.filter-label { font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:1px; }
+.fbtn { padding:5px 14px; font-size:11px; font-weight:700; border:1px solid rgba(255,255,255,.1); background:transparent; color:var(--text2); cursor:pointer; border-radius:6px; transition:all .15s; letter-spacing:.5px; }
+.fbtn:hover { border-color:rgba(255,255,255,.25); color:var(--text); }
+.fbtn.active { border-color:#5EA0D8; background:rgba(94,160,216,.15); color:#5EA0D8; }
+.gen-btn { margin-left:auto; padding:7px 20px; font-size:12px; font-weight:700; background:linear-gradient(135deg,#5EA0D8,#A855F7); border:none; color:#fff; cursor:pointer; border-radius:7px; letter-spacing:.5px; transition:opacity .2s; }
+.gen-btn:hover { opacity:.85; }
+.gen-btn:disabled { opacity:.4; cursor:default; }
+
+.cards-grid { max-width:900px; margin:0 auto; display:flex; flex-direction:column; gap:20px; }
+.lane-section { }
+.lane-heading { font-size:12px; font-weight:700; color:var(--text3); letter-spacing:2px; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:10px; }
+.lane-heading span { width:20px; height:2px; border-radius:2px; display:inline-block; }
+.dl-btn { padding:5px 14px; font-size:11px; font-weight:700; background:rgba(34,197,94,.12); border:1px solid rgba(34,197,94,.3); color:#22c55e; cursor:pointer; border-radius:6px; letter-spacing:.5px; transition:all .15s; }
+.dl-btn:hover { background:rgba(34,197,94,.22); }
+
+/* ── The actual card (750x750 rendered) ── */
+.meta-card {
+  width:750px; height:750px; overflow:hidden; position:relative;
+  background:#06060E;
+  border-radius:0;
+  flex-shrink:0;
+  font-family:'Inter',sans-serif;
+}
+.card-top-bar { height:5px; width:100%; }
+.card-header { padding:18px 28px 14px; display:flex; align-items:flex-start; justify-content:space-between; }
+.card-logo { display:flex; align-items:center; gap:7px; }
+.card-logo-dot { width:9px; height:9px; border-radius:50%; }
+.card-logo-text { font-family:'Rajdhani',sans-serif; font-size:18px; font-weight:700; color:#F0F0F8; letter-spacing:.5px; }
+.card-lane-title { text-align:center; flex:1; }
+.card-lane-name { font-family:'Inter',sans-serif; font-size:28px; font-weight:900; letter-spacing:3px; text-transform:uppercase; line-height:1; }
+.card-lane-sub { font-size:10px; font-weight:600; color:rgba(240,240,248,.4); letter-spacing:2px; margin-top:3px; }
+.card-badges { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
+.card-badge { font-size:9px; font-weight:700; padding:2px 8px; border-radius:6px; letter-spacing:1px; }
+.card-divider { height:1px; background:rgba(255,255,255,.07); margin:0 28px 4px; }
+
+/* hero rows */
+.hero-rows { padding:0 20px; }
+.hero-row { display:flex; align-items:center; gap:12px; padding:6px 8px; border-radius:8px; margin-bottom:3px; position:relative; }
+.hero-row:nth-child(odd) { background:rgba(255,255,255,.022); }
+.row-rank { font-size:22px; font-weight:900; width:34px; text-align:center; flex-shrink:0; font-family:'Inter',sans-serif; opacity:.85; }
+.row-rank.r1 { font-size:26px; }
+.row-portrait { width:48px; height:48px; border-radius:10px; object-fit:cover; flex-shrink:0; background:#161620; }
+.row-info { flex:1; min-width:0; }
+.row-name { font-size:15px; font-weight:800; color:#F0F0F8; letter-spacing:.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.row-class { font-size:9px; font-weight:700; padding:1px 7px; border-radius:5px; margin-top:3px; display:inline-block; letter-spacing:.5px; }
+.row-right { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.mp-badge { font-size:8px; font-weight:700; padding:1px 6px; border-radius:4px; letter-spacing:.8px; }
+.mp-ban { background:rgba(216,120,128,.2); color:#D87880; border:1px solid rgba(216,120,128,.3); }
+.mp-pick { background:rgba(249,115,22,.2); color:#F97316; border:1px solid rgba(249,115,22,.3); }
+.tier-pill { font-size:11px; font-weight:800; width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center; }
+.t-S { background:rgba(245,158,11,.2); color:#F59E0B; border:1px solid rgba(245,158,11,.3); }
+.t-A { background:rgba(156,163,175,.12); color:#9CA3AF; border:1px solid rgba(156,163,175,.2); }
+.t-B { background:rgba(180,83,9,.12); color:#B45309; border:1px solid rgba(180,83,9,.2); }
+.t-C { background:rgba(75,85,99,.12); color:#6B7280; border:1px solid rgba(75,85,99,.2); }
+.score-block { display:flex; flex-direction:column; align-items:flex-end; gap:2px; width:68px; }
+.score-num { font-size:14px; font-weight:800; letter-spacing:-.3px; }
+.score-bar-wrap { width:68px; height:4px; background:rgba(255,255,255,.08); border-radius:3px; overflow:hidden; }
+.score-bar-fill { height:100%; border-radius:3px; }
+.wr-chip { font-size:9px; font-weight:700; padding:2px 7px; border-radius:5px; white-space:nowrap; }
+.wr-hi { background:rgba(76,184,122,.18); color:#4CB87A; border:1px solid rgba(76,184,122,.3); }
+.wr-mid { background:rgba(200,144,80,.18); color:#C89050; border:1px solid rgba(200,144,80,.3); }
+.wr-lo { background:rgba(216,120,128,.18); color:#D87880; border:1px solid rgba(216,120,128,.3); }
+
+.card-footer { position:absolute; bottom:0; left:0; right:0; padding:12px 28px; border-top:1px solid rgba(255,255,255,.05); display:flex; align-items:center; justify-content:space-between; background:rgba(0,0,0,.4); }
+.footer-brand { font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:700; color:rgba(240,240,248,.5); letter-spacing:1px; }
+.footer-note { font-size:9px; color:rgba(240,240,248,.25); letter-spacing:.5px; }
+
+/* preview wrapper */
+.card-preview-wrap { overflow:hidden; border-radius:10px; border:1px solid rgba(255,255,255,.07); display:inline-block; line-height:0; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="logo"><div class="logo-dot"></div>warr.gg</div>
+  <div class="page-title">META EXPORT — YouTube 1500×1500</div>
+</div>
+
+<div class="filter-bar">
+  <span class="filter-label">Scout Filter:</span>
+  <button class="fbtn active" onclick="setFilter('all',this)">All Leagues</button>
+  <button class="fbtn" onclick="setFilter('MPL PH',this)">MPL PH</button>
+  <button class="fbtn" onclick="setFilter('MPL MY',this)">MPL MY</button>
+  <button class="fbtn" onclick="setFilter('MPL ID',this)">MPL ID</button>
+  <button class="fbtn" onclick="setFilter('MPL SG',this)">MPL SG</button>
+  <button class="fbtn" onclick="setFilter('MSC',this)">MSC</button>
+  <button class="fbtn" onclick="setFilter('M-Series',this)">M-Series</button>
+  <button class="fbtn" onclick="setFilter('Scrims',this)">Scrims</button>
+  <button class="gen-btn" id="genBtn" onclick="generateAll()">▶ Generate All Cards</button>
+</div>
+
+<div class="cards-grid" id="cardsGrid"></div>
+
+<script>
+// ── Hero Data (mirrored from draft_board) ──────────────────────────────────
+const ALL_HEROES = [
+  {id:'tigreal',name:'Tigreal',role:'Tank',tier:'B',mp:'situational'},
+  {id:'akai',name:'Akai',role:'Tank',tier:'B',mp:'situational'},
+  {id:'franco',name:'Franco',role:'Tank',tier:'B',mp:'situational'},
+  {id:'minotaur',name:'Minotaur',role:'Tank',tier:'B',mp:'situational'},
+  {id:'lolita',name:'Lolita',role:'Tank',tier:'B',mp:'situational'},
+  {id:'johnson',name:'Johnson',role:'Tank',tier:'C',mp:'troll'},
+  {id:'atlas',name:'Atlas',role:'Tank',tier:'B',mp:'situational'},
+  {id:'khufra',name:'Khufra',role:'Tank',tier:'C',mp:'situational'},
+  {id:'esmeralda',name:'Esmeralda',role:'Tank/Mage',tier:'A',mp:'situational'},
+  {id:'uranus',name:'Uranus',role:'Tank',tier:'S',mp:'highpick'},
+  {id:'hylos',name:'Hylos',role:'Tank',tier:'A',mp:'situational'},
+  {id:'belerick',name:'Belerick',role:'Tank',tier:'B',mp:'off'},
+  {id:'grock',name:'Grock',role:'Tank',tier:'S',mp:'mustban'},
+  {id:'carmilla',name:'Carmilla',role:'Tank',tier:'A',mp:'situational'},
+  {id:'baxia',name:'Baxia',role:'Tank',tier:'A',mp:'situational'},
+  {id:'gloo',name:'Gloo',role:'Tank',tier:'B',mp:'situational'},
+  {id:'chip',name:'Chip',role:'Tank',tier:'A',mp:'situational'},
+  {id:'fredrinn',name:'Fredrinn',role:'Tank/Fighter',tier:'S',mp:'highpick'},
+  {id:'kalea',name:'Kalea',role:'Tank',tier:'S',mp:'mustban'},
+  {id:'edith',name:'Edith',role:'Tank/MM',tier:'B',mp:'situational'},
+  {id:'barats',name:'Barats',role:'Fighter/Tank',tier:'B',mp:'situational'},
+  {id:'balmond',name:'Balmond',role:'Fighter',tier:'C',mp:'off'},
+  {id:'zilong',name:'Zilong',role:'Fighter',tier:'C',mp:'off'},
+  {id:'alucard',name:'Alucard',role:'Fighter',tier:'C',mp:'off'},
+  {id:'alpha',name:'Alpha',role:'Fighter',tier:'B',mp:'off'},
+  {id:'sun',name:'Sun',role:'Fighter',tier:'C',mp:'off'},
+  {id:'argus',name:'Argus',role:'Fighter',tier:'B',mp:'off'},
+  {id:'hilda',name:'Hilda',role:'Fighter',tier:'A',mp:'situational'},
+  {id:'ruby',name:'Ruby',role:'Fighter',tier:'A',mp:'situational'},
+  {id:'xborg',name:'X.Borg',role:'Fighter',tier:'B',mp:'off'},
+  {id:'aldous',name:'Aldous',role:'Fighter',tier:'B',mp:'off'},
+  {id:'chou',name:'Chou',role:'Fighter',tier:'S',mp:'highpick'},
+  {id:'badang',name:'Badang',role:'Fighter',tier:'A',mp:'situational'},
+  {id:'guinevere',name:'Guinevere',role:'Fighter',tier:'S',mp:'highpick'},
+  {id:'terizla',name:'Terizla',role:'Fighter',tier:'B',mp:'off'},
+  {id:'thamuz',name:'Thamuz',role:'Fighter',tier:'A',mp:'situational'},
+  {id:'masha',name:'Masha',role:'Fighter',tier:'B',mp:'off'},
+  {id:'khaleed',name:'Khaleed',role:'Fighter',tier:'S',mp:'highpick'},
+  {id:'paquito',name:'Paquito',role:'Fighter',tier:'A',mp:'situational'},
+  {id:'yuzhong',name:'Yu Zhong',role:'Fighter',tier:'S',mp:'highpick'},
+  {id:'dyrroth',name:'Dyrroth',role:'Fighter',tier:'B',mp:'off'},
+  {id:'jawhead',name:'Jawhead',role:'Fighter',tier:'A',mp:'situational'},
+  {id:'martis',name:'Martis',role:'Fighter',tier:'B',mp:'off'},
+  {id:'silvanna',name:'Silvanna',role:'Fighter',tier:'B',mp:'off'},
+  {id:'yin',name:'Yin',role:'Fighter',tier:'B',mp:'off'},
+  {id:'minsitthar',name:'Minsitthar',role:'Fighter',tier:'B',mp:'off'},
+  {id:'freya',name:'Freya',role:'Fighter',tier:'S',mp:'highpick'},
+  {id:'lapulapu',name:'Lapu-Lapu',role:'Fighter',tier:'A',mp:'situational'},
+  {id:'leomord',name:'Leomord',role:'Fighter',tier:'S',mp:'highpick'},
+  {id:'phoveus',name:'Phoveus',role:'Fighter',tier:'A',mp:'situational'},
+  {id:'arlott',name:'Arlott',role:'Fighter',tier:'S',mp:'highpick'},
+  {id:'cici',name:'Cici',role:'Fighter',tier:'S',mp:'highpick'},
+  {id:'sora',name:'Sora',role:'Fighter/Assassin',tier:'S',mp:'mustban'},
+  {id:'bane',name:'Bane',role:'Fighter',tier:'C',mp:'off'},
+  {id:'lukas',name:'Lukas',role:'Fighter',tier:'B',mp:'situational'},
+  {id:'gatotkaca',name:'Gatotkaca',role:'Tank/Fighter',tier:'S',mp:'highpick'},
+  {id:'roger',name:'Roger',role:'Fighter/MM',tier:'B',mp:'off'},
+  {id:'saber',name:'Saber',role:'Assassin',tier:'B',mp:'off'},
+  {id:'karina',name:'Karina',role:'Assassin',tier:'A',mp:'situational'},
+  {id:'fanny',name:'Fanny',role:'Assassin',tier:'S',mp:'mustban'},
+  {id:'hayabusa',name:'Hayabusa',role:'Assassin',tier:'A',mp:'situational'},
+  {id:'natalia',name:'Natalia',role:'Assassin',tier:'C',mp:'off'},
+  {id:'helcurt',name:'Helcurt',role:'Assassin',tier:'C',mp:'situational'},
+  {id:'lancelot',name:'Lancelot',role:'Assassin',tier:'A',mp:'situational'},
+  {id:'gusion',name:'Gusion',role:'Assassin',tier:'C',mp:'off'},
+  {id:'ling',name:'Ling',role:'Assassin',tier:'B',mp:'situational'},
+  {id:'selena',name:'Selena',role:'Assassin/Mage',tier:'A',mp:'situational'},
+  {id:'benedetta',name:'Benedetta',role:'Assassin',tier:'A',mp:'situational'},
+  {id:'aamon',name:'Aamon',role:'Assassin',tier:'B',mp:'situational'},
+  {id:'nolan',name:'Nolan',role:'Assassin',tier:'B',mp:'situational'},
+  {id:'yss',name:'Yi Sun-shin',role:'Assassin/MM',tier:'S',mp:'highpick'},
+  {id:'suyou',name:'Suyou',role:'Assassin',tier:'A',mp:'situational'},
+  {id:'joy',name:'Joy',role:'Assassin',tier:'S',mp:'highpick'},
+  {id:'julian',name:'Julian',role:'Fighter/Assassin',tier:'A',mp:'situational'},
+  {id:'hanzo',name:'Hanzo',role:'Assassin',tier:'B',mp:'off'},
+  {id:'nana',name:'Nana',role:'Mage/Support',tier:'A',mp:'situational'},
+  {id:'eudora',name:'Eudora',role:'Mage',tier:'B',mp:'off'},
+  {id:'aurora',name:'Aurora',role:'Mage',tier:'B',mp:'off'},
+  {id:'gord',name:'Gord',role:'Mage',tier:'B',mp:'off'},
+  {id:'cyclops',name:'Cyclops',role:'Mage',tier:'A',mp:'situational'},
+  {id:'alice',name:'Alice',role:'Mage/Tank',tier:'B',mp:'off'},
+  {id:'harley',name:'Harley',role:'Mage/Assassin',tier:'A',mp:'situational'},
+  {id:'odette',name:'Odette',role:'Mage',tier:'A',mp:'situational'},
+  {id:'vexana',name:'Vexana',role:'Mage',tier:'B',mp:'off'},
+  {id:'lunox',name:'Lunox',role:'Mage',tier:'A',mp:'situational'},
+  {id:'kagura',name:'Kagura',role:'Mage',tier:'B',mp:'situational'},
+  {id:'lylia',name:'Lylia',role:'Mage',tier:'A',mp:'situational'},
+  {id:'cecilion',name:'Cecilion',role:'Mage',tier:'A',mp:'situational'},
+  {id:'yve',name:'Yve',role:'Mage',tier:'S',mp:'mustban'},
+  {id:'valentina',name:'Valentina',role:'Mage',tier:'S',mp:'highpick'},
+  {id:'xavier',name:'Xavier',role:'Mage',tier:'A',mp:'situational'},
+  {id:'change',name:'Change',role:'Mage',tier:'B',mp:'off'},
+  {id:'pharsa',name:'Pharsa',role:'Mage',tier:'S',mp:'highpick'},
+  {id:'novaria',name:'Novaria',role:'Mage',tier:'A',mp:'situational'},
+  {id:'luoyi',name:'Luo Yi',role:'Mage',tier:'S',mp:'highpick'},
+  {id:'zhuxin',name:'Zhuxin',role:'Mage',tier:'A',mp:'situational'},
+  {id:'faramis',name:'Faramis',role:'Mage/Support',tier:'B',mp:'off'},
+  {id:'kadita',name:'Kadita',role:'Mage/Assassin',tier:'B',mp:'off'},
+  {id:'kimmy',name:'Kimmy',role:'Mage/MM',tier:'B',mp:'off'},
+  {id:'zhask',name:'Zhask',role:'Mage',tier:'B',mp:'off'},
+  {id:'vale',name:'Vale',role:'Mage',tier:'A',mp:'situational'},
+  {id:'harith',name:'Harith',role:'Mage',tier:'S',mp:'highpick'},
+  {id:'zetian',name:'Zetian',role:'Mage',tier:'S',mp:'mustpick'},
+  {id:'miya',name:'Miya',role:'MM',tier:'B',mp:'off'},
+  {id:'layla',name:'Layla',role:'MM',tier:'C',mp:'off'},
+  {id:'moskov',name:'Moskov',role:'MM',tier:'A',mp:'situational'},
+  {id:'clint',name:'Clint',role:'MM',tier:'B',mp:'off'},
+  {id:'bruno',name:'Bruno',role:'MM',tier:'A',mp:'situational'},
+  {id:'irithel',name:'Irithel',role:'MM',tier:'B',mp:'off'},
+  {id:'lesley',name:'Lesley',role:'MM/Assassin',tier:'A',mp:'situational'},
+  {id:'hanabi',name:'Hanabi',role:'MM',tier:'B',mp:'off'},
+  {id:'claude',name:'Claude',role:'MM',tier:'S',mp:'highpick'},
+  {id:'granger',name:'Granger',role:'MM',tier:'S',mp:'highpick'},
+  {id:'brody',name:'Brody',role:'MM',tier:'A',mp:'situational'},
+  {id:'karrie',name:'Karrie',role:'MM',tier:'A',mp:'situational'},
+  {id:'beatrix',name:'Beatrix',role:'MM',tier:'A',mp:'situational'},
+  {id:'melissa',name:'Melissa',role:'MM',tier:'A',mp:'situational'},
+  {id:'natan',name:'Natan',role:'MM',tier:'A',mp:'situational'},
+  {id:'wanwan',name:'Wanwan',role:'MM',tier:'B',mp:'situational'},
+  {id:'ixia',name:'Ixia',role:'MM',tier:'B',mp:'situational'},
+  {id:'obsidia',name:'Obsidia',role:'MM',tier:'A',mp:'situational'},
+  {id:'estes',name:'Estes',role:'Support',tier:'A',mp:'situational'},
+  {id:'angela',name:'Angela',role:'Support',tier:'B',mp:'situational'},
+  {id:'rafaela',name:'Rafaela',role:'Support',tier:'A',mp:'off'},
+  {id:'diggie',name:'Diggie',role:'Support',tier:'A',mp:'off'},
+  {id:'floryn',name:'Floryn',role:'Support',tier:'B',mp:'off'},
+  {id:'mathilda',name:'Mathilda',role:'Support',tier:'B',mp:'off'},
+  {id:'kaja',name:'Kaja',role:'Support/Fighter',tier:'A',mp:'situational'},
+  {id:'popol',name:'Popol & Kupa',role:'Support/MM',tier:'A',mp:'off'},
+  {id:'aulus_fighter',name:'Aulus',role:'Fighter',tier:'B',mp:'off'},
+];
+
+const HERO_LANES = {
+  'Claude':['Gold'],'Karrie':['Gold'],'Beatrix':['Gold'],'Wanwan':['Gold'],
+  'Granger':['Gold'],'Brody':['Gold'],'Miya':['Gold'],'Bruno':['Gold'],
+  'Clint':['Gold'],'Hanabi':['Gold'],'Irithel':['Gold'],'Layla':['Gold'],
+  'Lesley':['Gold'],'Melissa':['Gold'],'Moskov':['Gold'],'Natan':['Gold'],
+  'Ixia':['Gold'],'Obsidia':['Gold'],'Popol & Kupa':['Gold'],
+  'Roger':['Gold','Jungle'],
+  'Yi Sun-shin':['Jungle'],'Hayabusa':['Jungle'],'Lancelot':['Jungle'],
+  'Ling':['Jungle'],'Fanny':['Jungle'],'Nolan':['Jungle'],'Gusion':['Jungle'],
+  'Karina':['Jungle'],'Benedetta':['Jungle'],'Helcurt':['Jungle'],
+  'Joy':['Jungle'],'Aamon':['Jungle'],'Natalia':['Jungle'],'Saber':['Jungle'],
+  'Hanzo':['Jungle'],'Suyou':['Jungle'],'Fredrinn':['Jungle','EXP'],
+  'Phoveus':['EXP'],'Martis':['Jungle','EXP'],
+  'Aldous':['EXP','Jungle'],'Argus':['EXP','Jungle'],'Barats':['Jungle','EXP'],
+  'Bane':['EXP','Jungle'],
+  'Freya':['Gold'],
+  'Zhuxin':['Mid'],'Yve':['Mid'],'Pharsa':['Mid'],'Kagura':['Mid'],'Zetian':['Mid'],
+  'Valentina':['Mid'],'Xavier':['Mid'],'Novaria':['Mid'],'Lylia':['Mid'],
+  'Lunox':['Mid'],'Kadita':['Mid'],'Luo Yi':['Mid'],'Odette':['Mid'],
+  'Cecilion':['Mid'],'Vale':['Mid'],'Eudora':['Mid'],'Aurora':['Mid'],
+  'Gord':['Mid'],'Cyclops':['Mid'],'Alice':['Mid'],'Vexana':['Mid'],
+  'Zhask':['Mid'],'Nana':['Mid','Roam'],'Kimmy':['Mid'],'Change':['Mid'],
+  'Harith':['Gold'],'Harley':['Mid','Jungle'],'Selena':['Mid','Roam'],
+  'Faramis':['Roam','Mid'],
+  'Yu Zhong':['EXP'],'Arlott':['EXP'],'Cici':['EXP'],'Gatotkaca':['EXP'],
+  'Esmeralda':['EXP'],'Dyrroth':['EXP'],'Terizla':['EXP'],'Thamuz':['EXP'],
+  'Khaleed':['EXP'],'Paquito':['EXP'],'Leomord':['Jungle'],'Silvanna':['EXP'],
+  'Badang':['EXP'],'Ruby':['EXP','Roam'],'Guinevere':['EXP'],
+  'Hilda':['EXP','Roam'],'Masha':['EXP'],'X.Borg':['EXP'],
+  'Lapu-Lapu':['EXP'],'Yin':['EXP'],'Lukas':['EXP','Jungle'],'Sora':['EXP'],
+  'Julian':['Jungle','Mid'],
+  'Hylos':['Roam'],'Uranus':['EXP'],'Atlas':['Roam'],'Khufra':['Roam'],
+  'Gloo':['Roam'],'Chip':['Roam'],'Kalea':['Roam'],'Mathilda':['Roam'],
+  'Angela':['Roam'],'Floryn':['Roam'],'Franco':['Roam'],'Tigreal':['Roam'],
+  'Johnson':['Roam'],'Akai':['Roam'],'Minotaur':['Roam'],'Lolita':['Roam'],
+  'Grock':['Roam'],'Belerick':['Roam'],'Baxia':['Roam','Jungle'],'Carmilla':['Roam'],
+  'Kaja':['Roam'],'Diggie':['Roam'],'Estes':['Roam'],'Rafaela':['Roam'],
+  'Edith':['Roam'],
+  'Chou':['Roam','Gold'],'Minsitthar':['Roam','EXP'],
+  'Jawhead':['Roam'],
+};
+
+const LANE_CONFIG = {
+  Gold:   { color:'#F59E0B', gradient:'linear-gradient(135deg,#F59E0B,#D97706)', label:'GOLD LANERS',   icon:'🥇', roleHint:'Marksman / Carry' },
+  EXP:    { color:'#F97316', gradient:'linear-gradient(135deg,#F97316,#EA580C)', label:'EXP LANERS',    icon:'⚔️', roleHint:'Fighter / Tank' },
+  Mid:    { color:'#A855F7', gradient:'linear-gradient(135deg,#A855F7,#7C3AED)', label:'MID LANERS',    icon:'✨', roleHint:'Mage / Assassin' },
+  Jungle: { color:'#22C55E', gradient:'linear-gradient(135deg,#22C55E,#16A34A)', label:'JUNGLERS',      icon:'🌿', roleHint:'Assassin / Fighter' },
+  Roam:   { color:'#5EA0D8', gradient:'linear-gradient(135deg,#5EA0D8,#3B82F6)', label:'ROAMERS',       icon:'🛡️', roleHint:'Tank / Support' },
+};
+
+const ROLE_COLORS = {
+  Tank:'#3B82F6', Fighter:'#F97316', Mage:'#A855F7',
+  MM:'#F59E0B', Assassin:'#EF4444', Support:'#22C55E',
+};
+
+const TIER_MS = { S:9.5, A:8.0, B:6.5, C:5.0, D:3.5 };
+
+// ── State ──────────────────────────────────────────────────────────────────
+let currentFilter = 'all';
+let patchVersion = null;
+let heroScoutStats = {};  // { heroName: { picks, wins, winRate } }
+let scoutMatchCount = 0;
+
+// ── Init ───────────────────────────────────────────────────────────────────
+function init() {
+  loadMetaFromStorage();
+  loadScoutStats();
+}
+
+function loadMetaFromStorage() {
+  try {
+    const saved = localStorage.getItem('mlbb_draft_data');
+    if (!saved) return;
+    const d = JSON.parse(saved);
+    if (d.patchVersion) patchVersion = d.patchVersion;
+    if (d.metaScores) {
+      ALL_HEROES.forEach(h => {
+        const s = d.metaScores[h.name];
+        if (s) { h.ms = Number(s.ms)||TIER_MS[h.tier]||6; h.tier = s.tier||h.tier; h.mp = s.mp||h.mp; }
+      });
+    }
+    if (d.tierList) {
+      ALL_HEROES.forEach(h => {
+        const t = d.tierList[h.name];
+        if (t) { h.tier = t.tier; h.ms = TIER_MS[t.tier] ?? h.ms; }
+      });
+    }
+  } catch(e) {}
+  // Default ms from tier if not set
+  ALL_HEROES.forEach(h => { if (!h.ms) h.ms = TIER_MS[h.tier] || 6; });
+}
+
+function loadScoutStats() {
+  try {
+    const raw = localStorage.getItem('warr_scout_data');
+    const db = raw ? JSON.parse(raw) : null;
+    if (!db || !db.matches) return;
+    const matches = currentFilter === 'all'
+      ? db.matches
+      : db.matches.filter(m => m.league === currentFilter);
+    scoutMatchCount = matches.length;
+    // Compute per-hero pick/win rates with lane context
+    const heroData = {};
+    matches.forEach(m => {
+      const sides = [
+        { picks: m.bluePicks||[], winner: m.winner === 'blue' },
+        { picks: m.redPicks||[], winner: m.winner === 'red' },
+      ];
+      sides.forEach(({ picks, winner }) => {
+        (picks||[]).forEach(p => {
+          const name = p.name || p;
+          if (!heroData[name]) heroData[name] = { picks:0, wins:0 };
+          heroData[name].picks++;
+          if (winner) heroData[name].wins++;
+        });
+      });
+    });
+    heroScoutStats = {};
+    Object.entries(heroData).forEach(([name, d]) => {
+      if (d.picks >= 3) {
+        heroScoutStats[name] = { picks: d.picks, wins: d.wins, winRate: Math.round(d.wins/d.picks*100) };
+      }
+    });
+    // Also check warr_scout_db (alternate key)
+    if (!scoutMatchCount) {
+      const raw2 = localStorage.getItem('warr_scout_db');
+      const db2 = raw2 ? JSON.parse(raw2) : null;
+      if (db2?.matches) {
+        const m2 = currentFilter === 'all' ? db2.matches : db2.matches.filter(m=>m.league===currentFilter);
+        scoutMatchCount = m2.length;
+        m2.forEach(m => {
+          const sides = [
+            { picks: m.bluePicks||[], winner: m.winner==='blue' },
+            { picks: m.redPicks||[], winner: m.winner==='red' },
+          ];
+          sides.forEach(({ picks, winner }) => {
+            (picks||[]).forEach(p => {
+              const name = p.name||p;
+              if (!heroData[name]) heroData[name]={picks:0,wins:0};
+              heroData[name].picks++;
+              if (winner) heroData[name].wins++;
+            });
+          });
+        });
+        heroScoutStats = {};
+        Object.entries(heroData).forEach(([name, d]) => {
+          if (d.picks >= 3) heroScoutStats[name] = { picks:d.picks, wins:d.wins, winRate:Math.round(d.wins/d.picks*100) };
+        });
+      }
+    }
+  } catch(e) { console.warn('Scout load error:', e); }
+}
+
+function getHeroLane(h) {
+  return (HERO_LANES[h.name] || ['Flex'])[0];
+}
+
+function getHeroScore(h) {
+  const base = h.ms || TIER_MS[h.tier] || 6;
+  const wr = heroScoutStats[h.name]?.winRate;
+  const wrBoost = wr !== undefined ? (wr >= 60 ? 1.0 : wr >= 55 ? 0.5 : wr >= 45 ? 0 : -0.3) : 0;
+  const mpBoost = h.mp === 'mustban' ? 0.8 : h.mp === 'highpick' ? 0.4 : h.mp === 'mustpick' ? 0.6 : 0;
+  return base + wrBoost + mpBoost;
+}
+
+function getTopForLane(lane) {
+  const heroes = ALL_HEROES
+    .filter(h => getHeroLane(h) === lane)
+    .sort((a, b) => getHeroScore(b) - getHeroScore(a))
+    .slice(0, 10);
+  return heroes;
+}
+
+function getRoleColor(role) {
+  for (const [k, v] of Object.entries(ROLE_COLORS)) {
+    if (role.includes(k)) return v;
+  }
+  return '#94A3B8';
+}
+
+function getShortRole(role) {
+  // Shorten display: "Tank/Fighter" -> "Tank/Ftr", etc.
+  const map = { Fighter:'Fighter', Assassin:'Assassin', Mage:'Mage', MM:'Marksman', Support:'Support', Tank:'Tank' };
+  const parts = role.split('/');
+  return parts.map(p => map[p.trim()] || p.trim()).join(' / ');
+}
+
+function imgSrc(name) {
+  // Use local portraits folder
+  return `portraits/${name}.png`;
+}
+
+// ── Card Rendering ─────────────────────────────────────────────────────────
+function buildCard(lane) {
+  const cfg = LANE_CONFIG[lane];
+  const heroes = getTopForLane(lane);
+  const filterLabel = currentFilter === 'all' ? 'All Leagues' : currentFilter;
+  const patchLabel = patchVersion ? `PATCH ${patchVersion}` : 'META 2025';
+  const scoutLabel = scoutMatchCount > 0 ? `${scoutMatchCount} scouted games · ${filterLabel}` : `Default meta ranking`;
+
+  const TIER_SCORE_MAX = 10;
+
+  const rankColors = ['#F59E0B','#C0C0C0','#CD7F32','#94A3B8','#94A3B8','#6B7280','#6B7280','#6B7280','#6B7280','#6B7280'];
+
+  const rows = heroes.map((h, i) => {
+    const rank = i + 1;
+    const score = Math.min(TIER_SCORE_MAX, h.ms || TIER_MS[h.tier] || 6);
+    const scoreStr = score.toFixed(1);
+    const barW = Math.round(score / TIER_SCORE_MAX * 100);
+    const wr = heroScoutStats[h.name]?.winRate;
+    const wrHtml = wr !== undefined
+      ? `<div class="wr-chip ${wr>=55?'wr-hi':wr>=45?'wr-mid':'wr-lo'}">${wr}% WR</div>` : '';
+    const mpHtml = h.mp==='mustban' ? `<div class="mp-badge mp-ban">MUST BAN</div>`
+                 : h.mp==='highpick'||h.mp==='mustpick' ? `<div class="mp-badge mp-pick">HOT PICK</div>` : '';
+    const roleColor = getRoleColor(h.role);
+    const shortRole = getShortRole(h.role);
+
+    return `<div class="hero-row">
+      <div class="row-rank${rank===1?' r1':''}" style="color:${rankColors[i]}">${rank}</div>
+      <img class="row-portrait" src="${imgSrc(h.name)}"
+           onerror="this.onerror=null;this.src='portraits/${h.id}.png';this.onerror=function(){this.style.background='#${h.color?.replace('#','')||'161620'}'}"
+           alt="${h.name}">
+      <div class="row-info">
+        <div class="row-name">${h.name}</div>
+        <div class="row-class" style="background:${roleColor}22;color:${roleColor};border:1px solid ${roleColor}44;">${shortRole}</div>
+      </div>
+      <div class="row-right">
+        ${mpHtml}
+        <div class="tier-pill t-${h.tier}">${h.tier}</div>
+        ${wrHtml}
+        <div class="score-block">
+          <div class="score-num" style="color:${cfg.color}">${scoreStr}</div>
+          <div class="score-bar-wrap">
+            <div class="score-bar-fill" style="width:${barW}%;background:${cfg.gradient}"></div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="meta-card" id="card-${lane}">
+    <div class="card-top-bar" style="background:${cfg.gradient}"></div>
+    <div class="card-header">
+      <div class="card-logo">
+        <div class="card-logo-dot" style="background:${cfg.color};box-shadow:0 0 8px ${cfg.color}"></div>
+        <div class="card-logo-text">warr.gg</div>
+      </div>
+      <div class="card-lane-title">
+        <div class="card-lane-name" style="color:${cfg.color};text-shadow:0 0 30px ${cfg.color}66">${cfg.label}</div>
+        <div class="card-lane-sub">${cfg.roleHint} · Top 10 Meta Picks</div>
+      </div>
+      <div class="card-badges">
+        <div class="card-badge" style="background:${cfg.color}22;color:${cfg.color};border:1px solid ${cfg.color}44;">${patchLabel}</div>
+        <div class="card-badge" style="background:rgba(255,255,255,.06);color:rgba(240,240,248,.5);border:1px solid rgba(255,255,255,.1);">${filterLabel.toUpperCase()}</div>
+      </div>
+    </div>
+    <div class="card-divider"></div>
+    <div class="hero-rows">${rows}</div>
+    <div class="card-footer">
+      <div class="footer-brand">warr.gg · MLBB Draft Intelligence</div>
+      <div class="footer-note">${scoutLabel}</div>
+    </div>
+  </div>`;
+}
+
+// ── Generate + Download ────────────────────────────────────────────────────
+async function downloadCard(lane) {
+  const el = document.getElementById('card-'+lane);
+  if (!el) return;
+  const btn = document.querySelector(`[data-dl="${lane}"]`);
+  if (btn) { btn.textContent = '⏳ Exporting...'; btn.disabled = true; }
+  try {
+    const canvas = await html2canvas(el, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#06060E',
+      width: 750,
+      height: 750,
+      logging: false,
+    });
+    const link = document.createElement('a');
+    link.download = `warr_top10_${lane.toLowerCase()}_${currentFilter.replace(/\s/g,'_')}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } catch(e) {
+    alert('Export failed: ' + e.message);
+  }
+  if (btn) { btn.textContent = '⬇ Download PNG'; btn.disabled = false; }
+}
+
+async function generateAll() {
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true; btn.textContent = '⏳ Generating...';
+  loadScoutStats();
+  const grid = document.getElementById('cardsGrid');
+  grid.innerHTML = '';
+  const lanes = ['Gold','EXP','Mid','Jungle','Roam'];
+  for (const lane of lanes) {
+    const cfg = LANE_CONFIG[lane];
+    const section = document.createElement('div');
+    section.className = 'lane-section';
+    section.innerHTML = `
+      <div class="lane-heading">
+        <span style="background:${cfg.color}"></span>
+        ${cfg.label}
+        <button class="dl-btn" data-dl="${lane}" onclick="downloadCard('${lane}')">⬇ Download PNG</button>
+      </div>
+      <div class="card-preview-wrap">${buildCard(lane)}</div>`;
+    grid.appendChild(section);
+  }
+  btn.disabled = false; btn.textContent = '▶ Generate All Cards';
+}
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+init();
+</script>
+</body>
+</html>
