@@ -7,56 +7,26 @@
 <link rel="stylesheet" href="warr-styles.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
-/* ── Page-level overrides ─────────────────────────────────────── */
-.page-body {
-  padding: 28px 32px 48px;
-  max-width: 100%;
-}
+/* ── Page layout ──────────────────────────────────────────────── */
+.page-body { padding: 28px 32px 48px; max-width: 100%; }
 
-.page-heading {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 22px;
-  flex-wrap: wrap;
-}
-.page-heading-title {
-  font-size: 18px;
-  font-weight: 800;
-  font-family: var(--font-head);
-  letter-spacing: .5px;
-  color: var(--text);
-}
-.page-heading-sub {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text3);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  margin-left: 2px;
-}
+.page-heading { display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+.page-heading-title { font-size:18px; font-weight:800; font-family:var(--font-head); letter-spacing:.5px; color:var(--text); }
+.page-heading-sub { font-size:11px; font-weight:600; color:var(--text3); letter-spacing:1px; text-transform:uppercase; margin-left:2px; }
 
 /* ── Filter bar ───────────────────────────────────────────────── */
 .export-bar {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius2);
-  padding: 14px 18px;
+  padding: 12px 18px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 24px;
+  margin-bottom: 10px;
 }
-.export-bar-label {
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--text3);
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
-  margin-right: 2px;
-  flex-shrink: 0;
-}
+.export-bar-label { font-size:9px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:1.5px; flex-shrink:0; }
 .filter-badge {
   padding: 3px 11px;
   font-size: 10px;
@@ -70,11 +40,11 @@
   transition: all .12s;
   letter-spacing: .2px;
 }
-.filter-badge:hover { color: var(--text2); border-color: var(--border3); }
-.filter-badge.active { background: var(--blue-dim); border-color: var(--blue-border); color: var(--blue); }
+.filter-badge:hover { color:var(--text2); border-color:var(--border3); }
+.filter-badge.active { background:var(--blue-dim); border-color:var(--blue-border); color:var(--blue); }
 .gen-btn {
   margin-left: auto;
-  padding: 7px 20px;
+  padding: 7px 18px;
   font-size: 11px;
   font-weight: 700;
   font-family: var(--font-head);
@@ -88,37 +58,65 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
 }
-.gen-btn:hover { opacity: .88; box-shadow: 0 0 16px var(--accent-glow); }
-.gen-btn:disabled { opacity: .4; cursor: default; box-shadow: none; }
+.gen-btn:hover { opacity:.88; box-shadow:0 0 16px var(--accent-glow); }
+.gen-btn:disabled { opacity:.4; cursor:default; box-shadow:none; }
+
+/* ── Legend bar ───────────────────────────────────────────────── */
+.legend-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 8px 14px;
+  margin-bottom: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text3);
+  font-family: var(--font-head);
+  letter-spacing: .3px;
+}
+.legend-tier { font-weight: 800; }
+.legend-sep { color: var(--border3); margin: 0 2px; }
+.legend-drag {
+  margin-left: auto;
+  font-size: 9px;
+  color: var(--text4);
+  letter-spacing: .5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
 
 /* ── Horizontal scroll wrapper ────────────────────────────────── */
 .cards-scroll-wrap {
   overflow-x: auto;
   overflow-y: visible;
   padding-bottom: 18px;
-  /* Custom scrollbar */
+  cursor: grab;
+  user-select: none;
   scrollbar-width: thin;
   scrollbar-color: var(--border3) transparent;
 }
-.cards-scroll-wrap::-webkit-scrollbar { height: 6px; }
+.cards-scroll-wrap.dragging { cursor: grabbing; }
+.cards-scroll-wrap::-webkit-scrollbar { height: 5px; }
 .cards-scroll-wrap::-webkit-scrollbar-track { background: transparent; }
-.cards-scroll-wrap::-webkit-scrollbar-thumb { background: var(--border3); border-radius: 6px; }
+.cards-scroll-wrap::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 6px; }
 
 .cards-grid {
   display: flex;
   flex-direction: row;
-  gap: 20px;
+  gap: 18px;
   width: max-content;
   padding: 4px 2px 4px;
 }
 
-/* ── Per-lane section (label + card) ─────────────────────────── */
-.lane-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+/* ── Per-lane section ─────────────────────────────────────────── */
+.lane-section { display:flex; flex-direction:column; gap:7px; }
 .lane-heading {
   display: flex;
   align-items: center;
@@ -128,9 +126,9 @@
   color: var(--text3);
   letter-spacing: 2px;
   text-transform: uppercase;
-  padding: 0 4px;
+  padding: 0 2px;
 }
-.lane-heading-bar { width: 18px; height: 2px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
+.lane-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
 .dl-btn {
   padding: 3px 11px;
   font-size: 10px;
@@ -146,30 +144,27 @@
 }
 .dl-btn:hover { background: rgba(76,184,122,.22); }
 
-/* ── Preview wrapper around card ──────────────────────────────── */
+/* ── Preview wrapper ──────────────────────────────────────────── */
 .card-preview-wrap {
   overflow: hidden;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.07);
   display: inline-block;
   line-height: 0;
-  box-shadow: 0 12px 60px rgba(0,0,0,.8), 0 2px 0 rgba(255,255,255,.04) inset;
+  box-shadow: 0 8px 40px rgba(0,0,0,.7);
   flex-shrink: 0;
-  transition: box-shadow .2s;
-}
-.card-preview-wrap:hover {
-  box-shadow: 0 20px 80px rgba(0,0,0,.9), 0 2px 0 rgba(255,255,255,.06) inset;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   THE META CARD — 750×750 rendered element (scale:2 → 1500×1500)
+   META CARD — 750×750 px  (html2canvas scale:2 → 1500×1500 PNG)
+   Portraits: 44px display → 88px captured from 128px src = crisp
    ═══════════════════════════════════════════════════════════════ */
 .meta-card {
   width: 750px;
   height: 750px;
   overflow: hidden;
   position: relative;
-  background: #04040A;
+  background: #04040B;
   border-radius: 0;
   flex-shrink: 0;
   font-family: 'Inter', sans-serif;
@@ -177,125 +172,6 @@
   flex-direction: column;
 }
 
-/* card top accent bar */
-.card-top-bar { height: 5px; width: 100%; }
-
-/* card header row */
-.card-header {
-  padding: 16px 26px 12px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-.card-logo { display: flex; align-items: center; gap: 6px; }
-.card-logo-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.card-logo-text { font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 800; color: #F0F0F8; letter-spacing: .5px; }
-.card-lane-title { text-align: center; flex: 1; }
-.card-lane-name { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; line-height: 1; }
-.card-lane-sub { font-size: 9px; font-weight: 600; color: rgba(240,240,248,.4); letter-spacing: 2px; margin-top: 3px; }
-.card-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.card-badge { font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 6px; letter-spacing: 1px; font-family: 'Inter', sans-serif; }
-
-/* divider */
-.card-divider { height: 1px; background: rgba(255,255,255,.07); margin: 0 24px 8px; }
-
-/* ── Tier groups ────────────────────────────────────────────── */
-.tier-groups { padding: 0 16px; }
-
-.tier-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 7px 6px;
-  border-bottom: 1px solid rgba(255,255,255,.035);
-}
-.tier-row:last-child { border-bottom: none; }
-
-.tier-label-box {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 800;
-  flex-shrink: 0;
-  margin-top: 3px;
-  font-family: 'Inter', sans-serif;
-}
-
-.tier-heroes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  flex: 1;
-}
-
-/* individual hero chip inside tier row */
-.hero-chip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  width: 62px;
-}
-.chip-portrait {
-  width: 42px;
-  height: 42px;
-  border-radius: 8px;
-  object-fit: cover;
-  background: #161620;
-  flex-shrink: 0;
-  display: block;
-}
-.chip-name {
-  font-size: 9px;
-  font-weight: 700;
-  color: #F0F0F8;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 62px;
-  font-family: 'Inter', sans-serif;
-  line-height: 1.1;
-}
-.chip-class {
-  font-size: 7px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 4px;
-  white-space: nowrap;
-  letter-spacing: .3px;
-  font-family: 'Inter', sans-serif;
-}
-.chip-wr {
-  font-size: 7px;
-  font-weight: 700;
-  font-family: 'Inter', sans-serif;
-}
-.chip-mp-dot {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  font-size: 8px;
-  line-height: 1;
-}
-
-/* card footer */
-.card-footer {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  padding: 10px 26px;
-  border-top: 1px solid rgba(255,255,255,.05);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: rgba(0,0,0,.45);
-}
-.footer-brand { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 800; color: rgba(240,240,248,.45); letter-spacing: 1px; }
-.footer-note { font-size: 9px; color: rgba(240,240,248,.22); letter-spacing: .5px; font-family: 'Inter', sans-serif; }
 </style>
 </head>
 <body>
@@ -364,8 +240,27 @@
     <button class="gen-btn" id="genBtn" onclick="generateAll()">▶ Generate All Cards</button>
   </div>
 
+  <!-- Legend bar -->
+  <div class="legend-bar">
+    <span class="legend-tier" style="color:#F59E0B;">S</span> Top Tier
+    <span class="legend-sep">·</span>
+    <span class="legend-tier" style="color:#9CA3AF;">A</span> Strong Pick
+    <span class="legend-sep">·</span>
+    <span class="legend-tier" style="color:#C89050;">B</span> Situational
+    <span class="legend-sep">|</span>
+    <span style="color:var(--text2);font-weight:700;">%</span> = Scout Win Rate
+    <span class="legend-sep">·</span>
+    <span style="color:#D87880;font-weight:700;">BAN</span> Must Ban
+    <span class="legend-sep">·</span>
+    <span style="color:#F97316;font-weight:700;">HOT</span> Priority Pick
+    <span class="legend-drag">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
+      Click and drag to scroll
+    </span>
+  </div>
+
   <!-- Horizontal scroll card grid -->
-  <div class="cards-scroll-wrap">
+  <div class="cards-scroll-wrap" id="cardsScrollWrap">
     <div class="cards-grid" id="cardsGrid"></div>
   </div>
 
@@ -551,11 +446,11 @@ const HERO_LANES = {
 };
 
 const LANE_CONFIG = {
-  Gold:   { color:'#F59E0B', gradient:'linear-gradient(135deg,#F59E0B,#D97706)', label:'GOLD LANERS',   icon:'🥇', roleHint:'Marksman / Carry' },
-  EXP:    { color:'#F97316', gradient:'linear-gradient(135deg,#F97316,#EA580C)', label:'EXP LANERS',    icon:'⚔️', roleHint:'Fighter / Tank' },
-  Mid:    { color:'#A855F7', gradient:'linear-gradient(135deg,#A855F7,#7C3AED)', label:'MID LANERS',    icon:'✨', roleHint:'Mage / Assassin' },
-  Jungle: { color:'#22C55E', gradient:'linear-gradient(135deg,#22C55E,#16A34A)', label:'JUNGLERS',      icon:'🌿', roleHint:'Assassin / Fighter' },
-  Roam:   { color:'#5EA0D8', gradient:'linear-gradient(135deg,#5EA0D8,#3B82F6)', label:'ROAMERS',       icon:'🛡️', roleHint:'Tank / Support' },
+  Gold:   { color:'#F59E0B', gradient:'linear-gradient(135deg,#F59E0B,#D97706)', label:'GOLD LANE',   roleHint:'Marksman / Carry' },
+  EXP:    { color:'#F97316', gradient:'linear-gradient(135deg,#F97316,#EA580C)', label:'EXP LANE',    roleHint:'Fighter / Tank' },
+  Mid:    { color:'#A855F7', gradient:'linear-gradient(135deg,#A855F7,#7C3AED)', label:'MID LANE',    roleHint:'Mage / Assassin' },
+  Jungle: { color:'#22C55E', gradient:'linear-gradient(135deg,#22C55E,#16A34A)', label:'JUNGLE LANE', roleHint:'Assassin / Fighter' },
+  Roam:   { color:'#5EA0D8', gradient:'linear-gradient(135deg,#5EA0D8,#3B82F6)', label:'ROAM LANE',   roleHint:'Tank / Support' },
 };
 
 const ROLE_COLORS = {
@@ -600,6 +495,7 @@ function init() {
       document.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.t === t));
     });
   });
+  initDragScroll();
 }
 
 function loadMetaFromStorage() {
@@ -698,121 +594,132 @@ function imgSrc(name) {
 
 // ── Card Rendering ──────────────────────────────────────────────────────────
 function buildCard(lane) {
-  const cfg = LANE_CONFIG[lane];
-  const heroes = getTopForLane(lane);
+  const cfg         = LANE_CONFIG[lane];
+  const heroes      = getTopForLane(lane).slice(0, 10);
   const filterLabel = currentFilter === 'all' ? 'All Leagues' : currentFilter;
   const patchLabel  = patchVersion ? `PATCH ${patchVersion}` : 'META 2025';
   const scoutLabel  = scoutMatchCount > 0
-    ? `${scoutMatchCount} games · ${filterLabel}`
+    ? `${scoutMatchCount} matches · ${filterLabel}`
     : 'Default ranking';
 
-  // Tier badge style
-  const TIER_C = {
-    S: { color:'#F59E0B', border:'rgba(245,158,11,.55)' },
-    A: { color:'#E0E6F0', border:'rgba(224,230,240,.45)' },
-    B: { color:'#C89050', border:'rgba(200,144,80,.5)' },
-    C: { color:'#6B7280', border:'rgba(107,114,128,.4)' },
-  };
+  // Tier colors (text only, no backgrounds — keeps it refined)
+  const TIER_C = { S:'#F59E0B', A:'#9CA3AF', B:'#C89050', C:'#6B7280' };
 
-  // 12 heroes max → 4 cols × 3 rows
-  const gridHeroes = heroes.slice(0, 12);
+  // Rank accent colors (gold/silver/bronze, then muted)
+  const RANK_C = ['#F59E0B','#9CA3AF','#C89050',
+                  'rgba(240,240,248,.35)','rgba(240,240,248,.3)',
+                  'rgba(240,240,248,.25)','rgba(240,240,248,.22)',
+                  'rgba(240,240,248,.2)','rgba(240,240,248,.18)','rgba(240,240,248,.16)'];
 
-  const heroTiles = gridHeroes.map(h => {
+  /* ── Pixel budget (750 × 750 px):
+       Top bar   :   4 px
+       Header    : 112 px
+       Divider   :   1 px
+       Rows×10   : 540 px  (54px each, alternating bg)
+       Footer    :  93 px
+       Total     : 750 px  ✓
+     Portrait at 44px display → 88px captured (downscale from 128px = crisp)
+  ─────────────────────────────────────────────────────────────── */
+
+  const heroRows = heroes.map((h, i) => {
+    const rank     = i + 1;
+    const rc       = RANK_C[i];
+    const tc       = TIER_C[h.tier] || TIER_C.C;
     const roleColor = getRoleColor(h.role);
     const shortRole = h.role.split('/')[0];
     const wr        = heroScoutStats[h.name]?.winRate;
-    const wrColor   = wr !== undefined ? (wr >= 55 ? '#4CB87A' : wr >= 45 ? '#F59E0B' : '#D87880') : null;
-    const tc        = TIER_C[h.tier] || TIER_C.C;
+    const wrColor   = wr !== undefined ? (wr >= 55 ? '#4CB87A' : wr >= 45 ? '#C89050' : '#D87880') : null;
+    const score     = Math.min(10, getHeroScore(h));
+    const barW      = Math.round(score / 10 * 100);
     const isMustban = h.mp === 'mustban';
     const isHot     = h.mp === 'highpick' || h.mp === 'mustpick';
-    // Portrait border glows red for mustban, orange for hot picks
-    const portraitBorder = isMustban
-      ? '2px solid rgba(216,120,128,.65)'
-      : isHot ? '2px solid rgba(249,115,22,.55)'
-      : '1.5px solid rgba(255,255,255,.07)';
+    const rowBg     = i % 2 === 0 ? 'rgba(255,255,255,.022)' : 'transparent';
 
-    return `<div style="position:relative;border-radius:12px;overflow:hidden;border:${portraitBorder};background:#0E0E1A;">
+    return `<div style="display:flex;align-items:center;height:54px;padding:0 22px;background:${rowBg};border-bottom:1px solid rgba(255,255,255,.03);box-sizing:border-box;">
+      <!-- Rank -->
+      <div style="width:26px;text-align:right;font-size:${rank<=3?'17':'13'}px;font-weight:900;color:${rc};font-family:'Inter',sans-serif;flex-shrink:0;margin-right:14px;line-height:1;">${rank}</div>
+      <!-- Portrait (44×44 → 88px captured from 128px src = crisp) -->
       <img src="${imgSrc(h.name)}"
            onerror="this.onerror=null;this.src='portraits/${h.id}.png';this.onerror=function(){this.style.background='#1A1A28'}"
            alt="${h.name}"
-           style="width:100%;height:100%;object-fit:cover;display:block;">
-      <!-- Bottom gradient overlay -->
-      <div style="position:absolute;bottom:0;left:0;right:0;height:66px;background:linear-gradient(to top,rgba(3,3,9,.96) 0%,rgba(3,3,9,.6) 55%,transparent 100%);"></div>
-      <!-- Hero name + class + WR -->
-      <div style="position:absolute;bottom:0;left:0;right:0;padding:6px 8px 7px;">
-        <div style="font-size:12.5px;font-weight:800;color:#F0F0F8;font-family:'Inter',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.15;letter-spacing:-.1px;">${h.name}</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:3px;">
-          <div style="font-size:8px;font-weight:700;padding:1px 5px;border-radius:4px;background:${roleColor}2E;color:${roleColor};border:1px solid ${roleColor}50;font-family:'Inter',sans-serif;letter-spacing:.2px;">${shortRole}</div>
-          ${wr !== undefined ? `<div style="font-size:8.5px;font-weight:800;color:${wrColor};font-family:'Inter',sans-serif;letter-spacing:.2px;">${wr}%</div>` : ''}
+           style="width:44px;height:44px;border-radius:7px;object-fit:cover;flex-shrink:0;background:#0E0E1A;display:block;margin-right:13px;">
+      <!-- Hero name + badges -->
+      <div style="flex:1;min-width:0;margin-right:10px;">
+        <div style="font-size:14px;font-weight:700;color:#F0F0F8;font-family:'Inter',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;letter-spacing:-.1px;">${h.name}</div>
+        <div style="display:flex;align-items:center;gap:4px;margin-top:3px;">
+          <div style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:4px;background:${roleColor}1A;color:${roleColor};border:1px solid ${roleColor}40;font-family:'Inter',sans-serif;">${shortRole}</div>
+          ${isMustban ? `<div style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(216,120,128,.12);color:#D87880;border:1px solid rgba(216,120,128,.32);font-family:'Inter',sans-serif;">BAN</div>` : ''}
+          ${isHot ? `<div style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:4px;background:rgba(249,115,22,.1);color:#F97316;border:1px solid rgba(249,115,22,.28);font-family:'Inter',sans-serif;">HOT</div>` : ''}
         </div>
       </div>
-      <!-- Tier badge top-left -->
-      <div style="position:absolute;top:7px;left:7px;min-width:20px;height:20px;padding:0 5px;border-radius:5px;background:rgba(0,0,0,.78);color:${tc.color};border:1px solid ${tc.border};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;font-family:'Inter',sans-serif;">${h.tier}</div>
-      <!-- Ban / Hot badge top-right -->
-      ${isMustban ? `<div style="position:absolute;top:7px;right:7px;font-size:7.5px;font-weight:800;padding:2px 5px;border-radius:4px;background:rgba(216,120,128,.22);color:#D87880;border:1px solid rgba(216,120,128,.5);font-family:'Inter',sans-serif;letter-spacing:.3px;">BAN</div>` : ''}
-      ${isHot ? `<div style="position:absolute;top:7px;right:7px;font-size:7.5px;font-weight:800;padding:2px 5px;border-radius:4px;background:rgba(249,115,22,.18);color:#F97316;border:1px solid rgba(249,115,22,.45);font-family:'Inter',sans-serif;letter-spacing:.3px;">HOT</div>` : ''}
+      <!-- Tier badge -->
+      <div style="width:20px;height:20px;border-radius:5px;background:rgba(0,0,0,.5);border:1px solid ${tc}44;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:${tc};font-family:'Inter',sans-serif;flex-shrink:0;margin-right:12px;">${h.tier}</div>
+      <!-- Win Rate -->
+      <div style="width:38px;text-align:right;flex-shrink:0;margin-right:12px;">
+        ${wr !== undefined
+          ? `<div style="font-size:12px;font-weight:800;color:${wrColor};font-family:'Inter',sans-serif;letter-spacing:-.2px;">${wr}%</div>`
+          : `<div style="font-size:11px;color:rgba(255,255,255,.15);font-family:'Inter',sans-serif;">—</div>`}
+      </div>
+      <!-- Score bar -->
+      <div style="width:54px;flex-shrink:0;">
+        <div style="height:3px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;">
+          <div style="height:100%;width:${barW}%;background:${cfg.gradient};border-radius:3px;"></div>
+        </div>
+      </div>
     </div>`;
   }).join('');
 
-  /* ── Pixel budget (750 × 750):
-       Header  : 152px
-       Divider :   3px
-       Grid    : 530px  (flex:1)
-       Footer  :  65px
-       Total   : 750px  ✓
-  ──────────────────────────────
-     Grid inner (16px L/R, 14px top/12px btm):
-       cols  : (750-32-30)/4 = 172px
-       rows  : (530-26-20)/3 = 161px
-  ─────────────────────────────── */
-
   return `<div class="meta-card" id="card-${lane}">
 
-    <!-- ── Background layers (absolute, behind everything) ── -->
-    <div style="position:absolute;inset:0;background:linear-gradient(148deg,#0C0C1C 0%,#04040A 55%,#080810 100%);z-index:0;"></div>
-    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at -6% -6%,${cfg.color}2A 0%,transparent 52%);z-index:0;"></div>
-    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 110% 110%,${cfg.color}10 0%,transparent 44%);z-index:0;"></div>
-    <!-- Watermark lane name -->
-    <div style="position:absolute;top:8px;left:-6px;font-size:200px;font-weight:900;font-family:'Inter',sans-serif;color:${cfg.color};opacity:.028;letter-spacing:-10px;line-height:1;text-transform:uppercase;user-select:none;pointer-events:none;z-index:0;">${lane}</div>
+    <!-- Top accent bar (4px) -->
+    <div style="height:4px;background:${cfg.gradient};flex-shrink:0;"></div>
 
-    <!-- ── HEADER (152px) ── -->
-    <div style="position:relative;z-index:1;height:152px;padding:18px 28px 0;display:flex;flex-direction:column;justify-content:center;flex-shrink:0;">
-      <!-- Top micro row: logo + badges -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div style="display:flex;align-items:center;gap:7px;">
-          <div style="width:7px;height:7px;border-radius:50%;background:${cfg.color};box-shadow:0 0 10px ${cfg.color}99;flex-shrink:0;"></div>
-          <div style="font-size:11px;font-weight:800;color:rgba(240,240,248,.45);letter-spacing:2px;font-family:'Inter',sans-serif;text-transform:uppercase;">warr.gg</div>
+    <!-- Header (112px) -->
+    <div style="height:112px;flex-shrink:0;padding:16px 24px 0;display:flex;flex-direction:column;justify-content:center;background:linear-gradient(180deg,${cfg.color}0C 0%,transparent 100%);">
+      <!-- Logo row -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="width:6px;height:6px;border-radius:50%;background:${cfg.color};flex-shrink:0;"></div>
+          <div style="font-size:10px;font-weight:800;color:rgba(240,240,248,.38);letter-spacing:2px;font-family:'Inter',sans-serif;text-transform:uppercase;">warr.gg</div>
         </div>
-        <div style="display:flex;gap:6px;align-items:center;">
-          <div style="font-size:9px;font-weight:700;padding:3px 11px;border-radius:20px;background:${cfg.color}1C;color:${cfg.color};border:1px solid ${cfg.color}40;font-family:'Inter',sans-serif;letter-spacing:.5px;">${patchLabel}</div>
-          <div style="font-size:9px;font-weight:700;padding:3px 11px;border-radius:20px;background:rgba(255,255,255,.05);color:rgba(240,240,248,.35);border:1px solid rgba(255,255,255,.08);font-family:'Inter',sans-serif;letter-spacing:.5px;">${filterLabel.toUpperCase()}</div>
+        <div style="display:flex;gap:5px;">
+          <div style="font-size:9px;font-weight:700;padding:3px 10px;border-radius:20px;background:${cfg.color}18;color:${cfg.color};border:1px solid ${cfg.color}38;font-family:'Inter',sans-serif;letter-spacing:.4px;">${patchLabel}</div>
+          <div style="font-size:9px;font-weight:700;padding:3px 10px;border-radius:20px;background:rgba(255,255,255,.04);color:rgba(240,240,248,.3);border:1px solid rgba(255,255,255,.07);font-family:'Inter',sans-serif;">${filterLabel.toUpperCase()}</div>
         </div>
       </div>
-      <!-- Big lane name row -->
-      <div style="display:flex;align-items:center;gap:14px;">
-        <div style="font-size:34px;line-height:1;flex-shrink:0;">${cfg.icon}</div>
-        <div>
-          <div style="font-size:44px;font-weight:900;color:${cfg.color};letter-spacing:3px;text-transform:uppercase;line-height:.92;font-family:'Inter',sans-serif;text-shadow:0 0 55px ${cfg.color}40;">${lane.toUpperCase()} LANE</div>
-          <div style="font-size:10px;font-weight:600;color:rgba(240,240,248,.3);letter-spacing:2.5px;margin-top:7px;font-family:'Inter',sans-serif;text-transform:uppercase;">${cfg.roleHint} · TOP META PICKS</div>
-        </div>
+      <!-- Lane name -->
+      <div style="display:flex;align-items:baseline;gap:10px;">
+        <div style="font-size:26px;font-weight:900;color:#F0F0F8;letter-spacing:2px;text-transform:uppercase;line-height:1;font-family:'Inter',sans-serif;">${lane.toUpperCase()} <span style="color:${cfg.color};">LANE</span></div>
+        <div style="font-size:10px;font-weight:600;color:rgba(240,240,248,.28);letter-spacing:2px;font-family:'Inter',sans-serif;text-transform:uppercase;">${cfg.roleHint}</div>
       </div>
     </div>
 
-    <!-- ── GRADIENT DIVIDER (3px) ── -->
-    <div style="position:relative;z-index:1;height:3px;background:linear-gradient(90deg,${cfg.color}80 0%,${cfg.color}28 40%,transparent 72%);flex-shrink:0;"></div>
+    <!-- Divider (1px) -->
+    <div style="height:1px;background:linear-gradient(90deg,${cfg.color}55 0%,rgba(255,255,255,.04) 60%,transparent 100%);flex-shrink:0;"></div>
 
-    <!-- ── HERO GRID (flex:1 → 530px) ── -->
-    <div style="position:relative;z-index:1;flex:1;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);gap:10px;padding:14px 16px 12px;box-sizing:border-box;">
-      ${heroTiles}
+    <!-- Hero rows (10 × 54px = 540px) -->
+    <div style="flex:1;">
+      ${heroRows}
     </div>
 
-    <!-- ── FOOTER (65px) ── -->
-    <div style="position:relative;z-index:1;height:65px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:rgba(0,0,0,.48);border-top:1px solid rgba(255,255,255,.05);">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div style="width:5px;height:5px;border-radius:50%;background:${cfg.color};opacity:.65;"></div>
-        <div style="font-size:11px;font-weight:800;color:rgba(240,240,248,.32);letter-spacing:1.5px;font-family:'Inter',sans-serif;text-transform:uppercase;">warr.gg · MLBB Draft Intelligence</div>
+    <!-- Footer / legend (93px) -->
+    <div style="height:93px;flex-shrink:0;border-top:1px solid rgba(255,255,255,.05);background:rgba(0,0,0,.35);padding:12px 22px;display:flex;flex-direction:column;justify-content:center;gap:8px;">
+      <!-- Tier + WR legend -->
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:nowrap;">
+        <div style="display:flex;align-items:center;gap:3px;font-size:9px;font-family:'Inter',sans-serif;font-weight:600;color:rgba(240,240,248,.32);"><span style="color:#F59E0B;font-weight:800;">S</span>&nbsp;Top Tier</div>
+        <div style="width:1px;height:8px;background:rgba(255,255,255,.1);"></div>
+        <div style="display:flex;align-items:center;gap:3px;font-size:9px;font-family:'Inter',sans-serif;font-weight:600;color:rgba(240,240,248,.32);"><span style="color:#9CA3AF;font-weight:800;">A</span>&nbsp;Strong</div>
+        <div style="width:1px;height:8px;background:rgba(255,255,255,.1);"></div>
+        <div style="display:flex;align-items:center;gap:3px;font-size:9px;font-family:'Inter',sans-serif;font-weight:600;color:rgba(240,240,248,.32);"><span style="color:#C89050;font-weight:800;">B</span>&nbsp;Situational</div>
+        <div style="width:1px;height:8px;background:rgba(255,255,255,.1);"></div>
+        <div style="font-size:9px;font-family:'Inter',sans-serif;font-weight:600;color:rgba(240,240,248,.28);">% = Scout Win Rate</div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:5px;">
+          <div style="width:4px;height:4px;border-radius:50%;background:${cfg.color};opacity:.6;"></div>
+          <div style="font-size:9px;font-weight:800;color:rgba(240,240,248,.28);letter-spacing:1.5px;font-family:'Inter',sans-serif;text-transform:uppercase;">warr.gg</div>
+        </div>
       </div>
-      <div style="font-size:9px;color:rgba(240,240,248,.18);letter-spacing:.5px;font-family:'Inter',sans-serif;">${scoutLabel}</div>
+      <!-- Scout info line -->
+      <div style="font-size:8px;color:rgba(240,240,248,.16);font-family:'Inter',sans-serif;letter-spacing:.4px;">${scoutLabel} · MLBB Draft Intelligence</div>
     </div>
 
   </div>`;
@@ -858,7 +765,7 @@ async function generateAll() {
     section.className = 'lane-section';
     section.innerHTML = `
       <div class="lane-heading">
-        <span class="lane-heading-bar" style="background:${cfg.color};"></span>
+        <span class="lane-dot" style="background:${cfg.color};"></span>
         ${cfg.label}
         <button class="dl-btn" data-dl="${lane}" onclick="downloadCard('${lane}')">⬇ Download PNG</button>
       </div>
@@ -873,6 +780,28 @@ function setFilter(f, el) {
   currentFilter = f;
   document.querySelectorAll('.filter-badge').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
+}
+
+// ── Drag-scroll ──────────────────────────────────────────────────────────────
+function initDragScroll() {
+  const wrap = document.getElementById('cardsScrollWrap');
+  if (!wrap) return;
+  let isDown = false, startX, scrollLeft;
+  wrap.addEventListener('mousedown', e => {
+    if (e.target.closest('button')) return;
+    isDown = true;
+    wrap.classList.add('dragging');
+    startX = e.pageX - wrap.offsetLeft;
+    scrollLeft = wrap.scrollLeft;
+    e.preventDefault();
+  });
+  wrap.addEventListener('mouseleave', () => { isDown = false; wrap.classList.remove('dragging'); });
+  wrap.addEventListener('mouseup',    () => { isDown = false; wrap.classList.remove('dragging'); });
+  wrap.addEventListener('mousemove', e => {
+    if (!isDown) return;
+    e.preventDefault();
+    wrap.scrollLeft = scrollLeft - (e.pageX - wrap.offsetLeft - startX) * 1.5;
+  });
 }
 
 init();

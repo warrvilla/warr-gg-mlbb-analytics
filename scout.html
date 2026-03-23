@@ -2415,11 +2415,11 @@ function buildMetaTable(matches, roleFilter) {
     h: heroByName(name),
   }));
 
-  // Apply lane/role filter using the correct HERO_LANES_MAP
+  // Apply lane/role filter — use PRIMARY lane only so heroes don't bleed into secondary lanes
   if (roleFilter !== 'All') {
     rows = rows.filter(r => {
       if (!r.h) return false;
-      return heroLanes(r.h).includes(roleFilter);
+      return heroLanes(r.h)[0] === roleFilter;
     });
   }
 
