@@ -645,8 +645,16 @@ function getShortRole(role) {
   return parts.slice(0,2).map(p => map[p.trim()] || p.trim()).join('/');
 }
 
+const PORTRAIT_ALIAS = {
+  'Yi Sun-shin': 'YSS',
+  'Popol & Kupa': 'Popol',
+  'Lapu-Lapu':   'LapuLapu',
+  'X.Borg':      'Xborg',
+  'Yu Zhong':    'YuZhong',
+  'Luo Yi':      'luoyi',
+};
 function imgSrc(name) {
-  return `portraits/${name}.png`;
+  return `portraits/${PORTRAIT_ALIAS[name] || name}.png`;
 }
 
 // ── Full role name map (no abbreviations) ───────────────────────────────────
@@ -709,7 +717,7 @@ function buildCard(lane) {
 
       <!-- Portrait -->
       <img src="${imgSrc(h.name)}"
-           onerror="this.onerror=null;this.src='portraits/${h.id}.png';this.onerror=function(){this.style.background='#1A1A28'}"
+           onerror="this.onerror=null;this.style.background='#1A1A28';"
            alt="${h.name}"
            style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;background:#0E0E1A;display:block;margin-right:12px;border:1px solid rgba(255,255,255,.1);box-shadow:0 2px 8px rgba(0,0,0,.5);">
 
@@ -843,6 +851,15 @@ async function downloadCard(lane) {
   const btn = document.querySelector(`[data-dl="${lane}"]`);
   if (btn) { btn.textContent = '⏳ Exporting…'; btn.disabled = true; }
   try {
+    // Wait for all portrait images to finish loading before capturing
+    const imgs = Array.from(el.querySelectorAll('img'));
+    await Promise.all(imgs.map(img =>
+      img.complete ? Promise.resolve()
+        : new Promise(res => { img.onload = res; img.onerror = res; })
+    ));
+    // Small extra delay for any final paint
+    await new Promise(res => setTimeout(res, 150));
+
     const canvas = await html2canvas(el, {
       scale: 2,
       useCORS: true,
