@@ -861,6 +861,7 @@ body::after {
     <a class="nav-link" href="stats.html">Analysis</a>
     <a class="nav-link" href="patch_meta.html">Patch</a>
     <a class="nav-link" href="profile.html">Profile</a>
+    <a class="nav-link" id="adminImportLink" href="season_import.html" style="display:none;color:var(--gold);">⚙ Import</a>
   </div>
   <div class="nav-right">
   <div class="theme-switcher" title="Switch theme">
@@ -1598,7 +1599,10 @@ function renderMatchListBody() {
           <div style="flex:1;"></div>
           <span class="winner-badge" style="background:${wColor}18;color:${wColor};border:1px solid ${wColor}44;">${wTeam}</span>
           ${g.vodLink ? `<a href="${g.vodLink}" target="_blank" onclick="event.stopPropagation()" style="font-size:9px;color:var(--blue);text-decoration:none;padding:2px 7px;border:1px solid var(--blue-border);border-radius:8px;">▶ VOD</a>` : ''}
-          <button onclick="event.stopPropagation();deleteMatch('${g.id}')" class="del-btn">✕</button>
+          ${(typeof WAdmin !== 'undefined' && WAdmin.isLockedMatch(g) && !WAdmin.isAdmin())
+            ? `<span title="🔒 Official data — only admin can delete" style="font-size:9px;color:var(--text3);padding:2px 7px;border:1px solid var(--border);border-radius:8px;cursor:default;">🔒</span>`
+            : `<button onclick="event.stopPropagation();deleteMatch('${g.id}')" class="del-btn">✕</button>`
+          }
         </div>
         <div>
           ${line(bp, bb, 'var(--blue)', g.blueTeam)}
@@ -1643,6 +1647,12 @@ function toggleSeries(sk) {
 }
 
 function deleteMatch(id) {
+  // Admin lock — check if this match is from a protected league
+  const match = DB_MODULE.getMatches().find(m => m.id === id);
+  if (match && typeof WAdmin !== 'undefined' && !WAdmin.canDelete(match)) {
+    toast(`🔒 Only the Warr.GG admin can delete ${match.league} data.`, 'error');
+    return;
+  }
   if (!confirm('Delete this game?')) return;
   DB_MODULE.deleteMatch(id);
   DB_MODULE.rebuildTeams();
@@ -1726,9 +1736,12 @@ function _openMatchModal(m) {
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">League</label>
-              <select class="form-select" id="mf-league">
+              <select class="form-select" id="mf-league" onchange="checkLeagueAdminLock(this.value)">
                 ${LEAGUES.map(l=>`<option value="${l}" ${m.league===l?'selected':''}>${l}</option>`).join('')}
               </select>
+              <div id="leagueAdminWarning" style="display:none;margin-top:5px;font-size:10px;color:var(--gold);background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:6px;padding:5px 10px;">
+                🔒 Official competition data — only the Warr.GG admin can save matches for this league.
+              </div>
             </div>
             <div class="form-group">
               <label class="form-label">Season</label>
@@ -2126,6 +2139,11 @@ function saveMatch() {
   const redTeam   = document.getElementById('mf-red')?.value?.trim()||'';
   if (!blueTeam || !redTeam) { toast('Enter both team names'); return; }
   if (!league) { toast('Select a league'); return; }
+  // Admin lock — only admin can save official competition data
+  if (typeof WAdmin !== 'undefined' && !WAdmin.canWrite(league)) {
+    toast(`🔒 Only the Warr.GG admin can add ${league} data.`, 'error');
+    return;
+  }
 
   const blueBans=[], redBans=[], bluePicks=[], redPicks=[];
   DRAFT_STEPS.forEach((step,i) => {
@@ -2564,6 +2582,11 @@ function importData(input) {
           const seriesId = (seriesIdCol && String(seriesIdCol).startsWith('sid_')) ? seriesIdCol :
             ('sid_' + DB_MODULE._hashStr(rawKey));
 
+          // Admin lock — skip official league rows if not admin
+          if (typeof WAdmin !== 'undefined' && !WAdmin.canWrite(league||'')) {
+            return; // silently skip locked league rows for non-admins
+          }
+
           const existing = DB_MODULE.getMatches().find(m => m.id === id);
           if (existing) {
             if (existing.seriesId !== seriesId) { existing.seriesId = seriesId; updated++; }
@@ -2667,6 +2690,22 @@ function cycleObj(btn) {
 // ══════════════════════════════════════════════════════════════
 // TOAST
 // ══════════════════════════════════════════════════════════════
+function checkLeagueAdminLock(league) {
+  const warn = document.getElementById('leagueAdminWarning');
+  if (!warn) return;
+  const isLocked = typeof WAdmin !== 'undefined' && WAdmin.LOCKED_LEAGUES.includes(league);
+  const isAdmin  = typeof WAdmin !== 'undefined' && WAdmin.isAdmin();
+  warn.style.display = (isLocked && !isAdmin) ? 'block' : 'none';
+}
+
+// Show admin import link if admin is signed in
+(function showAdminNavLinks() {
+  if (typeof WAdmin !== 'undefined' && WAdmin.isAdmin()) {
+    const link = document.getElementById('adminImportLink');
+    if (link) link.style.display = '';
+  }
+})();
+
 function toast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;

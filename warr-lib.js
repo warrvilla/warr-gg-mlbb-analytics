@@ -145,6 +145,48 @@ const WAuth = {
 //
 // ─────────────────────────────────────────────────────────────────
 
+// ═══════════════════════════════════════════════════════════════
+// ── ADMIN SYSTEM ──
+// Only the designated admin email can add/delete official competition data.
+// Leagues marked as ADMIN_LOCKED require admin auth for write operations.
+// ═══════════════════════════════════════════════════════════════
+window.WAdmin = {
+  ADMIN_EMAIL: 'wrrenvillapando@gmail.com',
+
+  // Leagues that require admin auth to write/delete
+  LOCKED_LEAGUES: ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series'],
+
+  // Check if the currently signed-in user is the admin
+  isAdmin() {
+    const user = (typeof WAuth !== 'undefined' && WAuth.getUser) ? WAuth.getUser() : null;
+    if (user && user.email === WAdmin.ADMIN_EMAIL) return true;
+    // Also check localStorage profile (for offline use)
+    try {
+      const profile = JSON.parse(localStorage.getItem('warr_user_profile') || '{}');
+      return profile.email === WAdmin.ADMIN_EMAIL;
+    } catch(e) { return false; }
+  },
+
+  // Returns true if this match is from a locked league
+  isLockedMatch(match) {
+    const league = (match && (match.league || (match.data && match.data.league))) || '';
+    return WAdmin.LOCKED_LEAGUES.includes(league);
+  },
+
+  // Guard: returns true if the operation is allowed, false + shows error if not
+  canWrite(league) {
+    if (!WAdmin.LOCKED_LEAGUES.includes(league)) return true; // non-official league, anyone can write
+    if (WAdmin.isAdmin()) return true;
+    return false;
+  },
+
+  canDelete(match) {
+    if (!WAdmin.isLockedMatch(match)) return true;
+    if (WAdmin.isAdmin()) return true;
+    return false;
+  },
+};
+
 const WDB = {
 
   // ── SCOUT MATCHES — public leagues shared; Scrims/Other private to creator ─────
