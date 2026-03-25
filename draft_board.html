@@ -301,6 +301,11 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
   .hero-crole { font-size: 8px; }
   .pool-header { padding: 8px 10px; }
   .seq-bar { padding: 5px 10px; }
+  .settings-panel.open { max-height: 360px; }
+  .settings-toggle { padding: 5px 10px; gap: 4px; }
+  .settings-gear-btn { padding: 4px 10px; font-size: 10px; }
+  .tab-chips { gap: 2px; }
+  .tab-chips .mode-btn { padding: 3px 7px; font-size: 9px; }
 }
 @media (max-width: 420px) {
   .topbar-logo { font-size: 13px; }
@@ -361,6 +366,39 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
 .db-btn-clear:hover { background: rgba(239,68,68,.1); }
 .db-filename { font-size: 9px; color: var(--text3); font-style: italic; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* ── SETTINGS TOGGLE BAR ── */
+.settings-toggle {
+  background: rgba(7,7,12,0.88); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border-bottom: 0.5px solid rgba(255,255,255,0.06);
+  padding: 6px 16px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap;
+}
+.settings-toggle-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; flex-wrap: wrap; }
+.settings-toggle-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.settings-gear-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 13px; font-size: 11px; font-weight: 500; letter-spacing: -0.01em;
+  border: 0.5px solid rgba(255,255,255,0.11); background: rgba(255,255,255,0.07);
+  border-radius: 9999px; color: var(--text2); cursor: pointer;
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif;
+  transition: all 0.18s ease; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.settings-gear-btn:hover { background: rgba(255,255,255,0.10); color: var(--text); }
+.settings-gear-btn.open { background: rgba(168,136,204,0.10); border-color: rgba(168,136,204,0.25); color: var(--accent); }
+.settings-panel {
+  background: rgba(10,10,18,0.95); backdrop-filter: blur(30px) saturate(130%);
+  -webkit-backdrop-filter: blur(30px) saturate(130%);
+  border-bottom: 0.5px solid rgba(255,255,255,0.06);
+  overflow: hidden; flex-shrink: 0;
+  max-height: 0; transition: max-height 0.30s cubic-bezier(.22,1,.36,1), padding 0.30s ease;
+  padding: 0 16px;
+}
+.settings-panel.open { max-height: 260px; padding: 10px 16px 14px; }
+.settings-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.settings-row:last-child { margin-bottom: 0; }
+.settings-label {
+  font-size: 9px; font-weight: 700; color: var(--text4);
+  text-transform: uppercase; letter-spacing: 0.12em; min-width: 44px; flex-shrink: 0;
+}
 
 /* ── DATA SHEET MODAL ── */
 .ds-overlay { position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:500; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(3px); animation:fadeIn .15s ease; }
@@ -473,8 +511,8 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
 
 /* ── FLEX PAGE LAYOUT FIX ── */
 .page-body { display: flex; flex-direction: column; margin-top: var(--nav-h); height: calc(100vh - var(--nav-h)); overflow: hidden; padding-top: 0; }
-.data-bar { flex-shrink: 0; }
-#scoutLeagueBar { flex-shrink: 0; }
+.settings-toggle { flex-shrink: 0; }
+.settings-panel { flex-shrink: 0; }
 .seq-bar { flex-shrink: 0; }
 .phase-row { flex-shrink: 0; }
 .team-panel { min-height: 0; }
@@ -526,6 +564,30 @@ body > *:not(body::after) { position:relative; z-index:1; }
   background: rgba(255,255,255,0.07) !important;
   color: var(--text3) !important;
   border-color: rgba(255,255,255,0.08) !important;
+}
+
+/* ── SETTINGS TOGGLE ── */
+.settings-toggle {
+  background: rgba(7,7,12,0.88) !important;
+  backdrop-filter: blur(30px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(140%) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04) !important;
+}
+.settings-panel {
+  background: rgba(10,10,18,0.96) !important;
+  backdrop-filter: blur(40px) saturate(135%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(135%) !important;
+}
+.settings-gear-btn {
+  border-radius: 9999px !important;
+  border: 0.5px solid rgba(255,255,255,0.10) !important;
+  background: rgba(255,255,255,0.06) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06) !important;
+}
+.settings-gear-btn.open {
+  background: rgba(168,136,204,0.10) !important;
+  border-color: rgba(168,136,204,0.24) !important;
+  color: var(--accent) !important;
 }
 
 /* ── SERIES BAR ── */
@@ -788,32 +850,42 @@ select {
 
 <div class="page-body">
 
-<!-- CONTROL BAR -->
-<div class="data-bar" id="dataBar">
-  <button class="tab-btn active" id="tabDraft" onclick="switchTab('draft')">Sim</button>
-  <button class="tab-btn" id="tabHistory" onclick="switchTab('history')">History</button>
-  <div class="db-sep"></div>
-  <div class="mode-btns">
-    <button class="mode-btn active" id="modeBtn1" onclick="setSeries(1)">Single</button>
-    <button class="mode-btn" id="modeBtn3" onclick="setSeries(3)">BO3</button>
-    <button class="mode-btn" id="modeBtn5" onclick="setSeries(5)">BO5</button>
-    <button class="mode-btn" id="modeBtn7" onclick="setSeries(7)">BO7</button>
+<!-- COMPACT DRAFT BAR -->
+<div class="settings-toggle" id="dataBar">
+  <div class="settings-toggle-left">
+    <div class="tab-chips" style="display:flex;gap:3px;">
+      <button class="mode-btn active" id="tabDraft" onclick="switchTab('draft')">Sim</button>
+      <button class="mode-btn" id="tabHistory" onclick="switchTab('history')">History</button>
+    </div>
+    <div style="width:1px;height:14px;background:rgba(255,255,255,.08);flex-shrink:0;"></div>
+    <div class="mode-btns">
+      <button class="mode-btn active" id="modeBtn1" onclick="setSeries(1)">Single</button>
+      <button class="mode-btn" id="modeBtn3" onclick="setSeries(3)">BO3</button>
+      <button class="mode-btn" id="modeBtn5" onclick="setSeries(5)">BO5</button>
+      <button class="mode-btn" id="modeBtn7" onclick="setSeries(7)">BO7</button>
+    </div>
+    <div class="series-score" id="seriesScore">
+      <span class="score-blue" id="sbBlue">Blue 0</span>
+      <span class="score-sep">—</span>
+      <span class="score-red" id="sbRed">0 Red</span>
+      <span class="game-label" id="sbGameLabel">Game 1</span>
+    </div>
+    <div class="match-chips" id="matchChips"></div>
   </div>
-  <div class="series-score" id="seriesScore">
-    <span class="score-blue" id="sbBlue">Blue 0</span>
-    <span class="score-sep">—</span>
-    <span class="score-red" id="sbRed">0 Red</span>
-    <span class="game-label" id="sbGameLabel">Game 1</span>
+  <div class="settings-toggle-right">
+    <button class="sb-btn sb-btn-next" id="nextGameBtn" onclick="proceedNextGame()" style="display:none;">Next →</button>
+    <button class="settings-gear-btn" id="settingsToggleBtn" onclick="toggleSettingsPanel()">⚙ Options</button>
   </div>
-  <div class="match-chips" id="matchChips"></div>
-  <div class="our-side-picker">
-    <span class="our-side-label">Side:</span>
+</div>
+
+<!-- SETTINGS PANEL (collapsible) -->
+<div class="settings-panel" id="settingsPanel">
+  <div class="settings-row">
+    <span class="settings-label">Side</span>
     <button class="side-opt active-none" id="sideNone" onclick="setOurSide(null)">–</button>
     <button class="side-opt" id="sideBlue" onclick="setOurSide('blue')">Blue</button>
     <button class="side-opt" id="sideRed" onclick="setOurSide('red')">Red</button>
-  </div>
-  <div class="db-sep"></div>
-  <div class="series-actions">
+    <div style="width:1px;height:14px;background:rgba(255,255,255,.08);margin:0 4px;flex-shrink:0;"></div>
     <button class="sb-btn" id="aiBattleBtn" onclick="toggleAIBattle()" style="border-color:rgba(139,92,246,.35);background:rgba(139,92,246,.07);color:#A888CC;" title="AI will auto-draft against you">AI Draft</button>
     <div id="aiSideSelector" style="display:none;align-items:center;gap:4px;padding:3px 8px;background:rgba(139,92,246,.07);border:1px solid rgba(139,92,246,.28);border-radius:10px;">
       <span style="font-size:9px;color:rgba(255,255,255,.4);font-weight:600;letter-spacing:.1em;text-transform:uppercase;">AI Side</span>
@@ -821,33 +893,32 @@ select {
       <button class="side-opt active-red" id="aiSideRed" onclick="setAISide('red')">Red</button>
       <button onclick="clearAIMemory()" title="Clear AI memory" style="padding:2px 8px;background:transparent;border:1px solid var(--red-border);border-radius:8px;color:var(--red);font-size:9px;cursor:pointer;font-weight:600;letter-spacing:.05em;">Clear</button>
     </div>
-    <button class="sb-btn sb-btn-predict" onclick="openPrediction()">Predict</button>
-    <button class="sb-btn sb-btn-next" id="nextGameBtn" onclick="proceedNextGame()">Next Game</button>
-    <button class="sb-btn sb-btn-newgame" onclick="cancelCurrentGame()">Reset</button>
-    <button class="sb-btn sb-btn-export" onclick="exportMatchData()">Export</button>
-    <button class="sb-btn" id="saveDraftBtn" onclick="saveDraftToCloud()" style="border-color:rgba(76,184,122,.35);background:rgba(76,184,122,.07);color:var(--neon);" title="Save this draft to your account">💾 Save</button>
-    <button class="sb-btn" id="myDraftsBtn" onclick="showDraftsModal()" style="border-color:rgba(94,160,216,.35);background:rgba(94,160,216,.07);color:var(--blue);" title="Load a saved draft">📁 Drafts</button>
   </div>
-</div>
-
-<!-- SCOUT LEAGUE FILTER -->
-<div id="scoutLeagueBar" style="background:var(--surface);border-bottom:1px solid var(--border);padding:6px 20px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-  <span style="font-size:9px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.15em;margin-right:4px;">Scout:</span>
-  <button class="mode-btn active" id="slAll"    onclick="setScoutLeague('all')"      >All</button>
-  <button class="mode-btn"        id="slPH"     onclick="setScoutLeague('MPL PH')"   >MPL PH</button>
-  <button class="mode-btn"        id="slMY"     onclick="setScoutLeague('MPL MY')"   >MPL MY</button>
-  <button class="mode-btn"        id="slID"     onclick="setScoutLeague('MPL ID')"   >MPL ID</button>
-  <button class="mode-btn"        id="slSG"     onclick="setScoutLeague('MPL SG')"   >MPL SG</button>
-  <button class="mode-btn"        id="slMSC"    onclick="setScoutLeague('MSC')"      >MSC</button>
-  <button class="mode-btn"        id="slMS"     onclick="setScoutLeague('M-Series')" >M-Series</button>
-  <button class="mode-btn"        id="slScrims" onclick="setScoutLeague('Scrims')"   >Scrims</button>
-  <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
-    <div id="dbChips" style="display:flex;gap:4px;align-items:center;">
+  <div class="settings-row" id="scoutLeagueBar">
+    <span class="settings-label">Scout</span>
+    <button class="mode-btn active" id="slAll" onclick="setScoutLeague('all')">All</button>
+    <button class="mode-btn" id="slPH" onclick="setScoutLeague('MPL PH')">MPL PH</button>
+    <button class="mode-btn" id="slMY" onclick="setScoutLeague('MPL MY')">MPL MY</button>
+    <button class="mode-btn" id="slID" onclick="setScoutLeague('MPL ID')">MPL ID</button>
+    <button class="mode-btn" id="slSG" onclick="setScoutLeague('MPL SG')">MPL SG</button>
+    <button class="mode-btn" id="slMSC" onclick="setScoutLeague('MSC')">MSC</button>
+    <button class="mode-btn" id="slMS" onclick="setScoutLeague('M-Series')">M-Series</button>
+    <button class="mode-btn" id="slScrims" onclick="setScoutLeague('Scrims')">Scrims</button>
+    <div style="margin-left:auto;display:flex;gap:5px;align-items:center;">
       <span class="db-chip empty" id="dbPatch" style="font-size:9px;color:var(--text4);letter-spacing:.05em;"></span>
     </div>
-    <input type="file" id="dataSheetInput" accept=".xlsx" style="display:none;" onchange="loadDataSheet(event)">
-    <button class="db-btn" onclick="loadFromSupabase()" style="font-size:9px;letter-spacing:.08em;">Sync</button>
-    <button class="db-btn" onclick="captureDraft()" style="font-size:9px;letter-spacing:.08em;" title="Save draft as PNG">📸</button>
+  </div>
+  <div class="settings-row">
+    <button class="sb-btn sb-btn-predict" onclick="openPrediction()">Predict</button>
+    <button class="sb-btn sb-btn-newgame" onclick="cancelCurrentGame()">Reset</button>
+    <button class="sb-btn sb-btn-export" onclick="exportMatchData()">Export</button>
+    <button class="sb-btn" id="saveDraftBtn" onclick="saveDraftToCloud()" style="border-color:rgba(76,184,122,.35);background:rgba(76,184,122,.07);color:var(--neon);" title="Save draft">💾 Save</button>
+    <button class="sb-btn" id="myDraftsBtn" onclick="showDraftsModal()" style="border-color:rgba(94,160,216,.35);background:rgba(94,160,216,.07);color:var(--blue);" title="Load draft">📁 Drafts</button>
+    <div style="margin-left:auto;display:flex;gap:5px;align-items:center;">
+      <input type="file" id="dataSheetInput" accept=".xlsx" style="display:none;" onchange="loadDataSheet(event)">
+      <button class="db-btn" onclick="loadFromSupabase()" style="font-size:9px;letter-spacing:.08em;">Sync</button>
+      <button class="db-btn" onclick="captureDraft()" style="font-size:9px;letter-spacing:.08em;" title="Save draft as PNG">📸</button>
+    </div>
   </div>
 </div>
 
@@ -958,6 +1029,15 @@ async function callClaude(body){
 function toast(msg,type=''){const t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.className='toast show'+(type?' '+type:'');setTimeout(()=>t.className='toast',2800);}
 function saveApiKey(){const v=(document.getElementById('dbApiKeyIn')||{}).value?.trim();if(!v){toast('Enter a key first','error');return;}if(!v.startsWith('sk-ant-')){toast('Key must start with sk-ant-','error');return;}localStorage.setItem('warr_api_key',v);document.getElementById('dbApiKeyIn').value='';updateApiKeyStatus();toast('API key saved ✓','success');}
 function updateApiKeyStatus(){const key=localStorage.getItem('warr_api_key')||'';const el=document.getElementById('dbKeyStatus');if(el){el.textContent=key?'✓ Key Saved':'No Key';el.style.color=key?'#22c55e':'#ef4444';}}
+
+function toggleSettingsPanel() {
+  const panel = document.getElementById('settingsPanel');
+  const btn = document.getElementById('settingsToggleBtn');
+  if (!panel || !btn) return;
+  const isOpen = panel.classList.toggle('open');
+  btn.classList.toggle('open', isOpen);
+  btn.textContent = isOpen ? '✕ Close' : '⚙ Options';
+}
 
 const ALL_HEROES = [
   // TANK (20)
@@ -1165,6 +1245,23 @@ try {
     }
   }
 } catch(e) {}
+
+// ── DYNAMIC TIERS FROM SCOUT DATA ──
+(function applyDynamicTiers() {
+  if (typeof WDB === 'undefined' || !WDB.computeDynamicTiers) return;
+  const dt = WDB.computeDynamicTiers(2);
+  if (!dt) return;
+  const tp = {S:'highpick', A:'highpick', B:'situational', C:'situational', D:'off'};
+  FINAL_HEROES.forEach(h => {
+    const d = dt[h.name];
+    if (!d) return;
+    if (!TIER_LIST[h.name]) {
+      h.tier = d.tier;
+      if (h.mp !== 'mustban') h.mp = d.mp || tp[d.tier] || h.mp;
+    }
+  });
+  console.log('[Draft Board] Dynamic tiers applied:', Object.keys(dt).length, 'heroes');
+})();
 
 const DRAFT_ORDER=[
   {type:'ban',team:'blue',label:'B1'},{type:'ban',team:'red',label:'B2'},
@@ -2413,7 +2510,7 @@ function switchTab(tab) {
   document.getElementById('tabHistory').className = 'tab-btn' + (tab === 'history' ? ' active' : '');
   // Show/hide main areas
   const draftParts = ['seriesBar', 'seqBar', 'historyPanel'];
-  document.querySelectorAll('.series-bar, .seq-bar, .phase-row, .draft-layout').forEach(el => {
+  document.querySelectorAll('.series-bar, .seq-bar, .phase-row, .draft-layout, #settingsPanel').forEach(el => {
     el.style.display = tab === 'draft' ? '' : 'none';
   });
   document.getElementById('historyPanel').style.display = tab === 'history' ? 'block' : 'none';

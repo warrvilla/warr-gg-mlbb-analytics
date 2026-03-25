@@ -293,6 +293,88 @@ const WMigrate = {
 // ═══════════════════════════════════════════════════════════════
 // TOAST UTILITY (shared)
 // ═══════════════════════════════════════════════════════════════
+// ── DYNAMIC TIER SYSTEM (from scout data) ──
+// Computes S/A/B/C tiers based on actual pick/ban rates observed in scout data
+// Call this on page load to override hardcoded tiers
+window.WDB = window.WDB || {};
+WDB.computeDynamicTiers = function(minGames = 3) {
+  try {
+    const raw = localStorage.getItem('warr_scout_data');
+    if (!raw) return null;
+    const db = JSON.parse(raw);
+    if (!db.matches || db.matches.length < minGames) return null;
+
+    const totalGames = db.matches.length;
+    const heroStats = {};
+
+    db.matches.forEach(m => {
+      const allPicks = [...(m.bluePicks || []), ...(m.redPicks || [])];
+      const allBans = [...(m.blueBans || []), ...(m.redBans || [])];
+      const winner = m.winner; // 'blue' or 'red'
+
+      // Count picks
+      allPicks.forEach(p => {
+        const name = typeof p === 'string' ? p : p?.name;
+        if (!name) return;
+        if (!heroStats[name]) heroStats[name] = { picks: 0, bans: 0, wins: 0, games: 0 };
+        heroStats[name].picks++;
+        heroStats[name].games++;
+
+        // Track wins: check which side this pick was on
+        const isBlue = (m.bluePicks || []).some(bp => (typeof bp === 'string' ? bp : bp?.name) === name);
+        if ((isBlue && winner === 'blue') || (!isBlue && winner === 'red')) {
+          heroStats[name].wins++;
+        }
+      });
+
+      // Count bans
+      allBans.forEach(b => {
+        const name = typeof b === 'string' ? b : b?.name;
+        if (!name) return;
+        if (!heroStats[name]) heroStats[name] = { picks: 0, bans: 0, wins: 0, games: 0 };
+        heroStats[name].bans++;
+      });
+    });
+
+    // Compute rates and assign tiers
+    const result = {};
+    Object.entries(heroStats).forEach(([name, stats]) => {
+      const presence = ((stats.picks + stats.bans) / totalGames) * 100;
+      const winRate = stats.picks > 0 ? (stats.wins / stats.picks) * 100 : 0;
+
+      // Tier assignment based on presence + win rate
+      // S-tier: >60% presence OR (>35% presence AND >55% WR)
+      // A-tier: >30% presence OR (>15% presence AND >52% WR)
+      // B-tier: >10% presence
+      // C-tier: everything else that appeared
+      let tier = 'C';
+      if (presence >= 60 || (presence >= 35 && winRate >= 55)) tier = 'S';
+      else if (presence >= 30 || (presence >= 15 && winRate >= 52)) tier = 'A';
+      else if (presence >= 10) tier = 'B';
+
+      // Meta priority based on presence
+      let mp = 'off';
+      if (presence >= 80) mp = 'mustban';
+      else if (presence >= 50) mp = 'highpick';
+      else if (presence >= 15) mp = 'situational';
+
+      result[name] = {
+        tier, mp, presence: Math.round(presence * 10) / 10,
+        winRate: Math.round(winRate * 10) / 10,
+        picks: stats.picks, bans: stats.bans, games: stats.games
+      };
+    });
+
+    return result;
+  } catch (e) {
+    console.warn('computeDynamicTiers error:', e);
+    return null;
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// TOAST UTILITY (shared)
+// ═══════════════════════════════════════════════════════════════
 function warrToast(msg, type = '') {
   let t = document.getElementById('warr-toast');
   if (!t) {

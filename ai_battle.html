@@ -211,8 +211,8 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
 .lhero{font-weight:700;color:var(--ai);}
 
 /* RESULT */
-#result{display:none;position:fixed;inset:0;background:rgba(15,17,22,.97);z-index:600;align-items:center;justify-content:center;}
-#result.show{display:flex;}
+#result{display:none;position:fixed;inset:0;background:rgba(15,17,22,.97);z-index:600;align-items:center;justify-content:center;pointer-events:none;}
+#result.show{display:flex;pointer-events:auto;}
 .rcard{background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:30px 38px;text-align:center;max-width:560px;width:94%;box-shadow:0 40px 80px rgba(0,0,0,.6);max-height:88vh;overflow-y:auto;}
 .rcard::-webkit-scrollbar{width:3px;}.rcard::-webkit-scrollbar-thumb{background:var(--border2);}
 .rverdict{font-family:var(--font-head);font-size:44px;font-weight:700;letter-spacing:3px;animation:wpop .5s ease;}
@@ -303,6 +303,15 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
   .hero-img { width: 64px; height: 64px; }
   .hero-cname { font-size: 10px; }
   .hero-crole { font-size: 8px; }
+  .bh { padding: 5px 12px; }
+  .bh-name { font-size: 12px; }
+  .bh-vs { font-size: 14px; }
+  .phase-bar { padding: 4px 12px; }
+  .phase-lbl { font-size: 9px; }
+  .seq-bar { padding: 3px 8px; }
+  .action-bar { padding: 8px 12px; }
+  #abFilterToggle { display: inline-flex !important; }
+  .filter-row.collapsed { display: none !important; }
 }
 @media (max-width: 420px) {
   .hero-grid { grid-template-columns: repeat(auto-fill, 72px); gap: 4px; }
@@ -784,20 +793,20 @@ input:focus, .search-input:focus {
 
     <!-- POOL CENTER -->
     <div class="pool-section">
-      <div class="pool-header" style="flex-direction:column;align-items:stretch;gap:7px;">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <div class="pool-title">Hero Pool</div>
-          <span class="hero-count" id="cntLbl"></span>
-          <input class="search-input" id="srch" placeholder="Search hero..." style="margin-left:auto;"/>
+      <div class="pool-header" style="flex-direction:column;align-items:stretch;gap:5px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <input class="search-input" id="srch" placeholder="Search hero..." style="flex:1;min-width:120px;"/>
+          <span class="hero-count" id="cntLbl" style="font-size:10px;"></span>
+          <button class="settings-gear-btn" id="abFilterToggle" onclick="document.getElementById('laneFiltersAB').classList.toggle('collapsed')" style="display:none;padding:4px 10px;font-size:10px;">Filters ▾</button>
         </div>
         <div class="filter-row" id="laneFiltersAB"></div>
       </div>
       <div class="hero-grid" id="hgrid"></div>
-      <div class="action-bar">
-        <button class="btn btn-reset" onclick="resetBattle()">Reset</button>
-        <button class="btn btn-ghost" onclick="undoPick()">Undo</button>
-        <div class="hint" id="hintTxt">Select a hero to ban</div>
-        <button class="btn btn-analyze" id="anaBtn" onclick="runAnalysis()" disabled>Analyze</button>
+      <div class="action-bar" style="gap:10px;">
+        <button class="btn btn-ghost" onclick="undoPick()" style="font-size:11px;">← Undo</button>
+        <button class="btn btn-reset" onclick="resetBattle()" style="font-size:11px;">Reset</button>
+        <div class="hint" id="hintTxt" style="flex:1;text-align:center;">Select a hero to ban</div>
+        <button class="btn btn-analyze" id="anaBtn" onclick="runAnalysis()" disabled style="padding:10px 28px;font-size:14px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">ANALYZE</button>
       </div>
     </div>
 
@@ -820,7 +829,7 @@ input:focus, .search-input:focus {
 </div>
 
 <!-- RESULT -->
-<div id="result">
+<div id="result" onclick="event.stopPropagation()">
   <div class="rcard">
     <div class="rverdict" id="rverdict"></div>
     <div class="rsub" id="rsub"></div>
@@ -1079,6 +1088,25 @@ try{
     if(dd.patchVersion) PV=dd.patchVersion;
   }
 }catch(e){}
+
+// ── DYNAMIC TIERS FROM SCOUT DATA ──
+// Override hardcoded tiers with actual scouted presence/WR data
+(function applyDynamicTiers() {
+  if (typeof WDB === 'undefined' || !WDB.computeDynamicTiers) return;
+  const dt = WDB.computeDynamicTiers(2); // 2 games minimum
+  if (!dt) return;
+  const tp = {S:'highpick', A:'highpick', B:'situational', C:'situational', D:'off'};
+  HEROES.forEach(h => {
+    const d = dt[h.name];
+    if (!d) return;
+    // Only override if we don't already have sheet data for this hero
+    if (!TIER_LIST[h.name]) {
+      h.tier = d.tier;
+      if (h.mp !== 'mustban') h.mp = d.mp || tp[d.tier] || h.mp;
+    }
+  });
+  console.log('[AI Battle] Dynamic tiers applied from scout data:', Object.keys(dt).length, 'heroes');
+})();
 
 
 // ── SCOUT DATA ──────────────────────────────────────────
@@ -1857,7 +1885,7 @@ function localAI(step){
     const t=TIER_LIST[h.name]?.tier||h.tier;
     const ts={S:100,A:78,B:55,C:30}[t]||30;
     const fillsNeeded=ln!=='Flex'&&myNeeded.includes(ln)?42:0;
-    const alreadyCovered=ln!=='Flex'&&myCovered.includes(ln)?-32:0;
+    const alreadyCovered=ln!=='Flex'&&myCovered.includes(ln)?-55:0;
     // Counter-pick: use full counter list (hardcoded + learned)
     const countersOpp=oppP.filter(op=>fullCounterList(op.name).some(x=>x.name===h.name)).length*25;
     // Avoid being countered by opponent picks
