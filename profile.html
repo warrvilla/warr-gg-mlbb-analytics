@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile — Warr.GG</title>
+<link rel="stylesheet" href="warr-styles.css">
+<style>
+:root { --nav-h: 52px; }
+body { background: var(--bg); min-height: 100vh; }
+.page-wrap { max-width: 860px; margin: 0 auto; padding: calc(var(--nav-h) + 40px) 20px 80px; }
+
+/* ── Profile Card ── */
+.profile-card {
+  background: var(--surface);
+  border: 1px solid var(--glass-border2);
+  border-radius: 20px;
+  padding: 32px;
+  margin-bottom: 20px;
+  position: relative;
+  backdrop-filter: var(--blur-sm);
+}
+.profile-header {
+  display: flex; align-items: flex-start; gap: 24px; margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+.avatar-wrap {
+  position: relative; flex-shrink: 0; cursor: pointer;
+}
+.avatar-img {
+  width: 88px; height: 88px; border-radius: 50%;
+  object-fit: cover; border: 2px solid var(--glass-border2);
+  background: var(--surface3);
+  display: block;
+}
+.avatar-overlay {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(0,0,0,.55); display: flex; align-items: center;
+  justify-content: center; opacity: 0; transition: opacity .2s;
+  font-size: 11px; color: #fff; font-weight: 600; letter-spacing: .04em;
+}
+.avatar-wrap:hover .avatar-overlay { opacity: 1; }
+#avatarInput { display: none; }
+
+.profile-meta { flex: 1; min-width: 200px; }
+.profile-name-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px;
+}
+.profile-displayname {
+  font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -.01em;
+}
+.plan-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: .1em;
+  padding: 3px 10px; border-radius: 20px; text-transform: uppercase;
+}
+.plan-badge.free  { background: var(--surface3); color: var(--text2); border: 1px solid var(--border2); }
+.plan-badge.pro   { background: rgba(168,136,204,.14); color: var(--purple); border: 1px solid var(--purple-border); }
+.plan-badge.team  { background: rgba(200,144,80,.12); color: var(--gold); border: 1px solid var(--gold-border); }
+
+.profile-email { font-size: 13px; color: var(--text3); margin-bottom: 10px; }
+.profile-team-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  padding: 4px 12px; border-radius: 20px;
+  background: var(--blue-dim); color: var(--blue); border: 1px solid var(--blue-border);
+}
+.profile-team-chip.pending { background: var(--gold-dim); color: var(--gold); border-color: var(--gold-border); }
+.profile-team-chip.none { background: var(--surface3); color: var(--text3); border-color: var(--border); }
+
+/* ── Sync status ── */
+.sync-status {
+  font-size: 11px; padding: 5px 12px; border-radius: 20px; display: inline-flex;
+  align-items: center; gap: 6px; margin-bottom: 16px;
+}
+.sync-status.synced  { background: rgba(68,200,130,.12); color: #44c882; border: 1px solid rgba(68,200,130,.3); }
+.sync-status.local   { background: var(--surface3); color: var(--text3); border: 1px solid var(--border); }
+.sync-status.saving  { background: rgba(168,136,204,.14); color: var(--purple); border: 1px solid var(--purple-border); }
+
+/* ── Tokens Panel ── */
+.tokens-panel {
+  background: var(--surface2);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+.tokens-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.tokens-title { font-size: 14px; font-weight: 700; color: var(--text); }
+.tokens-reset { font-size: 11px; color: var(--text3); }
+.tokens-bar-wrap { margin-bottom: 8px; }
+.tokens-bar-track {
+  height: 6px; border-radius: 3px; background: var(--surface3);
+  overflow: hidden; margin-bottom: 8px;
+}
+.tokens-bar-fill {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, var(--purple), var(--blue));
+  transition: width .4s cubic-bezier(.34,1.56,.64,1);
+}
+.tokens-count { font-size: 13px; color: var(--text2); }
+.tokens-count strong { color: var(--text); font-size: 20px; }
+
+/* ── Plan cards ── */
+.plans-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px;
+}
+@media(max-width:600px){ .plans-grid { grid-template-columns: 1fr; } }
+
+.plan-card {
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 20px 18px;
+  cursor: pointer;
+  transition: transform .15s, border-color .15s;
+  position: relative;
+}
+.plan-card:hover { transform: translateY(-2px); border-color: var(--glass-border2); }
+.plan-card.active { border-color: var(--purple); background: var(--accent-dim); }
+.plan-card.active-team { border-color: var(--gold); background: var(--gold-dim); }
+.plan-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.plan-price { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+.plan-price span { font-size: 12px; font-weight: 400; color: var(--text3); }
+.plan-features { list-style: none; padding: 0; margin: 0; }
+.plan-features li { font-size: 12px; color: var(--text2); padding: 3px 0; }
+.plan-features li::before { content: '✓  '; color: var(--neon); }
+.plan-cta {
+  display: block; width: 100%; margin-top: 16px;
+  padding: 9px; border-radius: 10px; font-size: 12px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; cursor: pointer;
+  border: 1px solid var(--glass-border2); background: var(--surface3);
+  color: var(--text2); transition: all .15s;
+}
+.plan-cta:hover { background: var(--surface4); color: var(--text); }
+.plan-card.active .plan-cta { background: var(--purple); border-color: var(--purple); color: #fff; }
+.plan-card.active-team .plan-cta { background: var(--gold); border-color: var(--gold); color: #000; }
+.plan-popular {
+  position: absolute; top: -1px; left: 50%; transform: translateX(-50%);
+  font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  background: var(--purple); color: #fff;
+  padding: 3px 12px; border-radius: 0 0 8px 8px;
+}
+
+/* ── Form fields ── */
+.section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 10px;
+}
+.field-group { margin-bottom: 18px; }
+.field-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+.field-input {
+  width: 100%; padding: 11px 14px;
+  background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: 10px; color: var(--text); font-size: 13px;
+  font-family: inherit; outline: none;
+  transition: border-color .15s;
+}
+.field-input:focus { border-color: var(--purple); }
+.field-input::placeholder { color: var(--text4); }
+.field-select {
+  width: 100%; padding: 11px 14px;
+  background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: 10px; color: var(--text); font-size: 13px;
+  font-family: inherit; outline: none; cursor: pointer;
+}
+
+.mpl-request-box {
+  background: var(--gold-dim);
+  border: 1px solid var(--gold-border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.6;
+}
+.mpl-request-box strong { color: var(--gold); }
+
+.save-btn {
+  width: 100%; padding: 13px; border-radius: 12px;
+  background: var(--purple); border: 1px solid var(--purple);
+  color: #fff; font-size: 13px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; cursor: pointer;
+  transition: all .15s;
+}
+.save-btn:hover { background: #b89ae0; }
+.save-btn:active { transform: scale(.98); }
+
+/* ── MPL teams list ── */
+.mpl-teams {
+  columns: 2; column-gap: 12px;
+  font-size: 12px; color: var(--text2);
+  margin-top: 8px; list-style: none; padding: 0;
+}
+.mpl-teams li { padding: 2px 0; break-inside: avoid; }
+
+/* ── Admin approve note ── */
+.admin-note {
+  font-size: 11px; color: var(--text3);
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 10px;
+}
+
+/* ── Sign-in gate ── */
+.signin-gate {
+  text-align: center; padding: 60px 20px;
+}
+.signin-gate h2 { font-size: 20px; font-weight: 700; margin-bottom: 10px; color: var(--text); }
+.signin-gate p { font-size: 13px; color: var(--text3); margin-bottom: 24px; }
+.signin-gate a {
+  display: inline-block; padding: 12px 32px; border-radius: 12px;
+  background: var(--purple); color: #fff; font-weight: 700; font-size: 13px;
+  text-decoration: none; letter-spacing: .06em;
+}
+
+/* ── Divider ── */
+.divider {
+  height: 1px; background: var(--glass-border); margin: 24px 0;
+}
+
+/* ── Hero Pool ── */
+.pool-section { margin-top: 4px; }
+.pool-role-tabs {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.role-tab {
+  padding: 5px 14px; border-radius: 20px; font-size: 11px; font-weight: 700;
+  letter-spacing: .05em; cursor: pointer; border: 1px solid var(--border2);
+  background: var(--surface3); color: var(--text3); transition: all .15s;
+}
+.role-tab:hover { color: var(--text2); border-color: var(--glass-border2); }
+.role-tab.active { background: var(--purple); color: #fff; border-color: var(--purple); }
+.pool-search {
+  width: 100%; padding: 9px 14px; margin-bottom: 12px;
+  background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: 10px; color: var(--text); font-size: 13px;
+  font-family: inherit; outline: none;
+}
+.pool-search:focus { border-color: var(--purple); }
+.hero-pool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.hero-pool-grid::-webkit-scrollbar { width: 4px; }
+.hero-pool-grid::-webkit-scrollbar-track { background: transparent; }
+.hero-pool-grid::-webkit-scrollbar-thumb { background: var(--glass-border2); border-radius: 4px; }
+.pool-hero-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; padding: 10px 6px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--border2); background: var(--surface3);
+  color: var(--text3); font-size: 10px; font-weight: 600; text-align: center;
+  transition: all .15s; position: relative; line-height: 1.3;
+}
+.pool-hero-btn:hover { border-color: var(--purple); color: var(--text); }
+.pool-hero-btn.selected {
+  border-color: var(--purple); background: var(--accent-dim); color: var(--text);
+}
+.pool-hero-btn.selected::after {
+  content: '✓'; position: absolute; top: 4px; right: 5px;
+  font-size: 9px; color: var(--purple); font-weight: 800;
+}
+.pool-hero-role {
+  font-size: 9px; color: var(--text4); font-weight: 500;
+}
+.pool-hero-btn.selected .pool-hero-role { color: var(--purple); opacity: .7; }
+.pool-count-label {
+  font-size: 12px; color: var(--text3); margin-bottom: 12px;
+}
+.pool-count-label strong { color: var(--text); }
+.pool-save-btn {
+  width: 100%; padding: 11px; border-radius: 10px; margin-top: 14px;
+  background: var(--purple); border: 1px solid var(--purple);
+  color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; cursor: pointer; transition: all .15s;
+}
+.pool-save-btn:hover { background: #b89ae0; }
+
+/* ── Admin card ── */
+.admin-access-card {
+  background: linear-gradient(135deg, rgba(200,144,80,.08), rgba(200,144,80,.03));
+  border: 1px solid var(--gold-border);
+  border-radius: 16px; padding: 20px 24px; margin-bottom: 20px;
+  display: none;
+}
+.admin-access-card h4 {
+  font-size: 14px; font-weight: 700; color: var(--gold); margin-bottom: 6px;
+}
+.admin-access-card p { font-size: 12px; color: var(--text3); margin-bottom: 14px; }
+.admin-go-btn {
+  display: inline-block; padding: 10px 24px; border-radius: 10px;
+  background: var(--gold); color: #000; font-size: 12px; font-weight: 800;
+  letter-spacing: .06em; text-decoration: none; text-transform: uppercase;
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="topnav">
+  <a class="nav-brand" href="index.html">
+    <span class="nav-brand-name">Warr.GG</span>
+    <span class="nav-brand-sub">MLBB Intel</span>
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="draft_board.html">Draft</a>
+    <a class="nav-link" href="ai_battle.html">AI Battle</a>
+    <a class="nav-link" href="scout.html">Scout</a>
+    <a class="nav-link" href="stats.html">Analysis</a>
+    <a class="nav-link" href="patch_meta.html">Patch</a>
+    <a class="nav-link active" href="profile.html">Profile</a>
+  </div>
+  <div class="nav-right">
+    <div id="authChip"><a href="auth.html" class="cta-secondary" style="padding:7px 18px;font-size:13px;">Sign In</a></div>
+  </div>
+  <button class="mobile-menu-btn" onclick="document.querySelector('.mobile-nav').classList.toggle('open')" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<nav class="mobile-nav">
+  <a class="mobile-nav-link" href="draft_board.html">Draft</a>
+  <a class="mobile-nav-link" href="ai_battle.html">AI Battle</a>
+  <a class="mobile-nav-link" href="scout.html">Scout</a>
+  <a class="mobile-nav-link" href="stats.html">Analysis</a>
+  <a class="mobile-nav-link" href="patch_meta.html">Patch</a>
+  <a class="mobile-nav-link active" href="profile.html">Profile</a>
+  <a class="mobile-nav-link" href="auth.html">Sign In</a>
+</nav>
+
+<div class="page-wrap" id="pageWrap">
+
+  <!-- LOADING STATE -->
+  <div id="loadingState" style="text-align:center;padding:80px 20px;">
+    <div style="font-size:13px;color:var(--text3);">Loading profile…</div>
+  </div>
+
+  <!-- SIGN-IN GATE (shown if not authenticated) -->
+  <div id="signinGate" class="signin-gate" style="display:none;">
+    <h2>Sign in to manage your profile</h2>
+    <p>Create an account to save your display name, team affiliation, and track your AI analysis tokens.</p>
+    <a href="auth.html">Sign In / Register</a>
+  </div>
+
+  <!-- MAIN CONTENT (shown when authenticated) -->
+  <div id="mainContent" style="display:none;">
+
+    <!-- PROFILE CARD -->
+    <div class="profile-card">
+      <div id="syncStatusWrap" style="margin-bottom:12px;">
+        <span id="syncStatus" class="sync-status synced">● Synced with Warr.GG</span>
+      </div>
+      <div class="profile-header">
+        <div class="avatar-wrap" onclick="document.getElementById('avatarInput').click()">
+          <img id="avatarImg" class="avatar-img" src="" alt="Avatar">
+          <div class="avatar-overlay">Change Photo</div>
+          <input type="file" id="avatarInput" accept="image/*" onchange="handleAvatarUpload(event)">
+        </div>
+        <div class="profile-meta">
+          <div class="profile-name-row">
+            <span id="displayNameLabel" class="profile-displayname">Your Name</span>
+            <span id="planBadge" class="plan-badge free">Free</span>
+          </div>
+          <div id="emailLabel" class="profile-email">—</div>
+          <span id="teamChip" class="profile-team-chip none">No team selected</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-label">Edit Profile</div>
+
+      <div class="field-group">
+        <div class="field-label">Display Name</div>
+        <input type="text" id="displayNameInput" class="field-input" placeholder="Your gaming tag or full name">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Email <span style="color:var(--text4);font-size:11px;">(from your account)</span></div>
+        <input type="email" id="emailInput" class="field-input" placeholder="your@email.com" readonly style="opacity:.6;cursor:default;">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Team Affiliation</div>
+        <select id="teamSelect" class="field-select" onchange="handleTeamSelect()">
+          <option value="">— No team —</option>
+          <optgroup label="MPL Philippines">
+            <option value="Blacklist International">Blacklist International</option>
+            <option value="ECHO">ECHO</option>
+            <option value="Nexplay EVOS">Nexplay EVOS</option>
+            <option value="ONIC Philippines">ONIC Philippines</option>
+            <option value="AP Bren">AP Bren</option>
+            <option value="RSG Philippines">RSG Philippines</option>
+            <option value="Omega Esports">Omega Esports</option>
+            <option value="TeamHigh">TeamHigh</option>
+          </optgroup>
+          <optgroup label="MPL Malaysia">
+            <option value="Team HAQ">Team HAQ</option>
+            <option value="Todak">Todak</option>
+            <option value="DRX MY">DRX MY</option>
+            <option value="Geek Fam">Geek Fam</option>
+            <option value="Team SMG">Team SMG</option>
+            <option value="ONIC MY">ONIC MY</option>
+          </optgroup>
+          <optgroup label="Other">
+            <option value="__custom__">Custom team…</option>
+          </optgroup>
+        </select>
+        <input type="text" id="customTeamInput" class="field-input" placeholder="Enter your team name" style="display:none;margin-top:8px;">
+      </div>
+
+      <!-- MPL team approval notice -->
+      <div id="mplApprovalBox" class="mpl-request-box" style="display:none;">
+        <strong>MPL Team Verification Required</strong><br>
+        Selecting an official MPL team requires approval from a Warr.GG admin.<br>
+        Once you save, your request will be flagged for review. You'll be notified
+        when access is granted.<br><br>
+        You can still use all features while pending — your team tag will show as
+        <em>"Team Name (pending)"</em> until approved.
+      </div>
+      <div class="admin-note" id="adminNote" style="display:none;">
+        To fast-track approval, reach out via <strong>Discord</strong> or the Warr.GG admin panel.
+      </div>
+
+      <div style="margin-top:20px;">
+        <button class="save-btn" id="saveBtn" onclick="saveProfile()">Save Profile</button>
+      </div>
+    </div>
+
+    <!-- TOKEN & SUBSCRIPTION PANEL -->
+    <div class="tokens-panel">
+      <div class="tokens-header">
+        <span class="tokens-title">AI Analysis Tokens</span>
+        <span class="tokens-reset" id="tokenResetLabel">Resets monthly</span>
+      </div>
+      <div class="tokens-bar-wrap">
+        <div class="tokens-bar-track">
+          <div class="tokens-bar-fill" id="tokenBar" style="width:100%"></div>
+        </div>
+        <div class="tokens-count">
+          <strong id="tokensRemLabel">—</strong>
+          <span id="tokensTotalLabel"> / — tokens remaining this month</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PLAN CARDS -->
+    <div class="section-label" style="margin-bottom:14px;">Subscription Plans</div>
+    <div class="plans-grid">
+      <div class="plan-card" id="planCard-free" onclick="selectPlanPreview('free')">
+        <div class="plan-name" style="color:var(--text2);">Free</div>
+        <div class="plan-price" style="color:var(--text);">$0<span>/mo</span></div>
+        <ul class="plan-features">
+          <li>10 AI analyses / month</li>
+          <li>Local AI draft engine</li>
+          <li>Scout data (unlimited)</li>
+          <li>Draft board</li>
+        </ul>
+        <button class="plan-cta" onclick="event.stopPropagation()">Current Plan</button>
+      </div>
+
+      <div class="plan-card" id="planCard-pro" onclick="selectPlanPreview('pro')">
+        <div class="plan-popular">Popular</div>
+        <div class="plan-name" style="color:var(--purple);">Pro</div>
+        <div class="plan-price" style="color:var(--purple);">$9.99<span>/mo</span></div>
+        <ul class="plan-features">
+          <li>50 AI analyses / month</li>
+          <li>GPT-powered draft coach</li>
+          <li>Advanced scout patterns</li>
+          <li>Priority support</li>
+        </ul>
+        <button class="plan-cta" onclick="event.stopPropagation();upgradePlan('pro')">Upgrade to Pro</button>
+      </div>
+
+      <div class="plan-card" id="planCard-team" onclick="selectPlanPreview('team')">
+        <div class="plan-name" style="color:var(--gold);">Team</div>
+        <div class="plan-price" style="color:var(--gold);">$29.99<span>/mo</span></div>
+        <ul class="plan-features">
+          <li>200 AI analyses / month</li>
+          <li>Team roster management</li>
+          <li>MPL scout integration</li>
+          <li>Coaching export tools</li>
+        </ul>
+        <button class="plan-cta" onclick="event.stopPropagation();upgradePlan('team')">Upgrade to Team</button>
+      </div>
+    </div>
+
+    <!-- HERO POOL CARD -->
+    <div class="profile-card pool-section" id="heroPoolCard">
+      <div class="section-label">My Hero Pool <span id="poolCountBadge" style="color:var(--purple);margin-left:6px;font-size:11px;font-weight:700;letter-spacing:0;text-transform:none;"></span></div>
+      <p style="font-size:12px;color:var(--text3);margin:0 0 14px;">
+        Select the heroes you play. The AI will prioritize these when suggesting picks during Draft and Battle analysis.
+      </p>
+      <div class="pool-role-tabs" id="poolRoleTabs">
+        <button class="role-tab active" onclick="setPoolRole('all',this)">All</button>
+        <button class="role-tab" onclick="setPoolRole('Tank',this)">Tank</button>
+        <button class="role-tab" onclick="setPoolRole('Fighter',this)">Fighter</button>
+        <button class="role-tab" onclick="setPoolRole('Assassin',this)">Assassin</button>
+        <button class="role-tab" onclick="setPoolRole('Mage',this)">Mage</button>
+        <button class="role-tab" onclick="setPoolRole('MM',this)">MM</button>
+        <button class="role-tab" onclick="setPoolRole('Support',this)">Support</button>
+      </div>
+      <input type="text" id="poolSearchInput" class="pool-search" placeholder="Search hero…" oninput="renderPoolGrid()">
+      <div class="hero-pool-grid" id="heroPoolGrid"></div>
+      <button class="pool-save-btn" onclick="saveHeroPool()">Save Hero Pool</button>
+    </div>
+
+    <!-- ADMIN PANEL CARD (only visible for wrrenvillapando@gmail.com) -->
+    <div class="admin-access-card" id="adminAccessCard">
+      <h4>⚙ Admin Panel</h4>
+      <p>Approve team affiliations, assign subscription plans, manage users, and handle hard-delete requests.</p>
+      <a href="admin.html" class="admin-go-btn">Open Admin Panel →</a>
+    </div>
+
+    <!-- SIGN OUT + DANGER ZONE -->
+    <div class="profile-card" style="margin-top:20px;">
+      <div class="section-label">Account</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+        <button onclick="exportProfileData()" style="padding:9px 16px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:12px;cursor:pointer;">
+          Export My Data
+        </button>
+        <button onclick="confirmClearTokens()" style="padding:9px 16px;border-radius:10px;background:var(--surface3);border:1px solid var(--red-border);color:var(--red);font-size:12px;cursor:pointer;">
+          Reset Token Counter
+        </button>
+        <button onclick="signOut()" style="padding:9px 16px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text3);font-size:12px;cursor:pointer;margin-left:auto;">
+          Sign Out
+        </button>
+      </div>
+      <p style="font-size:11px;color:var(--text3);margin-top:14px;line-height:1.6;">
+        Profile data syncs with Warr.GG servers when you're signed in. Avatar photo is stored locally.
+        Scout data stays private to your account.
+      </p>
+    </div>
+
+  </div><!-- /mainContent -->
+
+</div><!-- /page-wrap -->
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="warr-lib.js"></script>
+<script>
+// ── MPL team list (must match select options) ──
+const MPL_TEAMS = [
+  'Blacklist International','ECHO','Nexplay EVOS','ONIC Philippines',
+  'AP Bren','RSG Philippines','Omega Esports','TeamHigh',
+  'Team HAQ','Todak','DRX MY','Geek Fam','Team SMG','ONIC MY'
+];
+
+// ── Cached Supabase profile ──
+let _sbProfile = null;
+
+// ── localStorage helpers (avatar + fallback) ──
+const PROFILE_KEY = 'warr_user_profile';
+function localGet() {
+  try { return JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}'); } catch(e) { return {}; }
+}
+function localSet(data) { localStorage.setItem(PROFILE_KEY, JSON.stringify(data)); }
+
+// ── Sync status indicator ──
+function setSyncStatus(state, label) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  el.className = 'sync-status ' + state;
+  el.textContent = { synced: '● ', saving: '↑ ', local: '○ ' }[state] + label;
+}
+
+// ── Toast ──
+function toast(msg, type = '') {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => { t.className = 'toast'; }, 2800);
+}
+
+// ── Avatar upload (stored locally + synced as base64) ──
+function handleAvatarUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  // Limit to 200KB
+  if (file.size > 200 * 1024) {
+    toast('Photo too large. Max 200KB.', 'error'); return;
+  }
+  const reader = new FileReader();
+  reader.onload = async function(ev) {
+    const dataUrl = ev.target.result;
+    document.getElementById('avatarImg').src = dataUrl;
+    // Save locally
+    const lp = localGet();
+    lp.avatarDataUrl = dataUrl;
+    localSet(lp);
+    // Sync to Supabase
+    if (typeof WAuth !== 'undefined' && WAuth.saveProfile) {
+      setSyncStatus('saving', 'Saving photo…');
+      try {
+        await WAuth.saveProfile({ avatar_url: dataUrl });
+        _sbProfile = WAuth.getProfile();
+        setSyncStatus('synced', 'Synced with Warr.GG');
+        toast('Photo updated ✓', 'success');
+      } catch(err) {
+        setSyncStatus('local', 'Saved locally only');
+        toast('Photo saved locally ✓', 'success');
+      }
+    } else {
+      toast('Photo updated ✓', 'success');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Team select handler ──
+function handleTeamSelect() {
+  const val = document.getElementById('teamSelect').value;
+  const customInput = document.getElementById('customTeamInput');
+  const approvalBox = document.getElementById('mplApprovalBox');
+  const adminNote   = document.getElementById('adminNote');
+
+  if (val === '__custom__') {
+    customInput.style.display = 'block';
+    approvalBox.style.display = 'none';
+    adminNote.style.display = 'none';
+  } else {
+    customInput.style.display = 'none';
+    const isMPL = MPL_TEAMS.includes(val);
+    approvalBox.style.display = isMPL && val ? 'block' : 'none';
+    adminNote.style.display   = isMPL && val ? 'block' : 'none';
+  }
+}
+
+// ── Save profile (Supabase + localStorage fallback) ──
+async function saveProfile() {
+  const name = (document.getElementById('displayNameInput').value || '').trim();
+  const teamVal = document.getElementById('teamSelect').value;
+  const teamName = teamVal === '__custom__'
+    ? (document.getElementById('customTeamInput').value || '').trim()
+    : teamVal;
+
+  if (!name) { toast('Enter a display name', 'error'); return; }
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  setSyncStatus('saving', 'Saving…');
+
+  // Determine team_status
+  const isMPL = MPL_TEAMS.includes(teamName);
+  const currentStatus = _sbProfile ? _sbProfile.team_status : (localGet().teamStatus || 'none');
+  const newStatus = teamName
+    ? (isMPL ? (currentStatus === 'approved' ? 'approved' : 'pending') : 'none')
+    : 'none';
+
+  // Save to localStorage as fallback
+  const lp = localGet();
+  lp.displayName = name;
+  lp.team = teamName;
+  lp.teamStatus = newStatus;
+  localSet(lp);
+
+  // Save to Supabase
+  if (typeof WAuth !== 'undefined' && WAuth.saveProfile) {
+    try {
+      await WAuth.saveProfile({
+        display_name: name,
+        team_name: teamName || null,
+        team_status: newStatus
+      });
+      _sbProfile = WAuth.getProfile();
+      setSyncStatus('synced', 'Synced with Warr.GG');
+      toast('Profile saved ✓', 'success');
+    } catch(err) {
+      setSyncStatus('local', 'Saved locally only');
+      toast('Saved locally (sync failed)', 'error');
+    }
+  } else {
+    setSyncStatus('local', 'Saved locally');
+    toast('Profile saved ✓', 'success');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Save Profile';
+  renderProfile();
+}
+
+// ── Render profile data into UI ──
+function renderProfile() {
+  // Merge Supabase profile with localStorage fallback
+  const lp = localGet();
+  const sp = _sbProfile || {};
+
+  const displayName = sp.display_name || lp.displayName || '';
+  const email       = sp.email || lp.email || '';
+  const teamName    = sp.team_name || lp.team || '';
+  const teamStatus  = sp.team_status || lp.teamStatus || 'none';
+  const plan        = sp.plan || (localGet().plan) ||
+    ((typeof WDB !== 'undefined' && WDB.getSubscription) ? WDB.getSubscription().plan : 'free') || 'free';
+  const avatarUrl   = sp.avatar_url || lp.avatarDataUrl || generateDefaultAvatar(displayName || '?');
+
+  // Avatar
+  document.getElementById('avatarImg').src = avatarUrl;
+
+  // Name & email
+  document.getElementById('displayNameLabel').textContent = displayName || 'Your Name';
+  document.getElementById('emailLabel').textContent = email || '—';
+  document.getElementById('displayNameInput').value = displayName;
+  document.getElementById('emailInput').value = email;
+
+  // Plan badge
+  const planBadge = document.getElementById('planBadge');
+  planBadge.textContent = { free: 'Free', pro: 'Pro', team: 'Team' }[plan] || 'Free';
+  planBadge.className = `plan-badge ${plan}`;
+
+  // Plan cards highlight
+  ['free','pro','team'].forEach(pl => {
+    const card = document.getElementById('planCard-' + pl);
+    if (!card) return;
+    card.className = 'plan-card' + (pl === plan ? (pl === 'team' ? ' active-team' : ' active') : '');
+    const cta = card.querySelector('.plan-cta');
+    if (cta) cta.textContent = pl === plan ? 'Current Plan' : (pl === 'free' ? 'Downgrade' : `Upgrade to ${pl.charAt(0).toUpperCase()+pl.slice(1)}`);
+  });
+
+  // Team chip
+  const teamChip = document.getElementById('teamChip');
+  if (teamName) {
+    if (teamStatus === 'pending') {
+      teamChip.textContent = `${teamName} (pending)`;
+      teamChip.className = 'profile-team-chip pending';
+    } else if (teamStatus === 'rejected') {
+      teamChip.textContent = `${teamName} (rejected)`;
+      teamChip.className = 'profile-team-chip pending';
+    } else {
+      teamChip.textContent = teamName;
+      teamChip.className = 'profile-team-chip';
+    }
+    // Set select value
+    const sel = document.getElementById('teamSelect');
+    const opt = Array.from(sel.options).find(o => o.value === teamName);
+    if (opt) {
+      sel.value = teamName;
+    } else {
+      sel.value = '__custom__';
+      document.getElementById('customTeamInput').style.display = 'block';
+      document.getElementById('customTeamInput').value = teamName;
+    }
+    // Show approval box if pending
+    if (teamStatus === 'pending' && MPL_TEAMS.includes(teamName)) {
+      document.getElementById('mplApprovalBox').style.display = 'block';
+      document.getElementById('adminNote').style.display = 'block';
+    }
+  } else {
+    teamChip.textContent = 'No team selected';
+    teamChip.className = 'profile-team-chip none';
+  }
+
+  // Tokens
+  const sub = (typeof WDB !== 'undefined' && WDB.getSubscription) ? WDB.getSubscription() : { plan, tokensUsed: 0 };
+  // Sync plan from Supabase into local sub if different
+  if (sp.plan && sub.plan !== sp.plan) {
+    sub.plan = sp.plan;
+    if (typeof WDB !== 'undefined' && WDB.saveSubscription) WDB.saveSubscription(sub);
+  }
+  renderTokens(sub, plan);
+}
+
+function renderTokens(sub, plan) {
+  if (typeof WDB === 'undefined' || !WDB.PLANS) return;
+  const planData = WDB.PLANS[plan] || WDB.PLANS.free;
+  const rem   = (typeof WDB.getTokensRemaining === 'function') ? WDB.getTokensRemaining() : planData.tokensPerMonth;
+  const total = planData.tokensPerMonth;
+  const pct   = Math.max(0, Math.min(100, (rem / total) * 100));
+
+  document.getElementById('tokensRemLabel').textContent = rem;
+  document.getElementById('tokensTotalLabel').textContent = ` / ${total} tokens remaining this month`;
+  document.getElementById('tokenBar').style.width = pct + '%';
+
+  if (sub && sub.resetDate) {
+    const rd = new Date(sub.resetDate);
+    document.getElementById('tokenResetLabel').textContent =
+      `Resets ${rd.toLocaleDateString('en', { month: 'short', day: 'numeric' })}`;
+  }
+}
+
+// ── Generate default avatar from initials ──
+function generateDefaultAvatar(name) {
+  const initials = (name || '?').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
+  const canvas = document.createElement('canvas');
+  canvas.width = 88; canvas.height = 88;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#1a1a2e';
+  ctx.beginPath(); ctx.arc(44, 44, 44, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#A888CC';
+  ctx.font = 'bold 30px Inter, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(initials, 44, 46);
+  return canvas.toDataURL();
+}
+
+// ── Plan preview / upgrade ──
+function selectPlanPreview(plan) {
+  ['free','pro','team'].forEach(pl => {
+    const card = document.getElementById('planCard-' + pl);
+    if (!card) return;
+    const sub = (typeof WDB !== 'undefined' && WDB.getSubscription) ? WDB.getSubscription() : { plan: 'free' };
+    const currentPlan = sub.plan || 'free';
+    card.style.transform = (pl === plan && pl !== currentPlan) ? 'translateY(-4px)' : '';
+  });
+}
+
+function upgradePlan(plan) {
+  if (typeof WDB === 'undefined' || !WDB.getSubscription) { toast('WDB not loaded', 'error'); return; }
+  const sub = WDB.getSubscription();
+  const current = sub.plan || 'free';
+  if (current === plan) { toast('Already on this plan', 'error'); return; }
+
+  const planData = WDB.PLANS[plan];
+  const msg = planData.price === 0
+    ? `Switch to ${planData.label} plan?`
+    : `Upgrade to ${planData.label} for $${planData.price}/month?`;
+
+  if (!confirm(msg + '\n\n(Contact admin or subscribe via payment link to activate.)')) return;
+
+  // For Free downgrade, allow directly; for paid plans, note admin must approve
+  if (plan === 'free') {
+    sub.plan = 'free';
+    sub.tokensUsed = 0;
+    WDB.saveSubscription(sub);
+    renderProfile();
+    toast('Switched to Free plan', 'success');
+  } else {
+    toast(`To upgrade to ${planData.label}, please contact admin or use the payment link.`, 'error');
+  }
+}
+
+// ── Export profile data ──
+function exportProfileData() {
+  const lp = localGet();
+  const sp = _sbProfile || {};
+  const sub = (typeof WDB !== 'undefined' && WDB.getSubscription) ? WDB.getSubscription() : {};
+  const data = {
+    profile: { ...lp, ...sp },
+    subscription: sub,
+    exportDate: new Date().toISOString()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'warr-profile-export.json';
+  a.click(); URL.revokeObjectURL(url);
+  toast('Data exported ✓', 'success');
+}
+
+// ── Reset token counter ──
+function confirmClearTokens() {
+  if (!confirm('Reset your token counter to 0? This cannot be undone.')) return;
+  if (typeof WDB !== 'undefined' && WDB.getSubscription && WDB.saveSubscription) {
+    const sub = WDB.getSubscription();
+    sub.tokensUsed = 0;
+    WDB.saveSubscription(sub);
+  }
+  renderProfile();
+  toast('Token counter reset ✓', 'success');
+}
+
+// ── Sign out ──
+async function signOut() {
+  if (!confirm('Sign out of Warr.GG?')) return;
+  if (typeof WAuth !== 'undefined' && WAuth.signOut) {
+    await WAuth.signOut();
+  }
+  window.location.href = 'auth.html';
+}
+
+// ══════════════════════════════════════════════
+// HERO POOL
+// ══════════════════════════════════════════════
+let _poolSelected = new Set(); // hero names currently toggled
+let _poolRole = 'all';
+
+function setPoolRole(role, btn) {
+  _poolRole = role;
+  document.querySelectorAll('.role-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  renderPoolGrid();
+}
+
+function renderPoolGrid() {
+  if (typeof WDB === 'undefined' || !WDB.HERO_ROSTER) return;
+  const q = (document.getElementById('poolSearchInput').value || '').toLowerCase();
+  const heroes = WDB.HERO_ROSTER.filter(h => {
+    const roleMatch = _poolRole === 'all' || h.r.includes(_poolRole);
+    const nameMatch = !q || h.n.toLowerCase().includes(q);
+    return roleMatch && nameMatch;
+  });
+
+  const grid = document.getElementById('heroPoolGrid');
+  grid.innerHTML = heroes.map(h => {
+    const sel = _poolSelected.has(h.n);
+    // Short role label
+    const roleLabel = h.r.split('/')[0];
+    return `<button class="pool-hero-btn${sel?' selected':''}" onclick="togglePoolHero('${h.n.replace(/'/g,"\\'")}')" title="${h.n}">
+      <span style="font-size:11px;font-weight:700;">${h.n}</span>
+      <span class="pool-hero-role">${roleLabel}</span>
+    </button>`;
+  }).join('');
+
+  // Update count
+  const countEl = document.getElementById('poolCountBadge');
+  const badge = document.getElementById('poolCountBadge');
+  if (badge) badge.textContent = `${_poolSelected.size} selected`;
+}
+
+function togglePoolHero(name) {
+  if (_poolSelected.has(name)) _poolSelected.delete(name);
+  else _poolSelected.add(name);
+  renderPoolGrid();
+}
+
+async function saveHeroPool() {
+  const arr = Array.from(_poolSelected);
+  if (typeof WDB !== 'undefined' && WDB.saveHeroPool) {
+    await WDB.saveHeroPool(arr);
+  } else {
+    localStorage.setItem('warr_hero_pool', JSON.stringify(arr));
+  }
+  toast(`Hero pool saved (${arr.length} heroes) ✓`, 'success');
+}
+
+function loadHeroPool() {
+  const pool = (typeof WDB !== 'undefined' && WDB.getHeroPool)
+    ? WDB.getHeroPool()
+    : JSON.parse(localStorage.getItem('warr_hero_pool') || '[]');
+  _poolSelected = new Set(pool);
+  renderPoolGrid();
+}
+
+// ── Update auth chip in nav ──
+function updateAuthChip(user) {
+  const chip = document.getElementById('authChip');
+  if (!chip) return;
+  if (user) {
+    chip.innerHTML = `<a href="profile.html" class="cta-secondary" style="padding:7px 18px;font-size:13px;">
+      ${user.email ? user.email.split('@')[0] : 'Profile'}
+    </a>`;
+  } else {
+    chip.innerHTML = `<a href="auth.html" class="cta-secondary" style="padding:7px 18px;font-size:13px;">Sign In</a>`;
+  }
+}
+
+// ── Init: load auth + profile ──
+async function init() {
+  const loading  = document.getElementById('loadingState');
+  const gate     = document.getElementById('signinGate');
+  const main     = document.getElementById('mainContent');
+
+  // Initialize WAuth (Supabase session)
+  let user = null;
+  if (typeof WAuth !== 'undefined' && WAuth.init) {
+    try {
+      await WAuth.init();
+      user = WAuth.getUser();
+      _sbProfile = WAuth.getProfile();
+    } catch(e) {
+      console.warn('WAuth init failed:', e);
+    }
+  }
+
+  // Show admin card on profile only (no nav link exposed)
+  if (typeof WAdmin !== 'undefined' && WAdmin.isAdmin && WAdmin.isAdmin()) {
+    const ac = document.getElementById('adminAccessCard');
+    if (ac) ac.style.display = 'block';
+  }
+
+  // Update auth chip
+  updateAuthChip(user);
+
+  // Hide loading
+  loading.style.display = 'none';
+
+  if (!user && !_sbProfile) {
+    // Check if we have local profile as fallback (not signed in)
+    const lp = localGet();
+    if (lp.displayName) {
+      main.style.display = 'block';
+      setSyncStatus('local', 'Not signed in — data saved locally');
+      renderProfile();
+      loadHeroPool();
+    } else {
+      gate.style.display = 'block';
+    }
+  } else {
+    main.style.display = 'block';
+    setSyncStatus('synced', 'Synced with Warr.GG');
+    renderProfile();
+    // Load hero pool — prefer Supabase profile's hero_pool if present
+    if (_sbProfile && Array.isArray(_sbProfile.hero_pool) && _sbProfile.hero_pool.length > 0) {
+      _poolSelected = new Set(_sbProfile.hero_pool);
+      renderPoolGrid();
+    } else {
+      loadHeroPool();
+    }
+  }
+}
+
+init();
+</script>
+</body>
+</html>

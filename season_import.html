@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Season Import — Warr.GG Admin</title>
+<link rel="stylesheet" href="warr-styles.css">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+:root { --nav-h: 52px; }
+body { background: var(--bg); min-height: 100vh; }
+.page-wrap { max-width: 960px; margin: 0 auto; padding: calc(var(--nav-h) + 40px) 20px 80px; }
+
+.admin-gate {
+  background: var(--surface);
+  border: 1px solid var(--red-border);
+  border-radius: 16px;
+  padding: 32px;
+  text-align: center;
+}
+.admin-gate h2 { font-size: 20px; color: var(--red); margin-bottom: 12px; }
+.admin-gate p  { font-size: 13px; color: var(--text2); }
+
+.card { background: var(--surface); border: 1px solid var(--glass-border2); border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+.card-title { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text3); margin-bottom: 16px; }
+
+.page-title { font-size: 26px; font-weight: 800; color: var(--text); margin-bottom: 6px; }
+.page-sub   { font-size: 13px; color: var(--text3); margin-bottom: 28px; }
+
+.step-number {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--purple-dim); border: 1px solid var(--purple-border);
+  color: var(--purple); font-size: 11px; font-weight: 800;
+  margin-right: 8px; flex-shrink: 0;
+}
+
+.format-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 16px; }
+@media(max-width:600px){ .format-grid { grid-template-columns: repeat(2,1fr); } }
+.format-card {
+  background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: 10px; padding: 12px; cursor: pointer;
+  text-align: center; transition: border-color .15s;
+}
+.format-card:hover { border-color: var(--purple); }
+.format-card.sel  { border-color: var(--purple); background: var(--accent-dim); }
+.format-card .fc-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.format-card .fc-sub  { font-size: 10px; color: var(--text3); }
+
+.field-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+.field-input {
+  width: 100%; padding: 10px 14px;
+  background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: 10px; color: var(--text); font-size: 13px;
+  font-family: inherit; outline: none; transition: border-color .15s;
+}
+.field-input:focus { border-color: var(--purple); }
+.field-select {
+  width: 100%; padding: 10px 14px;
+  background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: 10px; color: var(--text); font-size: 13px;
+  font-family: inherit; outline: none; cursor: pointer;
+}
+.form-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+@media(max-width:600px){ .form-row { grid-template-columns: 1fr 1fr; } }
+
+.drop-zone {
+  border: 2px dashed var(--border2); border-radius: 14px;
+  padding: 40px 20px; text-align: center; cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.drop-zone:hover, .drop-zone.drag { border-color: var(--purple); background: var(--accent-dim); }
+.drop-zone .dz-icon { font-size: 32px; margin-bottom: 10px; }
+.drop-zone .dz-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.drop-zone .dz-sub   { font-size: 12px; color: var(--text3); }
+
+.preview-table { width: 100%; border-collapse: collapse; font-size: 11px; overflow: auto; display: block; max-height: 300px; }
+.preview-table th { background: var(--surface3); padding: 7px 10px; text-align: left; color: var(--text2); font-weight: 600; letter-spacing: .04em; position: sticky; top: 0; border-bottom: 1px solid var(--border2); }
+.preview-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); color: var(--text2); }
+.preview-table tr:hover td { background: var(--surface2); }
+
+.progress-bar { height: 6px; border-radius: 3px; background: var(--surface3); overflow: hidden; margin: 12px 0; }
+.progress-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--purple), var(--blue)); transition: width .3s; }
+
+.btn-import {
+  width: 100%; padding: 13px; border-radius: 12px;
+  background: var(--purple); border: 1px solid var(--purple);
+  color: #fff; font-size: 13px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; cursor: pointer;
+  transition: all .15s;
+}
+.btn-import:hover:not(:disabled) { background: #b89ae0; }
+.btn-import:disabled { opacity: .4; cursor: not-allowed; }
+
+.result-box {
+  border-radius: 12px; padding: 16px 20px;
+  font-size: 13px; line-height: 1.7; margin-top: 16px;
+}
+.result-box.success { background: var(--neon-dim); border: 1px solid var(--neon-border); color: var(--neon); }
+.result-box.error   { background: var(--red-dim);  border: 1px solid var(--red-border);  color: var(--red); }
+.result-box.warn    { background: var(--gold-dim);  border: 1px solid var(--gold-border); color: var(--gold); }
+
+.tag { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 2px 8px; border-radius: 10px; background: var(--purple-dim); color: var(--purple); border: 1px solid var(--purple-border); margin-right: 4px; }
+
+.template-link { font-size: 12px; color: var(--blue); cursor: pointer; text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a class="nav-brand" href="index.html">
+    <span class="nav-brand-name">Warr.GG</span>
+    <span class="nav-brand-sub">MLBB Intel</span>
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="scout.html">Scout</a>
+    <a class="nav-link" href="draft_board.html">Draft</a>
+    <a class="nav-link" href="profile.html">Profile</a>
+  </div>
+  <button class="mobile-menu-btn" onclick="document.querySelector('.mobile-nav').classList.toggle('open')" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<div class="page-wrap" id="mainContent" style="display:none;">
+  <div class="page-title">Season Import</div>
+  <div class="page-sub">
+    Admin-only tool — bulk import historical MPL, MSC, M-Series season data to train the AI scout engine.
+    <span class="tag">Admin Only</span>
+  </div>
+
+  <!-- STEP 1: Season metadata -->
+  <div class="card">
+    <div class="card-title"><span class="step-number">1</span>Season Details</div>
+    <div class="form-row">
+      <div>
+        <div class="field-label">League</div>
+        <select class="field-select" id="imp-league">
+          <option>MPL PH</option>
+          <option>MPL MY</option>
+          <option>MPL ID</option>
+          <option>MPL SG</option>
+          <option>MSC</option>
+          <option>M-Series</option>
+        </select>
+      </div>
+      <div>
+        <div class="field-label">Season / Year</div>
+        <input type="text" id="imp-season" class="field-input" placeholder="e.g. S14, Season 14, 2024">
+      </div>
+      <div>
+        <div class="field-label">Stage</div>
+        <select class="field-select" id="imp-stage">
+          <option>Regular Season</option>
+          <option>Playoffs</option>
+          <option>Grand Finals</option>
+          <option>Group Stage</option>
+          <option>Elimination</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Input format -->
+  <div class="card">
+    <div class="card-title"><span class="step-number">2</span>Choose Input Format</div>
+    <div class="format-grid">
+      <div class="format-card sel" onclick="setFormat('warr')" id="fmt-warr">
+        <div class="fc-name">Warr.GG Excel</div>
+        <div class="fc-sub">Standard .xlsx template</div>
+      </div>
+      <div class="format-card" onclick="setFormat('csv')" id="fmt-csv">
+        <div class="fc-name">CSV</div>
+        <div class="fc-sub">Draft pick/ban columns</div>
+      </div>
+      <div class="format-card" onclick="setFormat('manual')" id="fmt-manual">
+        <div class="fc-name">Manual Entry</div>
+        <div class="fc-sub">Paste game data</div>
+      </div>
+      <div class="format-card" onclick="setFormat('json')" id="fmt-json">
+        <div class="fc-name">JSON</div>
+        <div class="fc-sub">Raw match array</div>
+      </div>
+    </div>
+    <div style="margin-top:8px;">
+      <span class="template-link" onclick="downloadTemplate()">⬇ Download blank Warr.GG Excel template</span>
+    </div>
+  </div>
+
+  <!-- STEP 3: Upload/paste -->
+  <div class="card" id="uploadCard">
+    <div class="card-title"><span class="step-number">3</span>Upload Data</div>
+
+    <!-- File drop zone (Warr Excel / CSV) -->
+    <div id="fileSection">
+      <div class="drop-zone" id="dropZone"
+        onclick="document.getElementById('fileInput').click()"
+        ondragover="event.preventDefault();this.classList.add('drag')"
+        ondragleave="this.classList.remove('drag')"
+        ondrop="handleDrop(event)">
+        <div class="dz-icon">📂</div>
+        <div class="dz-title" id="dzTitle">Drop your Excel / CSV file here</div>
+        <div class="dz-sub">or click to browse</div>
+        <input type="file" id="fileInput" style="display:none" accept=".xlsx,.xls,.csv" onchange="handleFileSelect(event)">
+      </div>
+    </div>
+
+    <!-- JSON / Manual paste area -->
+    <div id="pasteSection" style="display:none;">
+      <div class="field-label" id="pasteLabel">Paste JSON array of match objects</div>
+      <textarea id="pasteInput" class="field-input" rows="12"
+        style="resize:vertical;font-family:monospace;font-size:11px;"
+        placeholder='[{"blueTeam":"Echo","redTeam":"Blacklist","winner":"blue","bluePicks":[{"name":"Fanny","lane":"Jungle"},...],...}]'></textarea>
+    </div>
+
+    <!-- Preview table -->
+    <div id="previewSection" style="display:none;margin-top:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span style="font-size:12px;color:var(--text2);">Preview — <strong id="previewCount" style="color:var(--text);">0</strong> matches found</span>
+        <button onclick="clearPreview()" style="font-size:10px;color:var(--text3);background:transparent;border:none;cursor:pointer;">✕ Clear</button>
+      </div>
+      <div style="overflow:auto;">
+        <table class="preview-table" id="previewTable">
+          <thead><tr>
+            <th>#</th><th>Blue</th><th>Red</th><th>Winner</th><th>Picks (Blue)</th><th>Bans (Blue)</th><th>Date</th>
+          </tr></thead>
+          <tbody id="previewBody"></tbody>
+        </table>
+      </div>
+      <div class="progress-bar" id="importProgressWrap" style="display:none;">
+        <div class="progress-fill" id="importProgress" style="width:0%"></div>
+      </div>
+      <button class="btn-import" id="importBtn" onclick="runImport()">Import <span id="importBtnCount">0</span> Matches →</button>
+      <div id="importResult"></div>
+    </div>
+  </div>
+
+  <!-- EXISTING DATA INFO -->
+  <div class="card">
+    <div class="card-title">Current Scout Database</div>
+    <div id="dbStats" style="font-size:13px;color:var(--text2);"></div>
+    <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+      <button onclick="location.href='scout.html'" style="padding:9px 16px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:12px;cursor:pointer;">
+        Open Scout Page
+      </button>
+      <button onclick="confirmClearLeague()" style="padding:9px 16px;border-radius:10px;background:var(--surface3);border:1px solid var(--red-border);color:var(--red);font-size:12px;cursor:pointer;">
+        Clear League Data…
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ADMIN GATE (shown if not admin) -->
+<div class="page-wrap" id="gateContent" style="display:none;">
+  <div class="admin-gate">
+    <div style="font-size:48px;margin-bottom:16px;">🔒</div>
+    <h2>Admin Access Required</h2>
+    <p>This tool is restricted to the Warr.GG admin account.<br>
+    Sign in with <strong>wrrenvillapando@gmail.com</strong> to access season import.</p>
+    <a href="profile.html" style="display:inline-block;margin-top:20px;padding:10px 24px;background:var(--purple);border-radius:10px;color:#fff;font-size:13px;font-weight:700;text-decoration:none;">Go to Profile</a>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="warr-lib.js"></script>
+<script>
+const STORAGE_KEY = 'warr_scout_data';
+let parsedMatches = [];
+let currentFormat = 'warr';
+
+// ── Auth gate ──
+function checkAdminAccess() {
+  if (typeof WAdmin !== 'undefined' && WAdmin.isAdmin()) {
+    document.getElementById('mainContent').style.display = 'block';
+    document.getElementById('gateContent').style.display = 'none';
+    renderDBStats();
+  } else {
+    document.getElementById('mainContent').style.display = 'none';
+    document.getElementById('gateContent').style.display = 'block';
+  }
+}
+
+// ── Format toggle ──
+function setFormat(fmt) {
+  currentFormat = fmt;
+  ['warr','csv','manual','json'].forEach(f => {
+    document.getElementById('fmt-' + f).className = 'format-card' + (f === fmt ? ' sel' : '');
+  });
+  const fileSection  = document.getElementById('fileSection');
+  const pasteSection = document.getElementById('pasteSection');
+  const pasteLabel   = document.getElementById('pasteLabel');
+  const dzTitle      = document.getElementById('dzTitle');
+
+  if (fmt === 'warr' || fmt === 'csv') {
+    fileSection.style.display  = 'block';
+    pasteSection.style.display = 'none';
+    dzTitle.textContent = fmt === 'warr' ? 'Drop your Warr.GG Excel (.xlsx) file here' : 'Drop your CSV file here';
+  } else {
+    fileSection.style.display  = 'none';
+    pasteSection.style.display = 'block';
+    pasteLabel.textContent = fmt === 'json'
+      ? 'Paste a JSON array of match objects'
+      : 'Paste match data (one game per line: blueTeam,redTeam,winner,date,bp1,bp2,bp3,bp4,bp5,rp1,rp2,rp3,rp4,rp5,bb1,bb2,bb3,bb4,bb5,rb1,rb2,rb3,rb4,rb5)';
+  }
+  clearPreview();
+}
+
+// ── File handling ──
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+}
+
+function processFile(file) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      if (file.name.endsWith('.csv') || currentFormat === 'csv') {
+        parseCSV(e.target.result);
+      } else {
+        parseExcel(e.target.result);
+      }
+    } catch(err) {
+      toast('Parse error: ' + err.message);
+    }
+  };
+  if (file.name.endsWith('.csv')) reader.readAsText(file);
+  else reader.readAsArrayBuffer(e.target.result ? undefined : file);
+
+  // Re-read properly
+  reader.readAsArrayBuffer(file);
+}
+
+function parseExcel(arrayBuffer) {
+  const wb = XLSX.read(arrayBuffer, { type: 'array' });
+  const wsName = wb.SheetNames.find(n => n.includes('Scout') || n.includes('Matches')) || wb.SheetNames[0];
+  const ws = wb.Sheets[wsName];
+  if (!ws) { toast('No sheet found in Excel file'); return; }
+
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+  const hdrs = (rows[0] || []).map(h => (h || '').toString().trim().toLowerCase());
+  parsedMatches = [];
+
+  rows.slice(1).forEach((r, i) => {
+    if (!r[0]) return;
+    const mk = (n, l) => n ? { name: String(n).trim(), lane: (l || '').trim() || null } : null;
+
+    // Try to detect column positions from header
+    const col = name => {
+      const idx = hdrs.indexOf(name);
+      return idx >= 0 ? r[idx] : undefined;
+    };
+
+    // Support both standard Warr export format and custom
+    const hasHeader = hdrs.includes('blueteam') || hdrs.includes('blue_team');
+    let match;
+
+    if (hasHeader) {
+      // Header-driven parsing
+      const bp = ['bp1','bp2','bp3','bp4','bp5'].map(k => mk(col(k + 'name') || col(k), col(k + 'lane')));
+      const rp = ['rp1','rp2','rp3','rp4','rp5'].map(k => mk(col(k + 'name') || col(k), col(k + 'lane')));
+      match = {
+        blueTeam: col('blueteam') || col('blue_team') || '',
+        redTeam:  col('redteam')  || col('red_team')  || '',
+        winner:   (col('winner') || '').toLowerCase(),
+        date:     col('date') || '',
+        bluePicks: bp.filter(Boolean),
+        redPicks:  rp.filter(Boolean),
+        blueBans:  ['bb1','bb2','bb3','bb4','bb5'].map(k => col(k)).filter(Boolean),
+        redBans:   ['rb1','rb2','rb3','rb4','rb5'].map(k => col(k)).filter(Boolean),
+        gameNum:   Number(col('gamenum') || col('game_num') || 1),
+        stage:     col('stage') || '',
+        week:      col('week') || '',
+        vodLink:   col('vod') || col('vodlink') || '',
+      };
+    } else {
+      // Positional: blueTeam, redTeam, winner, date, bp1..bp5, rp1..rp5, bb1..5, rb1..5
+      const [bt, rt, win, dt, b1,b2,b3,b4,b5, r1,r2,r3,r4,r5, bb1,bb2,bb3,bb4,bb5, rb1,rb2,rb3,rb4,rb5] = r;
+      match = {
+        blueTeam: bt || '', redTeam: rt || '', winner: (win || '').toLowerCase(), date: dt || '',
+        bluePicks: [b1,b2,b3,b4,b5].filter(Boolean).map(n => mk(n, '')),
+        redPicks:  [r1,r2,r3,r4,r5].filter(Boolean).map(n => mk(n, '')),
+        blueBans:  [bb1,bb2,bb3,bb4,bb5].filter(Boolean),
+        redBans:   [rb1,rb2,rb3,rb4,rb5].filter(Boolean),
+      };
+    }
+
+    if (!match.blueTeam || !match.redTeam) return;
+    match.id = match.id || `import_${Date.now()}_${i}`;
+    parsedMatches.push(match);
+  });
+
+  showPreview(parsedMatches);
+}
+
+function parseCSV(text) {
+  const lines = text.split('\n').filter(l => l.trim());
+  if (!lines.length) { toast('Empty CSV'); return; }
+  parsedMatches = [];
+
+  // Try comma or tab separation
+  const sep = lines[0].includes('\t') ? '\t' : ',';
+  const hdrs = lines[0].split(sep).map(h => h.trim().toLowerCase().replace(/['"]/g,''));
+  const dataLines = hdrs.includes('blueteam') || hdrs.includes('blue_team') ? lines.slice(1) : lines;
+
+  dataLines.forEach((line, i) => {
+    const cols = line.split(sep).map(c => c.trim().replace(/^["']|["']$/g,''));
+    if (cols.length < 3) return;
+
+    const get = name => {
+      const idx = hdrs.indexOf(name);
+      return idx >= 0 ? cols[idx] : undefined;
+    };
+
+    const bt = get('blueteam') || get('blue') || cols[0];
+    const rt = get('redteam')  || get('red')  || cols[1];
+    const win = (get('winner') || cols[2] || '').toLowerCase();
+    if (!bt || !rt) return;
+
+    parsedMatches.push({
+      id: `csv_${Date.now()}_${i}`,
+      blueTeam: bt, redTeam: rt, winner: win,
+      date: get('date') || cols[3] || '',
+      bluePicks: ['bp1','bp2','bp3','bp4','bp5'].map(k => get(k)||cols[['bp1','bp2','bp3','bp4','bp5'].indexOf(k)+4]).filter(Boolean).map(n=>({name:n,lane:null})),
+      redPicks:  ['rp1','rp2','rp3','rp4','rp5'].map(k => get(k)||cols[['rp1','rp2','rp3','rp4','rp5'].indexOf(k)+9]).filter(Boolean).map(n=>({name:n,lane:null})),
+      blueBans:  ['bb1','bb2','bb3','bb4','bb5'].map(k => get(k)).filter(Boolean),
+      redBans:   ['rb1','rb2','rb3','rb4','rb5'].map(k => get(k)).filter(Boolean),
+    });
+  });
+
+  showPreview(parsedMatches);
+}
+
+function parsePasteInput() {
+  const text = document.getElementById('pasteInput').value.trim();
+  if (!text) { toast('Paste some data first'); return; }
+
+  try {
+    if (currentFormat === 'json') {
+      parsedMatches = JSON.parse(text);
+      if (!Array.isArray(parsedMatches)) { toast('Must be a JSON array'); return; }
+      parsedMatches = parsedMatches.map((m, i) => ({ id: m.id || `json_${Date.now()}_${i}`, ...m }));
+    } else {
+      // Manual CSV lines
+      parsedMatches = [];
+      text.split('\n').forEach((line, i) => {
+        const cols = line.split(',').map(c => c.trim());
+        if (cols.length < 3) return;
+        const [bt, rt, win, dt, b1,b2,b3,b4,b5, r1,r2,r3,r4,r5, bb1,bb2,bb3,bb4,bb5, rb1,rb2,rb3,rb4,rb5] = cols;
+        if (!bt || !rt) return;
+        parsedMatches.push({
+          id: `manual_${Date.now()}_${i}`,
+          blueTeam:bt, redTeam:rt, winner:(win||'').toLowerCase(), date:dt||'',
+          bluePicks:[b1,b2,b3,b4,b5].filter(Boolean).map(n=>({name:n,lane:null})),
+          redPicks: [r1,r2,r3,r4,r5].filter(Boolean).map(n=>({name:n,lane:null})),
+          blueBans: [bb1,bb2,bb3,bb4,bb5].filter(Boolean),
+          redBans:  [rb1,rb2,rb3,rb4,rb5].filter(Boolean),
+        });
+      });
+    }
+    showPreview(parsedMatches);
+  } catch(e) {
+    toast('Parse error: ' + e.message);
+  }
+}
+
+// ── Preview ──
+function showPreview(matches) {
+  document.getElementById('previewSection').style.display = 'block';
+  document.getElementById('previewCount').textContent = matches.length;
+  document.getElementById('importBtn').disabled = matches.length === 0;
+  document.getElementById('importBtnCount').textContent = matches.length;
+
+  const tbody = document.getElementById('previewBody');
+  tbody.innerHTML = matches.slice(0, 50).map((m, i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td>${m.blueTeam}</td>
+      <td>${m.redTeam}</td>
+      <td style="color:${m.winner==='blue'?'var(--blue)':'var(--red)'}">${m.winner}</td>
+      <td>${(m.bluePicks||[]).map(p=>p.name).join(', ')}</td>
+      <td style="color:var(--text3);">${(m.blueBans||[]).join(', ')}</td>
+      <td>${m.date||'—'}</td>
+    </tr>
+  `).join('') + (matches.length > 50 ? `<tr><td colspan="7" style="color:var(--text3);text-align:center;font-style:italic;">…and ${matches.length-50} more</td></tr>` : '');
+}
+
+function clearPreview() {
+  parsedMatches = [];
+  document.getElementById('previewSection').style.display = 'none';
+  document.getElementById('previewBody').innerHTML = '';
+  document.getElementById('importResult').innerHTML = '';
+  const fi = document.getElementById('fileInput');
+  if (fi) fi.value = '';
+}
+
+// ── Run Import ──
+function runImport() {
+  if (!parsedMatches.length) { toast('No matches to import'); return; }
+  if (!WAdmin.isAdmin()) { toast('Admin access required', 'error'); return; }
+
+  const league  = document.getElementById('imp-league').value;
+  const season  = document.getElementById('imp-season').value.trim();
+  const stage   = document.getElementById('imp-stage').value;
+
+  // Load existing
+  let db;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    db = raw ? JSON.parse(raw) : { matches: [], teams: {} };
+    if (!db.matches) db.matches = [];
+  } catch(e) { db = { matches: [], teams: {} }; }
+
+  const existingIds = new Set(db.matches.map(m => m.id));
+  let added = 0, skipped = 0, updated = 0;
+  const progress = document.getElementById('importProgress');
+  document.getElementById('importProgressWrap').style.display = 'block';
+
+  parsedMatches.forEach((m, i) => {
+    progress.style.width = ((i / parsedMatches.length) * 100) + '%';
+
+    // Enrich with season metadata
+    const enriched = {
+      ...m,
+      league:      m.league      || league,
+      season:      m.season      || season,
+      stage:       m.stage       || stage,
+      seriesFormat: m.seriesFormat || 'BO3',
+      savedAt:     Date.now(),
+      source:      'import',
+      // Auto-generate seriesId if missing
+      seriesId:    m.seriesId || ('sid_imp_' + Math.random().toString(36).slice(2,8)),
+    };
+
+    if (existingIds.has(enriched.id)) {
+      skipped++;
+    } else {
+      db.matches.push(enriched);
+      existingIds.add(enriched.id);
+      added++;
+    }
+  });
+
+  progress.style.width = '100%';
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+
+  const resultEl = document.getElementById('importResult');
+  resultEl.innerHTML = `<div class="result-box success">
+    ✅ Import complete — <strong>${added}</strong> matches added, <strong>${skipped}</strong> skipped (duplicates).<br>
+    Total in database: <strong>${db.matches.length}</strong> matches.
+  </div>`;
+
+  renderDBStats();
+  toast(`✓ ${added} matches imported`);
+  parsedMatches = [];
+  document.getElementById('importProgressWrap').style.display = 'none';
+}
+
+// ── DB Stats ──
+function renderDBStats() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) { document.getElementById('dbStats').textContent = 'No matches in database yet.'; return; }
+    const db = JSON.parse(raw);
+    const matches = db.matches || [];
+    // Count by league
+    const byLeague = {};
+    matches.forEach(m => { const l = m.league || 'Unknown'; byLeague[l] = (byLeague[l] || 0) + 1; });
+    const rows = Object.entries(byLeague).sort((a,b)=>b[1]-a[1]).map(([l,n])=>
+      `<span style="margin-right:16px;"><strong style="color:var(--text);">${n}</strong> <span style="color:var(--text3);">${l}</span></span>`
+    ).join('');
+    document.getElementById('dbStats').innerHTML =
+      `<div style="margin-bottom:8px;"><strong style="color:var(--text);font-size:18px;">${matches.length}</strong> <span style="color:var(--text3);">total matches</span></div>
+       <div style="font-size:12px;">${rows}</div>`;
+  } catch(e) {
+    document.getElementById('dbStats').textContent = 'Error reading database.';
+  }
+}
+
+// ── Clear league data ──
+function confirmClearLeague() {
+  const league = document.getElementById('imp-league').value;
+  if (!confirm(`Delete ALL ${league} matches from local database? This cannot be undone.`)) return;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const db = raw ? JSON.parse(raw) : { matches: [] };
+    const before = db.matches.length;
+    db.matches = db.matches.filter(m => m.league !== league);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    const removed = before - db.matches.length;
+    renderDBStats();
+    toast(`✓ Removed ${removed} ${league} matches`);
+  } catch(e) { toast('Error: ' + e.message); }
+}
+
+// ── Download blank template ──
+function downloadTemplate() {
+  const headers = [
+    'ID','SeriesID','League','Season','Stage','Week','Format','GameNum',
+    'BlueTeam','RedTeam','Winner','Date','VOD','Notes',
+    'BB1','BB2','BB3','BB4','BB5','RB1','RB2','RB3','RB4','RB5',
+    'BP1Name','BP1Lane','BP2Name','BP2Lane','BP3Name','BP3Lane','BP4Name','BP4Lane','BP5Name','BP5Lane',
+    'RP1Name','RP1Lane','RP2Name','RP2Lane','RP3Name','RP3Lane','RP4Name','RP4Lane','RP5Name','RP5Lane'
+  ];
+  const example = [
+    'match_001','sid_001','MPL PH','S15','Regular Season','Week 1','BO3',1,
+    'ECHO','Blacklist International','blue','2025-01-10','','',
+    'Fanny','Grock','Marcel','','','Sora','Yve','Khaleed','','',
+    'Fredrinn','Roam','Chou','Jungle','Joy','Mid','Natan','Gold','Uranus','EXP',
+    'Freya','EXP','Atlas','Roam','Lancelot','Jungle','Melissa','Gold','Valentina','Mid'
+  ];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+  XLSX.utils.book_append_sheet(wb, ws, 'Scout_Matches');
+  XLSX.writeFile(wb, 'warr_season_template.xlsx');
+}
+
+// ── Paste trigger for manual/json ──
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('pasteInput').addEventListener('input', function() {
+    if (this.value.length > 20) parsePasteInput();
+  });
+});
+
+// ── Toast ──
+function toast(msg, type) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.className = 'toast', 2800);
+}
+
+// ── Init ──
+checkAdminAccess();
+</script>
+</body>
+</html>

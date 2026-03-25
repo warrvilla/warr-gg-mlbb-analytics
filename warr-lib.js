@@ -47,15 +47,91 @@ const WAuth = {
     return { data, error };
   },
 
-  /** Save or update a user's profile (display_name required, team_name optional).
-   *  Called after invite acceptance. */
-  async saveProfile(displayName, teamName = null) {
+  /** Full profile save — syncs all fields to Supabase profiles table */
+  async saveProfile(fields = {}) {
     const user = this._user || (await _sbClient.auth.getUser()).data.user;
     if (!user) return { error: { message: 'Not authenticated' } };
-    const payload = { id: user.id, display_name: displayName.trim() };
-    if (teamName) payload.team_name = teamName.trim();
+
+    // Support old signature: saveProfile(displayName, teamName)
+    if (typeof fields === 'string') {
+      const displayName = fields;
+      const teamName = arguments[1];
+      fields = { display_name: displayName };
+      if (teamName) fields.team_name = teamName;
+    }
+
+    const payload = {
+      id:    user.id,
+      email: user.email,
+      ...fields,
+    };
+
+    // If setting a team, determine team_status
+    if (fields.team_name !== undefined) {
+      const MPL_TEAMS = ['Blacklist International','ECHO','Nexplay EVOS','ONIC Philippines',
+        'AP Bren','RSG Philippines','Omega Esports','TeamHigh',
+        'Team HAQ','Todak','DRX MY','Geek Fam','Team SMG','ONIC MY'];
+      const isMPL = MPL_TEAMS.includes(fields.team_name);
+      // Only set pending if it's currently none/rejected; keep approved if already approved
+      if (isMPL && fields.team_name) {
+        const currentStatus = this._profile?.team_status || 'none';
+        if (currentStatus !== 'approved') payload.team_status = 'pending';
+      } else if (!fields.team_name) {
+        payload.team_status = 'none';
+      } else {
+        payload.team_status = 'none'; // custom non-MPL team, no approval needed
+      }
+    }
+
     const { error } = await _sbClient.from('profiles').upsert(payload, { onConflict: 'id' });
     if (!error) this._profile = { ...this._profile, ...payload };
+    return { error };
+  },
+
+  /** Admin-only: update any user's profile fields */
+  async adminUpdateProfile(userId, fields = {}) {
+    if (!WAdmin.isAdmin()) return { error: { message: 'Admin only' } };
+    const { data, error } = await _sbClient
+      .from('profiles')
+      .update(fields)
+      .eq('id', userId)
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  /** Admin-only: get all profiles (paginated) */
+  async adminGetAllProfiles(page = 0, pageSize = 50) {
+    if (!WAdmin.isAdmin()) return { data: [], error: { message: 'Admin only' } };
+    const from = page * pageSize;
+    const { data, error, count } = await _sbClient
+      .from('profiles')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, from + pageSize - 1);
+    return { data: data || [], error, count };
+  },
+
+  /** Admin-only: get pending team requests */
+  async adminGetPendingRequests() {
+    if (!WAdmin.isAdmin()) return { data: [] };
+    const { data, error } = await _sbClient
+      .from('profiles')
+      .select('*')
+      .eq('team_status', 'pending')
+      .order('updated_at', { ascending: true });
+    return { data: data || [], error };
+  },
+
+  /** Admin-only: soft-ban a user (sets is_banned=true, they can't use the app) */
+  async adminBanUser(userId, ban = true) {
+    return this.adminUpdateProfile(userId, { is_banned: ban });
+  },
+
+  /** Admin-only: hard-delete a user's PROFILE row (auth user stays until SQL deletion) */
+  async adminDeleteProfile(userId) {
+    if (!WAdmin.isAdmin()) return { error: { message: 'Admin only' } };
+    const { error } = await _sbClient.from('profiles').delete().eq('id', userId);
     return { error };
   },
 
@@ -144,6 +220,48 @@ const WAuth = {
 //   CREATE POLICY "Own drafts only" ON public.draft_saves FOR ALL USING (auth.uid()=user_id) WITH CHECK (auth.uid()=user_id);
 //
 // ─────────────────────────────────────────────────────────────────
+
+// ═══════════════════════════════════════════════════════════════
+// ── ADMIN SYSTEM ──
+// Only the designated admin email can add/delete official competition data.
+// Leagues marked as ADMIN_LOCKED require admin auth for write operations.
+// ═══════════════════════════════════════════════════════════════
+window.WAdmin = {
+  ADMIN_EMAIL: 'wrrenvillapando@gmail.com',
+
+  // Leagues that require admin auth to write/delete
+  LOCKED_LEAGUES: ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series'],
+
+  // Check if the currently signed-in user is the admin
+  isAdmin() {
+    const user = (typeof WAuth !== 'undefined' && WAuth.getUser) ? WAuth.getUser() : null;
+    if (user && user.email === WAdmin.ADMIN_EMAIL) return true;
+    // Also check localStorage profile (for offline use)
+    try {
+      const profile = JSON.parse(localStorage.getItem('warr_user_profile') || '{}');
+      return profile.email === WAdmin.ADMIN_EMAIL;
+    } catch(e) { return false; }
+  },
+
+  // Returns true if this match is from a locked league
+  isLockedMatch(match) {
+    const league = (match && (match.league || (match.data && match.data.league))) || '';
+    return WAdmin.LOCKED_LEAGUES.includes(league);
+  },
+
+  // Guard: returns true if the operation is allowed, false + shows error if not
+  canWrite(league) {
+    if (!WAdmin.LOCKED_LEAGUES.includes(league)) return true; // non-official league, anyone can write
+    if (WAdmin.isAdmin()) return true;
+    return false;
+  },
+
+  canDelete(match) {
+    if (!WAdmin.isLockedMatch(match)) return true;
+    if (WAdmin.isAdmin()) return true;
+    return false;
+  },
+};
 
 const WDB = {
 
@@ -289,6 +407,410 @@ const WMigrate = {
     console.log(`✅ Migration complete: ${ok} matches uploaded, ${fail} failed`);
   }
 };
+
+// ═══════════════════════════════════════════════════════════════
+// TOAST UTILITY (shared)
+// ═══════════════════════════════════════════════════════════════
+// ── DYNAMIC TIER SYSTEM (from scout data) ──
+// Computes S/A/B/C tiers based on actual pick/ban rates observed in scout data
+// Call this on page load to override hardcoded tiers
+window.WDB = window.WDB || {};
+WDB.computeDynamicTiers = function(minGames = 3) {
+  try {
+    const raw = localStorage.getItem('warr_scout_data');
+    if (!raw) return null;
+    const db = JSON.parse(raw);
+    if (!db.matches || db.matches.length < minGames) return null;
+
+    const totalGames = db.matches.length;
+    const heroStats = {};
+
+    db.matches.forEach(m => {
+      const allPicks = [...(m.bluePicks || []), ...(m.redPicks || [])];
+      const allBans = [...(m.blueBans || []), ...(m.redBans || [])];
+      const winner = m.winner; // 'blue' or 'red'
+
+      // Count picks
+      allPicks.forEach(p => {
+        const name = typeof p === 'string' ? p : p?.name;
+        if (!name) return;
+        if (!heroStats[name]) heroStats[name] = { picks: 0, bans: 0, wins: 0, games: 0 };
+        heroStats[name].picks++;
+        heroStats[name].games++;
+
+        // Track wins: check which side this pick was on
+        const isBlue = (m.bluePicks || []).some(bp => (typeof bp === 'string' ? bp : bp?.name) === name);
+        if ((isBlue && winner === 'blue') || (!isBlue && winner === 'red')) {
+          heroStats[name].wins++;
+        }
+      });
+
+      // Count bans
+      allBans.forEach(b => {
+        const name = typeof b === 'string' ? b : b?.name;
+        if (!name) return;
+        if (!heroStats[name]) heroStats[name] = { picks: 0, bans: 0, wins: 0, games: 0 };
+        heroStats[name].bans++;
+      });
+    });
+
+    // Compute rates and assign tiers
+    const result = {};
+    Object.entries(heroStats).forEach(([name, stats]) => {
+      const presence = ((stats.picks + stats.bans) / totalGames) * 100;
+      const winRate = stats.picks > 0 ? (stats.wins / stats.picks) * 100 : 0;
+
+      // Tier assignment based on presence + win rate
+      // S-tier: >60% presence OR (>35% presence AND >55% WR)
+      // A-tier: >30% presence OR (>15% presence AND >52% WR)
+      // B-tier: >10% presence
+      // C-tier: everything else that appeared
+      let tier = 'C';
+      if (presence >= 60 || (presence >= 35 && winRate >= 55)) tier = 'S';
+      else if (presence >= 30 || (presence >= 15 && winRate >= 52)) tier = 'A';
+      else if (presence >= 10) tier = 'B';
+
+      // Meta priority based on presence
+      let mp = 'off';
+      if (presence >= 80) mp = 'mustban';
+      else if (presence >= 50) mp = 'highpick';
+      else if (presence >= 15) mp = 'situational';
+
+      result[name] = {
+        tier, mp, presence: Math.round(presence * 10) / 10,
+        winRate: Math.round(winRate * 10) / 10,
+        picks: stats.picks, bans: stats.bans, games: stats.games
+      };
+    });
+
+    return result;
+  } catch (e) {
+    console.warn('computeDynamicTiers error:', e);
+    return null;
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// ── SCOUT-DERIVED COUNTER SYSTEM ──
+// Builds a counter map purely from match data win/loss patterns.
+// Returns { heroName: [{name, wr, count}] } — heroes that beat heroName
+// ═══════════════════════════════════════════════════════════════
+WDB.computeScoutCounters = function(minWR, minMatches) {
+  minWR = minWR === undefined ? 0.60 : minWR;
+  minMatches = minMatches === undefined ? 2 : minMatches;
+  try {
+    const raw = localStorage.getItem('warr_scout_data');
+    if (!raw) return {};
+    const db = JSON.parse(raw);
+    if (!db.matches || !db.matches.length) return {};
+
+    const vsRecord = {};
+    db.matches.forEach(function(mx) {
+      const winner = mx.winner;
+      if (!winner) return;
+      const bluePicks = (mx.bluePicks || []).map(function(p){ return p.name || p; }).filter(Boolean);
+      const redPicks  = (mx.redPicks  || []).map(function(p){ return p.name || p; }).filter(Boolean);
+      const winPicks  = winner === 'blue' ? bluePicks : redPicks;
+      const losePicks = winner === 'blue' ? redPicks  : bluePicks;
+      winPicks.forEach(function(wHero) {
+        if (!vsRecord[wHero]) vsRecord[wHero] = {};
+        losePicks.forEach(function(lHero) {
+          if (!vsRecord[wHero][lHero]) vsRecord[wHero][lHero] = { wins: 0, count: 0 };
+          vsRecord[wHero][lHero].wins++;
+          vsRecord[wHero][lHero].count++;
+        });
+      });
+      losePicks.forEach(function(lHero) {
+        if (!vsRecord[lHero]) vsRecord[lHero] = {};
+        winPicks.forEach(function(wHero) {
+          if (!vsRecord[lHero][wHero]) vsRecord[lHero][wHero] = { wins: 0, count: 0 };
+          vsRecord[lHero][wHero].count++;
+        });
+      });
+    });
+
+    const result = {};
+    Object.keys(vsRecord).forEach(function(hero) {
+      Object.keys(vsRecord[hero]).forEach(function(opp) {
+        const stats = vsRecord[hero][opp];
+        if (stats.count < minMatches) return;
+        const wr = stats.wins / stats.count;
+        if (wr >= minWR) {
+          if (!result[opp]) result[opp] = [];
+          result[opp].push({ name: hero, wr: Math.round(wr * 100) / 100, count: stats.count });
+        }
+      });
+    });
+    Object.keys(result).forEach(function(hero) {
+      result[hero].sort(function(a, b) { return b.wr - a.wr; });
+    });
+    return result;
+  } catch (e) {
+    console.warn('computeScoutCounters error:', e);
+    return {};
+  }
+};
+
+WDB._counterCache = null;
+WDB._counterCacheKey = null;
+WDB.getCounterMap = function() {
+  const cacheKey = (localStorage.getItem('warr_scout_data') || '').length;
+  if (WDB._counterCache && WDB._counterCacheKey === cacheKey) return WDB._counterCache;
+  WDB._counterCache = WDB.computeScoutCounters();
+  WDB._counterCacheKey = cacheKey;
+  return WDB._counterCache;
+};
+
+// ═══════════════════════════════════════════════════════════════
+// ── SUBSCRIPTION / TOKEN SYSTEM ──
+// 3-tier: free (10 tokens/mo) / pro (50/mo) / team (200/mo)
+// ═══════════════════════════════════════════════════════════════
+WDB.PLANS = {
+  free:  { label: 'Free',  tokensPerMonth: 10,  price: 0     },
+  pro:   { label: 'Pro',   tokensPerMonth: 50,  price: 9.99  },
+  team:  { label: 'Team',  tokensPerMonth: 200, price: 29.99 },
+};
+
+WDB.getSubscription = function() {
+  try {
+    const raw = localStorage.getItem('warr_subscription');
+    if (!raw) return { plan: 'free', tokensUsed: 0, resetDate: null };
+    const sub = JSON.parse(raw);
+    if (sub.resetDate) {
+      const now = new Date();
+      if (now >= new Date(sub.resetDate)) {
+        sub.tokensUsed = 0;
+        sub.resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+        localStorage.setItem('warr_subscription', JSON.stringify(sub));
+      }
+    }
+    return sub;
+  } catch (e) { return { plan: 'free', tokensUsed: 0, resetDate: null }; }
+};
+
+WDB.saveSubscription = function(sub) {
+  if (!sub.resetDate) {
+    const now = new Date();
+    sub.resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+  }
+  localStorage.setItem('warr_subscription', JSON.stringify(sub));
+};
+
+WDB.getTokensRemaining = function() {
+  const sub = WDB.getSubscription();
+  const plan = WDB.PLANS[sub.plan] || WDB.PLANS.free;
+  return Math.max(0, plan.tokensPerMonth - (sub.tokensUsed || 0));
+};
+
+WDB.consumeToken = function() {
+  const sub = WDB.getSubscription();
+  const plan = WDB.PLANS[sub.plan] || WDB.PLANS.free;
+  if ((sub.tokensUsed || 0) >= plan.tokensPerMonth) return false;
+  sub.tokensUsed = (sub.tokensUsed || 0) + 1;
+  WDB.saveSubscription(sub);
+  return true;
+};
+
+WDB.canAnalyze = function() {
+  return WDB.getTokensRemaining() > 0;
+};
+
+// ═══════════════════════════════════════════════════════════════
+// HERO ROSTER (compact — used by profile picker & pool helpers)
+// ═══════════════════════════════════════════════════════════════
+WDB.HERO_ROSTER = [
+  {n:'Tigreal',r:'Tank'},
+  {n:'Akai',r:'Tank'},
+  {n:'Franco',r:'Tank'},
+  {n:'Minotaur',r:'Tank'},
+  {n:'Lolita',r:'Tank'},
+  {n:'Johnson',r:'Tank'},
+  {n:'Atlas',r:'Tank'},
+  {n:'Khufra',r:'Tank'},
+  {n:'Esmeralda',r:'Tank/Mage'},
+  {n:'Uranus',r:'Tank'},
+  {n:'Hylos',r:'Tank'},
+  {n:'Belerick',r:'Tank'},
+  {n:'Grock',r:'Tank'},
+  {n:'Carmilla',r:'Tank'},
+  {n:'Baxia',r:'Tank'},
+  {n:'Gloo',r:'Tank'},
+  {n:'Chip',r:'Tank'},
+  {n:'Fredrinn',r:'Tank/Fighter'},
+  {n:'Kalea',r:'Tank'},
+  {n:'Edith',r:'Tank/MM'},
+  {n:'Marcel',r:'Tank'},
+  {n:'Barats',r:'Fighter/Tank'},
+  {n:'Balmond',r:'Fighter'},
+  {n:'Zilong',r:'Fighter'},
+  {n:'Alucard',r:'Fighter'},
+  {n:'Alpha',r:'Fighter'},
+  {n:'Sun',r:'Fighter'},
+  {n:'Argus',r:'Fighter'},
+  {n:'Hilda',r:'Fighter'},
+  {n:'Ruby',r:'Fighter'},
+  {n:'X.Borg',r:'Fighter'},
+  {n:'Aldous',r:'Fighter'},
+  {n:'Chou',r:'Fighter'},
+  {n:'Badang',r:'Fighter'},
+  {n:'Guinevere',r:'Fighter'},
+  {n:'Terizla',r:'Fighter'},
+  {n:'Thamuz',r:'Fighter'},
+  {n:'Masha',r:'Fighter'},
+  {n:'Khaleed',r:'Fighter'},
+  {n:'Paquito',r:'Fighter'},
+  {n:'Yu Zhong',r:'Fighter'},
+  {n:'Dyrroth',r:'Fighter'},
+  {n:'Jawhead',r:'Fighter'},
+  {n:'Martis',r:'Fighter'},
+  {n:'Silvanna',r:'Fighter'},
+  {n:'Yin',r:'Fighter'},
+  {n:'Minsitthar',r:'Fighter'},
+  {n:'Aulus',r:'Fighter'},
+  {n:'Freya',r:'Fighter'},
+  {n:'Lapu-Lapu',r:'Fighter'},
+  {n:'Leomord',r:'Fighter'},
+  {n:'Phoveus',r:'Fighter'},
+  {n:'Arlott',r:'Fighter'},
+  {n:'Cici',r:'Fighter'},
+  {n:'Sora',r:'Fighter/Assassin'},
+  {n:'Bane',r:'Fighter'},
+  {n:'Lukas',r:'Fighter'},
+  {n:'Gatotkaca',r:'Tank/Fighter'},
+  {n:'Roger',r:'Fighter/MM'},
+  {n:'Saber',r:'Assassin'},
+  {n:'Karina',r:'Assassin'},
+  {n:'Fanny',r:'Assassin'},
+  {n:'Hayabusa',r:'Assassin'},
+  {n:'Natalia',r:'Assassin'},
+  {n:'Helcurt',r:'Assassin'},
+  {n:'Lancelot',r:'Assassin'},
+  {n:'Gusion',r:'Assassin'},
+  {n:'Ling',r:'Assassin'},
+  {n:'Selena',r:'Assassin/Mage'},
+  {n:'Benedetta',r:'Assassin'},
+  {n:'Aamon',r:'Assassin'},
+  {n:'Nolan',r:'Assassin'},
+  {n:'Yi Sun-shin',r:'Assassin/MM'},
+  {n:'Suyou',r:'Assassin'},
+  {n:'Joy',r:'Assassin'},
+  {n:'Julian',r:'Fighter/Assassin'},
+  {n:'Hanzo',r:'Assassin'},
+  {n:'Nana',r:'Mage/Support'},
+  {n:'Eudora',r:'Mage'},
+  {n:'Aurora',r:'Mage'},
+  {n:'Gord',r:'Mage'},
+  {n:'Cyclops',r:'Mage'},
+  {n:'Alice',r:'Mage/Tank'},
+  {n:'Harley',r:'Mage/Assassin'},
+  {n:'Odette',r:'Mage'},
+  {n:'Vexana',r:'Mage'},
+  {n:'Lunox',r:'Mage'},
+  {n:'Kagura',r:'Mage'},
+  {n:'Lylia',r:'Mage'},
+  {n:'Cecilion',r:'Mage'},
+  {n:'Yve',r:'Mage'},
+  {n:'Valentina',r:'Mage'},
+  {n:'Xavier',r:'Mage'},
+  {n:'Pharsa',r:'Mage'},
+  {n:'Novaria',r:'Mage'},
+  {n:'Luo Yi',r:'Mage'},
+  {n:'Zhuxin',r:'Mage'},
+  {n:'Faramis',r:'Mage/Support'},
+  {n:'Kadita',r:'Mage/Assassin'},
+  {n:'Kimmy',r:'Mage/MM'},
+  {n:'Zhask',r:'Mage'},
+  {n:'Vale',r:'Mage'},
+  {n:'Valir',r:'Mage'},
+  {n:'Harith',r:'Mage'},
+  {n:'Zetian',r:'Mage'},
+  {n:'Miya',r:'MM'},
+  {n:'Layla',r:'MM'},
+  {n:'Moskov',r:'MM'},
+  {n:'Clint',r:'MM'},
+  {n:'Bruno',r:'MM'},
+  {n:'Irithel',r:'MM'},
+  {n:'Lesley',r:'MM/Assassin'},
+  {n:'Hanabi',r:'MM'},
+  {n:'Claude',r:'MM'},
+  {n:'Granger',r:'MM'},
+  {n:'Brody',r:'MM'},
+  {n:'Karrie',r:'MM'},
+  {n:'Beatrix',r:'MM'},
+  {n:'Melissa',r:'MM'},
+  {n:'Natan',r:'MM'},
+  {n:'Wanwan',r:'MM'},
+  {n:'Ixia',r:'MM'},
+  {n:'Obsidia',r:'MM'},
+  {n:'Estes',r:'Support'},
+  {n:'Angela',r:'Support'},
+  {n:'Rafaela',r:'Support'},
+  {n:'Diggie',r:'Support'},
+  {n:'Floryn',r:'Support'},
+  {n:'Mathilda',r:'Support'},
+  {n:'Kaja',r:'Support/Fighter'},
+  {n:'Popol & Kupa',r:'Support/MM'}
+];
+
+// ── Hero Pool helpers ──
+/** Get saved hero pool (array of hero names) */
+WDB.getHeroPool = function() {
+  try {
+    // Prefer Supabase profile if available
+    const sbPool = (typeof WAuth !== 'undefined' && WAuth.getProfile)
+      ? WAuth.getProfile()?.hero_pool : null;
+    if (Array.isArray(sbPool) && sbPool.length > 0) return sbPool;
+    return JSON.parse(localStorage.getItem('warr_hero_pool') || '[]');
+  } catch(e) { return []; }
+};
+
+/** Save hero pool locally + sync to Supabase */
+WDB.saveHeroPool = async function(heroes) {
+  const arr = Array.isArray(heroes) ? heroes : [];
+  localStorage.setItem('warr_hero_pool', JSON.stringify(arr));
+  if (typeof WAuth !== 'undefined' && WAuth.isLoggedIn && WAuth.isLoggedIn()) {
+    try { await WAuth.saveProfile({ hero_pool: arr }); } catch(e) {}
+  }
+};
+
+/** Check if a hero name is in the user's pool */
+WDB.isInPool = function(heroName) {
+  return WDB.getHeroPool().includes(heroName);
+};
+
+/** Get pool heroes filtered to a given role keyword (e.g. 'Assassin') */
+WDB.getPoolByRole = function(roleKw) {
+  const pool = WDB.getHeroPool();
+  if (!roleKw) return pool;
+  return pool.filter(n => {
+    const h = WDB.HERO_ROSTER.find(x => x.n === n);
+    return h && h.r.includes(roleKw);
+  });
+};
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN HELPERS
+// ═══════════════════════════════════════════════════════════════
+/** Check if a given email should have admin access (only wrrenvillapando@gmail.com by default).
+ *  A secondary admin list is stored in warr_extra_admins localStorage so the primary admin
+ *  can grant access to others without a code deploy. */
+WAdmin._getExtraAdmins = function() {
+  try { return JSON.parse(localStorage.getItem('warr_extra_admins') || '[]'); } catch(e) { return []; }
+};
+WAdmin._setExtraAdmins = function(list) {
+  localStorage.setItem('warr_extra_admins', JSON.stringify(list));
+};
+/** Override isAdmin to also check extra admin list */
+(function() {
+  const _orig = WAdmin.isAdmin.bind(WAdmin);
+  WAdmin.isAdmin = function() {
+    if (_orig()) return true;
+    const email = (typeof WAuth !== 'undefined' && WAuth.getUser)
+      ? WAuth.getUser()?.email : null;
+    if (!email) return false;
+    return WAdmin._getExtraAdmins().includes(email.toLowerCase());
+  };
+})();
 
 // ═══════════════════════════════════════════════════════════════
 // TOAST UTILITY (shared)

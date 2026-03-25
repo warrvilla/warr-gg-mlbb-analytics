@@ -211,8 +211,8 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
 .lhero{font-weight:700;color:var(--ai);}
 
 /* RESULT */
-#result{display:none;position:fixed;inset:0;background:rgba(15,17,22,.97);z-index:600;align-items:center;justify-content:center;}
-#result.show{display:flex;}
+#result{display:none;position:fixed;inset:0;background:rgba(15,17,22,.97);z-index:600;align-items:center;justify-content:center;pointer-events:none;}
+#result.show{display:flex;pointer-events:auto;}
 .rcard{background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:30px 38px;text-align:center;max-width:560px;width:94%;box-shadow:0 40px 80px rgba(0,0,0,.6);max-height:88vh;overflow-y:auto;}
 .rcard::-webkit-scrollbar{width:3px;}.rcard::-webkit-scrollbar-thumb{background:var(--border2);}
 .rverdict{font-family:var(--font-head);font-size:44px;font-weight:700;letter-spacing:3px;animation:wpop .5s ease;}
@@ -303,6 +303,15 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
   .hero-img { width: 64px; height: 64px; }
   .hero-cname { font-size: 10px; }
   .hero-crole { font-size: 8px; }
+  .bh { padding: 5px 12px; }
+  .bh-name { font-size: 12px; }
+  .bh-vs { font-size: 14px; }
+  .phase-bar { padding: 4px 12px; }
+  .phase-lbl { font-size: 9px; }
+  .seq-bar { padding: 3px 8px; }
+  .action-bar { padding: 8px 12px; }
+  #abFilterToggle { display: inline-flex !important; }
+  .filter-row.collapsed { display: none !important; }
 }
 @media (max-width: 420px) {
   .hero-grid { grid-template-columns: repeat(auto-fill, 72px); gap: 4px; }
@@ -646,6 +655,7 @@ input:focus, .search-input:focus {
     <a class="nav-link" href="scout.html">Scout</a>
     <a class="nav-link" href="stats.html">Analysis</a>
     <a class="nav-link" href="patch_meta.html">Patch</a>
+    <a class="nav-link" href="profile.html">Profile</a>
   </div>
   <div class="nav-right">
   <div class="theme-switcher" title="Switch theme">
@@ -671,6 +681,7 @@ input:focus, .search-input:focus {
   <a class="mobile-nav-link" href="scout.html">Scout</a>
   <a class="mobile-nav-link" href="stats.html">Analysis</a>
   <a class="mobile-nav-link" href="patch_meta.html">Patch</a>
+  <a class="mobile-nav-link" href="profile.html">Profile</a>
 </div>
 
 <div class="page-body">
@@ -784,20 +795,21 @@ input:focus, .search-input:focus {
 
     <!-- POOL CENTER -->
     <div class="pool-section">
-      <div class="pool-header" style="flex-direction:column;align-items:stretch;gap:7px;">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <div class="pool-title">Hero Pool</div>
-          <span class="hero-count" id="cntLbl"></span>
-          <input class="search-input" id="srch" placeholder="Search hero..." style="margin-left:auto;"/>
+      <div class="pool-header" style="flex-direction:column;align-items:stretch;gap:5px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <input class="search-input" id="srch" placeholder="Search hero..." style="flex:1;min-width:120px;"/>
+          <span class="hero-count" id="cntLbl" style="font-size:10px;"></span>
+          <button class="settings-gear-btn" id="abFilterToggle" onclick="document.getElementById('laneFiltersAB').classList.toggle('collapsed')" style="display:none;padding:4px 10px;font-size:10px;">Filters ▾</button>
         </div>
         <div class="filter-row" id="laneFiltersAB"></div>
       </div>
       <div class="hero-grid" id="hgrid"></div>
-      <div class="action-bar">
-        <button class="btn btn-reset" onclick="resetBattle()">Reset</button>
-        <button class="btn btn-ghost" onclick="undoPick()">Undo</button>
-        <div class="hint" id="hintTxt">Select a hero to ban</div>
-        <button class="btn btn-analyze" id="anaBtn" onclick="runAnalysis()" disabled>Analyze</button>
+      <div class="action-bar" style="gap:10px;">
+        <button class="btn btn-ghost" onclick="undoPick()" style="font-size:11px;">← Undo</button>
+        <button class="btn btn-reset" onclick="resetBattle()" style="font-size:11px;">Reset</button>
+        <div class="hint" id="hintTxt" style="flex:1;text-align:center;">Select a hero to ban</div>
+        <span id="tokenDisplay" style="font-size:11px;color:#7ecfff;white-space:nowrap;"></span>
+        <button class="btn btn-analyze" id="anaBtn" onclick="runAnalysis()" disabled style="padding:10px 28px;font-size:14px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">ANALYZE</button>
       </div>
     </div>
 
@@ -820,7 +832,7 @@ input:focus, .search-input:focus {
 </div>
 
 <!-- RESULT -->
-<div id="result">
+<div id="result" onclick="event.stopPropagation()">
   <div class="rcard">
     <div class="rverdict" id="rverdict"></div>
     <div class="rsub" id="rsub"></div>
@@ -892,143 +904,143 @@ function updateApiKeyCard(){
 // ═══════════════════════════════════════════════════════
 const ALL_H=[
   // TANK (20)
-  {id:'tigreal',name:'Tigreal',role:'Tank',tier:'B',color:'#8899bb',mp:'situational'},
-  {id:'akai',name:'Akai',role:'Tank',tier:'B',color:'#ff9900',mp:'situational'},
-  {id:'franco',name:'Franco',role:'Tank',tier:'B',color:'#cc4400',mp:'situational'},
-  {id:'minotaur',name:'Minotaur',role:'Tank',tier:'B',color:'#886644',mp:'situational'},
-  {id:'lolita',name:'Lolita',role:'Tank',tier:'B',color:'#ff88aa',mp:'situational'},
-  {id:'johnson',name:'Johnson',role:'Tank',tier:'C',color:'#ffaa00',mp:'troll'},
-  {id:'atlas',name:'Atlas',role:'Tank',tier:'B',color:'#4488ff',mp:'situational'},
-  {id:'khufra',name:'Khufra',role:'Tank',tier:'C',color:'#ffcc88',mp:'situational'},
-  {id:'esmeralda',name:'Esmeralda',role:'Tank/Mage',tier:'A',color:'#66ccff',mp:'situational'},
-  {id:'uranus',name:'Uranus',role:'Tank',tier:'A',color:'#44ccff',mp:'S'},
-  {id:'hylos',name:'Hylos',role:'Tank',tier:'A',color:'#88aacc',mp:'situational'},
-  {id:'belerick',name:'Belerick',role:'Tank',tier:'B',color:'#44aa44',mp:'off'},
-  {id:'grock',name:'Grock',role:'Tank',tier:'S',color:'#997755',mp:'mustban'},
-  {id:'carmilla',name:'Carmilla',role:'Tank',tier:'A',color:'#cc44aa',mp:'situational'},
-  {id:'baxia',name:'Baxia',role:'Tank',tier:'A',color:'#cc8800',mp:'situational'},
-  {id:'gloo',name:'Gloo',role:'Tank',tier:'B',color:'#00cc88',mp:'situational'},
-  {id:'chip',name:'Chip',role:'Tank',tier:'A',color:'#00ccaa',mp:'situational'},
-  {id:'fredrinn',name:'Fredrinn',role:'Tank/Fighter',tier:'S',color:'#4466cc',mp:'highpick'},
-  {id:'kalea',name:'Kalea',role:'Tank',tier:'S',color:'#ff6600',mp:'mustban'},
-  {id:'edith',name:'Edith',role:'Tank/MM',tier:'B',color:'#aa88ff',mp:'situational'},
-  {id:'marcel',name:'Marcel',role:'Tank',tier:'S',color:'#5599ff',mp:'mustban'},
+  {id:'tigreal',name:'Tigreal',role:'Tank',color:'#8899bb',tier:'C',mp:'off'},
+  {id:'akai',name:'Akai',role:'Tank',color:'#ff9900',tier:'C',mp:'off'},
+  {id:'franco',name:'Franco',role:'Tank',color:'#cc4400',tier:'C',mp:'off'},
+  {id:'minotaur',name:'Minotaur',role:'Tank',color:'#886644',tier:'C',mp:'off'},
+  {id:'lolita',name:'Lolita',role:'Tank',color:'#ff88aa',tier:'C',mp:'off'},
+  {id:'johnson',name:'Johnson',role:'Tank',color:'#ffaa00',tier:'C',mp:'off'},
+  {id:'atlas',name:'Atlas',role:'Tank',color:'#4488ff',tier:'C',mp:'off'},
+  {id:'khufra',name:'Khufra',role:'Tank',color:'#ffcc88',tier:'C',mp:'off'},
+  {id:'esmeralda',name:'Esmeralda',role:'Tank/Mage',color:'#66ccff',tier:'C',mp:'off'},
+  {id:'uranus',name:'Uranus',role:'Tank',color:'#44ccff',tier:'C',mp:'off'},
+  {id:'hylos',name:'Hylos',role:'Tank',color:'#88aacc',tier:'C',mp:'off'},
+  {id:'belerick',name:'Belerick',role:'Tank',color:'#44aa44',tier:'C',mp:'off'},
+  {id:'grock',name:'Grock',role:'Tank',color:'#997755',tier:'C',mp:'off'},
+  {id:'carmilla',name:'Carmilla',role:'Tank',color:'#cc44aa',tier:'C',mp:'off'},
+  {id:'baxia',name:'Baxia',role:'Tank',color:'#cc8800',tier:'C',mp:'off'},
+  {id:'gloo',name:'Gloo',role:'Tank',color:'#00cc88',tier:'C',mp:'off'},
+  {id:'chip',name:'Chip',role:'Tank',color:'#00ccaa',tier:'C',mp:'off'},
+  {id:'fredrinn',name:'Fredrinn',role:'Tank/Fighter',color:'#4466cc',tier:'C',mp:'off'},
+  {id:'kalea',name:'Kalea',role:'Tank',color:'#ff6600',tier:'C',mp:'off'},
+  {id:'edith',name:'Edith',role:'Tank/MM',color:'#aa88ff',tier:'C',mp:'off'},
+  {id:'marcel',name:'Marcel',role:'Tank',color:'#5599ff',tier:'C',mp:'off'},
   // FIGHTER (30)
-  {id:'barats',name:'Barats',role:'Fighter/Tank',tier:'B',color:'#88cc44',mp:'situational'},
-  {id:'balmond',name:'Balmond',role:'Fighter',tier:'C',color:'#882222',mp:'off'},
-  {id:'zilong',name:'Zilong',role:'Fighter',tier:'C',color:'#ff6622',mp:'off'},
-  {id:'alucard',name:'Alucard',role:'Fighter',tier:'C',color:'#880000',mp:'off'},
-  {id:'alpha',name:'Alpha',role:'Fighter',tier:'B',color:'#4488cc',mp:'off'},
-  {id:'sun',name:'Sun',role:'Fighter',tier:'C',color:'#ffaa00',mp:'off'},
-  {id:'argus',name:'Argus',role:'Fighter',tier:'B',color:'#8844bb',mp:'off'},
-  {id:'hilda',name:'Hilda',role:'Fighter',tier:'A',color:'#aa6633',mp:'situational'},
-  {id:'ruby',name:'Ruby',role:'Fighter',tier:'A',color:'#ff4477',mp:'situational'},
-  {id:'xborg',name:'X.Borg',role:'Fighter',tier:'B',color:'#ff8800',mp:'off'},
-  {id:'aldous',name:'Aldous',role:'Fighter',tier:'B',color:'#bbaa22',mp:'off'},
-  {id:'chou',name:'Chou',role:'Fighter',tier:'S',color:'#ff8833',mp:'highpick'},
-  {id:'badang',name:'Badang',role:'Fighter',tier:'A',color:'#cc8800',mp:'situational'},
-  {id:'guinevere',name:'Guinevere',role:'Fighter',tier:'B',color:'#ff88cc',mp:'situational'},
-  {id:'terizla',name:'Terizla',role:'Fighter',tier:'B',color:'#884400',mp:'off'},
-  {id:'thamuz',name:'Thamuz',role:'Fighter',tier:'A',color:'#ff6622',mp:'situational'},
-  {id:'masha',name:'Masha',role:'Fighter',tier:'B',color:'#ff4444',mp:'off'},
-  {id:'khaleed',name:'Khaleed',role:'Fighter',tier:'S',color:'#cc9933',mp:'highpick'},
-  {id:'paquito',name:'Paquito',role:'Fighter',tier:'A',color:'#ffaa33',mp:'situational'},
-  {id:'yuzhong',name:'Yu Zhong',role:'Fighter',tier:'S',color:'#cc4422',mp:'highpick'},
-  {id:'dyrroth',name:'Dyrroth',role:'Fighter',tier:'B',color:'#cc2222',mp:'off'},
-  {id:'jawhead',name:'Jawhead',role:'Fighter',tier:'A',color:'#66aaff',mp:'situational'},
-  {id:'martis',name:'Martis',role:'Fighter',tier:'B',color:'#cc4400',mp:'off'},
-  {id:'silvanna',name:'Silvanna',role:'Fighter',tier:'B',color:'#aa44ff',mp:'off'},
-  {id:'yin',name:'Yin',role:'Fighter',tier:'B',color:'#ffaa00',mp:'off'},
-  {id:'minsitthar',name:'Minsitthar',role:'Fighter',tier:'B',color:'#cc9900',mp:'off'},
-  {id:'aulus',name:'Aulus',role:'Fighter',tier:'B',color:'#885544',mp:'off'},
-  {id:'freya',name:'Freya',role:'Fighter',tier:'S',color:'#ffddaa',mp:'highpick'},
-  {id:'lapulapu',name:'Lapu-Lapu',role:'Fighter',tier:'A',color:'#ffcc88',mp:'situational'},
-  {id:'leomord',name:'Leomord',role:'Fighter',tier:'S',color:'#884422',mp:'highpick'},
-  {id:'phoveus',name:'Phoveus',role:'Fighter',tier:'A',color:'#cc00ff',mp:'situational'},
-  {id:'arlott',name:'Arlott',role:'Fighter',tier:'S',color:'#cc3333',mp:'highpick'},
-  {id:'cici',name:'Cici',role:'Fighter',tier:'S',color:'#ff88ff',mp:'highpick'},
-  {id:'sora',name:'Sora',role:'Fighter/Assassin',tier:'S',color:'#ff55cc',mp:'mustban'},
-  {id:'bane',name:'Bane',role:'Fighter',tier:'C',color:'#005588',mp:'off'},
-  {id:'lukas',name:'Lukas',role:'Fighter',tier:'B',color:'#ff4400',mp:'situational'},
-  {id:'gatotkaca',name:'Gatotkaca',role:'Tank/Fighter',tier:'S',color:'#cc9922',mp:'highpick'},
-  {id:'roger',name:'Roger',role:'Fighter/MM',tier:'B',color:'#448833',mp:'off'},
+  {id:'barats',name:'Barats',role:'Fighter/Tank',color:'#88cc44',tier:'C',mp:'off'},
+  {id:'balmond',name:'Balmond',role:'Fighter',color:'#882222',tier:'C',mp:'off'},
+  {id:'zilong',name:'Zilong',role:'Fighter',color:'#ff6622',tier:'C',mp:'off'},
+  {id:'alucard',name:'Alucard',role:'Fighter',color:'#880000',tier:'C',mp:'off'},
+  {id:'alpha',name:'Alpha',role:'Fighter',color:'#4488cc',tier:'C',mp:'off'},
+  {id:'sun',name:'Sun',role:'Fighter',color:'#ffaa00',tier:'C',mp:'off'},
+  {id:'argus',name:'Argus',role:'Fighter',color:'#8844bb',tier:'C',mp:'off'},
+  {id:'hilda',name:'Hilda',role:'Fighter',color:'#aa6633',tier:'C',mp:'off'},
+  {id:'ruby',name:'Ruby',role:'Fighter',color:'#ff4477',tier:'C',mp:'off'},
+  {id:'xborg',name:'X.Borg',role:'Fighter',color:'#ff8800',tier:'C',mp:'off'},
+  {id:'aldous',name:'Aldous',role:'Fighter',color:'#bbaa22',tier:'C',mp:'off'},
+  {id:'chou',name:'Chou',role:'Fighter',color:'#ff8833',tier:'C',mp:'off'},
+  {id:'badang',name:'Badang',role:'Fighter',color:'#cc8800',tier:'C',mp:'off'},
+  {id:'guinevere',name:'Guinevere',role:'Fighter',color:'#ff88cc',tier:'C',mp:'off'},
+  {id:'terizla',name:'Terizla',role:'Fighter',color:'#884400',tier:'C',mp:'off'},
+  {id:'thamuz',name:'Thamuz',role:'Fighter',color:'#ff6622',tier:'C',mp:'off'},
+  {id:'masha',name:'Masha',role:'Fighter',color:'#ff4444',tier:'C',mp:'off'},
+  {id:'khaleed',name:'Khaleed',role:'Fighter',color:'#cc9933',tier:'C',mp:'off'},
+  {id:'paquito',name:'Paquito',role:'Fighter',color:'#ffaa33',tier:'C',mp:'off'},
+  {id:'yuzhong',name:'Yu Zhong',role:'Fighter',color:'#cc4422',tier:'C',mp:'off'},
+  {id:'dyrroth',name:'Dyrroth',role:'Fighter',color:'#cc2222',tier:'C',mp:'off'},
+  {id:'jawhead',name:'Jawhead',role:'Fighter',color:'#66aaff',tier:'C',mp:'off'},
+  {id:'martis',name:'Martis',role:'Fighter',color:'#cc4400',tier:'C',mp:'off'},
+  {id:'silvanna',name:'Silvanna',role:'Fighter',color:'#aa44ff',tier:'C',mp:'off'},
+  {id:'yin',name:'Yin',role:'Fighter',color:'#ffaa00',tier:'C',mp:'off'},
+  {id:'minsitthar',name:'Minsitthar',role:'Fighter',color:'#cc9900',tier:'C',mp:'off'},
+  {id:'aulus',name:'Aulus',role:'Fighter',color:'#885544',tier:'C',mp:'off'},
+  {id:'freya',name:'Freya',role:'Fighter',color:'#ffddaa',tier:'C',mp:'off'},
+  {id:'lapulapu',name:'Lapu-Lapu',role:'Fighter',color:'#ffcc88',tier:'C',mp:'off'},
+  {id:'leomord',name:'Leomord',role:'Fighter',color:'#884422',tier:'C',mp:'off'},
+  {id:'phoveus',name:'Phoveus',role:'Fighter',color:'#cc00ff',tier:'C',mp:'off'},
+  {id:'arlott',name:'Arlott',role:'Fighter',color:'#cc3333',tier:'C',mp:'off'},
+  {id:'cici',name:'Cici',role:'Fighter',color:'#ff88ff',tier:'C',mp:'off'},
+  {id:'sora',name:'Sora',role:'Fighter/Assassin',color:'#ff55cc',tier:'C',mp:'off'},
+  {id:'bane',name:'Bane',role:'Fighter',color:'#005588',tier:'C',mp:'off'},
+  {id:'lukas',name:'Lukas',role:'Fighter',color:'#ff4400',tier:'C',mp:'off'},
+  {id:'gatotkaca',name:'Gatotkaca',role:'Tank/Fighter',color:'#cc9922',tier:'C',mp:'off'},
+  {id:'roger',name:'Roger',role:'Fighter/MM',color:'#448833',tier:'C',mp:'off'},
   // ASSASSIN (20)
-  {id:'saber',name:'Saber',role:'Assassin',tier:'B',color:'#aaaaaa',mp:'off'},
-  {id:'karina',name:'Karina',role:'Assassin',tier:'A',color:'#cc44ff',mp:'situational'},
-  {id:'fanny',name:'Fanny',role:'Assassin',tier:'S',color:'#88ccff',mp:'mustban'},
-  {id:'hayabusa',name:'Hayabusa',role:'Assassin',tier:'A',color:'#ff3333',mp:'situational'},
-  {id:'natalia',name:'Natalia',role:'Assassin',tier:'C',color:'#aa2244',mp:'off'},
-  {id:'helcurt',name:'Helcurt',role:'Assassin',tier:'C',color:'#223344',mp:'situational'},
-  {id:'lancelot',name:'Lancelot',role:'Assassin',tier:'A',color:'#aaaaff',mp:'situational'},
-  {id:'gusion',name:'Gusion',role:'Assassin',tier:'C',color:'#ff88ff',mp:'off'},
-  {id:'ling',name:'Ling',role:'Assassin',tier:'B',color:'#44ffcc',mp:'situational'},
-  {id:'selena',name:'Selena',role:'Assassin/Mage',tier:'A',color:'#cc22ee',mp:'situational'},
-  {id:'benedetta',name:'Benedetta',role:'Assassin',tier:'A',color:'#cc88ff',mp:'situational'},
-  {id:'aamon',name:'Aamon',role:'Assassin',tier:'B',color:'#88aacc',mp:'situational'},
-  {id:'nolan',name:'Nolan',role:'Assassin',tier:'B',color:'#00ffdd',mp:'situational'},
-  {id:'yss',name:'Yi Sun-shin',role:'Assassin/MM',tier:'S',color:'#3388ff',mp:'highpick'},
-  {id:'suyou',name:'Suyou',role:'Assassin',tier:'A',color:'#00aaff',mp:'situational'},
-  {id:'joy',name:'Joy',role:'Assassin',tier:'S',color:'#ff44aa',mp:'highpick'},
-  {id:'julian',name:'Julian',role:'Fighter/Assassin',tier:'A',color:'#ff8844',mp:'situational'},
-  {id:'hanzo',name:'Hanzo',role:'Assassin',tier:'B',color:'#334455',mp:'off'},
+  {id:'saber',name:'Saber',role:'Assassin',color:'#aaaaaa',tier:'C',mp:'off'},
+  {id:'karina',name:'Karina',role:'Assassin',color:'#cc44ff',tier:'C',mp:'off'},
+  {id:'fanny',name:'Fanny',role:'Assassin',color:'#88ccff',tier:'C',mp:'off'},
+  {id:'hayabusa',name:'Hayabusa',role:'Assassin',color:'#ff3333',tier:'C',mp:'off'},
+  {id:'natalia',name:'Natalia',role:'Assassin',color:'#aa2244',tier:'C',mp:'off'},
+  {id:'helcurt',name:'Helcurt',role:'Assassin',color:'#223344',tier:'C',mp:'off'},
+  {id:'lancelot',name:'Lancelot',role:'Assassin',color:'#aaaaff',tier:'C',mp:'off'},
+  {id:'gusion',name:'Gusion',role:'Assassin',color:'#ff88ff',tier:'C',mp:'off'},
+  {id:'ling',name:'Ling',role:'Assassin',color:'#44ffcc',tier:'C',mp:'off'},
+  {id:'selena',name:'Selena',role:'Assassin/Mage',color:'#cc22ee',tier:'C',mp:'off'},
+  {id:'benedetta',name:'Benedetta',role:'Assassin',color:'#cc88ff',tier:'C',mp:'off'},
+  {id:'aamon',name:'Aamon',role:'Assassin',color:'#88aacc',tier:'C',mp:'off'},
+  {id:'nolan',name:'Nolan',role:'Assassin',color:'#00ffdd',tier:'C',mp:'off'},
+  {id:'yss',name:'Yi Sun-shin',role:'Assassin/MM',color:'#3388ff',tier:'C',mp:'off'},
+  {id:'suyou',name:'Suyou',role:'Assassin',color:'#00aaff',tier:'C',mp:'off'},
+  {id:'joy',name:'Joy',role:'Assassin',color:'#ff44aa',tier:'C',mp:'off'},
+  {id:'julian',name:'Julian',role:'Fighter/Assassin',color:'#ff8844',tier:'C',mp:'off'},
+  {id:'hanzo',name:'Hanzo',role:'Assassin',color:'#334455',tier:'C',mp:'off'},
   // MAGE (25)
-  {id:'nana',name:'Nana',role:'Mage/Support',tier:'A',color:'#ff88aa',mp:'situational'},
-  {id:'eudora',name:'Eudora',role:'Mage',tier:'B',color:'#ffdd44',mp:'off'},
-  {id:'aurora',name:'Aurora',role:'Mage',tier:'B',color:'#88ddff',mp:'off'},
-  {id:'gord',name:'Gord',role:'Mage',tier:'B',color:'#4466bb',mp:'off'},
-  {id:'cyclops',name:'Cyclops',role:'Mage',tier:'A',color:'#0088ff',mp:'situational'},
-  {id:'alice',name:'Alice',role:'Mage/Tank',tier:'B',color:'#ff4466',mp:'off'},
-  {id:'harley',name:'Harley',role:'Mage/Assassin',tier:'A',color:'#ff4400',mp:'situational'},
-  {id:'odette',name:'Odette',role:'Mage',tier:'A',color:'#aaddff',mp:'situational'},
-  {id:'vexana',name:'Vexana',role:'Mage',tier:'B',color:'#8833aa',mp:'off'},
-  {id:'lunox',name:'Lunox',role:'Mage',tier:'A',color:'#cc44ff',mp:'situational'},
-  {id:'kagura',name:'Kagura',role:'Mage',tier:'B',color:'#ffaacc',mp:'situational'},
-  {id:'lylia',name:'Lylia',role:'Mage',tier:'A',color:'#88ff88',mp:'situational'},
-  {id:'cecilion',name:'Cecilion',role:'Mage',tier:'A',color:'#cc44aa',mp:'situational'},
-  {id:'yve',name:'Yve',role:'Mage',tier:'S',color:'#00ddcc',mp:'mustban'},
-  {id:'valentina',name:'Valentina',role:'Mage',tier:'S',color:'#ff66cc',mp:'highpick'},
-  {id:'xavier',name:'Xavier',role:'Mage',tier:'A',color:'#88aaff',mp:'situational'},
-  {id:'change',name:"Change",role:'Mage',tier:'B',color:'#eeeeff',mp:'off'},
-  {id:'pharsa',name:'Pharsa',role:'Mage',tier:'S',color:'#cc66ff',mp:'highpick'},
-  {id:'novaria',name:'Novaria',role:'Mage',tier:'B',color:'#aaccff',mp:'situational'},
-  {id:'luoyi',name:'Luo Yi',role:'Mage',tier:'A',color:'#ff8800',mp:'situational'},
-  {id:'zhuxin',name:'Zhuxin',role:'Mage',tier:'A',color:'#ffaaff',mp:'situational'},
-  {id:'faramis',name:'Faramis',role:'Mage/Support',tier:'B',color:'#cc00cc',mp:'off'},
-  {id:'kadita',name:'Kadita',role:'Mage/Assassin',tier:'B',color:'#0044aa',mp:'off'},
-  {id:'kimmy',name:'Kimmy',role:'Mage/MM',tier:'S',color:'#00aaff',mp:'off'},
-  {id:'zhask',name:'Zhask',role:'Mage',tier:'B',color:'#9933cc',mp:'off'},
-  {id:'vale',name:'Vale',role:'Mage',tier:'A',color:'#88ccff',mp:'situational'},
-  {id:'valir',name:'Valir',role:'Mage',tier:'B',color:'#ff6622',mp:'situational'},
-  {id:'harith',name:'Harith',role:'Mage',tier:'S',color:'#ffcc00',mp:'highpick'},
-  {id:'zetian',name:'Zetian',role:'Mage',tier:'S',color:'#ff88aa',mp:'mustpick'},
+  {id:'nana',name:'Nana',role:'Mage/Support',color:'#ff88aa',tier:'C',mp:'off'},
+  {id:'eudora',name:'Eudora',role:'Mage',color:'#ffdd44',tier:'C',mp:'off'},
+  {id:'aurora',name:'Aurora',role:'Mage',color:'#88ddff',tier:'C',mp:'off'},
+  {id:'gord',name:'Gord',role:'Mage',color:'#4466bb',tier:'C',mp:'off'},
+  {id:'cyclops',name:'Cyclops',role:'Mage',color:'#0088ff',tier:'C',mp:'off'},
+  {id:'alice',name:'Alice',role:'Mage/Tank',color:'#ff4466',tier:'C',mp:'off'},
+  {id:'harley',name:'Harley',role:'Mage/Assassin',color:'#ff4400',tier:'C',mp:'off'},
+  {id:'odette',name:'Odette',role:'Mage',color:'#aaddff',tier:'C',mp:'off'},
+  {id:'vexana',name:'Vexana',role:'Mage',color:'#8833aa',tier:'C',mp:'off'},
+  {id:'lunox',name:'Lunox',role:'Mage',color:'#cc44ff',tier:'C',mp:'off'},
+  {id:'kagura',name:'Kagura',role:'Mage',color:'#ffaacc',tier:'C',mp:'off'},
+  {id:'lylia',name:'Lylia',role:'Mage',color:'#88ff88',tier:'C',mp:'off'},
+  {id:'cecilion',name:'Cecilion',role:'Mage',color:'#cc44aa',tier:'C',mp:'off'},
+  {id:'yve',name:'Yve',role:'Mage',color:'#00ddcc',tier:'C',mp:'off'},
+  {id:'valentina',name:'Valentina',role:'Mage',color:'#ff66cc',tier:'C',mp:'off'},
+  {id:'xavier',name:'Xavier',role:'Mage',color:'#88aaff',tier:'C',mp:'off'},
+  {id:'change',name:"Change",role:'Mage',color:'#eeeeff',tier:'C',mp:'off'},
+  {id:'pharsa',name:'Pharsa',role:'Mage',color:'#cc66ff',tier:'C',mp:'off'},
+  {id:'novaria',name:'Novaria',role:'Mage',color:'#aaccff',tier:'C',mp:'off'},
+  {id:'luoyi',name:'Luo Yi',role:'Mage',color:'#ff8800',tier:'C',mp:'off'},
+  {id:'zhuxin',name:'Zhuxin',role:'Mage',color:'#ffaaff',tier:'C',mp:'off'},
+  {id:'faramis',name:'Faramis',role:'Mage/Support',color:'#cc00cc',tier:'C',mp:'off'},
+  {id:'kadita',name:'Kadita',role:'Mage/Assassin',color:'#0044aa',tier:'C',mp:'off'},
+  {id:'kimmy',name:'Kimmy',role:'Mage/MM',color:'#00aaff',tier:'C',mp:'off'},
+  {id:'zhask',name:'Zhask',role:'Mage',color:'#9933cc',tier:'C',mp:'off'},
+  {id:'vale',name:'Vale',role:'Mage',color:'#88ccff',tier:'C',mp:'off'},
+  {id:'valir',name:'Valir',role:'Mage',color:'#ff6622',tier:'C',mp:'off'},
+  {id:'harith',name:'Harith',role:'Mage',color:'#ffcc00',tier:'C',mp:'off'},
+  {id:'zetian',name:'Zetian',role:'Mage',color:'#ff88aa',tier:'C',mp:'off'},
   // MARKSMAN (18)
-  {id:'miya',name:'Miya',role:'MM',tier:'B',color:'#88ccff',mp:'off'},
-  {id:'layla',name:'Layla',role:'MM',tier:'C',color:'#ff88cc',mp:'off'},
-  {id:'moskov',name:'Moskov',role:'MM',tier:'A',color:'#88aacc',mp:'situational'},
-  {id:'clint',name:'Clint',role:'MM',tier:'B',color:'#cc9944',mp:'off'},
-  {id:'bruno',name:'Bruno',role:'MM',tier:'A',color:'#4488ff',mp:'situational'},
-  {id:'irithel',name:'Irithel',role:'MM',tier:'B',color:'#cc8866',mp:'off'},
-  {id:'lesley',name:'Lesley',role:'MM/Assassin',tier:'A',color:'#ffcc44',mp:'situational'},
-  {id:'hanabi',name:'Hanabi',role:'MM',tier:'B',color:'#ffaacc',mp:'off'},
-  {id:'claude',name:'Claude',role:'MM',tier:'S',color:'#6688ff',mp:'highpick'},
-  {id:'granger',name:'Granger',role:'MM',tier:'S',color:'#ff6b35',mp:'highpick'},
-  {id:'brody',name:'Brody',role:'MM',tier:'A',color:'#cc6633',mp:'situational'},
-  {id:'karrie',name:'Karrie',role:'MM',tier:'A',color:'#aaddff',mp:'situational'},
-  {id:'beatrix',name:'Beatrix',role:'MM',tier:'A',color:'#ffcc00',mp:'situational'},
-  {id:'melissa',name:'Melissa',role:'MM',tier:'A',color:'#ff9999',mp:'situational'},
-  {id:'natan',name:'Natan',role:'MM',tier:'A',color:'#aa88ff',mp:'situational'},
-  {id:'wanwan',name:'Wanwan',role:'MM',tier:'A',color:'#ff4488',mp:'situational'},
-  {id:'ixia',name:'Ixia',role:'MM',tier:'B',color:'#ff88ff',mp:'highpick'},
-  {id:'obsidia',name:'Obsidia',role:'MM',tier:'A',color:'#8833cc',mp:'situational'},
+  {id:'miya',name:'Miya',role:'MM',color:'#88ccff',tier:'C',mp:'off'},
+  {id:'layla',name:'Layla',role:'MM',color:'#ff88cc',tier:'C',mp:'off'},
+  {id:'moskov',name:'Moskov',role:'MM',color:'#88aacc',tier:'C',mp:'off'},
+  {id:'clint',name:'Clint',role:'MM',color:'#cc9944',tier:'C',mp:'off'},
+  {id:'bruno',name:'Bruno',role:'MM',color:'#4488ff',tier:'C',mp:'off'},
+  {id:'irithel',name:'Irithel',role:'MM',color:'#cc8866',tier:'C',mp:'off'},
+  {id:'lesley',name:'Lesley',role:'MM/Assassin',color:'#ffcc44',tier:'C',mp:'off'},
+  {id:'hanabi',name:'Hanabi',role:'MM',color:'#ffaacc',tier:'C',mp:'off'},
+  {id:'claude',name:'Claude',role:'MM',color:'#6688ff',tier:'C',mp:'off'},
+  {id:'granger',name:'Granger',role:'MM',color:'#ff6b35',tier:'C',mp:'off'},
+  {id:'brody',name:'Brody',role:'MM',color:'#cc6633',tier:'C',mp:'off'},
+  {id:'karrie',name:'Karrie',role:'MM',color:'#aaddff',tier:'C',mp:'off'},
+  {id:'beatrix',name:'Beatrix',role:'MM',color:'#ffcc00',tier:'C',mp:'off'},
+  {id:'melissa',name:'Melissa',role:'MM',color:'#ff9999',tier:'C',mp:'off'},
+  {id:'natan',name:'Natan',role:'MM',color:'#aa88ff',tier:'C',mp:'off'},
+  {id:'wanwan',name:'Wanwan',role:'MM',color:'#ff4488',tier:'C',mp:'off'},
+  {id:'ixia',name:'Ixia',role:'MM',color:'#ff88ff',tier:'C',mp:'off'},
+  {id:'obsidia',name:'Obsidia',role:'MM',color:'#8833cc',tier:'C',mp:'off'},
   // SUPPORT (9)
-  {id:'estes',name:'Estes',role:'Support',tier:'A',color:'#aaffaa',mp:'situational'},
-  {id:'angela',name:'Angela',role:'Support',tier:'B',color:'#ffaacc',mp:'highpick'},
-  {id:'rafaela',name:'Rafaela',role:'Support',tier:'A',color:'#ffffff',mp:'situational'},
-  {id:'diggie',name:'Diggie',role:'Support',tier:'A',color:'#ffff44',mp:'highpick'},
-  {id:'floryn',name:'Floryn',role:'Support',tier:'B',color:'#88ff88',mp:'highpick'},
-  {id:'mathilda',name:'Mathilda',role:'Support',tier:'B',color:'#aaffcc',mp:'highpick'},
-  {id:'kaja',name:'Kaja',role:'Support/Fighter',tier:'A',color:'#ffaa44',mp:'situational'},
-  {id:'popol',name:'Popol & Kupa',role:'Support/MM',tier:'A',color:'#aaaaff',mp:'situational'},
+  {id:'estes',name:'Estes',role:'Support',color:'#aaffaa',tier:'C',mp:'off'},
+  {id:'angela',name:'Angela',role:'Support',color:'#ffaacc',tier:'C',mp:'off'},
+  {id:'rafaela',name:'Rafaela',role:'Support',color:'#ffffff',tier:'C',mp:'off'},
+  {id:'diggie',name:'Diggie',role:'Support',color:'#ffff44',tier:'C',mp:'off'},
+  {id:'floryn',name:'Floryn',role:'Support',color:'#88ff88',tier:'C',mp:'off'},
+  {id:'mathilda',name:'Mathilda',role:'Support',color:'#aaffcc',tier:'C',mp:'off'},
+  {id:'kaja',name:'Kaja',role:'Support/Fighter',color:'#ffaa44',tier:'C',mp:'off'},
+  {id:'popol',name:'Popol & Kupa',role:'Support/MM',color:'#aaaaff',tier:'C',mp:'off'},
 ];
 const HEROES=ALL_H.filter((h,i,a)=>a.findIndex(x=>x.id===h.id)===i);
 
@@ -1079,6 +1091,25 @@ try{
     if(dd.patchVersion) PV=dd.patchVersion;
   }
 }catch(e){}
+
+// ── DYNAMIC TIERS FROM SCOUT DATA ──
+// Override hardcoded tiers with actual scouted presence/WR data
+(function applyDynamicTiers() {
+  if (typeof WDB === 'undefined' || !WDB.computeDynamicTiers) return;
+  const dt = WDB.computeDynamicTiers(2); // 2 games minimum
+  if (!dt) return;
+  const tp = {S:'highpick', A:'highpick', B:'situational', C:'situational', D:'off'};
+  HEROES.forEach(h => {
+    const d = dt[h.name];
+    if (!d) return;
+    // Only override if we don't already have sheet data for this hero
+    if (!TIER_LIST[h.name]) {
+      h.tier = d.tier;
+      if (h.mp !== 'mustban') h.mp = d.mp || tp[d.tier] || h.mp;
+    }
+  });
+  console.log('[AI Battle] Dynamic tiers applied from scout data:', Object.keys(dt).length, 'heroes');
+})();
 
 
 // ── SCOUT DATA ──────────────────────────────────────────
@@ -1198,8 +1229,8 @@ let aiMode='generic',enemyTeamName='',enemyProfile=null;
 function setSide(s){['blue','red','random'].forEach(x=>{document.getElementById('sc-'+x).className='opt-card';});document.getElementById('sc-'+s).className='opt-card sel-'+s;_side=s;}
 function setDiff(d){['normal','hard','gm'].forEach(x=>{document.getElementById('dc-'+x).className='opt-card';});document.getElementById('dc-'+d).className='opt-card sel-gold';_diff=d;}
 setSide('blue');setDiff('hard');
-// Show API key status on load
-document.addEventListener('DOMContentLoaded',updateApiKeyCard);
+// Show API key status + token display on load
+document.addEventListener('DOMContentLoaded',()=>{updateApiKeyCard();updateTokenDisplay();});
 
 // ═══════ ENEMY TEAM MODE ═══════
 function setAIMode(m){
@@ -1361,6 +1392,14 @@ function iu(h){return`./portraits/${h.id}.png`;}
 function iun(h){const n=(h.name||'').replace(/ /g,'_').replace(/[^a-zA-Z0-9_.]/g,'');return`./portraits/${n}.png`;}
 function fb(h){const c=encodeURIComponent(h.color||'#3b82f6'),t=encodeURIComponent((h.name||'?').substring(0,2).toUpperCase());return`data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128'><circle cx='64' cy='64' r='64' fill='%231e2028'/><circle cx='64' cy='64' r='62' fill='none' stroke='${c}' stroke-width='3'/><text x='64' y='76' text-anchor='middle' fill='${c}' font-size='36' font-weight='700' font-family='Arial'>${t}</text></svg>`;}
 function toast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast show ${type}`;setTimeout(()=>t.className='toast',2500);}
+function updateTokenDisplay(){
+  if(typeof WDB==='undefined'||!WDB.getTokensRemaining)return;
+  const rem=WDB.getTokensRemaining();
+  const sub=WDB.getSubscription();
+  const plan=WDB.PLANS[sub.plan]||WDB.PLANS.free;
+  const el=document.getElementById('tokenDisplay');
+  if(el){el.textContent=`⚡ ${rem}/${plan.tokensPerMonth} tokens`;el.style.color=rem<=2?'#ff6b6b':rem<=5?'#ffaa44':'#7ecfff';}
+}
 function isMyTurn(){return DRAFT_ORDER[ST.step]?.team===pSide;}
 function updateMemChip(){const m=loadMem();const c=Object.keys(m).length;const el=document.getElementById('memChip');if(el)el.textContent=c>0?`AI Memory: ${c} heroes`:'AI Memory: empty';}
 
@@ -1446,6 +1485,9 @@ function renderPool(){
   document.getElementById('cntLbl').textContent=vis.length+' / '+HEROES.length;
   const locked=aiThink||!isMyTurn()||done;
 
+  // ── Hero pool check ──
+  const _abPool = (typeof WDB !== 'undefined' && WDB.getHeroPool) ? new Set(WDB.getHeroPool()) : new Set();
+
   function heroCard(h){
     const ban=banned.includes(h.id),pick=picked.includes(h.id),used=ban||pick;
     let cls='hero-card';if(ban)cls+=' banned';if(pick)cls+=' picked';if(locked&&!used)cls+=' lkd';
@@ -1455,11 +1497,13 @@ function renderPool(){
     // Show filtered lane label when a specific lane is active
     const displayLaneAB=(isLaneModeAB && alane!=='All') ? alane : primary;
     const pc=LANE_COLORS_AB[displayLaneAB]||'#94a3b8';
-    return`<div class="${cls}" data-id="${h.id}" ${used||locked?'data-locked="1"':''} onclick="if(!this.dataset.locked)pick(this.dataset.id)" title="${h.name} · ${h.role} · ${displayLaneAB} · ${h.tier}">
+    const inPool = _abPool.has(h.name);
+    return`<div class="${cls}" data-id="${h.id}" ${used||locked?'data-locked="1"':''} onclick="if(!this.dataset.locked)pick(this.dataset.id)" title="${h.name} · ${h.role} · ${displayLaneAB} · ${h.tier}${inPool?' · ★ Your Pool':''}">
       <img src="${u}" class="hero-img" alt="${h.name}" onerror="if(this.dataset.t){this.src='${fb(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${iun(h)}';}">
       <div class="hero-cname">${h.name}</div><div class="hero-crole" style="color:${LANE_COLORS_AB[displayLaneAB]||'#94a3b8'}">${isLaneModeAB?displayLaneAB:h.role.split('/')[0]}</div>
       <div class="tier-badge tier-${h.tier}">${h.tier}</div>
       ${h.mp==='mustban'?'<div class="meta-badge mb-ban">BAN</div>':h.mp==='highpick'?'<div class="meta-badge mb-pick">HOT</div>':''}
+      ${inPool?'<div style="position:absolute;top:3px;left:4px;font-size:9px;color:#f5c842;line-height:1;" title="In your hero pool">★</div>':''}
       ${ban?'<div class="banned-overlay">✕</div>':pick?'<div class="banned-overlay" style="background:rgba(79,142,247,.15);color:rgba(79,142,247,.7);">✓</div>':''}
     </div>`;
   }
@@ -1683,85 +1727,33 @@ function getHumanComboThreats(){
 }
 
 function fullCounterList(heroName){
-  // Combine hardcoded + learned counters
-  const hard=(COUNTERS[heroName]||[]).map(n=>({name:n,source:'meta'}));
-  const learned=getLearnedCounters(heroName).map(x=>({name:x.name,source:'learned',wr:x.wr}));
-  // Merge, preferring learned data
-  const all=[...hard];
-  learned.forEach(l=>{if(!all.find(x=>x.name===l.name))all.push(l);});
-  return all;
+  // 100% scout-derived counters — no hardcoded data
+  const learned=getLearnedCounters(heroName).map(x=>({name:x.name,source:'scout',wr:x.wr,count:x.count}));
+  return learned;
 }
 
-// ═══════ COUNTER MAP ═══════
-// hero → heroes that hard-counter it
-const COUNTERS = {
-  'Fanny':['Kaja','Franco','Diggie','Chou','Aurora'],
-  'Ling':['Kaja','Chou','Franco','Saber','Diggie'],
-  'Gusion':['Diggie','Lolita','Chou','Saber','Kaja'],
-  'Lancelot':['Diggie','Chou','Saber','Kaja','Lolita'],
-  'Harith':['Lolita','Diggie','Valir','Pharsa','Natan'],
-  'Esmeralda':['Lunox','Karrie','Baxia','Natan','Claude'],
-  'Zhask':['Selena','Aldous','Helcurt','Harley','Natan'],
-  'Alice':['Baxia','Karrie','Natan','Aldous','Lunox'],
-  'Uranus':['Karrie','Natan','Claude','Lunox','Baxia'],
-  'Yu Zhong':['Karrie','Natan','Claude','Lunox','Baxia'],
-  'Khufra':['Diggie','Odette','Atlas','Johnson','Popol and Kupa'],
-  'Atlas':['Diggie','Popol and Kupa','Franco','Lunox','Natan'],
-  'Chou':['Diggie','Lolita','Franco','Atlas','Khufra'],
-  'Benedetta':['Saber','Kaja','Chou','Franco','Natan'],
-  'Phoveus':['Chou','Lancelot','Ling','Fanny','Harith'],
-  'Aamon':['Saber','Kaja','Chou','Diggie','Helcurt'],
-  'Nolan':['Diggie','Chou','Kaja','Saber','Atlas'],
-  'Suyou':['Diggie','Chou','Kaja','Saber','Atlas'],
-  'Karina':['Diggie','Popol and Kupa','Chou','Saber','Lolita'],
-  'Gord':['Helcurt','Lancelot','Gusion','Fanny','Selena'],
-  'Pharsa':['Helcurt','Lancelot','Gusion','Fanny','Selena'],
-  'Odette':['Helcurt','Diggie','Selena','Lancelot','Gusion'],
-  'Yve':['Helcurt','Selena','Lancelot','Gusion','Fanny'],
-  'Vale':['Helcurt','Selena','Lancelot','Diggie','Franco'],
-  'Kadita':['Helcurt','Selena','Lancelot','Gusion','Natan'],
-  'Eudora':['Helcurt','Lolita','Diggie','Selena','Franco'],
-  "Change":['Helcurt','Selena','Lancelot','Gusion','Fanny'],
-  'Lunox':['Helcurt','Lancelot','Gusion','Selena','Fanny'],
-  'Natan':['Kaja','Chou','Franco','Saber','Lolita'],
-  'Claude':['Saber','Kaja','Chou','Franco','Lancelot'],
-  'Karrie':['Saber','Kaja','Chou','Franco','Lancelot'],
-  'Brody':['Helcurt','Selena','Lancelot','Chou','Franco'],
-  'Beatrix':['Helcurt','Selena','Chou','Kaja','Franco'],
-  'Melissa':['Diggie','Lolita','Chou','Kaja','Atlas'],
-  'Wanwan':['Helcurt','Chou','Kaja','Franco','Saber'],
-  'Miya':['Helcurt','Chou','Kaja','Selena','Franco'],
-  'Layla':['Helcurt','Chou','Kaja','Selena','Franco'],
-  'Roger':['Kaja','Chou','Franco','Saber','Atlas'],
-  'Thamuz':['Karrie','Natan','Esmeralda','Lunox','Baxia'],
-  'Badang':['Karrie','Natan','Claude','Lunox','Diggie'],
-  'Dyrroth':['Karrie','Natan','Claude','Lunox','Baxia'],
-  'Masha':['Karrie','Natan','Claude','Lunox','Baxia'],
-  'Barats':['Karrie','Natan','Claude','Lunox','Baxia'],
-  'Fredrinn':['Karrie','Natan','Claude','Lunox','Baxia'],
-  'Grock':['Karrie','Aldous','Natan','Claude','Lunox'],
-  'Johnson':['Diggie','Popol and Kupa','Franco','Lolita','Atlas'],
-  'Franco':['Diggie','Popol and Kupa','Lolita','Atlas','Chou'],
-  'Tigreal':['Diggie','Popol and Kupa','Lolita','Atlas','Chou'],
-  'Akai':['Diggie','Popol and Kupa','Lolita','Atlas','Chou'],
-  'Helcurt':['Popol and Kupa','Diggie','Selena','Natan','Claude'],
-  'Selena':['Popol and Kupa','Diggie','Lolita','Franco','Chou'],
-  'Lolita':['Diggie','Popol and Kupa','Franco','Atlas','Khufra'],
-  'Natalia':['Popol and Kupa','Diggie','Saber','Kaja','Chou'],
-};
+// ═══════ SCOUT-DERIVED COUNTER HELPERS ═══════
+// getScoutCounterNames(heroName) → string[] of heroes that counter heroName (scout data)
+function getScoutCounterNames(heroName){
+  return getLearnedCounters(heroName).map(x=>x.name);
+}
 
-// Returns how many of oppPicks this hero counters
+// Returns whether heroA counters heroB based on scout win rate data
+function scoutCounters(heroAName, heroBName){
+  const lc = getLearnedCounters(heroBName);
+  return lc.some(x=>x.name===heroAName);
+}
+
+// Returns how many of oppPicks this hero counters (scout-derived)
 function counterScore(h, oppPicks){
-  const countered=oppPicks.filter(op=>COUNTERS[op.name]?.includes(h.name)).length;
-  const counters=oppPicks.filter(op=>(COUNTERS[h.name]||[]).length>0).length;
-  // also check if opponent counters us (negative)
-  const vuln=oppPicks.filter(op=>COUNTERS[h.name]?.includes(op.name)).length;
+  const countered=oppPicks.filter(op=>scoutCounters(h.name, op.name)).length;
+  const vuln=oppPicks.filter(op=>scoutCounters(op.name, h.name)).length;
   return countered*25 - vuln*15;
 }
 
-// Returns true if h is countered by any of oppPicks
+// Returns true if h is countered by any of oppPicks (scout-derived)
 function isCounteredBy(h, oppPicks){
-  return oppPicks.some(op=>COUNTERS[h.name]?.includes(op.name));
+  return oppPicks.some(op=>scoutCounters(op.name, h.name));
 }
 
 // ── Team composition helpers ──
@@ -1822,8 +1814,8 @@ function localAI(step){
       // DENY: break human combos — if this hero is part of a winning combo the human uses
       const breakCombo=humanCombos.some(cb=>cb.a===h.name||cb.b===h.name)?30:0;
 
-      // COUNTER-BAN: ban heroes that counter our existing picks
-      const ctrsUs=myP.length>0&&(COUNTERS[h.name]||[]).some(x=>myP.find(p=>p.name===x))?35:0;
+      // COUNTER-BAN: ban heroes that counter our existing picks (scout-derived)
+      const ctrsUs=myP.length>0&&myP.some(p=>scoutCounters(h.name,p.name))?35:0;
 
       // DENY LANE: ban strong heroes in lanes opp still needs
       const deniesLane=ln!=='Flex'&&oppNeeded.includes(ln)?22:0;
@@ -1837,12 +1829,12 @@ function localAI(step){
     const h=scored[0]?.hero||avail.find(h=>h.mp==='mustban')||avail.find(h=>['S'].includes(TIER_LIST[h.name]?.tier||h.tier))||avail[0];
     const ln=lane(h);
     const isFav=humanFavs.slice(0,5).some(f=>f.name===h.name);
-    const ctrsUs=(COUNTERS[h.name]||[]).some(x=>myP.find(p=>p.name===x));
+    const ctrsUs=myP.some(p=>scoutCounters(h.name,p.name));
     const isCombo=humanCombos.some(cb=>cb.a===h.name||cb.b===h.name);
     h._r=h.mp==='mustban'?'Must-ban priority'
       :isFav?`Deny human's comfort pick (${Math.round((humanFavs.find(f=>f.name===h.name)?.wr||0.5)*100)}%WR)`
       :isCombo?'Breaks human win combo'
-      :ctrsUs?`Counters our ${myP.find(p=>(COUNTERS[h.name]||[]).includes(p.name))?.name}`
+      :ctrsUs?`Counters our ${myP.find(p=>scoutCounters(h.name,p.name))?.name}`
       :oppNeeded.includes(ln)?`Denies opponent ${ln} lane`
       :'Top tier threat';
     h._c='high';return h;
@@ -1857,7 +1849,7 @@ function localAI(step){
     const t=TIER_LIST[h.name]?.tier||h.tier;
     const ts={S:100,A:78,B:55,C:30}[t]||30;
     const fillsNeeded=ln!=='Flex'&&myNeeded.includes(ln)?42:0;
-    const alreadyCovered=ln!=='Flex'&&myCovered.includes(ln)?-32:0;
+    const alreadyCovered=ln!=='Flex'&&myCovered.includes(ln)?-55:0;
     // Counter-pick: use full counter list (hardcoded + learned)
     const countersOpp=oppP.filter(op=>fullCounterList(op.name).some(x=>x.name===h.name)).length*25;
     // Avoid being countered by opponent picks
@@ -1938,11 +1930,11 @@ async function claudeAI(step){
   const aiScout=buildScoutAB(humanTeam);
   // Counter context for prompt
   const myCounterTargets=oppP.map(op=>{
-    const ctrs=avail.filter(h=>COUNTERS[op.name]?.includes(h.name)&&!usedIds.includes(h.id));
+    const ctrs=avail.filter(h=>scoutCounters(h.name,op.name)&&!usedIds.includes(h.id));
     return ctrs.length?`${op.name}→countered by [${ctrs.slice(0,3).map(h=>h.name).join(',')}]`:'';
   }).filter(Boolean).join('; ');
   const theyCounter=myP.map(mp=>{
-    const ctrs=oppP.filter(op=>COUNTERS[mp.name]?.includes(op.name));
+    const ctrs=oppP.filter(op=>scoutCounters(op.name,mp.name));
     return ctrs.length?`${mp.name} is countered by their ${ctrs.map(h=>h.name).join('+')}`:''
   }).filter(Boolean).join('; ');
 
@@ -2251,7 +2243,7 @@ function localAnalysis(bp,rp,bb,rb,bt,rt){
     blueKeysToVictory:keys(bp),redKeysToVictory:keys(rp),
     blueComposition:(()=>{const jg=bp.find(h=>(laneAssignmentsAB[h.id]||lane(h))==='Jungle');const carry=bp.find(h=>(h.role||'').includes('MM'))||bp.find(h=>['S','A'].includes(TIER_LIST[h.name]?.tier||h.tier));const wc=bWR>50?`Win: ${carry?.name||bp[0]?.name} must be protected to 2 items then fight for Lord`:`Win: Scale through ${jg?.name||'jungler'} vision control, avoid even trades early`;return`${archetype(bp)} — ${bp.map(h=>h.name).join(', ')}. ${wc}.`;})(),
     redComposition:(()=>{const jg=rp.find(h=>(laneAssignmentsAB[h.id]||lane(h))==='Jungle');const carry=rp.find(h=>(h.role||'').includes('MM'))||rp.find(h=>['S','A'].includes(TIER_LIST[h.name]?.tier||h.tier));const wc=rWR>50?`Win: ${carry?.name||rp[0]?.name} must be protected to 2 items then fight for Lord`:`Win: Scale through ${jg?.name||'jungler'} vision control, avoid even trades early`;return`${archetype(rp)} — ${rp.map(h=>h.name).join(', ')}. ${wc}.`;})(),
-    keyMatchup:(()=>{const bKey=bp.find(h=>h.mp==='mustban')||bp.find(h=>h.tier==='S')||bp[0];const rKey=rp.find(h=>h.mp==='mustban')||rp.find(h=>h.tier==='S')||rp[0];const rel=COUNTERS[bKey?.name]?.includes(rKey?.name)?`${rKey?.name} hard-counters ${bKey?.name} — red has lane advantage`:COUNTERS[rKey?.name]?.includes(bKey?.name)?`${bKey?.name} hard-counters ${rKey?.name} — blue has lane advantage`:`${bKey?.name} vs ${rKey?.name} — whichever wins lane sets the pace`;return rel;})(),
+    keyMatchup:(()=>{const bKey=bp.find(h=>h.mp==='mustban')||bp.find(h=>h.tier==='S')||bp[0];const rKey=rp.find(h=>h.mp==='mustban')||rp.find(h=>h.tier==='S')||rp[0];const rel=scoutCounters(rKey?.name,bKey?.name)?`${rKey?.name} counters ${bKey?.name} — red has matchup advantage`:scoutCounters(bKey?.name,rKey?.name)?`${bKey?.name} counters ${rKey?.name} — blue has matchup advantage`:`${bKey?.name} vs ${rKey?.name} — whichever wins lane sets the pace`;return rel;})(),
     criticalTiming:'3:50–4:30 first Turtle contest decides the draft winner',
     banAnalysis:banText,draftVerdict:verdict,
     mvpHero:mvpH?.name||'—',
@@ -2261,6 +2253,17 @@ function localAnalysis(bp,rp,bb,rb,bt,rt){
 
 async function runAnalysis(){
   if(ST.bp.length<3||ST.rp.length<3){toast('Need more picks','error');return;}
+  // Token gate
+  if(typeof WDB!=='undefined'&&WDB.canAnalyze){
+    if(!WDB.canAnalyze()){
+      const sub=WDB.getSubscription();
+      const plan=WDB.PLANS[sub.plan]||WDB.PLANS.free;
+      toast(`No tokens left (${plan.label} plan: ${plan.tokensPerMonth}/mo). Upgrade in Profile.`,'error');
+      return;
+    }
+    WDB.consumeToken();
+    updateTokenDisplay();
+  }
   const resultEl=document.getElementById('result');
   const wasShowing=resultEl.classList.contains('show');
   if(wasShowing) resultEl.classList.remove('show');
@@ -2278,9 +2281,16 @@ async function runAnalysis(){
     const mb=HEROES.filter(h=>h.mp==='mustban'&&!allUsed.includes(h.id)).map(h=>h.name).slice(0,5);
     const hp=HEROES.filter(h=>h.mp==='highpick'&&!allUsed.includes(h.id)).map(h=>h.name).slice(0,6);
     const meta=[PV?`Patch:${PV}`:'',mb.length?`MustBan:${mb.join(',')}` :'',hp.length?`HighPick:${hp.join(',')}` :''].filter(Boolean).join(' | ')||'Base data';
+    // Hero pool context
+    const _pool = (typeof WDB!=='undefined'&&WDB.getHeroPool) ? WDB.getHeroPool() : [];
+    const poolInDraft = _pool.filter(n=>[...ST.bp,...ST.rp].some(h=>h.name===n));
+    const poolAvail = _pool.filter(n=>[...ST.bp,...ST.rp,...ST.bb,...ST.rb].every(h=>h.name!==n)).slice(0,8);
+    const poolCtx = _pool.length>0
+      ? `\nPlayer hero pool: [${_pool.join(', ')}]${poolInDraft.length?`\nPool heroes drafted: [${poolInDraft.join(', ')}]`:''}${poolAvail.length?`\nPool heroes not used: [${poolAvail.join(', ')}]`:''}`
+      : '';
     const prompt=`You are an elite MLBB draft analyst. Analyze this completed draft and give SPECIFIC insights about the ACTUAL heroes drafted — not generic advice.
 
-${meta}
+${meta}${poolCtx}
 BLUE SIDE (${bt}): bans=[${bB}] picks=[${bP}]
 RED SIDE (${rt}): bans=[${rB}] picks=[${rP}]
 
