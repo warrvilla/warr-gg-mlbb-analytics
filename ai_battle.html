@@ -1094,21 +1094,22 @@ try{
 
 // ── DYNAMIC TIERS FROM SCOUT DATA ──
 // Override hardcoded tiers with actual scouted presence/WR data
+// Priority: Scout data > Excel import > hardcoded default
+let _scoutTierCache = null;
 (function applyDynamicTiers() {
   if (typeof WDB === 'undefined' || !WDB.computeDynamicTiers) return;
-  const dt = WDB.computeDynamicTiers(2); // 2 games minimum
+  const dt = WDB.computeDynamicTiers(2);
   if (!dt) return;
+  _scoutTierCache = dt;
   const tp = {S:'highpick', A:'highpick', B:'situational', C:'situational', D:'off'};
   HEROES.forEach(h => {
     const d = dt[h.name];
     if (!d) return;
-    // Only override if we don't already have sheet data for this hero
-    if (!TIER_LIST[h.name]) {
-      h.tier = d.tier;
-      if (h.mp !== 'mustban') h.mp = d.mp || tp[d.tier] || h.mp;
-    }
+    // Always apply scout data — overrides Excel import too
+    h.tier = d.tier;
+    if (h.mp !== 'mustban') h.mp = d.mp || tp[d.tier] || h.mp;
   });
-  console.log('[AI Battle] Dynamic tiers applied from scout data:', Object.keys(dt).length, 'heroes');
+  console.log('[AI Battle] Scout tiers applied:', Object.keys(dt).length, 'heroes');
 })();
 
 
@@ -1800,7 +1801,7 @@ function localAI(step){
 
   if(step.type==='ban'){
     const scored=avail.map(h=>{
-      const t=TIER_LIST[h.name]?.tier||h.tier;
+      const t=_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
       const ts={S:100,A:75,B:50,C:25}[t]||20;
       const isMustBan=h.mp==='mustban';
       const isHighPick=h.mp==='highpick';
@@ -1826,7 +1827,7 @@ function localAI(step){
       return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+denyFav+breakCombo+ctrsUs+deniesLane+dontBanOwn+Math.random()*6};
     }).filter(Boolean).sort((a,b)=>b.score-a.score);
 
-    const h=scored[0]?.hero||avail.find(h=>h.mp==='mustban')||avail.find(h=>['S'].includes(TIER_LIST[h.name]?.tier||h.tier))||avail[0];
+    const h=scored[0]?.hero||avail.find(h=>h.mp==='mustban')||avail.find(h=>['S'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier))||avail[0];
     const ln=lane(h);
     const isFav=humanFavs.slice(0,5).some(f=>f.name===h.name);
     const ctrsUs=myP.some(p=>scoutCounters(h.name,p.name));
@@ -1842,11 +1843,11 @@ function localAI(step){
 
   // PICK: tier + fill lane + counter-pick + avoid being countered + use learned counters
   const scored=avail.filter(h=>{
-    const t=TIER_LIST[h.name]?.tier||h.tier;
+    const t=_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
     return h.mp!=='off'||['S','A','B'].includes(t);
   }).map(h=>{
     const ln=lane(h);
-    const t=TIER_LIST[h.name]?.tier||h.tier;
+    const t=_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
     const ts={S:100,A:78,B:55,C:30}[t]||30;
     const fillsNeeded=ln!=='Flex'&&myNeeded.includes(ln)?42:0;
     const alreadyCovered=ln!=='Flex'&&myCovered.includes(ln)?-55:0;
@@ -1876,7 +1877,7 @@ function localAI(step){
     ?`Counters ${countered.slice(0,2).map(x=>x.name).join('+')}${learnedFor.length?' (learned)':''}`
     :needsFrontline?`Frontline anchor — team needs Tank/Fighter`
     :myNeeded.includes(ln)?`Fills ${ln} lane`
-    :`Best available (${TIER_LIST[h.name]?.tier||h.tier}-tier)`;
+    :`Best available (${_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier}-tier)`;
   h._c=countered.length?'high':needsFrontline?'high':'medium';return h;
 }
 
@@ -1917,9 +1918,9 @@ async function claudeAI(step){
   const {needed}=needs(myP);
   const {needed:oppNeeded}=needs(oppP);
   const mem=loadMem();
-  const topA=avail.filter(h=>h.mp!=='off'||['S','A'].includes(TIER_LIST[h.name]?.tier||h.tier)).slice(0,42).map(h=>{
+  const topA=avail.filter(h=>h.mp!=='off'||['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier)).slice(0,42).map(h=>{
     const d=mem[h.name];const wr=d&&d.wins+d.losses>0?`,WR:${Math.round(d.wins/(d.wins+d.losses)*100)}%`:'';
-    return`${h.name}(${lane(h)},${TIER_LIST[h.name]?.tier||h.tier}${wr})`;
+    return`${h.name}(${lane(h)},${_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier}${wr})`;
   }).join(', ');
   const humanFavsGM=getHumanTendencies().slice(0,5);
   const humanCombosGM=getHumanComboThreats().slice(0,3);
@@ -2182,7 +2183,7 @@ async function captureResult() {
 function localAnalysis(bp,rp,bb,rb,bt,rt){
   const tierScore={S:10,A:8,B:6,C:4,D:2};
   const scoreTeam=picks=>picks.reduce((s,h)=>{
-    const t=TIER_LIST[h.name]?.tier||h.tier||'C';
+    const t=_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier||'C';
     return s+(Number(h.ms)||tierScore[t]||5)+(h.mp==='mustban'?2:h.mp==='highpick'?1:0);
   },0)/Math.max(picks.length,1);
   const bs=scoreTeam(bp),rs=scoreTeam(rp),tot=bs+rs||1;
@@ -2202,12 +2203,12 @@ function localAnalysis(bp,rp,bb,rb,bt,rt){
   });
   const laneStr=ls=>{
     const keys=['exp','gold','mid','jungle','roam'],lanes=['EXP','Gold','Mid','Jungle','Roam'],obj={};
-    keys.forEach((k,i)=>{const h=ls.find(l=>l.lane===lanes[i])?.hero;obj[k]=h?`${h.name} (${(h.role||'').split('/')[0]}) — ${({S:'Strong',A:'Good',B:'Decent',C:'Weak'}[TIER_LIST[h.name]?.tier||h.tier]||'Decent')} tier`:`No clear ${lanes[i]} laner`;});
+    keys.forEach((k,i)=>{const h=ls.find(l=>l.lane===lanes[i])?.hero;obj[k]=h?`${h.name} (${(h.role||'').split('/')[0]}) — ${({S:'Strong',A:'Good',B:'Decent',C:'Weak'}[_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier]||'Decent')} tier`:`No clear ${lanes[i]} laner`;});
     return obj;
   };
   const strengths=picks=>{
     const s=[],r=picks.map(h=>h.role||'');
-    const hi=picks.filter(h=>['S','A'].includes(TIER_LIST[h.name]?.tier||h.tier));
+    const hi=picks.filter(h=>['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));
     if(hi.length>=2)s.push(`${hi.slice(0,3).map(h=>h.name).join(', ')} are high-tier picks — strong meta power`);
     const mb=picks.filter(h=>h.mp==='mustban');
     if(mb.length)s.push(`Secured ${mb.map(h=>h.name).join(' + ')} — must-ban priority heroes`);
@@ -2224,9 +2225,9 @@ function localAnalysis(bp,rp,bb,rb,bt,rt){
     if(!r.some(x=>x.includes('MM'))&&!r.some(x=>x.includes('Mage')))w.push('Low sustained damage — struggles in extended fights');
     const cov=picks.map(h=>laneAssignmentsAB[h.id]||lane(h));
     ['Gold','Roam','Jungle'].forEach(l=>{if(!cov.includes(l))w.push(`No clear ${l} laner — lane gap`);});
-    const low=picks.filter(h=>['C','D'].includes(TIER_LIST[h.name]?.tier||h.tier));
+    const low=picks.filter(h=>['C','D'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));
     if(low.length>=2)w.push(`${low.map(h=>h.name).join(', ')} are below meta — reliability risk`);
-    if(w.length<2){const nm=picks.filter(h=>h.mp!=='mustban'&&!['S','A'].includes(TIER_LIST[h.name]?.tier||h.tier));if(nm.length)w.push(`${nm[0].name} is below peak meta — needs to outplay to win lane`);else w.push(`Protect ${picks[0]?.name} — losing this carry makes the comp toothless`);}if(w.length<2)w.push('Engage timing critical — never force without all 5 in position');
+    if(w.length<2){const nm=picks.filter(h=>h.mp!=='mustban'&&!['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));if(nm.length)w.push(`${nm[0].name} is below peak meta — needs to outplay to win lane`);else w.push(`Protect ${picks[0]?.name} — losing this carry makes the comp toothless`);}if(w.length<2)w.push('Engage timing critical — never force without all 5 in position');
     return w.slice(0,2);
   };
   const keys=picks=>{
@@ -2234,21 +2235,21 @@ function localAnalysis(bp,rp,bb,rb,bt,rt){
     const mm=picks.find(h=>(h.role||'').includes('MM'));
     const tk=picks.find(h=>(h.role||'').includes('Tank'));
     const mage=picks.find(h=>(h.role||'').includes('Mage'));
-    const high=picks.filter(h=>['S','A'].includes(TIER_LIST[h.name]?.tier||h.tier));
+    const high=picks.filter(h=>['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));
     const k1=jg?`${jg.name} controls crab+turtle timing — must secure vision before 4:00 to enable picks`:`Secure early crab at 2:30 for vision — jungler sets tempo for the whole comp`;
     const k2=mm?`${mm.name} must reach full build before Lord — avoid risky trades until 2 core items`:(mage?`${mage.name} rotates mid after clearing wave — don't overstay, poke then reset`:`${high[0]?.name||picks[0]?.name} carries the late game — deny farm from opponent's carry`);
     const k3=tk?`${tk.name} initiates only when all 5 are in position — no solo dives into collapsed enemies`:`No dedicated tank — win through poke and picks, avoid straight 5v5 brawls`;
     return[k1,k2,k3];
   };
-  const mvpH=[...bp,...rp].filter(h=>['S'].includes(TIER_LIST[h.name]?.tier||h.tier)||h.mp==='mustban').sort((a,b)=>(Number(b.ms)||8)-(Number(a.ms)||8))[0]||bp[0];
+  const mvpH=[...bp,...rp].filter(h=>['S'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier)||h.mp==='mustban').sort((a,b)=>(Number(b.ms)||8)-(Number(a.ms)||8))[0]||bp[0];
   const bLanes=lanesOf(bp),rLanes=lanesOf(rp);
   const winner=bWR>=rWR?'blue':'red';
   const wPct=Math.max(bWR,rWR),lPct=100-wPct;
   const wTeam=winner==='blue'?bt:rt,lTeam=winner==='blue'?rt:bt;
   const wPicks=winner==='blue'?bp:rp;
-  const wHighTier=wPicks.filter(h=>['S','A'].includes(TIER_LIST[h.name]?.tier||h.tier));
+  const wHighTier=wPicks.filter(h=>['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));
   const lPicks=winner==='blue'?rp:bp;
-  const lHighTier=lPicks.filter(h=>['S','A'].includes(TIER_LIST[h.name]?.tier||h.tier));
+  const lHighTier=lPicks.filter(h=>['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));
   const wMustBan=wPicks.filter(h=>h.mp==='mustban');
   const keyWinner=wHighTier[0]||wPicks[0];const keyLoser=lHighTier[0]||lPicks[0];
   const verdict=`${wTeam} wins the draft ${wPct}-${lPct}%. ${wMustBan.length?wMustBan.map(h=>h.name).join('+')+' secured as must-ban priority — massive advantage. ':''}${keyWinner?.name} is the game-changer; ${keyLoser?.name} must be shutdown before ${wTeam} snowballs.`;
@@ -2259,8 +2260,8 @@ function localAnalysis(bp,rp,bb,rb,bt,rt){
     blueStrengths:strengths(bp),blueWeaknesses:weaknesses(bp),
     redStrengths:strengths(rp),redWeaknesses:weaknesses(rp),
     blueKeysToVictory:keys(bp),redKeysToVictory:keys(rp),
-    blueComposition:(()=>{const jg=bp.find(h=>(laneAssignmentsAB[h.id]||lane(h))==='Jungle');const carry=bp.find(h=>(h.role||'').includes('MM'))||bp.find(h=>['S','A'].includes(TIER_LIST[h.name]?.tier||h.tier));const wc=bWR>50?`Win: ${carry?.name||bp[0]?.name} must be protected to 2 items then fight for Lord`:`Win: Scale through ${jg?.name||'jungler'} vision control, avoid even trades early`;return`${archetype(bp)} — ${bp.map(h=>h.name).join(', ')}. ${wc}.`;})(),
-    redComposition:(()=>{const jg=rp.find(h=>(laneAssignmentsAB[h.id]||lane(h))==='Jungle');const carry=rp.find(h=>(h.role||'').includes('MM'))||rp.find(h=>['S','A'].includes(TIER_LIST[h.name]?.tier||h.tier));const wc=rWR>50?`Win: ${carry?.name||rp[0]?.name} must be protected to 2 items then fight for Lord`:`Win: Scale through ${jg?.name||'jungler'} vision control, avoid even trades early`;return`${archetype(rp)} — ${rp.map(h=>h.name).join(', ')}. ${wc}.`;})(),
+    blueComposition:(()=>{const jg=bp.find(h=>(laneAssignmentsAB[h.id]||lane(h))==='Jungle');const carry=bp.find(h=>(h.role||'').includes('MM'))||bp.find(h=>['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));const wc=bWR>50?`Win: ${carry?.name||bp[0]?.name} must be protected to 2 items then fight for Lord`:`Win: Scale through ${jg?.name||'jungler'} vision control, avoid even trades early`;return`${archetype(bp)} — ${bp.map(h=>h.name).join(', ')}. ${wc}.`;})(),
+    redComposition:(()=>{const jg=rp.find(h=>(laneAssignmentsAB[h.id]||lane(h))==='Jungle');const carry=rp.find(h=>(h.role||'').includes('MM'))||rp.find(h=>['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));const wc=rWR>50?`Win: ${carry?.name||rp[0]?.name} must be protected to 2 items then fight for Lord`:`Win: Scale through ${jg?.name||'jungler'} vision control, avoid even trades early`;return`${archetype(rp)} — ${rp.map(h=>h.name).join(', ')}. ${wc}.`;})(),
     keyMatchup:(()=>{const bKey=bp.find(h=>h.mp==='mustban')||bp.find(h=>h.tier==='S')||bp[0];const rKey=rp.find(h=>h.mp==='mustban')||rp.find(h=>h.tier==='S')||rp[0];const rel=scoutCounters(rKey?.name,bKey?.name)?`${rKey?.name} counters ${bKey?.name} — red has matchup advantage`:scoutCounters(bKey?.name,rKey?.name)?`${bKey?.name} counters ${rKey?.name} — blue has matchup advantage`:`${bKey?.name} vs ${rKey?.name} — whichever wins lane sets the pace`;return rel;})(),
     criticalTiming:'3:50–4:30 first Turtle contest decides the draft winner',
     banAnalysis:banText,draftVerdict:verdict,
@@ -2293,8 +2294,8 @@ async function runAnalysis(){
 
   try{
     const bB=ST.bb.map(h=>h.name).join(',')||'None', rB=ST.rb.map(h=>h.name).join(',')||'None';
-    const bP=ST.bp.map(h=>`${h.name}(${h.role},T${TIER_LIST[h.name]?.tier||h.tier||'?'},${laneAssignmentsAB[h.id]||lane(h)})`).join(',');
-    const rP=ST.rp.map(h=>`${h.name}(${h.role},T${TIER_LIST[h.name]?.tier||h.tier||'?'},${laneAssignmentsAB[h.id]||lane(h)})`).join(',');
+    const bP=ST.bp.map(h=>`${h.name}(${h.role},T${_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier||'?'},${laneAssignmentsAB[h.id]||lane(h)})`).join(',');
+    const rP=ST.rp.map(h=>`${h.name}(${h.role},T${_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier||'?'},${laneAssignmentsAB[h.id]||lane(h)})`).join(',');
     const allUsed=[...ST.bb,...ST.rb,...ST.bp,...ST.rp].map(h=>h.id);
     const mb=HEROES.filter(h=>h.mp==='mustban'&&!allUsed.includes(h.id)).map(h=>h.name).slice(0,5);
     const hp=HEROES.filter(h=>h.mp==='highpick'&&!allUsed.includes(h.id)).map(h=>h.name).slice(0,6);

@@ -1264,20 +1264,22 @@ try {
 } catch(e) {}
 
 // ── DYNAMIC TIERS FROM SCOUT DATA ──
+// Priority: Scout data > Excel import > hardcoded default
+let _scoutTierCache = null;
 (function applyDynamicTiers() {
   if (typeof WDB === 'undefined' || !WDB.computeDynamicTiers) return;
   const dt = WDB.computeDynamicTiers(2);
   if (!dt) return;
+  _scoutTierCache = dt;
   const tp = {S:'highpick', A:'highpick', B:'situational', C:'situational', D:'off'};
   FINAL_HEROES.forEach(h => {
     const d = dt[h.name];
     if (!d) return;
-    if (!TIER_LIST[h.name]) {
-      h.tier = d.tier;
-      if (h.mp !== 'mustban') h.mp = d.mp || tp[d.tier] || h.mp;
-    }
+    // Always apply scout data — overrides Excel import too
+    h.tier = d.tier;
+    if (h.mp !== 'mustban') h.mp = d.mp || tp[d.tier] || h.mp;
   });
-  console.log('[Draft Board] Dynamic tiers applied:', Object.keys(dt).length, 'heroes');
+  console.log('[Draft Board] Scout tiers applied:', Object.keys(dt).length, 'heroes');
 })();
 
 const DRAFT_ORDER=[
@@ -1875,6 +1877,9 @@ function getHeroLane(hero){
 // Falls back to h.tier if no lane-specific override exists.
 function getLaneTier(heroName, lane) {
   if (LANE_TIERS[heroName] && LANE_TIERS[heroName][lane]) return LANE_TIERS[heroName][lane];
+  // Scout data is highest priority
+  if (_scoutTierCache?.[heroName]?.tier) return _scoutTierCache[heroName].tier;
+  // Then Excel import, then hero object default (also set by scout IIFE), then fallback
   return TIER_LIST[heroName]?.tier || (FINAL_HEROES.find(h=>h.name===heroName)?.tier) || 'B';
 }
 function getLaneTierColor(heroName, lane) {
@@ -5801,20 +5806,22 @@ try {
 } catch(e) {}
 
 // ── DYNAMIC TIERS FROM SCOUT DATA ──
+// Priority: Scout data > Excel import > hardcoded default
+let _scoutTierCache = null;
 (function applyDynamicTiers() {
   if (typeof WDB === 'undefined' || !WDB.computeDynamicTiers) return;
   const dt = WDB.computeDynamicTiers(2);
   if (!dt) return;
+  _scoutTierCache = dt;
   const tp = {S:'highpick', A:'highpick', B:'situational', C:'situational', D:'off'};
   FINAL_HEROES.forEach(h => {
     const d = dt[h.name];
     if (!d) return;
-    if (!TIER_LIST[h.name]) {
-      h.tier = d.tier;
-      if (h.mp !== 'mustban') h.mp = d.mp || tp[d.tier] || h.mp;
-    }
+    // Always apply scout data — overrides Excel import too
+    h.tier = d.tier;
+    if (h.mp !== 'mustban') h.mp = d.mp || tp[d.tier] || h.mp;
   });
-  console.log('[Draft Board] Dynamic tiers applied:', Object.keys(dt).length, 'heroes');
+  console.log('[Draft Board] Scout tiers applied:', Object.keys(dt).length, 'heroes');
 })();
 
 const DRAFT_ORDER=[
@@ -6412,6 +6419,9 @@ function getHeroLane(hero){
 // Falls back to h.tier if no lane-specific override exists.
 function getLaneTier(heroName, lane) {
   if (LANE_TIERS[heroName] && LANE_TIERS[heroName][lane]) return LANE_TIERS[heroName][lane];
+  // Scout data is highest priority
+  if (_scoutTierCache?.[heroName]?.tier) return _scoutTierCache[heroName].tier;
+  // Then Excel import, then hero object default (also set by scout IIFE), then fallback
   return TIER_LIST[heroName]?.tier || (FINAL_HEROES.find(h=>h.name===heroName)?.tier) || 'B';
 }
 function getLaneTierColor(heroName, lane) {
