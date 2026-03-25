@@ -931,12 +931,10 @@ function renderPoolGrid() {
     const sel = _poolSelected.has(h.n);
     // Short role label
     const roleLabel = h.r.split('/')[0];
-    const heroId = h.n.toLowerCase().replace(/[^a-z0-9]/g,'').replace(/\.borg/,'xborg').replace(/poppol/,'popol');
-    const imgSrc = `portraits/${h.n}.png`;
-    const imgFb  = `portraits/${heroId}.png`;
+    const imgSrc = (typeof WDB !== 'undefined' && WDB.heroPortrait) ? WDB.heroPortrait(h.n) : `portraits/${h.n}.png`;
     return `<button class="pool-hero-btn${sel?' selected':''}" onclick="togglePoolHero('${h.n.replace(/'/g,"\\'")}')" title="${h.n}">
       <img src="${imgSrc}" class="pool-hero-img" alt="${h.n}"
-        onerror="if(!this.dataset.t){this.dataset.t=1;this.src='${imgFb}';}">
+        onerror="this.style.background='#1A1A28';this.onerror=null;">
       <div style="font-size:10px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center;">${h.n}</div>
       <div class="pool-hero-role">${roleLabel}</div>
     </button>`;

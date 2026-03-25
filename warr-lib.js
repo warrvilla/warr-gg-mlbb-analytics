@@ -752,6 +752,21 @@ WDB.HERO_ROSTER = [
   {n:'Popol & Kupa',r:'Support/MM'}
 ];
 
+// ── Portrait filename aliases (hero name → actual .png basename) ──
+WDB.PORTRAIT_ALIAS = {
+  'Yi Sun-shin': 'YSS',
+  'Popol & Kupa': 'Popol',
+  'Lapu-Lapu':   'LapuLapu',
+  'X.Borg':      'Xborg',
+  'Yu Zhong':    'YuZhong',
+  'Luo Yi':      'luoyi',
+};
+/** Returns the portraits/ path for a given hero name */
+WDB.heroPortrait = function(name) {
+  const base = WDB.PORTRAIT_ALIAS[name] || name;
+  return `portraits/${base}.png`;
+};
+
 // ── Hero Pool helpers ──
 /** Get saved hero pool (array of hero names) */
 WDB.getHeroPool = function() {
