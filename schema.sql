@@ -160,6 +160,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   tokens_used     integer DEFAULT 0,
   tokens_reset_at timestamptz,               -- when tokens_used resets to 0
   is_banned       boolean DEFAULT false,      -- soft-ban flag
+  hero_pool       jsonb DEFAULT '[]'::jsonb,  -- user's personal hero pool (array of hero names)
   admin_notes     text,                       -- internal notes visible only to admin
   created_at      timestamptz DEFAULT now(),
   updated_at      timestamptz DEFAULT now()
@@ -168,6 +169,10 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 CREATE INDEX IF NOT EXISTS profiles_team_status_idx ON public.profiles(team_status);
 CREATE INDEX IF NOT EXISTS profiles_plan_idx        ON public.profiles(plan);
 CREATE INDEX IF NOT EXISTS profiles_email_idx       ON public.profiles(email);
+
+-- Migration: add hero_pool column if upgrading from older schema
+-- Run this in Supabase SQL Editor if the table already exists:
+-- ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS hero_pool jsonb DEFAULT '[]'::jsonb;
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 

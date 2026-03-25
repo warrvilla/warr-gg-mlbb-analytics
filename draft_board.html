@@ -1656,6 +1656,9 @@ function renderPool(){
 
   document.getElementById('heroCountLabel').textContent=vis.length+' / '+FINAL_HEROES.length;
 
+  // ── Hero pool (lazy-loaded once per render pass) ──
+  const _dbPool = (typeof WDB !== 'undefined' && WDB.getHeroPool) ? new Set(WDB.getHeroPool()) : new Set();
+
   function heroCard(h){
     const isBan=banned.includes(h.id),isPick=picked.includes(h.id),isUsed=isBan||isPick;
     let cls='hero-card';if(isBan)cls+=' banned';if(isPick)cls+=' picked';
@@ -1664,13 +1667,15 @@ function renderPool(){
     // When filtering by a specific lane, show that lane — not the hero's primary lane
     const displayLane=(isLaneMode && activeLane!=='All') ? activeLane : lane;
     const laneCol=LANE_COLORS[displayLane]||'#94a3b8';
-    return`<div class="${cls}" ${isUsed?'':'onclick="selectHero(\''+h.id+'\')"'} title="${h.name} · ${h.role} · ${displayLane}" style="${isUsed?'pointer-events:none;':''}">
+    const inPool = _dbPool.has(h.name);
+    return`<div class="${cls}" ${isUsed?'':'onclick="selectHero(\''+h.id+'\')"'} title="${h.name} · ${h.role} · ${displayLane}${inPool?' · ★ Your Pool':''}" style="${isUsed?'pointer-events:none;':''}">
       <img src="${u}" class="hero-img" alt="${h.name}" onerror="if(this.dataset.t){this.src='${fbImg(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${imgUrlName(h)}'}">
       <div class="hero-cname">${h.name}</div>
       <div class="hero-crole" style="color:${LANE_COLORS[displayLane]||'#94a3b8'}">${isLaneMode?displayLane:h.role.split('/')[0]}</div>
       <div class="tier-badge tier-${h.tier}">${h.tier}</div>
       ${h.mp==='mustban'?'<div class="meta-badge mb-ban">BAN</div>':h.mp==='highpick'?'<div class="meta-badge mb-pick">HOT</div>':''}
       ${heroScoutStats[h.name]!=null?(()=>{const wr=heroScoutStats[h.name].winRate;const cls=wr>=55?'wr-high':wr>=45?'wr-mid':'wr-low';return`<div class="wr-badge ${cls}">${wr}%</div>`;})():''}
+      ${inPool?'<div style="position:absolute;top:3px;left:4px;font-size:9px;color:#f5c842;line-height:1;" title="In your hero pool">★</div>':''}
       ${isBan?'<div class="banned-overlay">✕</div>':isPick?'<div class="banned-overlay" style="background:rgba(59,130,246,.15);color:rgba(59,130,246,.7);">✓</div>':''}
     </div>`;
   }
@@ -2039,7 +2044,13 @@ async function getAIPreds(step){
   const { needed } = getRoleNeeds(myPicks);
   const neededStr = needed.length ? `Lanes still needed: ${needed.join(', ')}` : 'All lanes filled — suggest best flex/counter picks';
   const sc=series.mode>1?`BO${series.mode} Game ${series.currentGame} (${bt} ${series.blueWins}-${series.redWins} ${rt}). Prev picks: ${series.matches.flatMap(m=>[...m.bluePicks,...m.redPicks].map(h=>h.name)).join(', ')||'None'}.`:'';
-  const p=`${buildMetaContext()}\nDraft state — ${bt} Bans:${bBans} Picks:${bPicks} | ${rt} Bans:${rBans} Picks:${rPicks}\n${sc}${tendCtx}${scoutCtx}${myScoutCtx?`\nOUR TEAM SCOUT — ${step.team==='blue'?bt:rt}:${myScoutCtx}`:''}\nNEXT: ${step.team.toUpperCase()} must ${step.type.toUpperCase()} (step ${state.currentStep+1}/20).\n${neededStr}\nAvailable top meta heroes: ${top}\n\nRULES: Lanes are Gold/Jungle/Mid/EXP/Roam. For picks, ONLY suggest heroes for lanes still needed. Do NOT suggest a hero for a lane already filled (e.g. if Gold is filled do not suggest another MM/Gold laner). If enemy scouting data is available, factor in counter-picks. Each reason must be short (max 10 words), mentioning the lane gap and M7 stat or enemy counter.\nJSON only: {"picks":[{"name":"HeroName","reason":"short reason","priority":"must|high|good"},{"name":"...","reason":"...","priority":"..."},{"name":"...","reason":"...","priority":"..."},{"name":"...","reason":"...","priority":"..."},{"name":"...","reason":"...","priority":"..."}]}`;
+  // Hero pool context — prioritise pool heroes in suggestions
+  const _poolDB = (typeof WDB!=='undefined'&&WDB.getHeroPool) ? WDB.getHeroPool() : [];
+  const poolAvailDB = _poolDB.filter(n=>avail.some(h=>h.name===n));
+  const poolCtxDB = poolAvailDB.length>0
+    ? `\nPLAYER HERO POOL (prioritise these if they fit the lane/comp): [${poolAvailDB.join(', ')}]`
+    : '';
+  const p=`${buildMetaContext()}\nDraft state — ${bt} Bans:${bBans} Picks:${bPicks} | ${rt} Bans:${rBans} Picks:${rPicks}\n${sc}${tendCtx}${scoutCtx}${myScoutCtx?`\nOUR TEAM SCOUT — ${step.team==='blue'?bt:rt}:${myScoutCtx}`:''}${poolCtxDB}\nNEXT: ${step.team.toUpperCase()} must ${step.type.toUpperCase()} (step ${state.currentStep+1}/20).\n${neededStr}\nAvailable top meta heroes: ${top}\n\nRULES: Lanes are Gold/Jungle/Mid/EXP/Roam. For picks, ONLY suggest heroes for lanes still needed. Do NOT suggest a hero for a lane already filled (e.g. if Gold is filled do not suggest another MM/Gold laner). If the player has a hero pool, prefer pool heroes that fit the needed lane and comp. If enemy scouting data is available, factor in counter-picks. Each reason must be short (max 10 words), mentioning the lane gap and M7 stat or enemy counter.\nJSON only: {"picks":[{"name":"HeroName","reason":"short reason","priority":"must|high|good"},{"name":"...","reason":"...","priority":"..."},{"name":"...","reason":"...","priority":"..."},{"name":"...","reason":"...","priority":"..."},{"name":"...","reason":"...","priority":"..."}]}`;
   try{
     const d=await callClaude({model:'claude-sonnet-4-20250514',max_tokens:500,messages:[{role:'user',content:p}]});
     const raw=(d.content||[]).map(x=>x.text||'').join('');
@@ -6175,6 +6186,9 @@ function renderPool(){
 
   document.getElementById('heroCountLabel').textContent=vis.length+' / '+FINAL_HEROES.length;
 
+  // ── Hero pool (lazy-loaded once per render pass) ──
+  const _dbPool = (typeof WDB !== 'undefined' && WDB.getHeroPool) ? new Set(WDB.getHeroPool()) : new Set();
+
   function heroCard(h){
     const isBan=banned.includes(h.id),isPick=picked.includes(h.id),isUsed=isBan||isPick;
     let cls='hero-card';if(isBan)cls+=' banned';if(isPick)cls+=' picked';
@@ -6183,13 +6197,15 @@ function renderPool(){
     // When filtering by a specific lane, show that lane — not the hero's primary lane
     const displayLane=(isLaneMode && activeLane!=='All') ? activeLane : lane;
     const laneCol=LANE_COLORS[displayLane]||'#94a3b8';
-    return`<div class="${cls}" ${isUsed?'':'onclick="selectHero(\''+h.id+'\')"'} title="${h.name} · ${h.role} · ${displayLane}" style="${isUsed?'pointer-events:none;':''}">
+    const inPool = _dbPool.has(h.name);
+    return`<div class="${cls}" ${isUsed?'':'onclick="selectHero(\''+h.id+'\')"'} title="${h.name} · ${h.role} · ${displayLane}${inPool?' · ★ Your Pool':''}" style="${isUsed?'pointer-events:none;':''}">
       <img src="${u}" class="hero-img" alt="${h.name}" onerror="if(this.dataset.t){this.src='${fbImg(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${imgUrlName(h)}'}">
       <div class="hero-cname">${h.name}</div>
       <div class="hero-crole" style="color:${LANE_COLORS[displayLane]||'#94a3b8'}">${isLaneMode?displayLane:h.role.split('/')[0]}</div>
       <div class="tier-badge tier-${h.tier}">${h.tier}</div>
       ${h.mp==='mustban'?'<div class="meta-badge mb-ban">BAN</div>':h.mp==='highpick'?'<div class="meta-badge mb-pick">HOT</div>':''}
       ${heroScoutStats[h.name]!=null?(()=>{const wr=heroScoutStats[h.name].winRate;const cls=wr>=55?'wr-high':wr>=45?'wr-mid':'wr-low';return`<div class="wr-badge ${cls}">${wr}%</div>`;})():''}
+      ${inPool?'<div style="position:absolute;top:3px;left:4px;font-size:9px;color:#f5c842;line-height:1;" title="In your hero pool">★</div>':''}
       ${isBan?'<div class="banned-overlay">✕</div>':isPick?'<div class="banned-overlay" style="background:rgba(59,130,246,.15);color:rgba(59,130,246,.7);">✓</div>':''}
     </div>`;
   }
@@ -6558,7 +6574,13 @@ async function getAIPreds(step){
   const { needed } = getRoleNeeds(myPicks);
   const neededStr = needed.length ? `Lanes still needed: ${needed.join(', ')}` : 'All lanes filled — suggest best flex/counter picks';
   const sc=series.mode>1?`BO${series.mode} Game ${series.currentGame} (${bt} ${series.blueWins}-${series.redWins} ${rt}). Prev picks: ${series.matches.flatMap(m=>[...m.bluePicks,...m.redPicks].map(h=>h.name)).join(', ')||'None'}.`:'';
-  const p=`${buildMetaContext()}\nDraft state — ${bt} Bans:${bBans} Picks:${bPicks} | ${rt} Bans:${rBans} Picks:${rPicks}\n${sc}${tendCtx}${scoutCtx}${myScoutCtx?`\nOUR TEAM SCOUT — ${step.team==='blue'?bt:rt}:${myScoutCtx}`:''}\nNEXT: ${step.team.toUpperCase()} must ${step.type.toUpperCase()} (step ${state.currentStep+1}/20).\n${neededStr}\nAvailable top meta heroes: ${top}\n\nRULES: Lanes are Gold/Jungle/Mid/EXP/Roam. For picks, ONLY suggest heroes for lanes still needed. Do NOT suggest a hero for a lane already filled (e.g. if Gold is filled do not suggest another MM/Gold laner). If enemy scouting data is available, factor in counter-picks. Each reason must be short (max 10 words), mentioning the lane gap and M7 stat or enemy counter.\nJSON only: {"picks":[{"name":"HeroName","reason":"short reason","priority":"must|high|good"},{"name":"...","reason":"...","priority":"..."},{"name":"...","reason":"...","priority":"..."},{"name":"...","reason":"...","priority":"..."},{"name":"...","reason":"...","priority":"..."}]}`;
+  // Hero pool context — prioritise pool heroes in suggestions
+  const _poolDB = (typeof WDB!=='undefined'&&WDB.getHeroPool) ? WDB.getHeroPool() : [];
+  const poolAvailDB = _poolDB.filter(n=>avail.some(h=>h.name===n));
+  const poolCtxDB = poolAvailDB.length>0
+    ? `\nPLAYER HERO POOL (prioritise these if they fit the lane/comp): [${poolAvailDB.join(', ')}]`
+    : '';
+  const p=`${buildMetaContext()}\nDraft state — ${bt} Bans:${bBans} Picks:${bPicks} | ${rt} Bans:${rBans} Picks:${rPicks}\n${sc}${tendCtx}${scoutCtx}${myScoutCtx?`\nOUR TEAM SCOUT — ${step.team==='blue'?bt:rt}:${myScoutCtx}`:''}${poolCtxDB}\nNEXT: ${step.team.toUpperCase()} must ${step.type.toUpperCase()} (step ${state.currentStep+1}/20).\n${neededStr}\nAvailable top meta heroes: ${top}\n\nRULES: Lanes are Gold/Jungle/Mid/EXP/Roam. For picks, ONLY suggest heroes for lanes still needed. Do NOT suggest a hero for a lane already filled (e.g. if Gold is filled do not suggest another MM/Gold laner). If the player has a hero pool, prefer pool heroes that fit the needed lane and comp. If enemy scouting data is available, factor in counter-picks. Each reason must be short (max 10 words), mentioning the lane gap and M7 stat or enemy counter.\nJSON only: {"picks":[{"name":"HeroName","reason":"short reason","priority":"must|high|good"},{"name":"...","reason":"...","priority":"..."},{"name":"...","reason":"...","priority":"..."},{"name":"...","reason":"...","priority":"..."},{"name":"...","reason":"...","priority":"..."}]}`;
   try{
     const d=await callClaude({model:'claude-sonnet-4-20250514',max_tokens:500,messages:[{role:'user',content:p}]});
     const raw=(d.content||[]).map(x=>x.text||'').join('');

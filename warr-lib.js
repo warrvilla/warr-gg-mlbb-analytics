@@ -616,6 +616,203 @@ WDB.canAnalyze = function() {
 };
 
 // ═══════════════════════════════════════════════════════════════
+// HERO ROSTER (compact — used by profile picker & pool helpers)
+// ═══════════════════════════════════════════════════════════════
+WDB.HERO_ROSTER = [
+  {n:'Tigreal',r:'Tank'},
+  {n:'Akai',r:'Tank'},
+  {n:'Franco',r:'Tank'},
+  {n:'Minotaur',r:'Tank'},
+  {n:'Lolita',r:'Tank'},
+  {n:'Johnson',r:'Tank'},
+  {n:'Atlas',r:'Tank'},
+  {n:'Khufra',r:'Tank'},
+  {n:'Esmeralda',r:'Tank/Mage'},
+  {n:'Uranus',r:'Tank'},
+  {n:'Hylos',r:'Tank'},
+  {n:'Belerick',r:'Tank'},
+  {n:'Grock',r:'Tank'},
+  {n:'Carmilla',r:'Tank'},
+  {n:'Baxia',r:'Tank'},
+  {n:'Gloo',r:'Tank'},
+  {n:'Chip',r:'Tank'},
+  {n:'Fredrinn',r:'Tank/Fighter'},
+  {n:'Kalea',r:'Tank'},
+  {n:'Edith',r:'Tank/MM'},
+  {n:'Marcel',r:'Tank'},
+  {n:'Barats',r:'Fighter/Tank'},
+  {n:'Balmond',r:'Fighter'},
+  {n:'Zilong',r:'Fighter'},
+  {n:'Alucard',r:'Fighter'},
+  {n:'Alpha',r:'Fighter'},
+  {n:'Sun',r:'Fighter'},
+  {n:'Argus',r:'Fighter'},
+  {n:'Hilda',r:'Fighter'},
+  {n:'Ruby',r:'Fighter'},
+  {n:'X.Borg',r:'Fighter'},
+  {n:'Aldous',r:'Fighter'},
+  {n:'Chou',r:'Fighter'},
+  {n:'Badang',r:'Fighter'},
+  {n:'Guinevere',r:'Fighter'},
+  {n:'Terizla',r:'Fighter'},
+  {n:'Thamuz',r:'Fighter'},
+  {n:'Masha',r:'Fighter'},
+  {n:'Khaleed',r:'Fighter'},
+  {n:'Paquito',r:'Fighter'},
+  {n:'Yu Zhong',r:'Fighter'},
+  {n:'Dyrroth',r:'Fighter'},
+  {n:'Jawhead',r:'Fighter'},
+  {n:'Martis',r:'Fighter'},
+  {n:'Silvanna',r:'Fighter'},
+  {n:'Yin',r:'Fighter'},
+  {n:'Minsitthar',r:'Fighter'},
+  {n:'Aulus',r:'Fighter'},
+  {n:'Freya',r:'Fighter'},
+  {n:'Lapu-Lapu',r:'Fighter'},
+  {n:'Leomord',r:'Fighter'},
+  {n:'Phoveus',r:'Fighter'},
+  {n:'Arlott',r:'Fighter'},
+  {n:'Cici',r:'Fighter'},
+  {n:'Sora',r:'Fighter/Assassin'},
+  {n:'Bane',r:'Fighter'},
+  {n:'Lukas',r:'Fighter'},
+  {n:'Gatotkaca',r:'Tank/Fighter'},
+  {n:'Roger',r:'Fighter/MM'},
+  {n:'Saber',r:'Assassin'},
+  {n:'Karina',r:'Assassin'},
+  {n:'Fanny',r:'Assassin'},
+  {n:'Hayabusa',r:'Assassin'},
+  {n:'Natalia',r:'Assassin'},
+  {n:'Helcurt',r:'Assassin'},
+  {n:'Lancelot',r:'Assassin'},
+  {n:'Gusion',r:'Assassin'},
+  {n:'Ling',r:'Assassin'},
+  {n:'Selena',r:'Assassin/Mage'},
+  {n:'Benedetta',r:'Assassin'},
+  {n:'Aamon',r:'Assassin'},
+  {n:'Nolan',r:'Assassin'},
+  {n:'Yi Sun-shin',r:'Assassin/MM'},
+  {n:'Suyou',r:'Assassin'},
+  {n:'Joy',r:'Assassin'},
+  {n:'Julian',r:'Fighter/Assassin'},
+  {n:'Hanzo',r:'Assassin'},
+  {n:'Nana',r:'Mage/Support'},
+  {n:'Eudora',r:'Mage'},
+  {n:'Aurora',r:'Mage'},
+  {n:'Gord',r:'Mage'},
+  {n:'Cyclops',r:'Mage'},
+  {n:'Alice',r:'Mage/Tank'},
+  {n:'Harley',r:'Mage/Assassin'},
+  {n:'Odette',r:'Mage'},
+  {n:'Vexana',r:'Mage'},
+  {n:'Lunox',r:'Mage'},
+  {n:'Kagura',r:'Mage'},
+  {n:'Lylia',r:'Mage'},
+  {n:'Cecilion',r:'Mage'},
+  {n:'Yve',r:'Mage'},
+  {n:'Valentina',r:'Mage'},
+  {n:'Xavier',r:'Mage'},
+  {n:'Pharsa',r:'Mage'},
+  {n:'Novaria',r:'Mage'},
+  {n:'Luo Yi',r:'Mage'},
+  {n:'Zhuxin',r:'Mage'},
+  {n:'Faramis',r:'Mage/Support'},
+  {n:'Kadita',r:'Mage/Assassin'},
+  {n:'Kimmy',r:'Mage/MM'},
+  {n:'Zhask',r:'Mage'},
+  {n:'Vale',r:'Mage'},
+  {n:'Valir',r:'Mage'},
+  {n:'Harith',r:'Mage'},
+  {n:'Zetian',r:'Mage'},
+  {n:'Miya',r:'MM'},
+  {n:'Layla',r:'MM'},
+  {n:'Moskov',r:'MM'},
+  {n:'Clint',r:'MM'},
+  {n:'Bruno',r:'MM'},
+  {n:'Irithel',r:'MM'},
+  {n:'Lesley',r:'MM/Assassin'},
+  {n:'Hanabi',r:'MM'},
+  {n:'Claude',r:'MM'},
+  {n:'Granger',r:'MM'},
+  {n:'Brody',r:'MM'},
+  {n:'Karrie',r:'MM'},
+  {n:'Beatrix',r:'MM'},
+  {n:'Melissa',r:'MM'},
+  {n:'Natan',r:'MM'},
+  {n:'Wanwan',r:'MM'},
+  {n:'Ixia',r:'MM'},
+  {n:'Obsidia',r:'MM'},
+  {n:'Estes',r:'Support'},
+  {n:'Angela',r:'Support'},
+  {n:'Rafaela',r:'Support'},
+  {n:'Diggie',r:'Support'},
+  {n:'Floryn',r:'Support'},
+  {n:'Mathilda',r:'Support'},
+  {n:'Kaja',r:'Support/Fighter'},
+  {n:'Popol & Kupa',r:'Support/MM'}
+];
+
+// ── Hero Pool helpers ──
+/** Get saved hero pool (array of hero names) */
+WDB.getHeroPool = function() {
+  try {
+    // Prefer Supabase profile if available
+    const sbPool = (typeof WAuth !== 'undefined' && WAuth.getProfile)
+      ? WAuth.getProfile()?.hero_pool : null;
+    if (Array.isArray(sbPool) && sbPool.length > 0) return sbPool;
+    return JSON.parse(localStorage.getItem('warr_hero_pool') || '[]');
+  } catch(e) { return []; }
+};
+
+/** Save hero pool locally + sync to Supabase */
+WDB.saveHeroPool = async function(heroes) {
+  const arr = Array.isArray(heroes) ? heroes : [];
+  localStorage.setItem('warr_hero_pool', JSON.stringify(arr));
+  if (typeof WAuth !== 'undefined' && WAuth.isLoggedIn && WAuth.isLoggedIn()) {
+    try { await WAuth.saveProfile({ hero_pool: arr }); } catch(e) {}
+  }
+};
+
+/** Check if a hero name is in the user's pool */
+WDB.isInPool = function(heroName) {
+  return WDB.getHeroPool().includes(heroName);
+};
+
+/** Get pool heroes filtered to a given role keyword (e.g. 'Assassin') */
+WDB.getPoolByRole = function(roleKw) {
+  const pool = WDB.getHeroPool();
+  if (!roleKw) return pool;
+  return pool.filter(n => {
+    const h = WDB.HERO_ROSTER.find(x => x.n === n);
+    return h && h.r.includes(roleKw);
+  });
+};
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN HELPERS
+// ═══════════════════════════════════════════════════════════════
+/** Check if a given email should have admin access (only wrrenvillapando@gmail.com by default).
+ *  A secondary admin list is stored in warr_extra_admins localStorage so the primary admin
+ *  can grant access to others without a code deploy. */
+WAdmin._getExtraAdmins = function() {
+  try { return JSON.parse(localStorage.getItem('warr_extra_admins') || '[]'); } catch(e) { return []; }
+};
+WAdmin._setExtraAdmins = function(list) {
+  localStorage.setItem('warr_extra_admins', JSON.stringify(list));
+};
+/** Override isAdmin to also check extra admin list */
+(function() {
+  const _orig = WAdmin.isAdmin.bind(WAdmin);
+  WAdmin.isAdmin = function() {
+    if (_orig()) return true;
+    const email = (typeof WAuth !== 'undefined' && WAuth.getUser)
+      ? WAuth.getUser()?.email : null;
+    if (!email) return false;
+    return WAdmin._getExtraAdmins().includes(email.toLowerCase());
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════════
 // TOAST UTILITY (shared)
 // ═══════════════════════════════════════════════════════════════
 function warrToast(msg, type = '') {

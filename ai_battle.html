@@ -1485,6 +1485,9 @@ function renderPool(){
   document.getElementById('cntLbl').textContent=vis.length+' / '+HEROES.length;
   const locked=aiThink||!isMyTurn()||done;
 
+  // ── Hero pool check ──
+  const _abPool = (typeof WDB !== 'undefined' && WDB.getHeroPool) ? new Set(WDB.getHeroPool()) : new Set();
+
   function heroCard(h){
     const ban=banned.includes(h.id),pick=picked.includes(h.id),used=ban||pick;
     let cls='hero-card';if(ban)cls+=' banned';if(pick)cls+=' picked';if(locked&&!used)cls+=' lkd';
@@ -1494,11 +1497,13 @@ function renderPool(){
     // Show filtered lane label when a specific lane is active
     const displayLaneAB=(isLaneModeAB && alane!=='All') ? alane : primary;
     const pc=LANE_COLORS_AB[displayLaneAB]||'#94a3b8';
-    return`<div class="${cls}" data-id="${h.id}" ${used||locked?'data-locked="1"':''} onclick="if(!this.dataset.locked)pick(this.dataset.id)" title="${h.name} · ${h.role} · ${displayLaneAB} · ${h.tier}">
+    const inPool = _abPool.has(h.name);
+    return`<div class="${cls}" data-id="${h.id}" ${used||locked?'data-locked="1"':''} onclick="if(!this.dataset.locked)pick(this.dataset.id)" title="${h.name} · ${h.role} · ${displayLaneAB} · ${h.tier}${inPool?' · ★ Your Pool':''}">
       <img src="${u}" class="hero-img" alt="${h.name}" onerror="if(this.dataset.t){this.src='${fb(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${iun(h)}';}">
       <div class="hero-cname">${h.name}</div><div class="hero-crole" style="color:${LANE_COLORS_AB[displayLaneAB]||'#94a3b8'}">${isLaneModeAB?displayLaneAB:h.role.split('/')[0]}</div>
       <div class="tier-badge tier-${h.tier}">${h.tier}</div>
       ${h.mp==='mustban'?'<div class="meta-badge mb-ban">BAN</div>':h.mp==='highpick'?'<div class="meta-badge mb-pick">HOT</div>':''}
+      ${inPool?'<div style="position:absolute;top:3px;left:4px;font-size:9px;color:#f5c842;line-height:1;" title="In your hero pool">★</div>':''}
       ${ban?'<div class="banned-overlay">✕</div>':pick?'<div class="banned-overlay" style="background:rgba(79,142,247,.15);color:rgba(79,142,247,.7);">✓</div>':''}
     </div>`;
   }
@@ -2276,9 +2281,16 @@ async function runAnalysis(){
     const mb=HEROES.filter(h=>h.mp==='mustban'&&!allUsed.includes(h.id)).map(h=>h.name).slice(0,5);
     const hp=HEROES.filter(h=>h.mp==='highpick'&&!allUsed.includes(h.id)).map(h=>h.name).slice(0,6);
     const meta=[PV?`Patch:${PV}`:'',mb.length?`MustBan:${mb.join(',')}` :'',hp.length?`HighPick:${hp.join(',')}` :''].filter(Boolean).join(' | ')||'Base data';
+    // Hero pool context
+    const _pool = (typeof WDB!=='undefined'&&WDB.getHeroPool) ? WDB.getHeroPool() : [];
+    const poolInDraft = _pool.filter(n=>[...ST.bp,...ST.rp].some(h=>h.name===n));
+    const poolAvail = _pool.filter(n=>[...ST.bp,...ST.rp,...ST.bb,...ST.rb].every(h=>h.name!==n)).slice(0,8);
+    const poolCtx = _pool.length>0
+      ? `\nPlayer hero pool: [${_pool.join(', ')}]${poolInDraft.length?`\nPool heroes drafted: [${poolInDraft.join(', ')}]`:''}${poolAvail.length?`\nPool heroes not used: [${poolAvail.join(', ')}]`:''}`
+      : '';
     const prompt=`You are an elite MLBB draft analyst. Analyze this completed draft and give SPECIFIC insights about the ACTUAL heroes drafted — not generic advice.
 
-${meta}
+${meta}${poolCtx}
 BLUE SIDE (${bt}): bans=[${bB}] picks=[${bP}]
 RED SIDE (${rt}): bans=[${rB}] picks=[${rP}]
 
