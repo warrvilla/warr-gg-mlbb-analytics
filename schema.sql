@@ -146,8 +146,66 @@ CREATE TRIGGER teams_updated_at
 -- Call this via Supabase Auth hook or handle in your frontend
 -- (already handled in warr-lib.js signUp function)
 
+-- ── PROFILES ──────────────────────────────────────────────────
+-- Extends auth.users with display name, team affiliation, plan, tokens.
+-- One row per user. Created/updated from profile.html.
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id              uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email           text,                       -- denormalized for admin queries
+  display_name    text,
+  avatar_url      text,                       -- base64 data-url or storage URL
+  team_name       text,                       -- free text or official MPL team name
+  team_status     text DEFAULT 'none',        -- 'none' | 'pending' | 'approved' | 'rejected'
+  plan            text DEFAULT 'free',        -- 'free' | 'pro' | 'team'
+  tokens_used     integer DEFAULT 0,
+  tokens_reset_at timestamptz,               -- when tokens_used resets to 0
+  is_banned       boolean DEFAULT false,      -- soft-ban flag
+  admin_notes     text,                       -- internal notes visible only to admin
+  created_at      timestamptz DEFAULT now(),
+  updated_at      timestamptz DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS profiles_team_status_idx ON public.profiles(team_status);
+CREATE INDEX IF NOT EXISTS profiles_plan_idx        ON public.profiles(plan);
+CREATE INDEX IF NOT EXISTS profiles_email_idx       ON public.profiles(email);
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- Users can read and update their own profile
+CREATE POLICY "profiles_own_select" ON public.profiles
+  FOR SELECT USING (id = auth.uid() OR auth.email() = 'wrrenvillapando@gmail.com');
+
+CREATE POLICY "profiles_own_insert" ON public.profiles
+  FOR INSERT WITH CHECK (id = auth.uid());
+
+CREATE POLICY "profiles_own_update" ON public.profiles
+  FOR UPDATE USING (id = auth.uid() OR auth.email() = 'wrrenvillapando@gmail.com');
+
+-- Only admin can delete profiles (soft-ban preferred, but hard delete available)
+CREATE POLICY "profiles_admin_delete" ON public.profiles
+  FOR DELETE USING (auth.email() = 'wrrenvillapando@gmail.com');
+
+-- Auto-update timestamp
+CREATE TRIGGER profiles_updated_at
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
+
+-- ── ADMIN: FORCE-DELETE USER ───────────────────────────────────
+-- Run this in Supabase SQL Editor to hard-delete a user who can't be removed via UI.
+-- Replace USER_UUID with the actual auth.users.id value.
+--
+--   SELECT auth.uid(); -- (run while signed in as admin to confirm your UID)
+--
+--   DELETE FROM auth.users WHERE id = 'USER_UUID';
+--
+-- This cascades to profiles, teams, scrims automatically (ON DELETE CASCADE).
+-- Matches they created will have created_by set to NULL (they remain, just unlinked).
+
 -- ── SAMPLE DATA CHECK ─────────────────────────────────────────
 -- After setup, verify with:
+-- SELECT * FROM public.profiles LIMIT 10;
+-- SELECT * FROM public.profiles WHERE team_status = 'pending';
+-- SELECT * FROM public.profiles WHERE plan != 'free';
 -- SELECT * FROM public.teams LIMIT 5;
 -- SELECT * FROM public.matches LIMIT 5;
 -- SELECT * FROM public.scrims LIMIT 5; -- (requires auth)

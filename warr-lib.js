@@ -47,15 +47,91 @@ const WAuth = {
     return { data, error };
   },
 
-  /** Save or update a user's profile (display_name required, team_name optional).
-   *  Called after invite acceptance. */
-  async saveProfile(displayName, teamName = null) {
+  /** Full profile save — syncs all fields to Supabase profiles table */
+  async saveProfile(fields = {}) {
     const user = this._user || (await _sbClient.auth.getUser()).data.user;
     if (!user) return { error: { message: 'Not authenticated' } };
-    const payload = { id: user.id, display_name: displayName.trim() };
-    if (teamName) payload.team_name = teamName.trim();
+
+    // Support old signature: saveProfile(displayName, teamName)
+    if (typeof fields === 'string') {
+      const displayName = fields;
+      const teamName = arguments[1];
+      fields = { display_name: displayName };
+      if (teamName) fields.team_name = teamName;
+    }
+
+    const payload = {
+      id:    user.id,
+      email: user.email,
+      ...fields,
+    };
+
+    // If setting a team, determine team_status
+    if (fields.team_name !== undefined) {
+      const MPL_TEAMS = ['Blacklist International','ECHO','Nexplay EVOS','ONIC Philippines',
+        'AP Bren','RSG Philippines','Omega Esports','TeamHigh',
+        'Team HAQ','Todak','DRX MY','Geek Fam','Team SMG','ONIC MY'];
+      const isMPL = MPL_TEAMS.includes(fields.team_name);
+      // Only set pending if it's currently none/rejected; keep approved if already approved
+      if (isMPL && fields.team_name) {
+        const currentStatus = this._profile?.team_status || 'none';
+        if (currentStatus !== 'approved') payload.team_status = 'pending';
+      } else if (!fields.team_name) {
+        payload.team_status = 'none';
+      } else {
+        payload.team_status = 'none'; // custom non-MPL team, no approval needed
+      }
+    }
+
     const { error } = await _sbClient.from('profiles').upsert(payload, { onConflict: 'id' });
     if (!error) this._profile = { ...this._profile, ...payload };
+    return { error };
+  },
+
+  /** Admin-only: update any user's profile fields */
+  async adminUpdateProfile(userId, fields = {}) {
+    if (!WAdmin.isAdmin()) return { error: { message: 'Admin only' } };
+    const { data, error } = await _sbClient
+      .from('profiles')
+      .update(fields)
+      .eq('id', userId)
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  /** Admin-only: get all profiles (paginated) */
+  async adminGetAllProfiles(page = 0, pageSize = 50) {
+    if (!WAdmin.isAdmin()) return { data: [], error: { message: 'Admin only' } };
+    const from = page * pageSize;
+    const { data, error, count } = await _sbClient
+      .from('profiles')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, from + pageSize - 1);
+    return { data: data || [], error, count };
+  },
+
+  /** Admin-only: get pending team requests */
+  async adminGetPendingRequests() {
+    if (!WAdmin.isAdmin()) return { data: [] };
+    const { data, error } = await _sbClient
+      .from('profiles')
+      .select('*')
+      .eq('team_status', 'pending')
+      .order('updated_at', { ascending: true });
+    return { data: data || [], error };
+  },
+
+  /** Admin-only: soft-ban a user (sets is_banned=true, they can't use the app) */
+  async adminBanUser(userId, ban = true) {
+    return this.adminUpdateProfile(userId, { is_banned: ban });
+  },
+
+  /** Admin-only: hard-delete a user's PROFILE row (auth user stays until SQL deletion) */
+  async adminDeleteProfile(userId) {
+    if (!WAdmin.isAdmin()) return { error: { message: 'Admin only' } };
+    const { error } = await _sbClient.from('profiles').delete().eq('id', userId);
     return { error };
   },
 
