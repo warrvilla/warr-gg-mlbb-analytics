@@ -178,8 +178,13 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
 .hero-crole { font-size: 9px; color: #94a3b8; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tier-badge { position: absolute; top: 4px; right: 4px; font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 8px; }
 .tier-S { background: var(--gold); color: #000; } .tier-A { background: #9ca3af; color: #000; } .tier-B { background: #b45309; color: #fff; } .tier-C { background: #374151; color: #9ca3af; }
-.wr-badge { position: absolute; bottom: 3px; left: 0; right: 0; text-align: center; font-size: 8px; font-weight: 700; font-family: var(--font-mono); pointer-events: none; }
-.wr-high { color: #4ade80; } .wr-mid { color: #facc15; } .wr-low { color: #f87171; }
+.wr-bar { position:absolute;bottom:0;left:0;right:0;height:2px;border-radius:0 0 7px 7px;pointer-events:none;overflow:hidden; }
+.wr-bar-fill { height:100%;border-radius:0 0 7px 7px;transition:width .3s; }
+.wr-high .wr-bar-fill { background:linear-gradient(90deg,#4ade80,#22c55e); }
+.wr-mid .wr-bar-fill  { background:linear-gradient(90deg,#facc15,#eab308); }
+.wr-low .wr-bar-fill  { background:linear-gradient(90deg,#f87171,#ef4444); }
+.wr-label { position:absolute;bottom:5px;right:4px;font-size:7px;font-weight:800;font-family:var(--font-mono);opacity:.75;pointer-events:none; }
+.wr-high .wr-label { color:#4ade80; } .wr-mid .wr-label { color:#facc15; } .wr-low .wr-label { color:#f87171; }
 .meta-badge { position: absolute; top: 3px; left: 3px; font-size: 6px; font-weight: 700; padding: 1px 3px; border-radius: 2px; }
 .mb-ban { background: rgba(239,68,68,.85); color: #fff; }
 .mb-pick { background: rgba(59,130,246,.85); color: #fff; }
@@ -821,6 +826,7 @@ select {
     <a class="nav-link" href="scout.html">Scout</a>
     <a class="nav-link" href="stats.html">Analysis</a>
     <a class="nav-link" href="patch_meta.html">Patch</a>
+    <a class="nav-link" href="profile.html">Profile</a>
   </div>
   <div class="nav-right">
   <div class="theme-switcher" title="Switch theme">
@@ -846,6 +852,7 @@ select {
   <a class="mobile-nav-link" href="scout.html">Scout</a>
   <a class="mobile-nav-link" href="stats.html">Analysis</a>
   <a class="mobile-nav-link" href="patch_meta.html">Patch</a>
+  <a class="mobile-nav-link" href="profile.html">Profile</a>
 </div>
 
 <div class="page-body">
@@ -1674,7 +1681,7 @@ function renderPool(){
       <div class="hero-crole" style="color:${LANE_COLORS[displayLane]||'#94a3b8'}">${isLaneMode?displayLane:h.role.split('/')[0]}</div>
       <div class="tier-badge tier-${h.tier}">${h.tier}</div>
       ${h.mp==='mustban'?'<div class="meta-badge mb-ban">BAN</div>':h.mp==='highpick'?'<div class="meta-badge mb-pick">HOT</div>':''}
-      ${heroScoutStats[h.name]!=null?(()=>{const wr=heroScoutStats[h.name].winRate;const cls=wr>=55?'wr-high':wr>=45?'wr-mid':'wr-low';return`<div class="wr-badge ${cls}">${wr}%</div>`;})():''}
+      ${heroScoutStats[h.name]!=null?(()=>{const s=heroScoutStats[h.name];const wr=s.winRate;const cls=wr>=55?'wr-high':wr>=45?'wr-mid':'wr-low';return`<div class="wr-bar ${cls}" title="WR ${wr}% · ${s.picks}g"><div class="wr-bar-fill" style="width:${Math.min(100,wr)}%"></div></div><div class="wr-label ${cls}">${wr}%</div>`;})():''}
       ${inPool?'<div style="position:absolute;top:3px;left:4px;font-size:9px;color:#f5c842;line-height:1;" title="In your hero pool">★</div>':''}
       ${isBan?'<div class="banned-overlay">✕</div>':isPick?'<div class="banned-overlay" style="background:rgba(59,130,246,.15);color:rgba(59,130,246,.7);">✓</div>':''}
     </div>`;
@@ -4709,8 +4716,13 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
 .hero-crole { font-size: 9px; color: #94a3b8; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tier-badge { position: absolute; top: 4px; right: 4px; font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 8px; }
 .tier-S { background: var(--gold); color: #000; } .tier-A { background: #9ca3af; color: #000; } .tier-B { background: #b45309; color: #fff; } .tier-C { background: #374151; color: #9ca3af; }
-.wr-badge { position: absolute; bottom: 3px; left: 0; right: 0; text-align: center; font-size: 8px; font-weight: 700; font-family: var(--font-mono); pointer-events: none; }
-.wr-high { color: #4ade80; } .wr-mid { color: #facc15; } .wr-low { color: #f87171; }
+.wr-bar { position:absolute;bottom:0;left:0;right:0;height:2px;border-radius:0 0 7px 7px;pointer-events:none;overflow:hidden; }
+.wr-bar-fill { height:100%;border-radius:0 0 7px 7px;transition:width .3s; }
+.wr-high .wr-bar-fill { background:linear-gradient(90deg,#4ade80,#22c55e); }
+.wr-mid .wr-bar-fill  { background:linear-gradient(90deg,#facc15,#eab308); }
+.wr-low .wr-bar-fill  { background:linear-gradient(90deg,#f87171,#ef4444); }
+.wr-label { position:absolute;bottom:5px;right:4px;font-size:7px;font-weight:800;font-family:var(--font-mono);opacity:.75;pointer-events:none; }
+.wr-high .wr-label { color:#4ade80; } .wr-mid .wr-label { color:#facc15; } .wr-low .wr-label { color:#f87171; }
 .meta-badge { position: absolute; top: 3px; left: 3px; font-size: 6px; font-weight: 700; padding: 1px 3px; border-radius: 2px; }
 .mb-ban { background: rgba(239,68,68,.85); color: #fff; }
 .mb-pick { background: rgba(59,130,246,.85); color: #fff; }
@@ -5352,6 +5364,7 @@ select {
     <a class="nav-link" href="scout.html">Scout</a>
     <a class="nav-link" href="stats.html">Analysis</a>
     <a class="nav-link" href="patch_meta.html">Patch</a>
+    <a class="nav-link" href="profile.html">Profile</a>
   </div>
   <div class="nav-right">
   <div class="theme-switcher" title="Switch theme">
@@ -5377,6 +5390,7 @@ select {
   <a class="mobile-nav-link" href="scout.html">Scout</a>
   <a class="mobile-nav-link" href="stats.html">Analysis</a>
   <a class="mobile-nav-link" href="patch_meta.html">Patch</a>
+  <a class="mobile-nav-link" href="profile.html">Profile</a>
 </div>
 
 <div class="page-body">
@@ -6204,7 +6218,7 @@ function renderPool(){
       <div class="hero-crole" style="color:${LANE_COLORS[displayLane]||'#94a3b8'}">${isLaneMode?displayLane:h.role.split('/')[0]}</div>
       <div class="tier-badge tier-${h.tier}">${h.tier}</div>
       ${h.mp==='mustban'?'<div class="meta-badge mb-ban">BAN</div>':h.mp==='highpick'?'<div class="meta-badge mb-pick">HOT</div>':''}
-      ${heroScoutStats[h.name]!=null?(()=>{const wr=heroScoutStats[h.name].winRate;const cls=wr>=55?'wr-high':wr>=45?'wr-mid':'wr-low';return`<div class="wr-badge ${cls}">${wr}%</div>`;})():''}
+      ${heroScoutStats[h.name]!=null?(()=>{const s=heroScoutStats[h.name];const wr=s.winRate;const cls=wr>=55?'wr-high':wr>=45?'wr-mid':'wr-low';return`<div class="wr-bar ${cls}" title="WR ${wr}% · ${s.picks}g"><div class="wr-bar-fill" style="width:${Math.min(100,wr)}%"></div></div><div class="wr-label ${cls}">${wr}%</div>`;})():''}
       ${inPool?'<div style="position:absolute;top:3px;left:4px;font-size:9px;color:#f5c842;line-height:1;" title="In your hero pool">★</div>':''}
       ${isBan?'<div class="banned-overlay">✕</div>':isPick?'<div class="banned-overlay" style="background:rgba(59,130,246,.15);color:rgba(59,130,246,.7);">✓</div>':''}
     </div>`;

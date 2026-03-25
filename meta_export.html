@@ -694,7 +694,9 @@ function buildCard(lane) {
     const stats     = heroScoutStats[h.name];
     const wr        = stats?.winRate;
     const pres      = stats?.presence;
-    // Flat neutral white for both stats — no color coding
+    const pickRate  = (stats && scoutMatchCount > 0) ? Math.round(stats.picks / scoutMatchCount * 100) : undefined;
+    const banRate   = (stats && scoutMatchCount > 0) ? Math.round(stats.bans  / scoutMatchCount * 100) : undefined;
+    // Flat neutral white for all stats — no color coding
     const statColor = 'rgba(240,240,248,.78)';
     const isMustban = h.mp === 'mustban';
     // Alternating glass rows — lighter for odd
@@ -716,21 +718,35 @@ function buildCard(lane) {
         <div style="font-size:13.5px;font-weight:600;color:rgba(240,240,248,.95);font-family:'Inter',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;letter-spacing:-.2px;">${h.name}</div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:3px;">
           <div style="font-size:9px;font-weight:400;color:rgba(240,240,248,.35);font-family:'Inter',sans-serif;">${roleName}</div>
-          ${isMustban ? `<div style="font-size:8px;font-weight:700;padding:1px 7px;border-radius:20px;background:rgba(216,120,128,.1);color:#E09098;border:1px solid rgba(216,120,128,.28);font-family:'Inter',sans-serif;letter-spacing:.3px;">BAN</div>` : ''}
+          ${isMustban ? `<div style="font-size:8px;font-weight:800;color:#cf6679;font-family:'Inter',sans-serif;letter-spacing:1.2px;text-transform:uppercase;opacity:.9;">ban</div>` : ''}
         </div>
       </div>
 
       <!-- Tier badge — glass pill -->
       <div style="width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.05);border:1px solid ${tc}55;box-shadow:inset 0 1px 0 rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:${tc};font-family:'Inter',sans-serif;flex-shrink:0;margin-right:10px;">${h.tier}</div>
 
-      <!-- Presence % — flat neutral, no color coding -->
-      <div style="width:42px;text-align:right;flex-shrink:0;margin-right:10px;">
+      <!-- Presence % -->
+      <div style="width:38px;text-align:right;flex-shrink:0;margin-right:10px;">
         ${pres !== undefined
           ? `<div style="font-size:12px;font-weight:600;color:${statColor};font-family:'Inter',sans-serif;letter-spacing:-.3px;">${pres}%</div>`
           : `<div style="font-size:11px;color:rgba(255,255,255,.12);font-family:'Inter',sans-serif;">—</div>`}
       </div>
 
-      <!-- Win Rate % — flat neutral, no color coding -->
+      <!-- Pick Rate % -->
+      <div style="width:34px;text-align:right;flex-shrink:0;margin-right:10px;">
+        ${pickRate !== undefined
+          ? `<div style="font-size:12px;font-weight:600;color:${statColor};font-family:'Inter',sans-serif;letter-spacing:-.3px;">${pickRate}%</div>`
+          : `<div style="font-size:11px;color:rgba(255,255,255,.12);font-family:'Inter',sans-serif;">—</div>`}
+      </div>
+
+      <!-- Ban Rate % -->
+      <div style="width:34px;text-align:right;flex-shrink:0;margin-right:10px;">
+        ${banRate !== undefined
+          ? `<div style="font-size:12px;font-weight:600;color:${statColor};font-family:'Inter',sans-serif;letter-spacing:-.3px;">${banRate}%</div>`
+          : `<div style="font-size:11px;color:rgba(255,255,255,.12);font-family:'Inter',sans-serif;">—</div>`}
+      </div>
+
+      <!-- Win Rate % -->
       <div style="width:34px;text-align:right;flex-shrink:0;">
         ${wr !== null && wr !== undefined
           ? `<div style="font-size:12px;font-weight:600;color:${statColor};font-family:'Inter',sans-serif;letter-spacing:-.3px;">${wr}%</div>`
@@ -782,7 +798,9 @@ function buildCard(lane) {
     <div style="display:flex;align-items:center;height:22px;padding:0 20px;background:rgba(255,255,255,.018);border-bottom:1px solid rgba(255,255,255,.05);box-sizing:border-box;flex-shrink:0;">
       <div style="flex:1;"></div>
       <div style="width:22px;margin-right:10px;"></div>
-      <div style="width:42px;text-align:right;font-size:7px;font-weight:600;color:rgba(240,240,248,.2);font-family:'Inter',sans-serif;letter-spacing:.5px;margin-right:10px;">Presence</div>
+      <div style="width:38px;text-align:right;font-size:7px;font-weight:600;color:rgba(240,240,248,.2);font-family:'Inter',sans-serif;letter-spacing:.5px;margin-right:10px;">Presence</div>
+      <div style="width:34px;text-align:right;font-size:7px;font-weight:600;color:rgba(240,240,248,.2);font-family:'Inter',sans-serif;letter-spacing:.5px;margin-right:10px;">Pick</div>
+      <div style="width:34px;text-align:right;font-size:7px;font-weight:600;color:rgba(240,240,248,.2);font-family:'Inter',sans-serif;letter-spacing:.5px;margin-right:10px;">Ban</div>
       <div style="width:34px;text-align:right;font-size:7px;font-weight:600;color:rgba(240,240,248,.2);font-family:'Inter',sans-serif;letter-spacing:.5px;">Win Rate</div>
     </div>
 

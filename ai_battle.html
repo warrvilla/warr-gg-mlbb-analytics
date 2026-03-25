@@ -2084,6 +2084,24 @@ function saveMatchToScout(pp, aip, pBans, aiBans, playerWon){
     });
 
     localStorage.setItem(SCOUT_KEY_AB, JSON.stringify(db));
+    // Also save to personal battle log (warr_battle_log) linked to profile
+    try{
+      const BL_KEY='warr_battle_log';
+      const bl=JSON.parse(localStorage.getItem(BL_KEY)||'[]');
+      const user=typeof WAuth!=='undefined'&&WAuth.getUser?WAuth.getUser():null;
+      bl.unshift({
+        id:match.id,date:match.date,
+        playerTeam:isBlue?blueTeam:redTeam,
+        aiTeam:isBlue?redTeam:blueTeam,
+        playerSide:pSide,playerWon,difficulty:diff,
+        playerPicks:(isBlue?bluePicks:redPicks).map(p=>p.name),
+        aiPicks:(isBlue?redPicks:bluePicks).map(p=>p.name),
+        playerBans:(isBlue?blueBans:redBans),
+        userId:user?.id||null,userEmail:user?.email||null
+      });
+      // Keep last 50 battles
+      localStorage.setItem(BL_KEY,JSON.stringify(bl.slice(0,50)));
+    }catch(ex){}
     return true;
   }catch(e){console.error('saveMatchToScout error',e);return false;}
 }
