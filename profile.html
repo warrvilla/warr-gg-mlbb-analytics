@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile — Warr.GG</title>
+<link rel="stylesheet" href="warr-styles.css">
+<style>
+:root { --nav-h: 52px; }
+body { background: var(--bg); min-height: 100vh; }
+.page-wrap { max-width: 860px; margin: 0 auto; padding: calc(var(--nav-h) + 40px) 20px 80px; }
+
+/* ── Profile Card ── */
+.profile-card {
+  background: var(--surface);
+  border: 1px solid var(--glass-border2);
+  border-radius: 20px;
+  padding: 32px;
+  margin-bottom: 20px;
+  position: relative;
+  backdrop-filter: var(--blur-sm);
+}
+.profile-header {
+  display: flex; align-items: flex-start; gap: 24px; margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+.avatar-wrap {
+  position: relative; flex-shrink: 0; cursor: pointer;
+}
+.avatar-img {
+  width: 88px; height: 88px; border-radius: 50%;
+  object-fit: cover; border: 2px solid var(--glass-border2);
+  background: var(--surface3);
+  display: block;
+}
+.avatar-overlay {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(0,0,0,.55); display: flex; align-items: center;
+  justify-content: center; opacity: 0; transition: opacity .2s;
+  font-size: 11px; color: #fff; font-weight: 600; letter-spacing: .04em;
+}
+.avatar-wrap:hover .avatar-overlay { opacity: 1; }
+#avatarInput { display: none; }
+
+.profile-meta { flex: 1; min-width: 200px; }
+.profile-name-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px;
+}
+.profile-displayname {
+  font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -.01em;
+}
+.plan-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: .1em;
+  padding: 3px 10px; border-radius: 20px; text-transform: uppercase;
+}
+.plan-badge.free  { background: var(--surface3); color: var(--text2); border: 1px solid var(--border2); }
+.plan-badge.pro   { background: rgba(168,136,204,.14); color: var(--purple); border: 1px solid var(--purple-border); }
+.plan-badge.team  { background: rgba(200,144,80,.12); color: var(--gold); border: 1px solid var(--gold-border); }
+
+.profile-email { font-size: 13px; color: var(--text3); margin-bottom: 10px; }
+.profile-team-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  padding: 4px 12px; border-radius: 20px;
+  background: var(--blue-dim); color: var(--blue); border: 1px solid var(--blue-border);
+}
+.profile-team-chip.pending { background: var(--gold-dim); color: var(--gold); border-color: var(--gold-border); }
+.profile-team-chip.none { background: var(--surface3); color: var(--text3); border-color: var(--border); }
+
+/* ── Tokens Panel ── */
+.tokens-panel {
+  background: var(--surface2);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+.tokens-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.tokens-title { font-size: 14px; font-weight: 700; color: var(--text); }
+.tokens-reset { font-size: 11px; color: var(--text3); }
+.tokens-bar-wrap { margin-bottom: 8px; }
+.tokens-bar-track {
+  height: 6px; border-radius: 3px; background: var(--surface3);
+  overflow: hidden; margin-bottom: 8px;
+}
+.tokens-bar-fill {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, var(--purple), var(--blue));
+  transition: width .4s cubic-bezier(.34,1.56,.64,1);
+}
+.tokens-count { font-size: 13px; color: var(--text2); }
+.tokens-count strong { color: var(--text); font-size: 20px; }
+
+/* ── Plan cards ── */
+.plans-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 20px;
+}
+@media(max-width:600px){ .plans-grid { grid-template-columns: 1fr; } }
+
+.plan-card {
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 20px 18px;
+  cursor: pointer;
+  transition: transform .15s, border-color .15s;
+  position: relative;
+}
+.plan-card:hover { transform: translateY(-2px); border-color: var(--glass-border2); }
+.plan-card.active { border-color: var(--purple); background: var(--accent-dim); }
+.plan-card.active-team { border-color: var(--gold); background: var(--gold-dim); }
+.plan-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.plan-price { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+.plan-price span { font-size: 12px; font-weight: 400; color: var(--text3); }
+.plan-features { list-style: none; padding: 0; margin: 0; }
+.plan-features li { font-size: 12px; color: var(--text2); padding: 3px 0; }
+.plan-features li::before { content: '✓  '; color: var(--neon); }
+.plan-cta {
+  display: block; width: 100%; margin-top: 16px;
+  padding: 9px; border-radius: 10px; font-size: 12px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; cursor: pointer;
+  border: 1px solid var(--glass-border2); background: var(--surface3);
+  color: var(--text2); transition: all .15s;
+}
+.plan-cta:hover { background: var(--surface4); color: var(--text); }
+.plan-card.active .plan-cta { background: var(--purple); border-color: var(--purple); color: #fff; }
+.plan-card.active-team .plan-cta { background: var(--gold); border-color: var(--gold); color: #000; }
+.plan-popular {
+  position: absolute; top: -1px; left: 50%; transform: translateX(-50%);
+  font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  background: var(--purple); color: #fff;
+  padding: 3px 12px; border-radius: 0 0 8px 8px;
+}
+
+/* ── Form fields ── */
+.section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 10px;
+}
+.field-group { margin-bottom: 18px; }
+.field-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+.field-input {
+  width: 100%; padding: 11px 14px;
+  background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: 10px; color: var(--text); font-size: 13px;
+  font-family: inherit; outline: none;
+  transition: border-color .15s;
+}
+.field-input:focus { border-color: var(--purple); }
+.field-input::placeholder { color: var(--text4); }
+.field-select {
+  width: 100%; padding: 11px 14px;
+  background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: 10px; color: var(--text); font-size: 13px;
+  font-family: inherit; outline: none; cursor: pointer;
+}
+
+.mpl-request-box {
+  background: var(--gold-dim);
+  border: 1px solid var(--gold-border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text2);
+  line-height: 1.6;
+}
+.mpl-request-box strong { color: var(--gold); }
+
+.save-btn {
+  width: 100%; padding: 13px; border-radius: 12px;
+  background: var(--purple); border: 1px solid var(--purple);
+  color: #fff; font-size: 13px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; cursor: pointer;
+  transition: all .15s;
+}
+.save-btn:hover { background: #b89ae0; }
+.save-btn:active { transform: scale(.98); }
+
+/* ── MPL teams list ── */
+.mpl-teams {
+  columns: 2; column-gap: 12px;
+  font-size: 12px; color: var(--text2);
+  margin-top: 8px; list-style: none; padding: 0;
+}
+.mpl-teams li { padding: 2px 0; break-inside: avoid; }
+
+/* ── Admin approve note ── */
+.admin-note {
+  font-size: 11px; color: var(--text3);
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 10px;
+}
+
+/* ── Divider ── */
+.divider {
+  height: 1px; background: var(--glass-border); margin: 24px 0;
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="topnav">
+  <a class="nav-brand" href="index.html">
+    <span class="nav-brand-name">Warr.GG</span>
+    <span class="nav-brand-sub">MLBB Intel</span>
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="draft_board.html">Draft</a>
+    <a class="nav-link" href="ai_battle.html">AI Battle</a>
+    <a class="nav-link" href="scout.html">Scout</a>
+    <a class="nav-link" href="stats.html">Analysis</a>
+    <a class="nav-link" href="patch_meta.html">Patch</a>
+    <a class="nav-link active" href="profile.html">Profile</a>
+  </div>
+  <div class="nav-right">
+    <div id="authChip"><a href="auth.html" class="cta-secondary" style="padding:7px 18px;font-size:13px;">Sign In</a></div>
+  </div>
+  <button class="mobile-menu-btn" onclick="document.querySelector('.mobile-nav').classList.toggle('open')" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<nav class="mobile-nav">
+  <a class="mobile-nav-link" href="draft_board.html">Draft</a>
+  <a class="mobile-nav-link" href="ai_battle.html">AI Battle</a>
+  <a class="mobile-nav-link" href="scout.html">Scout</a>
+  <a class="mobile-nav-link" href="stats.html">Analysis</a>
+  <a class="mobile-nav-link" href="patch_meta.html">Patch</a>
+  <a class="mobile-nav-link active" href="profile.html">Profile</a>
+  <a class="mobile-nav-link" href="auth.html">Sign In</a>
+</nav>
+
+<div class="page-wrap">
+
+  <!-- PROFILE CARD -->
+  <div class="profile-card">
+    <div class="profile-header">
+      <div class="avatar-wrap" onclick="document.getElementById('avatarInput').click()">
+        <img id="avatarImg" class="avatar-img" src="" alt="Avatar">
+        <div class="avatar-overlay">Change Photo</div>
+        <input type="file" id="avatarInput" accept="image/*" onchange="handleAvatarUpload(event)">
+      </div>
+      <div class="profile-meta">
+        <div class="profile-name-row">
+          <span id="displayNameLabel" class="profile-displayname">Your Name</span>
+          <span id="planBadge" class="plan-badge free">Free</span>
+        </div>
+        <div id="emailLabel" class="profile-email">—</div>
+        <span id="teamChip" class="profile-team-chip none">No team selected</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="section-label">Edit Profile</div>
+
+    <div class="field-group">
+      <div class="field-label">Display Name</div>
+      <input type="text" id="displayNameInput" class="field-input" placeholder="Your gaming tag or full name">
+    </div>
+    <div class="field-group">
+      <div class="field-label">Email</div>
+      <input type="email" id="emailInput" class="field-input" placeholder="your@email.com">
+    </div>
+    <div class="field-group">
+      <div class="field-label">Team Affiliation</div>
+      <select id="teamSelect" class="field-select" onchange="handleTeamSelect()">
+        <option value="">— No team —</option>
+        <optgroup label="MPL Philippines">
+          <option value="Blacklist International">Blacklist International</option>
+          <option value="ECHO">ECHO</option>
+          <option value="Nexplay EVOS">Nexplay EVOS</option>
+          <option value="ONIC Philippines">ONIC Philippines</option>
+          <option value="AP Bren">AP Bren</option>
+          <option value="RSG Philippines">RSG Philippines</option>
+          <option value="Omega Esports">Omega Esports</option>
+          <option value="TeamHigh">TeamHigh</option>
+        </optgroup>
+        <optgroup label="MPL Malaysia">
+          <option value="Team HAQ">Team HAQ</option>
+          <option value="Todak">Todak</option>
+          <option value="DRX MY">DRX MY</option>
+          <option value="Geek Fam">Geek Fam</option>
+          <option value="Team SMG">Team SMG</option>
+          <option value="ONIC MY">ONIC MY</option>
+        </optgroup>
+        <optgroup label="Other">
+          <option value="__custom__">Custom team…</option>
+        </optgroup>
+      </select>
+      <input type="text" id="customTeamInput" class="field-input" placeholder="Enter your team name" style="display:none;margin-top:8px;">
+    </div>
+
+    <!-- MPL team approval notice -->
+    <div id="mplApprovalBox" class="mpl-request-box" style="display:none;">
+      <strong>MPL Team Verification Required</strong><br>
+      Selecting an official MPL team requires approval from a Warr.GG admin.<br>
+      Once you save, your request will be flagged for review. You'll be notified
+      when access is granted. <br><br>
+      You can still use all features while pending — your team tag will show as
+      <em>"Team Name (pending)"</em> until approved.
+    </div>
+    <div class="admin-note" id="adminNote" style="display:none;">
+      To fast-track approval, reach out via <strong>Discord</strong> or the Warr.GG admin panel.
+    </div>
+
+    <div style="margin-top:20px;">
+      <button class="save-btn" onclick="saveProfile()">Save Profile</button>
+    </div>
+  </div>
+
+  <!-- TOKEN & SUBSCRIPTION PANEL -->
+  <div class="tokens-panel">
+    <div class="tokens-header">
+      <span class="tokens-title">AI Analysis Tokens</span>
+      <span class="tokens-reset" id="tokenResetLabel">Resets monthly</span>
+    </div>
+    <div class="tokens-bar-wrap">
+      <div class="tokens-bar-track">
+        <div class="tokens-bar-fill" id="tokenBar" style="width:100%"></div>
+      </div>
+      <div class="tokens-count">
+        <strong id="tokensRemLabel">—</strong>
+        <span id="tokensTotalLabel"> / — tokens remaining this month</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLAN CARDS -->
+  <div class="section-label" style="margin-bottom:14px;">Subscription Plans</div>
+  <div class="plans-grid">
+    <div class="plan-card" id="planCard-free" onclick="selectPlanPreview('free')">
+      <div class="plan-name" style="color:var(--text2);">Free</div>
+      <div class="plan-price" style="color:var(--text);">$0<span>/mo</span></div>
+      <ul class="plan-features">
+        <li>10 AI analyses / month</li>
+        <li>Local AI draft engine</li>
+        <li>Scout data (unlimited)</li>
+        <li>Draft board</li>
+      </ul>
+      <button class="plan-cta" onclick="event.stopPropagation()">Current Plan</button>
+    </div>
+
+    <div class="plan-card" id="planCard-pro" onclick="selectPlanPreview('pro')">
+      <div class="plan-popular">Popular</div>
+      <div class="plan-name" style="color:var(--purple);">Pro</div>
+      <div class="plan-price" style="color:var(--purple);">$9.99<span>/mo</span></div>
+      <ul class="plan-features">
+        <li>50 AI analyses / month</li>
+        <li>GPT-powered draft coach</li>
+        <li>Advanced scout patterns</li>
+        <li>Priority support</li>
+      </ul>
+      <button class="plan-cta" onclick="event.stopPropagation();upgradePlan('pro')">Upgrade to Pro</button>
+    </div>
+
+    <div class="plan-card" id="planCard-team" onclick="selectPlanPreview('team')">
+      <div class="plan-name" style="color:var(--gold);">Team</div>
+      <div class="plan-price" style="color:var(--gold);">$29.99<span>/mo</span></div>
+      <ul class="plan-features">
+        <li>200 AI analyses / month</li>
+        <li>Team roster management</li>
+        <li>MPL scout integration</li>
+        <li>Coaching export tools</li>
+      </ul>
+      <button class="plan-cta" onclick="event.stopPropagation();upgradePlan('team')">Upgrade to Team</button>
+    </div>
+  </div>
+
+  <!-- DANGER ZONE -->
+  <div class="profile-card" style="margin-top:20px;">
+    <div class="section-label">Data & Privacy</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+      <button onclick="exportProfileData()" style="padding:9px 16px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:12px;cursor:pointer;">
+        Export My Data
+      </button>
+      <button onclick="confirmClearTokens()" style="padding:9px 16px;border-radius:10px;background:var(--surface3);border:1px solid var(--red-border);color:var(--red);font-size:12px;cursor:pointer;">
+        Reset Token Counter
+      </button>
+    </div>
+    <p style="font-size:11px;color:var(--text3);margin-top:14px;line-height:1.6;">
+      All profile data is stored locally in your browser. No personal data is sent to our servers
+      without your explicit consent. Scout data stays private unless you choose to sync.
+    </p>
+  </div>
+
+</div><!-- /page-wrap -->
+
+<div id="toast" class="toast"></div>
+
+<script src="warr-lib.js"></script>
+<script>
+// ── MPL team list (must match select options) ──
+const MPL_TEAMS = [
+  'Blacklist International','ECHO','Nexplay EVOS','ONIC Philippines',
+  'AP Bren','RSG Philippines','Omega Esports','TeamHigh',
+  'Team HAQ','Todak','DRX MY','Geek Fam','Team SMG','ONIC MY'
+];
+
+// ── Profile data stored in localStorage ──
+const PROFILE_KEY = 'warr_user_profile';
+
+function loadProfile() {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch(e) { return {}; }
+}
+
+function saveProfileData(data) {
+  localStorage.setItem(PROFILE_KEY, JSON.stringify(data));
+}
+
+// ── Avatar upload ──
+function handleAvatarUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const dataUrl = ev.target.result;
+    document.getElementById('avatarImg').src = dataUrl;
+    const p = loadProfile();
+    p.avatarDataUrl = dataUrl;
+    saveProfileData(p);
+    toast('Photo updated ✓', 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Team select ──
+function handleTeamSelect() {
+  const val = document.getElementById('teamSelect').value;
+  const customInput = document.getElementById('customTeamInput');
+  const approvalBox = document.getElementById('mplApprovalBox');
+  const adminNote   = document.getElementById('adminNote');
+
+  if (val === '__custom__') {
+    customInput.style.display = 'block';
+    approvalBox.style.display = 'none';
+    adminNote.style.display = 'none';
+  } else {
+    customInput.style.display = 'none';
+    const isMPL = MPL_TEAMS.includes(val);
+    approvalBox.style.display = isMPL && val ? 'block' : 'none';
+    adminNote.style.display   = isMPL && val ? 'block' : 'none';
+  }
+}
+
+// ── Save profile ──
+function saveProfile() {
+  const name  = (document.getElementById('displayNameInput').value || '').trim();
+  const email = (document.getElementById('emailInput').value || '').trim();
+  const teamVal = document.getElementById('teamSelect').value;
+  const teamName = teamVal === '__custom__'
+    ? (document.getElementById('customTeamInput').value || '').trim()
+    : teamVal;
+
+  if (!name) { toast('Enter a display name', 'error'); return; }
+
+  const p = loadProfile();
+  p.displayName = name;
+  if (email) p.email = email;
+  if (teamName) {
+    const isMPL = MPL_TEAMS.includes(teamName);
+    p.team = teamName;
+    p.teamStatus = isMPL ? (p.teamStatus === 'approved' ? 'approved' : 'pending') : 'none';
+  } else {
+    p.team = '';
+    p.teamStatus = 'none';
+  }
+
+  saveProfileData(p);
+  renderProfile();
+  toast('Profile saved ✓', 'success');
+}
+
+// ── Render profile data into UI ──
+function renderProfile() {
+  const p = loadProfile();
+
+  // Avatar
+  const avatarEl = document.getElementById('avatarImg');
+  avatarEl.src = p.avatarDataUrl || generateDefaultAvatar(p.displayName || '?');
+
+  // Name & email
+  document.getElementById('displayNameLabel').textContent = p.displayName || 'Your Name';
+  document.getElementById('emailLabel').textContent = p.email || '—';
+  document.getElementById('displayNameInput').value = p.displayName || '';
+  document.getElementById('emailInput').value = p.email || '';
+
+  // Plan badge
+  const sub = (typeof WDB !== 'undefined' && WDB.getSubscription) ? WDB.getSubscription() : { plan: 'free' };
+  const plan = sub.plan || 'free';
+  const planBadge = document.getElementById('planBadge');
+  planBadge.textContent = { free: 'Free', pro: 'Pro', team: 'Team' }[plan] || 'Free';
+  planBadge.className = `plan-badge ${plan}`;
+
+  // Plan cards highlight
+  ['free','pro','team'].forEach(pl => {
+    const card = document.getElementById('planCard-' + pl);
+    if (!card) return;
+    card.className = 'plan-card' + (pl === plan ? (pl === 'team' ? ' active-team' : ' active') : '');
+    const cta = card.querySelector('.plan-cta');
+    if (cta && pl === plan) cta.textContent = 'Current Plan';
+  });
+
+  // Team chip
+  const teamChip = document.getElementById('teamChip');
+  if (p.team) {
+    const status = p.teamStatus;
+    if (status === 'pending') {
+      teamChip.textContent = `${p.team} (pending)`;
+      teamChip.className = 'profile-team-chip pending';
+    } else {
+      teamChip.textContent = p.team;
+      teamChip.className = 'profile-team-chip';
+    }
+    // Set select
+    const sel = document.getElementById('teamSelect');
+    const opt = Array.from(sel.options).find(o => o.value === p.team);
+    if (opt) sel.value = p.team;
+    else {
+      sel.value = '__custom__';
+      document.getElementById('customTeamInput').style.display = 'block';
+      document.getElementById('customTeamInput').value = p.team;
+    }
+  } else {
+    teamChip.textContent = 'No team selected';
+    teamChip.className = 'profile-team-chip none';
+  }
+
+  // Tokens
+  renderTokens(sub, plan);
+}
+
+function renderTokens(sub, plan) {
+  if (typeof WDB === 'undefined' || !WDB.PLANS) return;
+  const planData = WDB.PLANS[plan] || WDB.PLANS.free;
+  const rem = (typeof WDB.getTokensRemaining === 'function') ? WDB.getTokensRemaining() : planData.tokensPerMonth;
+  const total = planData.tokensPerMonth;
+  const pct = Math.max(0, Math.min(100, (rem / total) * 100));
+
+  document.getElementById('tokensRemLabel').textContent = rem;
+  document.getElementById('tokensTotalLabel').textContent = ` / ${total} tokens remaining this month`;
+  document.getElementById('tokenBar').style.width = pct + '%';
+
+  if (sub.resetDate) {
+    const rd = new Date(sub.resetDate);
+    document.getElementById('tokenResetLabel').textContent =
+      `Resets ${rd.toLocaleDateString('en', { month: 'short', day: 'numeric' })}`;
+  }
+}
+
+// ── Generate default avatar from initials ──
+function generateDefaultAvatar(name) {
+  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
+  const canvas = document.createElement('canvas');
+  canvas.width = 88; canvas.height = 88;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#1a1a2e';
+  ctx.beginPath(); ctx.arc(44, 44, 44, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#A888CC';
+  ctx.font = 'bold 30px Inter, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(initials, 44, 46);
+  return canvas.toDataURL();
+}
+
+// ── Plan preview / upgrade ──
+function selectPlanPreview(plan) {
+  // Just visual highlight for now
+  ['free','pro','team'].forEach(pl => {
+    const card = document.getElementById('planCard-' + pl);
+    if (!card) return;
+    const sub = (typeof WDB !== 'undefined' && WDB.getSubscription) ? WDB.getSubscription() : { plan: 'free' };
+    const currentPlan = sub.plan || 'free';
+    if (pl === plan && pl !== currentPlan) {
+      card.style.transform = 'translateY(-4px)';
+    } else {
+      card.style.transform = '';
+    }
+  });
+}
+
+function upgradePlan(plan) {
+  // In production, this would redirect to a payment flow (Stripe, etc.)
+  // For now, directly set the plan in localStorage for testing
+  if (typeof WDB === 'undefined' || !WDB.getSubscription) { toast('WDB not loaded', 'error'); return; }
+  const sub = WDB.getSubscription();
+  const current = sub.plan || 'free';
+  if (current === plan) { toast('Already on this plan', 'error'); return; }
+
+  // Show confirmation
+  const planData = WDB.PLANS[plan];
+  const msg = planData.price === 0
+    ? `Switch to ${planData.label} plan?`
+    : `Upgrade to ${planData.label} for $${planData.price}/month?`;
+
+  if (!confirm(msg + '\n\n(In production this will open a payment page. For now it will set the plan directly for testing.)')) return;
+
+  sub.plan = plan;
+  sub.tokensUsed = 0; // Reset tokens on plan change
+  WDB.saveSubscription(sub);
+  renderProfile();
+  toast(`Plan updated to ${planData.label} ✓`, 'success');
+}
+
+// ── Export profile data ──
+function exportProfileData() {
+  const p = loadProfile();
+  const sub = (typeof WDB !== 'undefined' && WDB.getSubscription) ? WDB.getSubscription() : {};
+  const data = { profile: p, subscription: sub, exportDate: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'warr-profile-export.json';
+  a.click(); URL.revokeObjectURL(url);
+  toast('Data exported ✓', 'success');
+}
+
+// ── Reset token counter ──
+function confirmClearTokens() {
+  if (!confirm('Reset your token counter to 0? This cannot be undone.')) return;
+  const sub = (typeof WDB !== 'undefined' && WDB.getSubscription) ? WDB.getSubscription() : { plan: 'free', tokensUsed: 0 };
+  sub.tokensUsed = 0;
+  if (typeof WDB !== 'undefined' && WDB.saveSubscription) WDB.saveSubscription(sub);
+  renderProfile();
+  toast('Token counter reset ✓', 'success');
+}
+
+// ── Toast ──
+function toast(msg, type = '') {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => { t.className = 'toast'; }, 2800);
+}
+
+// ── Init ──
+renderProfile();
+</script>
+</body>
+</html>

@@ -373,6 +373,131 @@ WDB.computeDynamicTiers = function(minGames = 3) {
 };
 
 // ═══════════════════════════════════════════════════════════════
+// ── SCOUT-DERIVED COUNTER SYSTEM ──
+// Builds a counter map purely from match data win/loss patterns.
+// Returns { heroName: [{name, wr, count}] } — heroes that beat heroName
+// ═══════════════════════════════════════════════════════════════
+WDB.computeScoutCounters = function(minWR, minMatches) {
+  minWR = minWR === undefined ? 0.60 : minWR;
+  minMatches = minMatches === undefined ? 2 : minMatches;
+  try {
+    const raw = localStorage.getItem('warr_scout_data');
+    if (!raw) return {};
+    const db = JSON.parse(raw);
+    if (!db.matches || !db.matches.length) return {};
+
+    const vsRecord = {};
+    db.matches.forEach(function(mx) {
+      const winner = mx.winner;
+      if (!winner) return;
+      const bluePicks = (mx.bluePicks || []).map(function(p){ return p.name || p; }).filter(Boolean);
+      const redPicks  = (mx.redPicks  || []).map(function(p){ return p.name || p; }).filter(Boolean);
+      const winPicks  = winner === 'blue' ? bluePicks : redPicks;
+      const losePicks = winner === 'blue' ? redPicks  : bluePicks;
+      winPicks.forEach(function(wHero) {
+        if (!vsRecord[wHero]) vsRecord[wHero] = {};
+        losePicks.forEach(function(lHero) {
+          if (!vsRecord[wHero][lHero]) vsRecord[wHero][lHero] = { wins: 0, count: 0 };
+          vsRecord[wHero][lHero].wins++;
+          vsRecord[wHero][lHero].count++;
+        });
+      });
+      losePicks.forEach(function(lHero) {
+        if (!vsRecord[lHero]) vsRecord[lHero] = {};
+        winPicks.forEach(function(wHero) {
+          if (!vsRecord[lHero][wHero]) vsRecord[lHero][wHero] = { wins: 0, count: 0 };
+          vsRecord[lHero][wHero].count++;
+        });
+      });
+    });
+
+    const result = {};
+    Object.keys(vsRecord).forEach(function(hero) {
+      Object.keys(vsRecord[hero]).forEach(function(opp) {
+        const stats = vsRecord[hero][opp];
+        if (stats.count < minMatches) return;
+        const wr = stats.wins / stats.count;
+        if (wr >= minWR) {
+          if (!result[opp]) result[opp] = [];
+          result[opp].push({ name: hero, wr: Math.round(wr * 100) / 100, count: stats.count });
+        }
+      });
+    });
+    Object.keys(result).forEach(function(hero) {
+      result[hero].sort(function(a, b) { return b.wr - a.wr; });
+    });
+    return result;
+  } catch (e) {
+    console.warn('computeScoutCounters error:', e);
+    return {};
+  }
+};
+
+WDB._counterCache = null;
+WDB._counterCacheKey = null;
+WDB.getCounterMap = function() {
+  const cacheKey = (localStorage.getItem('warr_scout_data') || '').length;
+  if (WDB._counterCache && WDB._counterCacheKey === cacheKey) return WDB._counterCache;
+  WDB._counterCache = WDB.computeScoutCounters();
+  WDB._counterCacheKey = cacheKey;
+  return WDB._counterCache;
+};
+
+// ═══════════════════════════════════════════════════════════════
+// ── SUBSCRIPTION / TOKEN SYSTEM ──
+// 3-tier: free (10 tokens/mo) / pro (50/mo) / team (200/mo)
+// ═══════════════════════════════════════════════════════════════
+WDB.PLANS = {
+  free:  { label: 'Free',  tokensPerMonth: 10,  price: 0     },
+  pro:   { label: 'Pro',   tokensPerMonth: 50,  price: 9.99  },
+  team:  { label: 'Team',  tokensPerMonth: 200, price: 29.99 },
+};
+
+WDB.getSubscription = function() {
+  try {
+    const raw = localStorage.getItem('warr_subscription');
+    if (!raw) return { plan: 'free', tokensUsed: 0, resetDate: null };
+    const sub = JSON.parse(raw);
+    if (sub.resetDate) {
+      const now = new Date();
+      if (now >= new Date(sub.resetDate)) {
+        sub.tokensUsed = 0;
+        sub.resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+        localStorage.setItem('warr_subscription', JSON.stringify(sub));
+      }
+    }
+    return sub;
+  } catch (e) { return { plan: 'free', tokensUsed: 0, resetDate: null }; }
+};
+
+WDB.saveSubscription = function(sub) {
+  if (!sub.resetDate) {
+    const now = new Date();
+    sub.resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+  }
+  localStorage.setItem('warr_subscription', JSON.stringify(sub));
+};
+
+WDB.getTokensRemaining = function() {
+  const sub = WDB.getSubscription();
+  const plan = WDB.PLANS[sub.plan] || WDB.PLANS.free;
+  return Math.max(0, plan.tokensPerMonth - (sub.tokensUsed || 0));
+};
+
+WDB.consumeToken = function() {
+  const sub = WDB.getSubscription();
+  const plan = WDB.PLANS[sub.plan] || WDB.PLANS.free;
+  if ((sub.tokensUsed || 0) >= plan.tokensPerMonth) return false;
+  sub.tokensUsed = (sub.tokensUsed || 0) + 1;
+  WDB.saveSubscription(sub);
+  return true;
+};
+
+WDB.canAnalyze = function() {
+  return WDB.getTokensRemaining() > 0;
+};
+
+// ═══════════════════════════════════════════════════════════════
 // TOAST UTILITY (shared)
 // ═══════════════════════════════════════════════════════════════
 function warrToast(msg, type = '') {
