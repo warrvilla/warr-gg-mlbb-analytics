@@ -1794,7 +1794,8 @@ function localAI(step){
   const epSide=step.team; // AI is always the enemy side
 
   // Difficulty-scaled randomness (lower = more deterministic)
-  const randRange={normal:22,hard:10,gm:4}[diff]??14;
+  // Higher normal range adds variety when scout data is thin
+  const randRange={normal:32,hard:12,gm:4}[diff]??16;
 
   // Enemy profile identity (team selected by user)
   const ep=(aiMode==='enemy'&&enemyProfile)?enemyProfile:null;
@@ -1833,10 +1834,13 @@ function localAI(step){
       // DENY LANE: ban strong heroes in lanes opp still needs
       const deniesLane=ln!=='Flex'&&oppNeeded.includes(ln)?22:0;
 
+      // DON'T WASTE BAN: opp already has someone in this lane — banning here is low value
+      const oppLaneFilled=ln!=='Flex'&&!oppNeeded.includes(ln)&&!isMustBan&&teamBan===0?-40:0;
+
       // DON'T BAN own needs
       const dontBanOwn=myNeeded.includes(ln)&&ts>=75&&!isMustBan?-28:0;
 
-      return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+deniesLane+dontBanOwn+Math.random()*randRange};
+      return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+deniesLane+oppLaneFilled+dontBanOwn+Math.random()*randRange};
     }).filter(Boolean).sort((a,b)=>b.score-a.score);
 
     const h=scored[0]?.hero||avail.find(h=>h.mp==='mustban')||avail.find(h=>['S'].includes(_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier))||avail[0];
@@ -1856,9 +1860,11 @@ function localAI(step){
   }
 
   // PICK: tier + fill lane + counter-pick + avoid being countered + use learned counters
+  // When ep data is thin, widen pool to B-tier so we don't always see same 5 picks
+  const hasTeamData=epCore.length>=3;
   const scored=avail.filter(h=>{
     const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
-    return h.mp!=='off'||['S','A','B'].includes(t);
+    return h.mp!=='off'||['S','A','B'].includes(t)||(hasTeamData&&epCore.includes(h.name));
   }).map(h=>{
     const ln=lane(h);
     const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
