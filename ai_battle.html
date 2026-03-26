@@ -2103,6 +2103,10 @@ function saveMatchToScout(pp, aip, pBans, aiBans, playerWon){
     });
 
     localStorage.setItem(SCOUT_KEY_AB, JSON.stringify(db));
+    // Sync to Supabase so scout page keeps it after cloud reload
+    if(typeof WDB!=='undefined'&&WDB.saveMatch){
+      WDB.saveMatch(match).catch(e=>console.warn('[AI Battle] Supabase sync failed:',e.message));
+    }
     // Also save to personal battle log (warr_battle_log) linked to profile
     try{
       const BL_KEY='warr_battle_log';
