@@ -1835,13 +1835,19 @@ function localAI(step){
       const deniesLane=ln!=='Flex'&&oppNeeded.includes(ln)?22:0;
 
       // DON'T WASTE BAN: opp already PICKED this lane — banning another hero there is useless
-      // Note: banning same lane twice is intentionally allowed (valid pick-deny strategy)
-      const oppLaneFilled=ln!=='Flex'&&!oppNeeded.includes(ln)&&!isMustBan&&teamBan===0?-40:0;
+      // Exception: Flex heroes (e.g. Sora: Gold/EXP) stay dangerous even if one of their lanes is filled
+      // Exception: team signature bans always go through
+      const laneFilledByOpp=ln!=='Flex'&&!oppNeeded.includes(ln);
+      const oppLaneFilled=laneFilledByOpp&&teamBan===0?-40:0;
+      // Mustban bonus: full +60 normally, but drops to +5 if their lane is already filled by opp
+      // (they're no longer a real threat in that role — don't waste the ban slot)
+      // Still non-zero so they're considered if nothing better exists
+      const mustbanBonus=isMustBan?(laneFilledByOpp?5:60):0;
 
       // DON'T BAN own needs
       const dontBanOwn=myNeeded.includes(ln)&&ts>=75&&!isMustBan?-28:0;
 
-      return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+deniesLane+oppLaneFilled+dontBanOwn+Math.random()*randRange};
+      return{hero:h,score:ts+mustbanBonus+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+deniesLane+oppLaneFilled+dontBanOwn+Math.random()*randRange};
     }).filter(Boolean).sort((a,b)=>b.score-a.score);
 
     const h=scored[0]?.hero||avail.find(h=>h.mp==='mustban')||avail.find(h=>['S'].includes(_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier))||avail[0];
