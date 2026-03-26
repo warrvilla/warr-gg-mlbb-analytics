@@ -500,16 +500,13 @@ select:focus, input:focus {
 
 <div class="page">
 
-  <!-- API KEY -->
-  <div class="key-card" id="apiKeyCard">
-    
+  <!-- API KEY — admin status only -->
+  <div class="key-card" id="apiKeyCard" style="display:none;">
     <div style="flex:1;">
-      <div style="font-size:12px;font-weight:700;color:var(--text);">Anthropic API Key</div>
-      <div style="font-size:11px;color:var(--text3);margin-top:2px;">Required for AI-powered scouting reports and patch tier updates</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text);">AI API Key</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:2px;">Admin-managed — set via <a href="admin.html" style="color:var(--blue);">Admin Panel</a></div>
     </div>
-    <span class="key-status key-missing" id="keyStatus">Not Set</span>
-    <input type="password" id="apiKeyInput" placeholder="sk-ant-..." style="width:210px;font-size:11px;">
-    <button class="btn btn-accent btn-sm" onclick="saveApiKey()">Save</button>
+    <span class="key-status" id="keyStatus" style="color:var(--text3);">Checking…</span>
   </div>
 
   <!-- SETUP -->
@@ -583,7 +580,7 @@ function nameToId(name) {
 
 // ══════ API HELPERS ══════
 async function callClaude(body) {
-  const key = localStorage.getItem('warr_api_key')||'';
+  const key = (typeof WDB!=='undefined'&&WDB.getAdminApiKeySync)?WDB.getAdminApiKeySync():'';
   if (!key) throw new Error('NO_API_KEY');
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -608,26 +605,20 @@ function toast(msg, type='') {
 }
 
 // ══════ API KEY ══════
-function saveApiKey() {
-  const v = document.getElementById('apiKeyInput').value.trim();
-  if (!v.startsWith('sk-ant-')) { toast('Key must start with sk-ant-'); return; }
-  localStorage.setItem('warr_api_key', v);
-  document.getElementById('apiKeyInput').value = '';
-  updateKeyStatus();
-  toast('✓ API key saved');
-}
-function updateKeyStatus() {
-  const key = localStorage.getItem('warr_api_key')||'';
-  const el = document.getElementById('keyStatus');
+function saveApiKey() { /* removed — managed via Admin Panel only */ }
+async function updateKeyStatus() {
+  const isAdmin = typeof WAdmin!=='undefined' && WAdmin.isAdmin && WAdmin.isAdmin();
   const card = document.getElementById('apiKeyCard');
-  if (key) {
-    el.textContent = '✓ Saved';
-    el.className = 'key-status key-ok';
-    card.style.borderColor = 'rgba(52,209,122,.25)';
-  } else {
-    el.textContent = 'Not Set';
-    el.className = 'key-status key-missing';
-    card.style.borderColor = 'var(--border)';
+  if (!card) return;
+  // Only show the card to admins
+  card.style.display = isAdmin ? 'flex' : 'none';
+  if (!isAdmin) return;
+  const key = (typeof WDB!=='undefined'&&WDB.getAdminApiKey) ? await WDB.getAdminApiKey() : '';
+  const el = document.getElementById('keyStatus');
+  if (el) {
+    el.textContent = key ? '✓ Active' : 'Not Set';
+    el.style.color = key ? '#22c55e' : '#ef4444';
+    card.style.borderColor = key ? 'rgba(52,209,122,.25)' : 'rgba(240,82,82,.2)';
   }
 }
 
@@ -670,6 +661,8 @@ function rebuildTeamsLocal() {
 }
 
 async function init() {
+  // Pre-warm API key cache from Supabase, then show status
+  if (typeof WDB!=='undefined'&&WDB.getAdminApiKey) await WDB.getAdminApiKey();
   updateKeyStatus();
   (async () => {
   const ok = await WAuth.requireAuth();
@@ -895,7 +888,7 @@ async function generateReport() {
 
   out.innerHTML = buildStaticReport(blueName, redName, blueStats, redStats, h2h);
 
-  const key = localStorage.getItem('warr_api_key')||'';
+  const key = (typeof WDB!=='undefined'&&WDB.getAdminApiKeySync)?WDB.getAdminApiKeySync():'';
   if (!key) {
     const aiEl = document.getElementById('aiReportSection');
     if (aiEl) aiEl.innerHTML = `
@@ -1201,7 +1194,7 @@ Respond ONLY with JSON matching this exact schema:
     const r = JSON.parse(m[0]);
     renderAIReport(r, aiSection);
   } catch(e) {
-    const msg = e.message==='NO_API_KEY' ? 'Add your API key above to enable AI analysis.' : `AI analysis failed: ${e.message}`;
+    const msg = e.message==='NO_API_KEY' ? 'No API key set — contact admin to enable AI analysis.' : `AI analysis failed: ${e.message}`;
     aiSection.innerHTML = `
       <div class="report-hdr"><span class="report-hdr-title">AI Draft Strategy</span></div>
       <div class="report-body"><div style="font-size:12px;color:var(--text3);">${msg}</div></div>`;
@@ -1311,7 +1304,7 @@ async function runPatchAnalysis() {
   statusEl.style.display='block'; resultsEl.style.display='none'; errorEl.style.display='none';
   document.getElementById('patchStatusText').textContent='Claude searching for latest MLBB patch…';
 
-  const key = localStorage.getItem('warr_api_key')||'';
+  const key = (typeof WDB!=='undefined'&&WDB.getAdminApiKeySync)?WDB.getAdminApiKeySync():'';
   if (!key) {
     statusEl.style.display='none'; errorEl.style.display='block';
     document.getElementById('patchErrorText').textContent='No API key saved — add your key above.';
@@ -1357,7 +1350,7 @@ S=must ban/pick, A=high priority, B=situational, C=niche, D=off-meta. Include al
     resultsEl.style.display='block';
   } catch(e) {
     statusEl.style.display='none'; errorEl.style.display='block';
-    document.getElementById('patchErrorText').textContent = e.message==='NO_API_KEY'?'No API key.':'Error: '+e.message;
+    document.getElementById('patchErrorText').textContent = e.message==='NO_API_KEY'?'No API key — contact admin.':'Error: '+e.message;
   }
 }
 

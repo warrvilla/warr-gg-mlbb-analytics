@@ -828,6 +828,87 @@ WAdmin._setExtraAdmins = function(list) {
 })();
 
 // ═══════════════════════════════════════════════════════════════
+// ADMIN API KEY MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+/**
+ * Simple XOR obfuscation — stops the key being stored in plaintext.
+ * Not cryptographic; just prevents casual inspection.
+ */
+(function() {
+  const _SALT = 'w4rr.gg|dr4ft|k3y';
+  function _xor(str) {
+    return str.split('').map((c, i) =>
+      String.fromCharCode(c.charCodeAt(0) ^ _SALT.charCodeAt(i % _SALT.length))
+    ).join('');
+  }
+  function _enc(str) { return btoa(_xor(str)); }
+  function _dec(str) { try { return _xor(atob(str)); } catch(e) { return ''; } }
+
+  /**
+   * Admin only: save the API key to Supabase site_config table
+   * AND cache locally. Call from admin.html.
+   */
+  WDB.setAdminApiKey = async function(rawKey) {
+    if (!WAdmin.isAdmin()) throw new Error('Admin only');
+    const obf = _enc(rawKey);
+    localStorage.setItem('warr_admin_api_key', obf);
+    try {
+      const { error } = await _sbClient
+        .from('site_config')
+        .upsert({ key: 'api_key', value: obf, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (error) throw error;
+    } catch(e) {
+      console.warn('[WDB] Supabase site_config write failed — key stored locally only:', e.message);
+    }
+  };
+
+  /**
+   * Get the active API key. Priority:
+   *  1. Supabase site_config (admin-set, shared across all users)
+   *  2. localStorage cache (warr_admin_api_key)
+   *  3. Legacy personal key (warr_api_key — admin only)
+   */
+  WDB.getAdminApiKey = async function() {
+    try {
+      const { data } = await _sbClient
+        .from('site_config')
+        .select('value')
+        .eq('key', 'api_key')
+        .single();
+      if (data?.value) {
+        localStorage.setItem('warr_admin_api_key', data.value);
+        return _dec(data.value);
+      }
+    } catch(e) { /* table may not exist yet — fall through */ }
+
+    const cached = localStorage.getItem('warr_admin_api_key');
+    if (cached) return _dec(cached);
+
+    if (WAdmin.isAdmin()) {
+      const legacy = localStorage.getItem('warr_api_key');
+      if (legacy) return legacy;
+    }
+    return '';
+  };
+
+  /** Synchronous version using only local cache */
+  WDB.getAdminApiKeySync = function() {
+    const cached = localStorage.getItem('warr_admin_api_key');
+    if (cached) return _dec(cached);
+    if (WAdmin.isAdmin()) return localStorage.getItem('warr_api_key') || '';
+    return '';
+  };
+
+  /** Remove the admin API key everywhere */
+  WDB.clearAdminApiKey = async function() {
+    if (!WAdmin.isAdmin()) throw new Error('Admin only');
+    localStorage.removeItem('warr_admin_api_key');
+    localStorage.removeItem('warr_api_key');
+    try { await _sbClient.from('site_config').delete().eq('key', 'api_key'); } catch(e) {}
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════════
 // TOAST UTILITY (shared)
 // ═══════════════════════════════════════════════════════════════
 function warrToast(msg, type = '') {

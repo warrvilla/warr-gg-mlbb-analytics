@@ -1024,7 +1024,7 @@ select {
 <script>
 // ═══════ API HELPER ═══════
 async function callClaude(body){
-  const key=localStorage.getItem('warr_api_key')||'';
+  const key=(typeof WDB!=='undefined'&&WDB.getAdminApiKeySync)?WDB.getAdminApiKeySync():localStorage.getItem('warr_api_key')||'';
   if(!key) throw new Error('NO_API_KEY');
   const resp=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
@@ -1043,8 +1043,8 @@ function updateDBTokenDisplay(){
   const el=document.getElementById('dbTokenDisplay');
   if(el){el.textContent=`⚡ ${rem}/${plan.tokensPerMonth}`;el.style.color=rem<=2?'#ff6b6b':rem<=5?'#ffaa44':'#7ecfff';}
 }
-function saveApiKey(){const v=(document.getElementById('dbApiKeyIn')||{}).value?.trim();if(!v){toast('Enter a key first','error');return;}if(!v.startsWith('sk-ant-')){toast('Key must start with sk-ant-','error');return;}localStorage.setItem('warr_api_key',v);document.getElementById('dbApiKeyIn').value='';updateApiKeyStatus();toast('API key saved ✓','success');}
-function updateApiKeyStatus(){const key=localStorage.getItem('warr_api_key')||'';const el=document.getElementById('dbKeyStatus');if(el){el.textContent=key?'✓ Key Saved':'No Key';el.style.color=key?'#22c55e':'#ef4444';}}
+function saveApiKey(){/* key management moved to admin panel */toast('API key is managed by admin. Contact your admin to enable AI.','error');}
+function updateApiKeyStatus(){const key=(typeof WDB!=='undefined'&&WDB.getAdminApiKeySync)?WDB.getAdminApiKeySync():'';const el=document.getElementById('dbKeyStatus');if(el){el.textContent=key?'✓ Key Saved':'No Key';el.style.color=key?'#22c55e':'#ef4444';}}
 
 function toggleSettingsPanel() {
   const panel = document.getElementById('settingsPanel');
@@ -3286,7 +3286,7 @@ Return ONLY valid JSON: {"hero":"ExactHeroName","reason":"<12 words max>","confi
   let d;
   try{d=await callClaude({model:'claude-sonnet-4-20250514',max_tokens:150,messages:[{role:'user',content:prompt}]});}
   catch(e){
-    if(e.message==='NO_API_KEY') toast('No API key — add it in AI Battle Setup for full AI','error');
+    if(e.message==='NO_API_KEY') toast('No API key — contact admin to enable AI features.','error');
     return computeLocalPreds(step)[0]?.hero||null;
   }
   const raw=(d.content||[]).map(x=>x.text||'').join('');
@@ -5567,7 +5567,7 @@ select {
 <script>
 // ═══════ API HELPER ═══════
 async function callClaude(body){
-  const key=localStorage.getItem('warr_api_key')||'';
+  const key=(typeof WDB!=='undefined'&&WDB.getAdminApiKeySync)?WDB.getAdminApiKeySync():localStorage.getItem('warr_api_key')||'';
   if(!key) throw new Error('NO_API_KEY');
   const resp=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
@@ -5586,8 +5586,8 @@ function updateDBTokenDisplay(){
   const el=document.getElementById('dbTokenDisplay');
   if(el){el.textContent=`⚡ ${rem}/${plan.tokensPerMonth}`;el.style.color=rem<=2?'#ff6b6b':rem<=5?'#ffaa44':'#7ecfff';}
 }
-function saveApiKey(){const v=(document.getElementById('dbApiKeyIn')||{}).value?.trim();if(!v){toast('Enter a key first','error');return;}if(!v.startsWith('sk-ant-')){toast('Key must start with sk-ant-','error');return;}localStorage.setItem('warr_api_key',v);document.getElementById('dbApiKeyIn').value='';updateApiKeyStatus();toast('API key saved ✓','success');}
-function updateApiKeyStatus(){const key=localStorage.getItem('warr_api_key')||'';const el=document.getElementById('dbKeyStatus');if(el){el.textContent=key?'✓ Key Saved':'No Key';el.style.color=key?'#22c55e':'#ef4444';}}
+function saveApiKey(){/* key management moved to admin panel */toast('API key is managed by admin. Contact your admin to enable AI.','error');}
+async function updateApiKeyStatus(){const key=(typeof WDB!=='undefined'&&WDB.getAdminApiKey)?await WDB.getAdminApiKey():localStorage.getItem('warr_api_key')||'';const el=document.getElementById('dbKeyStatus');if(el){el.textContent=key?'✓ AI Active':'No API Key';el.style.color=key?'#22c55e':'#ef4444';}}
 
 function toggleSettingsPanel() {
   const panel = document.getElementById('settingsPanel');
@@ -7828,7 +7828,7 @@ Return ONLY valid JSON: {"hero":"ExactHeroName","reason":"<12 words max>","confi
   let d;
   try{d=await callClaude({model:'claude-sonnet-4-20250514',max_tokens:150,messages:[{role:'user',content:prompt}]});}
   catch(e){
-    if(e.message==='NO_API_KEY') toast('No API key — add it in AI Battle Setup for full AI','error');
+    if(e.message==='NO_API_KEY') toast('No API key — contact admin to enable AI features.','error');
     return computeLocalPreds(step)[0]?.hero||null;
   }
   const raw=(d.content||[]).map(x=>x.text||'').join('');

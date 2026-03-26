@@ -749,15 +749,11 @@ input:focus, .search-input:focus {
     </div>
   </div>
 
-  <!-- API KEY -->
-  <div class="setup-card" id="apiKeyCard">
-    <div class="card-title">Anthropic API Key <span style="font-weight:400;color:var(--text3);">— required for Hard &amp; GM</span></div>
-    <div style="display:flex;gap:8px;">
-      <input class="name-in" id="apiKeyIn" type="password" placeholder="sk-ant-api03-..." style="flex:1;font-family:monospace;font-size:12px;" oninput="updateApiKeyStatus()"/>
-      <button onclick="saveApiKey()" style="padding:9px 16px;background:var(--blue-dim);border:1px solid var(--blue-border);color:var(--blue);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">Save</button>
-    </div>
-    <div id="apiKeyStatus" style="margin-top:7px;font-size:10px;color:var(--text3);"></div>
-    <div style="margin-top:5px;font-size:9px;color:var(--text3);">Get your key at <a href="https://console.anthropic.com" target="_blank" style="color:var(--blue);">console.anthropic.com</a> · Stored locally only · Normal difficulty needs no key</div>
+  <!-- API KEY — admin only -->
+  <div class="setup-card" id="apiKeyCard" style="display:none;">
+    <div class="card-title">API Key <span style="font-weight:400;color:var(--text3);">— admin only</span></div>
+    <div id="apiKeyStatus" style="margin-bottom:8px;font-size:10px;color:var(--text3);">Checking…</div>
+    <div style="font-size:9px;color:var(--text3);">Set a global key in <a href="admin.html" style="color:var(--blue);">Admin Panel</a> to enable AI for all users.</div>
   </div>
 
   <button class="start-btn" onclick="startBattle()">Start Battle</button>
@@ -857,7 +853,10 @@ input:focus, .search-input:focus {
 
 // ═══════ API HELPER ═══════
 async function callClaude(body){
-  const key=localStorage.getItem('warr_api_key')||'';
+  // Use admin-set global key (shared for all users); no per-user key allowed
+  const key = (typeof WDB !== 'undefined' && WDB.getAdminApiKeySync)
+    ? WDB.getAdminApiKeySync()
+    : localStorage.getItem('warr_api_key') || '';
   if(!key) throw new Error('NO_API_KEY');
   const resp=await fetch('https://api.anthropic.com/v1/messages',{
     method:'POST',
@@ -872,31 +871,24 @@ async function callClaude(body){
   if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error?.message||'HTTP '+resp.status);}
   return resp.json();
 }
-function saveApiKey(){
-  const v=document.getElementById('apiKeyIn').value.trim();
-  if(!v){showApiStatus('Enter a key first','#ef4444');return;}
-  if(!v.startsWith('sk-ant-')){showApiStatus('Key should start with sk-ant-','#f59e0b');return;}
-  localStorage.setItem('warr_api_key',v);
-  document.getElementById('apiKeyIn').value='';
-  showApiStatus('✓ Saved! Hard & Grandmaster AI enabled.','#22c55e');
-  updateApiKeyCard();
-}
-function showApiStatus(msg,color){
-  const el=document.getElementById('apiKeyStatus');
-  if(el){el.textContent=msg;el.style.color=color;}
-}
-function updateApiKeyStatus(){
-  const v=document.getElementById('apiKeyIn').value.trim();
-  if(!v){showApiStatus('','');return;}
-  if(!v.startsWith('sk-ant-')) showApiStatus('Key should start with sk-ant-','#f59e0b');
-  else showApiStatus('Looks valid — click Save','#94a3b8');
-}
-function updateApiKeyCard(){
-  const has=!!localStorage.getItem('warr_api_key');
+async function updateApiKeyCard(){
   const card=document.getElementById('apiKeyCard');
-  if(!card)return;
-  const status=document.getElementById('apiKeyStatus');
-  if(has&&status) {status.textContent='✓ API key saved — Hard & GM AI active';status.style.color='#22c55e';}
+  if(!card) return;
+  const isAdmin = typeof WAdmin!=='undefined' && WAdmin.isAdmin && WAdmin.isAdmin();
+  // Only show card to admin
+  card.style.display = isAdmin ? 'block' : 'none';
+  if(!isAdmin) return;
+  const key = (typeof WDB!=='undefined' && WDB.getAdminApiKey) ? await WDB.getAdminApiKey() : '';
+  const status = document.getElementById('apiKeyStatus');
+  if(status){
+    if(key){
+      status.textContent = '✓ Admin key active — AI enabled for all users';
+      status.style.color = '#22c55e';
+    } else {
+      status.textContent = '✗ No key set — using rule-based AI fallback';
+      status.style.color = '#ef4444';
+    }
+  }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1231,7 +1223,12 @@ function setSide(s){['blue','red','random'].forEach(x=>{document.getElementById(
 function setDiff(d){['normal','hard','gm'].forEach(x=>{document.getElementById('dc-'+x).className='opt-card';});document.getElementById('dc-'+d).className='opt-card sel-gold';_diff=d;}
 setSide('blue');setDiff('hard');
 // Show API key status + token display on load
-document.addEventListener('DOMContentLoaded',()=>{updateApiKeyCard();updateTokenDisplay();});
+document.addEventListener('DOMContentLoaded',async()=>{
+  // Pre-warm API key cache from Supabase so sync version works immediately
+  if(typeof WDB!=='undefined'&&WDB.getAdminApiKey) await WDB.getAdminApiKey();
+  updateApiKeyCard();
+  updateTokenDisplay();
+});
 
 // ═══════ ENEMY TEAM MODE ═══════
 function setAIMode(m){
@@ -2009,7 +2006,7 @@ JSON only: {"hero":"ExactName","reason":"<12 words>","confidence":"high|medium|l
     if(!h||usedIds.includes(h.id))return localAI(step);
     h._r=p.reason||'';h._c=p.confidence||'medium';return h;
   }catch(e){
-    if(e.message==='NO_API_KEY') toast('No API key — using rule-based AI. Add key in Setup.','error');
+    if(e.message==='NO_API_KEY') toast('No API key set — contact admin to enable AI mode.','error');
     return localAI(step);
   }
 }
