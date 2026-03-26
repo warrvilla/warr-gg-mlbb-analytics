@@ -3283,10 +3283,12 @@ ${step.type==='ban'?'BAN the most threatening hero for the opponent — deny the
 
 Return ONLY valid JSON: {"hero":"ExactHeroName","reason":"<12 words max>","confidence":"high|medium|low"}`;
 
+  const _hasKey=typeof WDB!=='undefined'&&WDB.getAdminApiKeySync?!!WDB.getAdminApiKeySync():!!localStorage.getItem('warr_api_key');
+  if(!_hasKey) return computeLocalPreds(step)[0]?.hero||null;
   let d;
   try{d=await callClaude({model:'claude-sonnet-4-20250514',max_tokens:150,messages:[{role:'user',content:prompt}]});}
   catch(e){
-    if(e.message==='NO_API_KEY') toast('No API key — contact admin to enable AI features.','error');
+    // no key — silent fallback to local prediction
     return computeLocalPreds(step)[0]?.hero||null;
   }
   const raw=(d.content||[]).map(x=>x.text||'').join('');
@@ -7825,10 +7827,12 @@ ${step.type==='ban'?'BAN the most threatening hero for the opponent — deny the
 
 Return ONLY valid JSON: {"hero":"ExactHeroName","reason":"<12 words max>","confidence":"high|medium|low"}`;
 
+  const _hasKey=typeof WDB!=='undefined'&&WDB.getAdminApiKeySync?!!WDB.getAdminApiKeySync():!!localStorage.getItem('warr_api_key');
+  if(!_hasKey) return computeLocalPreds(step)[0]?.hero||null;
   let d;
   try{d=await callClaude({model:'claude-sonnet-4-20250514',max_tokens:150,messages:[{role:'user',content:prompt}]});}
   catch(e){
-    if(e.message==='NO_API_KEY') toast('No API key — contact admin to enable AI features.','error');
+    // no key — silent fallback to local prediction
     return computeLocalPreds(step)[0]?.hero||null;
   }
   const raw=(d.content||[]).map(x=>x.text||'').join('');

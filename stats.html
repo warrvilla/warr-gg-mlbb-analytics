@@ -1186,6 +1186,11 @@ Respond ONLY with JSON matching this exact schema:
   "confidenceReason": "max 12 words"
 }`;
 
+  const _hasKey=typeof WDB!=='undefined'&&WDB.getAdminApiKeySync?!!WDB.getAdminApiKeySync():!!localStorage.getItem('warr_api_key');
+  if(!_hasKey){
+    aiSection.innerHTML=`<div class="report-hdr"><span class="report-hdr-title">AI Draft Strategy</span></div><div class="report-body"><div style="font-size:12px;color:var(--text3);">AI analysis requires an API key — contact admin to enable.</div></div>`;
+    return;
+  }
   try {
     const d = await callClaude({model:'claude-sonnet-4-6', max_tokens:900, messages:[{role:'user',content:prompt}]});
     const raw = (d.content||[]).map(x=>x.text||'').join('');
@@ -1194,7 +1199,7 @@ Respond ONLY with JSON matching this exact schema:
     const r = JSON.parse(m[0]);
     renderAIReport(r, aiSection);
   } catch(e) {
-    const msg = e.message==='NO_API_KEY' ? 'No API key set — contact admin to enable AI analysis.' : `AI analysis failed: ${e.message}`;
+    const msg = e.message==='NO_API_KEY' ? 'AI features require an API key — contact your admin.' : `AI analysis failed: ${e.message}`;
     aiSection.innerHTML = `
       <div class="report-hdr"><span class="report-hdr-title">AI Draft Strategy</span></div>
       <div class="report-body"><div style="font-size:12px;color:var(--text3);">${msg}</div></div>`;
@@ -1350,7 +1355,7 @@ S=must ban/pick, A=high priority, B=situational, C=niche, D=off-meta. Include al
     resultsEl.style.display='block';
   } catch(e) {
     statusEl.style.display='none'; errorEl.style.display='block';
-    document.getElementById('patchErrorText').textContent = e.message==='NO_API_KEY'?'No API key — contact admin.':'Error: '+e.message;
+    document.getElementById('patchErrorText').textContent = e.message==='NO_API_KEY'?'AI patch analysis requires an API key — contact admin.':'Error: '+e.message;
   }
 }
 
