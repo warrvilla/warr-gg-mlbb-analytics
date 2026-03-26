@@ -1793,6 +1793,16 @@ function localAI(step){
   const oppP=step.team==='blue'?ST.rp:ST.bp;
   const {needed:myNeeded,cl:myCovered}=needs(myP);
   const {needed:oppNeeded}=needs(oppP);
+  const epSide=step.team; // AI is always the enemy side
+
+  // Difficulty-scaled randomness (lower = more deterministic)
+  const randRange={normal:22,hard:10,gm:4}[diff]??14;
+
+  // Enemy profile identity (team selected by user)
+  const ep=(aiMode==='enemy'&&enemyProfile)?enemyProfile:null;
+  const epCore=ep?[...new Set([...(epSide==='blue'?ep.blueSideCore||[]:ep.redSideCore||[]),...(ep.topPicks||[]).slice(0,6)])]:[];
+  const epBans=ep?(ep.topBans||[]).slice(0,6):[];
+  const epName=ep?.(ep.team||'');
 
   // Load tendency data once
   const humanFavs=getHumanTendencies(); // heroes human picks most + wins with
@@ -1801,16 +1811,19 @@ function localAI(step){
 
   if(step.type==='ban'){
     const scored=avail.map(h=>{
-      const t=_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
+      const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
       const ts={S:100,A:75,B:50,C:25}[t]||20;
       const isMustBan=h.mp==='mustban';
       const isHighPick=h.mp==='highpick';
       if(!isMustBan&&!isHighPick&&['C','D'].includes(t))return null;
       const ln=lane(h);
 
+      // TEAM IDENTITY: ban this team's signature bans
+      const teamBan=epBans.includes(h.name)?140:0;
+
       // DENY: human's comfort/tendency picks — highest priority after must-bans
       const favEntry=humanFavs.find(f=>f.name===h.name);
-      const denyFav=favEntry?(favEntry.score*18):0; // score = count * winrate
+      const denyFav=favEntry?(favEntry.score*18):0;
 
       // DENY: break human combos — if this hero is part of a winning combo the human uses
       const breakCombo=humanCombos.some(cb=>cb.a===h.name||cb.b===h.name)?30:0;
@@ -1824,15 +1837,17 @@ function localAI(step){
       // DON'T BAN own needs
       const dontBanOwn=myNeeded.includes(ln)&&ts>=75&&!isMustBan?-28:0;
 
-      return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+denyFav+breakCombo+ctrsUs+deniesLane+dontBanOwn+Math.random()*6};
+      return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+deniesLane+dontBanOwn+Math.random()*randRange};
     }).filter(Boolean).sort((a,b)=>b.score-a.score);
 
-    const h=scored[0]?.hero||avail.find(h=>h.mp==='mustban')||avail.find(h=>['S'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier))||avail[0];
+    const h=scored[0]?.hero||avail.find(h=>h.mp==='mustban')||avail.find(h=>['S'].includes(_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier))||avail[0];
     const ln=lane(h);
     const isFav=humanFavs.slice(0,5).some(f=>f.name===h.name);
     const ctrsUs=myP.some(p=>scoutCounters(h.name,p.name));
     const isCombo=humanCombos.some(cb=>cb.a===h.name||cb.b===h.name);
+    const isTeamBan=epBans.includes(h.name);
     h._r=h.mp==='mustban'?'Must-ban priority'
+      :isTeamBan?`${epName||'Team'} signature ban`
       :isFav?`Deny human's comfort pick (${Math.round((humanFavs.find(f=>f.name===h.name)?.wr||0.5)*100)}%WR)`
       :isCombo?'Breaks human win combo'
       :ctrsUs?`Counters our ${myP.find(p=>scoutCounters(h.name,p.name))?.name}`
@@ -1843,14 +1858,17 @@ function localAI(step){
 
   // PICK: tier + fill lane + counter-pick + avoid being countered + use learned counters
   const scored=avail.filter(h=>{
-    const t=_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
+    const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
     return h.mp!=='off'||['S','A','B'].includes(t);
   }).map(h=>{
     const ln=lane(h);
-    const t=_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
+    const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
     const ts={S:100,A:78,B:55,C:30}[t]||30;
     const fillsNeeded=ln!=='Flex'&&myNeeded.includes(ln)?42:0;
     const alreadyCovered=ln!=='Flex'&&myCovered.includes(ln)?-55:0;
+    // TEAM IDENTITY: prioritise team's signature picks
+    const epIdx=epCore.indexOf(h.name);
+    const teamPick=epIdx>=0?Math.max(0,130-epIdx*15):0;
     // Counter-pick: use full counter list (hardcoded + learned)
     const countersOpp=oppP.filter(op=>fullCounterList(op.name).some(x=>x.name===h.name)).length*25;
     // Avoid being countered by opponent picks
@@ -1862,7 +1880,7 @@ function localAI(step){
     }).length*15;
     const metaBonus=h.mp==='highpick'?12:h.mp==='mustban'?6:0;
     const compAdj=compScoreAdjust(h,myP);
-    return{hero:h,score:ts+fillsNeeded+alreadyCovered+countersOpp+vuln+beatsHumanFavs+metaBonus+compAdj+Math.random()*5};
+    return{hero:h,score:ts+fillsNeeded+alreadyCovered+teamPick+countersOpp+vuln+beatsHumanFavs+metaBonus+compAdj+Math.random()*randRange};
   }).sort((a,b)=>b.score-a.score);
 
   const h=scored[0]?.hero||avail[0];
@@ -1873,13 +1891,15 @@ function localAI(step){
   const hasFrontline=comp.Tank>0||comp.Fighter>0;
   const role=getHeroRole(h.name);
   const needsFrontline=!hasFrontline&&(role==='Tank'||role==='Fighter');
-  h._r=countered.length
-    ?`Counters ${countered.slice(0,2).map(x=>x.name).join('+')}${learnedFor.length?' (learned)':''}`
+  const isTeamPick=epCore.includes(h.name);
+  h._r=isTeamPick?`${epName||'Team'} signature pick`
+    :countered.length?`Counters ${countered.slice(0,2).map(x=>x.name).join('+')}${learnedFor.length?' (learned)':''}`
     :needsFrontline?`Frontline anchor — team needs Tank/Fighter`
     :myNeeded.includes(ln)?`Fills ${ln} lane`
-    :`Best available (${_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier}-tier)`;
-  h._c=countered.length?'high':needsFrontline?'high':'medium';return h;
+    :`Best available (${_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier}-tier)`;
+  h._c=isTeamPick?'high':countered.length?'high':needsFrontline?'high':'medium';return h;
 }
+
 
 function buildMeta(){
   const lines=[];
