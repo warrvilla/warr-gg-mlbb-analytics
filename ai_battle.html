@@ -1834,16 +1834,14 @@ function localAI(step){
       // DENY LANE: ban strong heroes in lanes opp still needs
       const deniesLane=ln!=='Flex'&&oppNeeded.includes(ln)?22:0;
 
-      // DON'T WASTE BAN: opp already has someone in this lane — banning here is low value
+      // DON'T WASTE BAN: opp already PICKED this lane — banning another hero there is useless
+      // Note: banning same lane twice is intentionally allowed (valid pick-deny strategy)
       const oppLaneFilled=ln!=='Flex'&&!oppNeeded.includes(ln)&&!isMustBan&&teamBan===0?-40:0;
-      // AVOID BANNING SAME LANE TWICE: count already-banned heroes in this lane
-      const alreadyBannedLane=[...ST.bb,...ST.rb].filter(b=>lane(b)===ln).length;
-      const dupLaneBan=alreadyBannedLane>0&&!isMustBan&&teamBan===0?(-30-(alreadyBannedLane*20)):0;
 
       // DON'T BAN own needs
       const dontBanOwn=myNeeded.includes(ln)&&ts>=75&&!isMustBan?-28:0;
 
-      return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+deniesLane+oppLaneFilled+dupLaneBan+dontBanOwn+Math.random()*randRange};
+      return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+deniesLane+oppLaneFilled+dontBanOwn+Math.random()*randRange};
     }).filter(Boolean).sort((a,b)=>b.score-a.score);
 
     const h=scored[0]?.hero||avail.find(h=>h.mp==='mustban')||avail.find(h=>['S'].includes(_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier))||avail[0];
