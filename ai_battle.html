@@ -1800,7 +1800,8 @@ function localAI(step){
   const ep=(aiMode==='enemy'&&enemyProfile)?enemyProfile:null;
   const epCore=ep?[...new Set([...(epSide==='blue'?ep.blueSideCore||[]:ep.redSideCore||[]),...(ep.topPicks||[]).slice(0,6)])]:[];
   const epBans=ep?(ep.topBans||[]).slice(0,6):[];
-  const epName=ep?.(ep.team||'');
+  const epName=ep?(ep.name||ep.team||''):'';
+
 
   // Load tendency data once
   const humanFavs=getHumanTendencies(); // heroes human picks most + wins with
