@@ -1983,48 +1983,81 @@ async function claudeAI(step){
     return`${h.name}(${ln},${tier}${wr})${mustTag}`;
   }).join(', ');
 
-  let prompt=`You are an elite MLBB drafter AI. You control ${step.team.toUpperCase()} side vs ${pName}. WIN this draft.
+  // Detect draft phase: phase1 = steps 0-5 (bans), phase2 picks = steps 6-11, phase2 bans = steps 12-15, phase3 picks = 16-19
+  const draftPhase=ST.step<=5?'Phase 1 Bans':ST.step<=11?'Phase 1 Picks':ST.step<=15?'Phase 2 Bans':'Phase 2 Picks';
+  // Infer likely opponent composition direction from their early picks
+  const oppComp=oppP.length?`Opponent comp direction: ${oppP.map(h=>h.name+'('+lane(h)+')').join('+')} — infer their win condition`:'Opponent: no picks yet';
+  // Determine if we have a frontline / need utility
+  const myRoles=myP.map(h=>getHeroRole?.(h.name)||h.role||'');
+  const hasTank=myRoles.some(r=>r==='Tank');
+  const hasFighter=myRoles.some(r=>r==='Fighter');
+  const hasSupport=myRoles.some(r=>r==='Support');
+  const compNeeds=[...(!hasTank&&!hasFighter?['need frontline/engage']:[]),
+    ...(!hasSupport&&myP.length>=2?['consider support/utility']:[])].join(', ');
 
-META:
+  let prompt=`You are the world's best MPL MLBB head coach and draft strategist. You have coached championship-winning teams and understand every facet of competitive MLBB drafting at the highest level. You control the ${step.team.toUpperCase()} side. Your goal is to WIN this draft through superior strategy.
+
+CURRENT META:
 ${buildMeta()}${aiScout?'\n'+aiScout:''}
 
-DRAFT STATE:
-YOUR team (${step.team}):
-  picks = [${myP.map(h=>h.name+'('+lane(h)+')').join(', ')||'none'}]
-  bans  = [${myB.map(h=>h.name).join(', ')||'none'}]
-  lanes still needed = [${needed.join(', ')||'ALL FILLED'}]
+DRAFT PHASE: ${draftPhase} (step ${ST.step+1}/20)
 
-OPPONENT (${step.team==='blue'?'red':'blue'}):
-  picks = [${oppP.map(h=>h.name+'('+lane(h)+')').join(', ')||'none'}]
-  bans  = [${oppB.map(h=>h.name).join(', ')||'none'}]
-  lanes still needed = [${oppNeeded.join(', ')||'ALL FILLED'}]
-  lanes already covered = [${[...oppFilledLanes].join(', ')||'none'}]
+YOUR TEAM (${step.team} side):
+  Picks: ${myP.map(h=>h.name+'('+lane(h)+')').join(', ')||'none yet'}
+  Bans:  ${myB.map(h=>h.name).join(', ')||'none'}
+  Lanes still needed: ${needed.join(', ')||'✅ ALL LANES FILLED'}
+  Comp notes: ${compNeeds||'composition balanced'}
 
-${myCounterTargets?'Counter opportunities: '+myCounterTargets+'\n':''}${theyCounter?'Threats to your picks: '+theyCounter+'\n':''}
-Available heroes: ${topAFull}
+OPPONENT (${step.team==='blue'?'red':'blue'} side):
+  Picks: ${oppP.map(h=>h.name+'('+lane(h)+')').join(', ')||'none yet'}
+  Bans:  ${oppB.map(h=>h.name).join(', ')||'none'}
+  Lanes still needed: ${oppNeeded.join(', ')||'✅ ALL LANES FILLED'}
+  Lanes ALREADY LOCKED: ${[...oppFilledLanes].join(', ')||'none yet'}
+  ${oppComp}
+
+${myCounterTargets?'🎯 Counter opportunities (heroes that beat their picks): '+myCounterTargets:''}
+${theyCounter?'⚠️ Threats to your picks: '+theyCounter:''}
+
+AVAILABLE HEROES: ${topAFull}
 ${gmEx}
 
 ${step.type==='ban'?
-`BAN PHASE — choose ONE hero to ban. Priority order:
-1. MUSTBAN heroes — always ban first, UNLESS opponent already has a hero in that exact lane AND the hero only plays that lane (wasted ban). Exception: hero tagged [MUSTBAN] with Flex lane always ban.
-2. Heroes the opponent COMFORT picks (human favs above).
-3. S/A heroes that counter YOUR existing picks.
-4. S/A heroes in lanes the OPPONENT STILL NEEDS [${oppNeeded.join('/')||'none left'}].
-⚠️ CRITICAL — WASTED BANS (avoid these):
-- Do NOT ban a hero whose lane is ALREADY FILLED by the opponent: [${[...oppFilledLanes].join(', ')||'none'}]. Example: opponent has Jungler → banning another Jungler is wasted.
-- Do NOT ban heroes that fill YOUR OWN still-needed lanes [${needed.join('/')||'none'}] unless they are MUSTBAN.`
-:
-`PICK PHASE — choose ONE hero to pick. Priority order:
-1. Fill your NEEDED lanes [${needed.join(', ')||'ALL FILLED — pick best available'}].
-2. Counter-pick opponent heroes where possible.
-3. Synergy with your existing team composition.
-4. Avoid heroes your opponent already counters.
-⚠️ CRITICAL — MISTAKES to avoid:
-- Do NOT pick a hero in a lane you ALREADY HAVE: [${[...myFilledLanes].join(', ')||'none yet'}].
-- Do NOT pick a hero that is hard-countered by the opponent's existing picks.`}
+`━━ BAN DECISION ━━
+As an MPL-level coach, think about your ban goal FIRST:
+- Are you protecting a win condition you plan to draft?
+- Are you denying the opponent a signature/comfort pick?
+- Are you removing a counter to your existing picks?
 
-Respond with JSON only (no extra text):
-{"hero":"ExactHeroNameFromList","reason":"<15 words max, specific>","confidence":"high|medium|low"}`;
+PRIORITY ORDER:
+1. [MUSTBAN] heroes — ban immediately, UNLESS that hero's lane is already locked by opponent AND hero is single-lane (then skip — it's a wasted ban slot).
+2. Opponent comfort picks / heroes they've shown tendency toward.
+3. Heroes that hard-counter your existing picks [${myP.map(h=>h.name).join(', ')||'none yet'}].
+4. S/A-tier heroes in lanes the opponent STILL NEEDS [${oppNeeded.join(', ')||'none — all filled'}].
+
+⛔ FORBIDDEN BANS (these are wasted ban slots — never do this):
+- Do NOT ban any hero whose lane is ALREADY LOCKED by opponent: [${[...oppFilledLanes].join(', ')||'none locked yet'}]
+  → If opponent already has a Jungler, banning another Jungler is completely wasted.
+- Do NOT ban heroes that would fill YOUR still-needed lanes [${needed.join(', ')||'none'}] unless they are [MUSTBAN].`
+:
+`━━ PICK DECISION ━━
+As an MPL-level coach, think about your composition goal:
+- What is YOUR win condition? (early fight / late siege / protect-the-carry / pick-off)
+- Does this pick complete a synergy or enable a combo?
+- Does this pick deny the opponent a counter?
+
+PRIORITY ORDER:
+1. Fill your needed lanes [${needed.join(', ')||'all filled — pick the strongest available'}] with the BEST hero available for that role.
+2. Counter-pick opponent heroes where the matchup is clearly favorable.
+3. Pick heroes with strong synergy with your existing comp [${myP.map(h=>h.name).join('+')||'none yet'}].
+4. Avoid heroes that are hard-countered by opponent's picks.
+
+⛔ FORBIDDEN PICKS (coaching mistakes — never do this):
+- Do NOT pick a second hero for a lane YOU ALREADY HAVE: [${[...myFilledLanes].join(', ')||'none filled yet'}]
+- Do NOT pick a hero that is strongly countered by what the opponent already has.`}
+
+You must ONLY pick from the Available Heroes list above. Use the exact hero name as listed.
+Respond with JSON only (no explanation outside JSON):
+{"hero":"ExactHeroNameFromList","reason":"<18 words max — state the strategic reason>","confidence":"high|medium|low"}`;
 
   // ── enemy mode prompt override ──
   if(aiMode==='enemy'&&enemyProfile){
@@ -2035,18 +2068,35 @@ Respond with JSON only (no extra text):
     const epBanAvail=ep.topBans.filter(n=>{const hh=HEROES.find(h=>h.name===n);return hh&&!usedIds2.includes(hh.id);}).slice(0,4);
     prompt=`${epCtx}
 
-DRAFT STATE (${step.team} side is ${ep.name}):
-Their picks=[${myP.map(h=>h.name).join(',')||'none'}] bans=[${myB.map(h=>h.name).join(',')||'none'}] lanes_needed=[${needed.join(',')||'none'}]
-Opponent picks=[${oppP.map(h=>h.name).join(',')||'none'}]
-Signature heroes still available: [${epAvail.join(', ')||'all gone'}]
-Known ban targets still available: [${epBanAvail.join(', ')||'all banned'}]
-Available pool (top): ${topA}
+DRAFT PHASE: ${draftPhase} (step ${ST.step+1}/20)
+
+DRAFT STATE — You are drafting AS ${ep.name} (${step.team} side):
+  Your picks:    ${myP.map(h=>h.name+'('+lane(h)+')').join(', ')||'none yet'}
+  Your bans:     ${myB.map(h=>h.name).join(', ')||'none'}
+  Lanes needed:  ${needed.join(', ')||'all filled'}
+
+OPPONENT (${step.team==='blue'?'red':'blue'} side — ${pName}):
+  Their picks:   ${oppP.map(h=>h.name+'('+lane(h)+')').join(', ')||'none yet'}
+  Their bans:    ${oppB.map(h=>h.name).join(', ')||'none'}
+  Lanes locked:  ${[...oppFilledLanes].join(', ')||'none yet'}
+
+${ep.name} signature heroes still available: [${epAvail.join(', ')||'ALL GONE — adapt'}]
+${ep.name} known ban targets still available: [${epBanAvail.join(', ')||'all banned'}]
+Available pool: ${topAFull}
 
 ${step.type==='ban'
-  ?`BAN as ${ep.name}: Pick from their known bans [${epBanAvail.slice(0,3).join(', ')||'none left'}]. If all gone, ban hero that threatens their signature picks.`
-  :`PICK as ${ep.name}: Choose their comfort heroes first [${epAvail.join(', ')||'none left'}]. Match their archetype: ${ep.winCondition||'their historical style'}.`}
+  ?`BAN as ${ep.name}:
+  1. Open with their KNOWN BAN TARGETS [${epBanAvail.slice(0,3).join(', ')||'all gone'}] — this is their established ban pattern.
+  2. If signature bans are gone, ban heroes that counter ${ep.name}'s win condition: "${ep.winCondition||'their core style'}".
+  3. Protect their signature picks from being countered.
+  ⛔ Never ban a hero whose lane opponent already filled: [${[...oppFilledLanes].join(', ')||'none'}]`
+  :`PICK as ${ep.name}:
+  1. Prioritise their SIGNATURE PICKS [${epAvail.join(', ')||'all gone — adapt to nearest role/style'}].
+  2. If signature picks are gone, pick the nearest equivalent hero that fits their win condition: "${ep.winCondition||'their core style'}".
+  3. Stay true to their archetype — do NOT switch to generic optimal drafting.
+  ⛔ Do NOT pick a second hero for a lane already filled: [${[...myFilledLanes].join(', ')||'none'}]`}
 
-JSON only: {"hero":"ExactName","reason":"<12 words>","confidence":"high|medium|low"}`;
+JSON only: {"hero":"ExactHeroNameFromList","reason":"<15 words>","confidence":"high|medium|low"}`;
   }
 
   try{
