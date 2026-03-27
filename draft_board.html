@@ -1042,7 +1042,12 @@ function updateDBTokenDisplay(){
   const plan=WDB.PLANS[sub.plan]||WDB.PLANS.free;
   const el=document.getElementById('dbTokenDisplay');
   const lim=plan.draftsPerDay>=999?'∞':plan.draftsPerDay;
-  if(el){el.textContent=`⚡ ${rem}/${lim}`;el.style.color=rem<=1?'#ff6b6b':rem<=2?'#ffaa44':'#7ecfff';}
+  const planLabel=plan.label||'Free';
+  if(el){
+    el.textContent=plan.draftsPerDay>=999?`⚡ ∞ (${planLabel})`:`⚡ ${rem}/${lim}`;
+    el.title=`Plan: ${planLabel} · ${plan.draftsPerDay>=999?'Unlimited':rem+' of '+lim+' drafts remaining'} · Resets 24hrs after first draft`;
+    el.style.color=rem<=1&&plan.draftsPerDay<999?'#ff6b6b':rem<=2&&plan.draftsPerDay<999?'#ffaa44':'#7ecfff';
+  }
 }
 function saveApiKey(){/* key management moved to admin panel */toast('API key is managed by admin. Contact your admin to enable AI.','error');}
 function updateApiKeyStatus(){const key=(typeof WDB!=='undefined'&&WDB.getAdminApiKeySync)?WDB.getAdminApiKeySync():'';const el=document.getElementById('dbKeyStatus');if(el){el.textContent=key?'✓ Key Saved':'No Key';el.style.color=key?'#22c55e':'#ef4444';}}
@@ -2205,6 +2210,18 @@ function buildHistoryContext(bt, rt) {
 // Meta context built dynamically from imported sheet data
 async function analyzeDraft(){
   if(state.bluePicks.length<3||state.redPicks.length<3){toast('NEED 3+ PICKS','error');return;}
+  // ── Token gate ──
+  if(typeof WDB!=='undefined'&&WDB.canAnalyze){
+    if(!WDB.canAnalyze()){
+      const sub=WDB.getSubscription();
+      const plan=WDB.PLANS[sub.plan]||WDB.PLANS.free;
+      const lim=plan.draftsPerDay>=999?'unlimited':plan.draftsPerDay+'/day';
+      toast(`No drafts left today (${plan.label}: ${lim}). Contact admin to upgrade.`,'error');
+      return;
+    }
+    await WDB.consumeToken();
+    updateDBTokenDisplay();
+  }
 
   const bt=document.getElementById('blueTeamName').value||'Blue Team';
   const rt=document.getElementById('redTeamName').value||'Red Team';
@@ -4529,7 +4546,10 @@ function computeHeroScoutStats(matches) {
 // Init Supabase auth chip + apply scout role corrections to HERO_LANES
 (async () => {
   const ok = await WAuth.requireAuth();
-  if (typeof WDB !== 'undefined' && WDB.initDailyReset) await WDB.initDailyReset();
+  if (typeof WDB !== 'undefined' && WDB.initDailyReset) {
+    await WDB.initDailyReset();
+    updateDBTokenDisplay(); // refresh after reset so count is accurate
+  }
   if (!ok) return;
   try {
     const matches = await WDB.loadMatches();

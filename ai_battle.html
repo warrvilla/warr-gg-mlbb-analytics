@@ -1528,7 +1528,12 @@ function updateTokenDisplay(){
   const plan=WDB.PLANS[sub.plan]||WDB.PLANS.free;
   const el=document.getElementById('tokenDisplay');
   const lim=plan.draftsPerDay>=999?'∞':plan.draftsPerDay;
-  if(el){el.textContent=`⚡ ${rem}/${lim} drafts today`;el.style.color=rem<=1?'#ff6b6b':rem<=2?'#ffaa44':'#7ecfff';}
+  const planLabel=plan.label||'Free';
+  if(el){
+    el.textContent=plan.draftsPerDay>=999?`⚡ ∞ drafts (${planLabel})`:`⚡ ${rem}/${lim} drafts today`;
+    el.title=`Plan: ${planLabel} · ${plan.draftsPerDay>=999?'Unlimited':rem+' remaining'} · Resets 24hrs after first draft`;
+    el.style.color=rem<=1&&plan.draftsPerDay<999?'#ff6b6b':rem<=2&&plan.draftsPerDay<999?'#ffaa44':'#7ecfff';
+  }
 }
 function isMyTurn(){return DRAFT_ORDER[ST.step]?.team===pSide;}
 function updateMemChip(){const m=loadMem();const c=Object.keys(m).length;const el=document.getElementById('memChip');if(el)el.textContent=c>0?`AI Memory: ${c} heroes`:'AI Memory: empty';}
@@ -2674,8 +2679,11 @@ updateMemChip();
 (async () => {
   const ok = await WAuth.requireAuth();
   if (!ok) return;
-  // Reset daily draft counter if it's a new day
-  if (typeof WDB !== 'undefined' && WDB.initDailyReset) await WDB.initDailyReset();
+  // Reset daily draft counter if 24hrs have elapsed (rolling window)
+  if (typeof WDB !== 'undefined' && WDB.initDailyReset) {
+    await WDB.initDailyReset();
+    updateTokenDisplay(); // refresh display after potential reset
+  }
   // Patch LANES_MAP with observed lanes from scout match data
   try {
     const scoutRoles = await WDB.computeHeroRoles(1);

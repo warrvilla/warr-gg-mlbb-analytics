@@ -616,8 +616,8 @@ WDB.initDailyReset = async function() {
 // Admin-only: reset a specific user's daily draft count
 WDB.adminResetUserDrafts = async function(userId) {
   if (typeof WAuth === 'undefined' || !WAdmin.isAdmin()) return { error: 'Admin only' };
-  const today = new Date().toISOString().slice(0, 10);
-  return WAuth.adminUpdateProfile(userId, { tokens_used: 0, token_reset_date: today });
+  // Use full ISO timestamp (same format as initDailyReset) so the 24hr window is calculated correctly
+  return WAuth.adminUpdateProfile(userId, { tokens_used: 0, token_reset_date: new Date().toISOString() });
 };
 
 WDB.getTokensRemaining = function() {
