@@ -1521,7 +1521,8 @@ function updateTokenDisplay(){
   const sub=WDB.getSubscription();
   const plan=WDB.PLANS[sub.plan]||WDB.PLANS.free;
   const el=document.getElementById('tokenDisplay');
-  if(el){el.textContent=`⚡ ${rem}/${plan.tokensPerMonth} tokens`;el.style.color=rem<=2?'#ff6b6b':rem<=5?'#ffaa44':'#7ecfff';}
+  const lim=plan.draftsPerDay>=999?'∞':plan.draftsPerDay;
+  if(el){el.textContent=`⚡ ${rem}/${lim} drafts today`;el.style.color=rem<=1?'#ff6b6b':rem<=2?'#ffaa44':'#7ecfff';}
 }
 function isMyTurn(){return DRAFT_ORDER[ST.step]?.team===pSide;}
 function updateMemChip(){const m=loadMem();const c=Object.keys(m).length;const el=document.getElementById('memChip');if(el)el.textContent=c>0?`AI Memory: ${c} heroes`:'AI Memory: empty';}
@@ -2539,10 +2540,11 @@ async function runAnalysis(){
     if(!WDB.canAnalyze()){
       const sub=WDB.getSubscription();
       const plan=WDB.PLANS[sub.plan]||WDB.PLANS.free;
-      toast(`No tokens left (${plan.label} plan: ${plan.tokensPerMonth}/mo). Upgrade in Profile.`,'error');
+      const lim=plan.draftsPerDay>=999?'unlimited':plan.draftsPerDay+'/day';
+      toast(`No drafts left today (${plan.label} plan: ${lim}). Contact admin to upgrade.`,'error');
       return;
     }
-    WDB.consumeToken();
+    await WDB.consumeToken();
     updateTokenDisplay();
   }
   const resultEl=document.getElementById('result');
@@ -2629,6 +2631,8 @@ updateMemChip();
 (async () => {
   const ok = await WAuth.requireAuth();
   if (!ok) return;
+  // Reset daily draft counter if it's a new day
+  if (typeof WDB !== 'undefined' && WDB.initDailyReset) await WDB.initDailyReset();
   // Patch LANES_MAP with observed lanes from scout match data
   try {
     const scoutRoles = await WDB.computeHeroRoles(1);

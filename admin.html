@@ -569,6 +569,23 @@ async function changePlan(userId, newPlan) {
   }
 }
 
+// ── Reset a user's daily draft count ──
+async function adminResetDrafts(userId) {
+  const u = _allUsers.find(x => x.id === userId);
+  const email = u ? (u.email || userId) : userId;
+  if (!confirm(`Reset daily draft count for ${email}?`)) return;
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    await WAuth.adminUpdateProfile(userId, { tokens_used: 0, token_reset_date: today });
+    if (u) u.tokens_used = 0;
+    const el = document.getElementById('draftsUsed-' + userId);
+    if (el) el.textContent = '0';
+    toast(`Draft count reset for ${email} ✓`, 'success');
+  } catch(e) {
+    toast('Error: ' + (e.message || e), 'error');
+  }
+}
+
 // ── Ban / unban ──
 async function toggleBan(userId) {
   const u = _allUsers.find(x => x.id === userId);
@@ -691,7 +708,11 @@ function renderUsersTable() {
           ${planLabel}
         </button>
       </td>
-      <td style="text-align:right;">${u.tokens_used || 0}</td>
+      <td style="text-align:right;">
+        <span id="draftsUsed-${u.id}">${u.tokens_used || 0}</span>
+        <button onclick="adminResetDrafts('${u.id}')" title="Reset today's draft count"
+          style="margin-left:6px;padding:2px 7px;border-radius:5px;font-size:10px;background:transparent;border:1px solid var(--border2);color:var(--text3);cursor:pointer;">↺</button>
+      </td>
       <td>${fmtDate(u.created_at)}</td>
       <td>
         <button id="noteBtn-${u.id}" class="btn-ban" title="${escHtml(u.admin_notes || 'Add note')}"
@@ -774,7 +795,8 @@ async function refreshAll() {
 async function loadAllData() {
   try {
     // Load pending requests first (fast)
-    const pending = await WAuth.adminGetPendingRequests();
+    const pendingResult = await WAuth.adminGetPendingRequests();
+    const pending = Array.isArray(pendingResult) ? pendingResult : (pendingResult.data || []);
 
     // Load all users (paginated — we'll load all for client-side filtering)
     let allUsers = [];
@@ -782,8 +804,9 @@ async function loadAllData() {
     const pgSize = 100;
     while (true) {
       const batch = await WAuth.adminGetAllProfiles(page, pgSize);
-      allUsers = allUsers.concat(batch);
-      if (batch.length < pgSize) break;
+      const rows = Array.isArray(batch) ? batch : (batch.data || []);
+      allUsers = allUsers.concat(rows);
+      if (rows.length < pgSize) break;
       page++;
     }
 

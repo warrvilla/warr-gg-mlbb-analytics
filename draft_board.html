@@ -1041,7 +1041,8 @@ function updateDBTokenDisplay(){
   const sub=WDB.getSubscription();
   const plan=WDB.PLANS[sub.plan]||WDB.PLANS.free;
   const el=document.getElementById('dbTokenDisplay');
-  if(el){el.textContent=`⚡ ${rem}/${plan.tokensPerMonth}`;el.style.color=rem<=2?'#ff6b6b':rem<=5?'#ffaa44':'#7ecfff';}
+  const lim=plan.draftsPerDay>=999?'∞':plan.draftsPerDay;
+  if(el){el.textContent=`⚡ ${rem}/${lim}`;el.style.color=rem<=1?'#ff6b6b':rem<=2?'#ffaa44':'#7ecfff';}
 }
 function saveApiKey(){/* key management moved to admin panel */toast('API key is managed by admin. Contact your admin to enable AI.','error');}
 function updateApiKeyStatus(){const key=(typeof WDB!=='undefined'&&WDB.getAdminApiKeySync)?WDB.getAdminApiKeySync():'';const el=document.getElementById('dbKeyStatus');if(el){el.textContent=key?'✓ Key Saved':'No Key';el.style.color=key?'#22c55e':'#ef4444';}}
@@ -2029,10 +2030,11 @@ async function getAIPreds(step){
     if(!WDB.canAnalyze()){
       const sub=WDB.getSubscription();
       const plan=WDB.PLANS[sub.plan]||WDB.PLANS.free;
-      toast(`No tokens left (${plan.label}: ${plan.tokensPerMonth}/mo). Upgrade in Profile.`,'error');
+      const lim=plan.draftsPerDay>=999?'unlimited':plan.draftsPerDay+'/day';
+      toast(`No drafts left today (${plan.label}: ${lim}). Contact admin to upgrade.`,'error');
       return null;
     }
-    WDB.consumeToken();
+    await WDB.consumeToken();
     updateDBTokenDisplay();
   }
   const{bt,rt}=sideNames();
@@ -4479,6 +4481,7 @@ function computeHeroScoutStats(matches) {
 // Init Supabase auth chip + apply scout role corrections to HERO_LANES
 (async () => {
   const ok = await WAuth.requireAuth();
+  if (typeof WDB !== 'undefined' && WDB.initDailyReset) await WDB.initDailyReset();
   if (!ok) return;
   try {
     const matches = await WDB.loadMatches();
@@ -5586,7 +5589,8 @@ function updateDBTokenDisplay(){
   const sub=WDB.getSubscription();
   const plan=WDB.PLANS[sub.plan]||WDB.PLANS.free;
   const el=document.getElementById('dbTokenDisplay');
-  if(el){el.textContent=`⚡ ${rem}/${plan.tokensPerMonth}`;el.style.color=rem<=2?'#ff6b6b':rem<=5?'#ffaa44':'#7ecfff';}
+  const lim=plan.draftsPerDay>=999?'∞':plan.draftsPerDay;
+  if(el){el.textContent=`⚡ ${rem}/${lim}`;el.style.color=rem<=1?'#ff6b6b':rem<=2?'#ffaa44':'#7ecfff';}
 }
 function saveApiKey(){/* key management moved to admin panel */toast('API key is managed by admin. Contact your admin to enable AI.','error');}
 async function updateApiKeyStatus(){const key=(typeof WDB!=='undefined'&&WDB.getAdminApiKey)?await WDB.getAdminApiKey():localStorage.getItem('warr_api_key')||'';const el=document.getElementById('dbKeyStatus');if(el){el.textContent=key?'✓ AI Active':'No API Key';el.style.color=key?'#22c55e':'#ef4444';}}
@@ -6573,10 +6577,11 @@ async function getAIPreds(step){
     if(!WDB.canAnalyze()){
       const sub=WDB.getSubscription();
       const plan=WDB.PLANS[sub.plan]||WDB.PLANS.free;
-      toast(`No tokens left (${plan.label}: ${plan.tokensPerMonth}/mo). Upgrade in Profile.`,'error');
+      const lim=plan.draftsPerDay>=999?'unlimited':plan.draftsPerDay+'/day';
+      toast(`No drafts left today (${plan.label}: ${lim}). Contact admin to upgrade.`,'error');
       return null;
     }
-    WDB.consumeToken();
+    await WDB.consumeToken();
     updateDBTokenDisplay();
   }
   const{bt,rt}=sideNames();
@@ -9023,6 +9028,7 @@ function computeHeroScoutStats(matches) {
 // Init Supabase auth chip + apply scout role corrections to HERO_LANES
 (async () => {
   const ok = await WAuth.requireAuth();
+  if (typeof WDB !== 'undefined' && WDB.initDailyReset) await WDB.initDailyReset();
   if (!ok) return;
   try {
     const matches = await WDB.loadMatches();

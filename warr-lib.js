@@ -563,57 +563,82 @@ WDB.getCounterMap = function() {
 
 // ═══════════════════════════════════════════════════════════════
 // ── SUBSCRIPTION / TOKEN SYSTEM ──
-// 3-tier: free (10 tokens/mo) / pro (50/mo) / team (200/mo)
+// 3-tier: free (5 drafts/day) / pro (50/day) / team (unlimited)
+// Plan is set by ADMIN only via Supabase profiles.plan
+// Daily usage tracked in profiles.tokens_used + profiles.token_reset_date
+//
+// Required Supabase SQL (run once):
+//   ALTER TABLE public.profiles
+//     ADD COLUMN IF NOT EXISTS plan text DEFAULT 'free',
+//     ADD COLUMN IF NOT EXISTS tokens_used integer DEFAULT 0,
+//     ADD COLUMN IF NOT EXISTS token_reset_date text DEFAULT NULL;
 // ═══════════════════════════════════════════════════════════════
 WDB.PLANS = {
-  free:  { label: 'Free',  tokensPerMonth: 10,  price: 0     },
-  pro:   { label: 'Pro',   tokensPerMonth: 50,  price: 9.99  },
-  team:  { label: 'Team',  tokensPerMonth: 200, price: 29.99 },
+  free: { label: 'Free', draftsPerDay: 5,   price: 0     },
+  pro:  { label: 'Pro',  draftsPerDay: 50,  price: 9.99  },
+  team: { label: 'Team', draftsPerDay: 999, price: 29.99 },
 };
 
+// Sync read — reads from WAuth cached profile (call after WAuth.init)
 WDB.getSubscription = function() {
   try {
-    const raw = localStorage.getItem('warr_subscription');
-    if (!raw) return { plan: 'free', tokensUsed: 0, resetDate: null };
-    const sub = JSON.parse(raw);
-    if (sub.resetDate) {
-      const now = new Date();
-      if (now >= new Date(sub.resetDate)) {
-        sub.tokensUsed = 0;
-        sub.resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
-        localStorage.setItem('warr_subscription', JSON.stringify(sub));
-      }
-    }
-    return sub;
-  } catch (e) { return { plan: 'free', tokensUsed: 0, resetDate: null }; }
+    const profile = (typeof WAuth !== 'undefined' && WAuth.getProfile) ? WAuth.getProfile() : null;
+    const plan     = profile?.plan || 'free';
+    const tokensUsed  = profile?.tokens_used || 0;
+    const resetDate   = profile?.token_reset_date || null;
+    return { plan, tokensUsed, resetDate };
+  } catch(e) { return { plan: 'free', tokensUsed: 0, resetDate: null }; }
 };
 
-WDB.saveSubscription = function(sub) {
-  if (!sub.resetDate) {
-    const now = new Date();
-    sub.resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
-  }
-  localStorage.setItem('warr_subscription', JSON.stringify(sub));
+// Call once per page after WAuth.init() — resets daily counter if it's a new day
+WDB.initDailyReset = async function() {
+  try {
+    if (typeof WAuth === 'undefined' || !WAuth.getUser || !WAuth.getUser()) return;
+    const profile = WAuth.getProfile();
+    if (!profile) return;
+    const today = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
+    if ((profile.token_reset_date || '') !== today) {
+      await WAuth.saveProfile({ tokens_used: 0, token_reset_date: today });
+    }
+  } catch(e) { /* silent */ }
+};
+
+// Admin-only: reset a specific user's daily draft count
+WDB.adminResetUserDrafts = async function(userId) {
+  if (typeof WAuth === 'undefined' || !WAdmin.isAdmin()) return { error: 'Admin only' };
+  const today = new Date().toISOString().slice(0, 10);
+  return WAuth.adminUpdateProfile(userId, { tokens_used: 0, token_reset_date: today });
 };
 
 WDB.getTokensRemaining = function() {
-  const sub = WDB.getSubscription();
+  const sub  = WDB.getSubscription();
   const plan = WDB.PLANS[sub.plan] || WDB.PLANS.free;
-  return Math.max(0, plan.tokensPerMonth - (sub.tokensUsed || 0));
+  return Math.max(0, plan.draftsPerDay - (sub.tokensUsed || 0));
 };
 
-WDB.consumeToken = function() {
-  const sub = WDB.getSubscription();
-  const plan = WDB.PLANS[sub.plan] || WDB.PLANS.free;
-  if ((sub.tokensUsed || 0) >= plan.tokensPerMonth) return false;
-  sub.tokensUsed = (sub.tokensUsed || 0) + 1;
-  WDB.saveSubscription(sub);
-  return true;
+// Returns true if draft was counted, false if limit reached
+WDB.consumeToken = async function() {
+  try {
+    const sub  = WDB.getSubscription();
+    const plan = WDB.PLANS[sub.plan] || WDB.PLANS.free;
+    if ((sub.tokensUsed || 0) >= plan.draftsPerDay) return false;
+    const newCount = (sub.tokensUsed || 0) + 1;
+    // Optimistic local update (WAuth caches profile)
+    if (WAuth._profile) WAuth._profile.tokens_used = newCount;
+    // Background sync to Supabase
+    if (typeof WAuth !== 'undefined' && WAuth.saveProfile && WAuth.getUser && WAuth.getUser()) {
+      WAuth.saveProfile({ tokens_used: newCount }).catch(() => {});
+    }
+    return true;
+  } catch(e) { return true; } // fail open so drafts aren't blocked on network error
 };
 
 WDB.canAnalyze = function() {
   return WDB.getTokensRemaining() > 0;
 };
+
+// Legacy no-op (kept so old callers don't crash)
+WDB.saveSubscription = function() {};
 
 // ═══════════════════════════════════════════════════════════════
 // HERO ROSTER (compact — used by profile picker & pool helpers)

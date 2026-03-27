@@ -456,8 +456,8 @@ body { background: var(--bg); min-height: 100vh; }
     <!-- TOKEN & SUBSCRIPTION PANEL -->
     <div class="tokens-panel">
       <div class="tokens-header">
-        <span class="tokens-title">AI Analysis Tokens</span>
-        <span class="tokens-reset" id="tokenResetLabel">Resets monthly</span>
+        <span class="tokens-title">Daily AI Drafts</span>
+        <span class="tokens-reset" id="tokenResetLabel">Resets at midnight</span>
       </div>
       <div class="tokens-bar-wrap">
         <div class="tokens-bar-track">
@@ -465,7 +465,7 @@ body { background: var(--bg); min-height: 100vh; }
         </div>
         <div class="tokens-count">
           <strong id="tokensRemLabel">—</strong>
-          <span id="tokensTotalLabel"> / — tokens remaining this month</span>
+          <span id="tokensTotalLabel"> / — drafts remaining today</span>
         </div>
       </div>
     </div>
@@ -473,41 +473,41 @@ body { background: var(--bg); min-height: 100vh; }
     <!-- PLAN CARDS -->
     <div class="section-label" style="margin-bottom:14px;">Subscription Plans</div>
     <div class="plans-grid">
-      <div class="plan-card" id="planCard-free" onclick="selectPlanPreview('free')">
+      <div class="plan-card" id="planCard-free">
         <div class="plan-name" style="color:var(--text2);">Free</div>
         <div class="plan-price" style="color:var(--text);">$0<span>/mo</span></div>
         <ul class="plan-features">
-          <li>10 AI analyses / month</li>
+          <li>5 AI drafts / day</li>
           <li>Local AI draft engine</li>
           <li>Scout data (unlimited)</li>
           <li>Draft board</li>
         </ul>
-        <button class="plan-cta" onclick="event.stopPropagation()">Current Plan</button>
+        <button class="plan-cta" id="planCta-free" onclick="event.stopPropagation()">Current Plan</button>
       </div>
 
-      <div class="plan-card" id="planCard-pro" onclick="selectPlanPreview('pro')">
+      <div class="plan-card" id="planCard-pro">
         <div class="plan-popular">Popular</div>
         <div class="plan-name" style="color:var(--purple);">Pro</div>
         <div class="plan-price" style="color:var(--purple);">$9.99<span>/mo</span></div>
         <ul class="plan-features">
-          <li>50 AI analyses / month</li>
-          <li>GPT-powered draft coach</li>
+          <li>50 AI drafts / day</li>
+          <li>Claude-powered draft coach</li>
           <li>Advanced scout patterns</li>
           <li>Priority support</li>
         </ul>
-        <button class="plan-cta" onclick="event.stopPropagation();upgradePlan('pro')">Upgrade to Pro</button>
+        <button class="plan-cta" id="planCta-pro" onclick="event.stopPropagation();requestPlanUpgrade('pro')">Request Pro Access</button>
       </div>
 
-      <div class="plan-card" id="planCard-team" onclick="selectPlanPreview('team')">
+      <div class="plan-card" id="planCard-team">
         <div class="plan-name" style="color:var(--gold);">Team</div>
         <div class="plan-price" style="color:var(--gold);">$29.99<span>/mo</span></div>
         <ul class="plan-features">
-          <li>200 AI analyses / month</li>
+          <li>Unlimited AI drafts / day</li>
           <li>Team roster management</li>
           <li>MPL scout integration</li>
           <li>Coaching export tools</li>
         </ul>
-        <button class="plan-cta" onclick="event.stopPropagation();upgradePlan('team')">Upgrade to Team</button>
+        <button class="plan-cta" id="planCta-team" onclick="event.stopPropagation();requestPlanUpgrade('team')">Request Team Access</button>
       </div>
     </div>
 
@@ -544,9 +544,6 @@ body { background: var(--bg); min-height: 100vh; }
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
         <button onclick="exportProfileData()" style="padding:9px 16px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:12px;cursor:pointer;">
           Export My Data
-        </button>
-        <button onclick="confirmClearTokens()" style="padding:9px 16px;border-radius:10px;background:var(--surface3);border:1px solid var(--red-border);color:var(--red);font-size:12px;cursor:pointer;">
-          Reset Token Counter
         </button>
         <button onclick="signOut()" style="padding:9px 16px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text3);font-size:12px;cursor:pointer;margin-left:auto;">
           Sign Out
@@ -786,32 +783,46 @@ function renderProfile() {
     teamChip.className = 'profile-team-chip none';
   }
 
-  // Tokens
+  // Tokens — plan comes from Supabase profile (admin-set)
   const sub = (typeof WDB !== 'undefined' && WDB.getSubscription) ? WDB.getSubscription() : { plan, tokensUsed: 0 };
-  // Sync plan from Supabase into local sub if different
-  if (sp.plan && sub.plan !== sp.plan) {
-    sub.plan = sp.plan;
-    if (typeof WDB !== 'undefined' && WDB.saveSubscription) WDB.saveSubscription(sub);
-  }
-  renderTokens(sub, plan);
+  renderTokens(sub, sub.plan || plan);
 }
 
 function renderTokens(sub, plan) {
   if (typeof WDB === 'undefined' || !WDB.PLANS) return;
   const planData = WDB.PLANS[plan] || WDB.PLANS.free;
-  const rem   = (typeof WDB.getTokensRemaining === 'function') ? WDB.getTokensRemaining() : planData.tokensPerMonth;
-  const total = planData.tokensPerMonth;
+  const total = planData.draftsPerDay;
+  const rem   = (typeof WDB.getTokensRemaining === 'function') ? WDB.getTokensRemaining() : total;
   const pct   = Math.max(0, Math.min(100, (rem / total) * 100));
 
   document.getElementById('tokensRemLabel').textContent = rem;
-  document.getElementById('tokensTotalLabel').textContent = ` / ${total} tokens remaining this month`;
+  document.getElementById('tokensTotalLabel').textContent =
+    total >= 999 ? ' unlimited drafts today' : ` / ${total} drafts remaining today`;
   document.getElementById('tokenBar').style.width = pct + '%';
+  document.getElementById('tokenResetLabel').textContent = 'Resets at midnight';
 
-  if (sub && sub.resetDate) {
-    const rd = new Date(sub.resetDate);
-    document.getElementById('tokenResetLabel').textContent =
-      `Resets ${rd.toLocaleDateString('en', { month: 'short', day: 'numeric' })}`;
-  }
+  // Highlight active plan card
+  ['free','pro','team'].forEach(pl => {
+    const card = document.getElementById('planCard-' + pl);
+    if (!card) return;
+    card.classList.toggle('active', pl === plan && plan === 'free');
+    card.classList.toggle('active-team', pl === plan && plan === 'team');
+    if (pl === 'pro') card.style.borderColor = pl === plan ? 'var(--purple)' : '';
+  });
+
+  // Update CTA buttons to reflect current plan
+  ['free','pro','team'].forEach(pl => {
+    const btn = document.getElementById('planCta-' + pl);
+    if (!btn) return;
+    if (pl === plan) {
+      btn.textContent = 'Current Plan';
+      btn.onclick = e => { e && e.stopPropagation(); };
+    } else {
+      const labels = { free: 'Downgrade to Free', pro: 'Request Pro Access', team: 'Request Team Access' };
+      btn.textContent = labels[pl] || 'Request Access';
+      btn.onclick = e => { e && e.stopPropagation(); requestPlanUpgrade(pl); };
+    }
+  });
 }
 
 // ── Generate default avatar from initials ──
@@ -829,40 +840,10 @@ function generateDefaultAvatar(name) {
   return canvas.toDataURL();
 }
 
-// ── Plan preview / upgrade ──
-function selectPlanPreview(plan) {
-  ['free','pro','team'].forEach(pl => {
-    const card = document.getElementById('planCard-' + pl);
-    if (!card) return;
-    const sub = (typeof WDB !== 'undefined' && WDB.getSubscription) ? WDB.getSubscription() : { plan: 'free' };
-    const currentPlan = sub.plan || 'free';
-    card.style.transform = (pl === plan && pl !== currentPlan) ? 'translateY(-4px)' : '';
-  });
-}
-
-function upgradePlan(plan) {
-  if (typeof WDB === 'undefined' || !WDB.getSubscription) { toast('WDB not loaded', 'error'); return; }
-  const sub = WDB.getSubscription();
-  const current = sub.plan || 'free';
-  if (current === plan) { toast('Already on this plan', 'error'); return; }
-
-  const planData = WDB.PLANS[plan];
-  const msg = planData.price === 0
-    ? `Switch to ${planData.label} plan?`
-    : `Upgrade to ${planData.label} for $${planData.price}/month?`;
-
-  if (!confirm(msg + '\n\n(Contact admin or subscribe via payment link to activate.)')) return;
-
-  // For Free downgrade, allow directly; for paid plans, note admin must approve
-  if (plan === 'free') {
-    sub.plan = 'free';
-    sub.tokensUsed = 0;
-    WDB.saveSubscription(sub);
-    renderProfile();
-    toast('Switched to Free plan', 'success');
-  } else {
-    toast(`To upgrade to ${planData.label}, please contact admin or use the payment link.`, 'error');
-  }
+// ── Plan upgrade request (admin must approve — user cannot self-upgrade) ──
+function requestPlanUpgrade(plan) {
+  const planData = WDB.PLANS[plan] || {};
+  toast(`To get ${planData.label || plan} access, contact the Warr.GG admin.`, 'error');
 }
 
 // ── Export profile data ──
@@ -883,17 +864,6 @@ function exportProfileData() {
   toast('Data exported ✓', 'success');
 }
 
-// ── Reset token counter ──
-function confirmClearTokens() {
-  if (!confirm('Reset your token counter to 0? This cannot be undone.')) return;
-  if (typeof WDB !== 'undefined' && WDB.getSubscription && WDB.saveSubscription) {
-    const sub = WDB.getSubscription();
-    sub.tokensUsed = 0;
-    WDB.saveSubscription(sub);
-  }
-  renderProfile();
-  toast('Token counter reset ✓', 'success');
-}
 
 // ── Sign out ──
 async function signOut() {
@@ -996,6 +966,8 @@ async function init() {
       await WAuth.init();
       user = WAuth.getUser();
       _sbProfile = WAuth.getProfile();
+      // Reset daily draft counter if it's a new day
+      if (typeof WDB !== 'undefined' && WDB.initDailyReset) await WDB.initDailyReset();
     } catch(e) {
       console.warn('WAuth init failed:', e);
     }
