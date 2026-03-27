@@ -574,31 +574,41 @@ WDB.getCounterMap = function() {
 //     ADD COLUMN IF NOT EXISTS token_reset_date text DEFAULT NULL;
 // ═══════════════════════════════════════════════════════════════
 WDB.PLANS = {
-  free: { label: 'Free', draftsPerDay: 5,   price: 0     },
+  free: { label: 'Free', draftsPerDay: 3,   price: 0     },
   pro:  { label: 'Pro',  draftsPerDay: 50,  price: 9.99  },
   team: { label: 'Team', draftsPerDay: 999, price: 29.99 },
 };
+
+const _24H = 24 * 60 * 60 * 1000; // 24 hours in ms
 
 // Sync read — reads from WAuth cached profile (call after WAuth.init)
 WDB.getSubscription = function() {
   try {
     const profile = (typeof WAuth !== 'undefined' && WAuth.getProfile) ? WAuth.getProfile() : null;
-    const plan     = profile?.plan || 'free';
-    const tokensUsed  = profile?.tokens_used || 0;
-    const resetDate   = profile?.token_reset_date || null;
+    const plan       = profile?.plan || 'free';
+    const tokensUsed = profile?.tokens_used || 0;
+    const resetDate  = profile?.token_reset_date || null;
     return { plan, tokensUsed, resetDate };
   } catch(e) { return { plan: 'free', tokensUsed: 0, resetDate: null }; }
 };
 
-// Call once per page after WAuth.init() — resets daily counter if it's a new day
+// Call once per page after WAuth.init() — 24hr rolling window reset per account
 WDB.initDailyReset = async function() {
   try {
     if (typeof WAuth === 'undefined' || !WAuth.getUser || !WAuth.getUser()) return;
     const profile = WAuth.getProfile();
     if (!profile) return;
-    const today = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
-    if ((profile.token_reset_date || '') !== today) {
-      await WAuth.saveProfile({ tokens_used: 0, token_reset_date: today });
+    const resetAt = profile.token_reset_date ? new Date(profile.token_reset_date).getTime() : 0;
+    const expired = (Date.now() - resetAt) >= _24H;
+    if (expired) {
+      // Don't reset if we have no reset timestamp AND tokens_used is already 0 — avoids
+      // wiping mid-session just because the column is null on first load
+      if (resetAt === 0 && (profile.tokens_used || 0) === 0) {
+        // First ever use — just stamp the reset time, don't change count
+        await WAuth.saveProfile({ token_reset_date: new Date().toISOString() });
+      } else {
+        await WAuth.saveProfile({ tokens_used: 0, token_reset_date: new Date().toISOString() });
+      }
     }
   } catch(e) { /* silent */ }
 };

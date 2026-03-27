@@ -448,8 +448,11 @@ body { background: var(--bg); min-height: 100vh; }
         To fast-track approval, reach out via <strong>Discord</strong> or the Warr.GG admin panel.
       </div>
 
-      <div style="margin-top:20px;">
+      <div style="margin-top:20px;display:flex;gap:10px;align-items:center;">
         <button class="save-btn" id="saveBtn" onclick="saveProfile()">Save Changes</button>
+        <button id="cancelTeamBtn" onclick="cancelTeamAffiliation()" style="display:none;padding:10px 18px;border-radius:12px;background:transparent;border:1px solid var(--red-border);color:var(--red);font-size:13px;cursor:pointer;font-weight:600;">
+          Remove Team
+        </button>
       </div>
     </div>
 
@@ -583,12 +586,15 @@ const MPL_TEAMS = [
 // ── Cached Supabase profile ──
 let _sbProfile = null;
 
-// ── localStorage helpers (avatar + fallback) ──
-const PROFILE_KEY = 'warr_user_profile';
-function localGet() {
-  try { return JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}'); } catch(e) { return {}; }
+// ── localStorage helpers — keyed per user ID so accounts don't bleed into each other ──
+function _profileKey() {
+  const uid = (typeof WAuth !== 'undefined' && WAuth.getUser) ? WAuth.getUser()?.id : null;
+  return uid ? `warr_user_profile_${uid}` : 'warr_user_profile';
 }
-function localSet(data) { localStorage.setItem(PROFILE_KEY, JSON.stringify(data)); }
+function localGet() {
+  try { return JSON.parse(localStorage.getItem(_profileKey()) || '{}'); } catch(e) { return {}; }
+}
+function localSet(data) { localStorage.setItem(_profileKey(), JSON.stringify(data)); }
 
 // ── Sync status indicator ──
 function setSyncStatus(state, label) {
@@ -649,17 +655,41 @@ function handleTeamSelect() {
   const customInput = document.getElementById('customTeamInput');
   const approvalBox = document.getElementById('mplApprovalBox');
   const adminNote   = document.getElementById('adminNote');
+  const cancelBtn   = document.getElementById('cancelTeamBtn');
 
   if (val === '__custom__') {
     customInput.style.display = 'block';
     approvalBox.style.display = 'none';
-    adminNote.style.display = 'none';
+    adminNote.style.display   = 'none';
   } else {
     customInput.style.display = 'none';
     const isMPL = MPL_TEAMS.includes(val);
     approvalBox.style.display = isMPL && val ? 'block' : 'none';
     adminNote.style.display   = isMPL && val ? 'block' : 'none';
   }
+  // Show "Remove Team" button only when a team is selected
+  if (cancelBtn) cancelBtn.style.display = val ? 'block' : 'none';
+}
+
+async function cancelTeamAffiliation() {
+  if (!confirm('Remove your team affiliation?')) return;
+  document.getElementById('teamSelect').value = '';
+  document.getElementById('customTeamInput').style.display = 'none';
+  document.getElementById('mplApprovalBox').style.display  = 'none';
+  document.getElementById('adminNote').style.display       = 'none';
+  document.getElementById('cancelTeamBtn').style.display   = 'none';
+  // Save immediately
+  const name = (document.getElementById('displayNameInput').value || '').trim();
+  if (!name) { toast('Enter a display name first', 'error'); return; }
+  const lp = localGet(); lp.team = ''; lp.teamStatus = 'none'; localSet(lp);
+  if (typeof WAuth !== 'undefined' && WAuth.saveProfile) {
+    try {
+      await WAuth.saveProfile({ team_name: null, team_status: 'none' });
+      _sbProfile = WAuth.getProfile();
+      toast('Team affiliation removed ✓', 'success');
+    } catch(e) { toast('Removed locally (sync failed)', 'error'); }
+  }
+  renderProfile();
 }
 
 // ── Save profile (Supabase + localStorage fallback) ──
@@ -783,9 +813,14 @@ function renderProfile() {
       document.getElementById('mplApprovalBox').style.display = 'block';
       document.getElementById('adminNote').style.display = 'block';
     }
+    // Show Remove Team button since a team is selected
+    const cb = document.getElementById('cancelTeamBtn');
+    if (cb) cb.style.display = 'block';
   } else {
     teamChip.textContent = 'No team selected';
     teamChip.className = 'profile-team-chip none';
+    const cb = document.getElementById('cancelTeamBtn');
+    if (cb) cb.style.display = 'none';
   }
 
   // Tokens — plan comes from Supabase profile (admin-set)
