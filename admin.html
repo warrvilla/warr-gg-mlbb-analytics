@@ -277,9 +277,23 @@ table.users-table {
         <div class="admin-title">Admin Panel</div>
         <div class="admin-subtitle">Warr.GG — User & Subscription Management</div>
       </div>
-      <button onclick="refreshAll()" style="padding:9px 20px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:12px;cursor:pointer;font-weight:600;">
-        Refresh
-      </button>
+      <div style="display:flex;gap:8px;">
+        <button onclick="document.getElementById('diagPanel').style.display='block';runDiagnostic();" style="padding:9px 20px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:#fbbf24;font-size:12px;cursor:pointer;font-weight:600;">
+          Diagnostics
+        </button>
+        <button onclick="refreshAll()" style="padding:9px 20px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:12px;cursor:pointer;font-weight:600;">
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- DIAGNOSTIC PANEL -->
+    <div id="diagPanel" style="display:none;margin-bottom:16px;padding:14px 18px;background:rgba(15,23,42,.6);border:1px solid var(--border2);border-radius:10px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span style="font-size:12px;font-weight:700;color:var(--text2);">Connection Diagnostics</span>
+        <button onclick="document.getElementById('diagPanel').style.display='none'" style="margin-left:auto;background:transparent;border:none;color:var(--text3);font-size:12px;cursor:pointer;">✕</button>
+      </div>
+      <div id="diagBox" style="font-family:monospace;background:rgba(0,0,0,.3);border-radius:6px;padding:10px;min-height:40px;"></div>
     </div>
 
     <!-- RLS SETUP NOTICE — shown only when users count is 0 or error -->
@@ -820,6 +834,70 @@ async function refreshAll() {
   await loadAllData();
 }
 
+// ── Diagnostic — shows exactly where the chain breaks ──
+async function runDiagnostic() {
+  const box = document.getElementById('diagBox');
+  if (!box) return;
+  box.style.display = 'block';
+  const log = (msg, ok) => {
+    const color = ok === true ? '#4ade80' : ok === false ? '#f87171' : '#fbbf24';
+    box.innerHTML += `<div style="color:${color};font-size:11px;padding:2px 0;">${msg}</div>`;
+  };
+  box.innerHTML = '<div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Running diagnostics…</div>';
+
+  // Step 1: auth user
+  const user = WAuth.getUser();
+  if (user) {
+    log(`✓ Logged in as: ${user.email}`, true);
+  } else {
+    log('✗ No auth user — not logged in', false);
+    return;
+  }
+
+  // Step 2: isAdmin check
+  const admin = WAdmin.isAdmin();
+  log(`${admin ? '✓' : '✗'} WAdmin.isAdmin() = ${admin}  (expected: true)`, admin);
+  if (!admin) {
+    log('  → Email in JWT does not match ADMIN_EMAIL. Check you are signed in as wrrenvillapando@gmail.com', false);
+    return;
+  }
+
+  // Step 3: raw Supabase SELECT on profiles (bypasses WAuth wrapper)
+  const _sb = WAuth._sb();
+  const { data: selfRow, error: selfErr } = await _sb.from('profiles').select('id,plan').eq('id', user.id).maybeSingle();
+  if (selfErr) {
+    log(`✗ SELECT own profile row failed: ${selfErr.message}`, false);
+    log('  → profiles table may not exist, or RLS blocks even own row', false);
+  } else if (selfRow) {
+    log(`✓ Own profile row found (plan=${selfRow.plan||'free'})`, true);
+  } else {
+    log('⚠ No profile row for admin yet — will be created on first save', null);
+  }
+
+  // Step 4: SELECT all profiles (tests admin RLS policy)
+  const { data: allRows, error: allErr, count } = await _sb
+    .from('profiles')
+    .select('id', { count: 'exact' })
+    .limit(5);
+  if (allErr) {
+    log(`✗ SELECT all profiles failed: ${allErr.message}`, false);
+    log('  → RLS policy is still blocking. Re-run the SQL in Supabase dashboard.', false);
+  } else {
+    log(`✓ SELECT all profiles OK — ${count ?? (allRows||[]).length} total rows visible`, true);
+  }
+
+  // Step 5: check created_at column (query uses it for ordering)
+  const { error: orderErr } = await _sb.from('profiles').select('id').order('created_at', { ascending: false }).limit(1);
+  if (orderErr && orderErr.message.includes('created_at')) {
+    log('⚠ profiles table has no created_at column — ordering will fail', null);
+    log('  → Run: ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();', null);
+  } else if (!orderErr) {
+    log('✓ created_at column OK', true);
+  }
+
+  log('— Diagnostic complete —', null);
+}
+
 // ── Load all data from Supabase ──
 async function loadAllData() {
   try {
@@ -845,9 +923,13 @@ async function loadAllData() {
     _allUsers = allUsers;
     _filteredUsers = [..._allUsers];
 
-    // Show RLS setup notice if no users found (likely missing SELECT policy)
+    // Show RLS setup notice + auto-run diagnostics if no users found
     const rlsNotice = document.getElementById('rlsNotice');
     if (rlsNotice) rlsNotice.style.display = allUsers.length === 0 ? 'block' : 'none';
+    if (allUsers.length === 0) {
+      document.getElementById('diagPanel').style.display = 'block';
+      runDiagnostic();
+    }
 
     updateStats();
     renderPending(_allUsers);
