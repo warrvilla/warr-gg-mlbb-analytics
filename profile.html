@@ -385,8 +385,8 @@ body { background: var(--bg); min-height: 100vh; }
         <input type="text" id="displayNameInput" class="field-input" placeholder="Your gaming tag or full name">
       </div>
       <div class="field-group">
-        <div class="field-label">Email <span style="color:var(--text4);font-size:11px;">(from your account)</span></div>
-        <input type="email" id="emailInput" class="field-input" placeholder="your@email.com" readonly style="opacity:.6;cursor:default;">
+        <div class="field-label">Email <span style="color:var(--text4);font-size:11px;">(cannot be changed)</span></div>
+        <div id="emailDisplay" style="padding:10px 14px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text3);font-size:13px;">—</div>
       </div>
       <div class="field-group">
         <div class="field-label">Team Affiliation</div>
@@ -449,7 +449,7 @@ body { background: var(--bg); min-height: 100vh; }
       </div>
 
       <div style="margin-top:20px;">
-        <button class="save-btn" id="saveBtn" onclick="saveProfile()">Save Profile</button>
+        <button class="save-btn" id="saveBtn" onclick="saveProfile()">Save Changes</button>
       </div>
     </div>
 
@@ -538,10 +538,13 @@ body { background: var(--bg); min-height: 100vh; }
       <a href="admin.html" class="admin-go-btn">Open Admin Panel →</a>
     </div>
 
-    <!-- SIGN OUT + DANGER ZONE -->
+    <!-- SIGN OUT + ACCOUNT -->
     <div class="profile-card" style="margin-top:20px;">
       <div class="section-label">Account</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
+        <button onclick="openChangePassword()" style="padding:9px 16px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:12px;cursor:pointer;">
+          Change Password
+        </button>
         <button onclick="exportProfileData()" style="padding:9px 16px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:12px;cursor:pointer;">
           Export My Data
         </button>
@@ -720,7 +723,9 @@ function renderProfile() {
   const sp = _sbProfile || {};
 
   const displayName = sp.display_name || lp.displayName || '';
-  const email       = sp.email || lp.email || '';
+  // Email comes from auth (not profiles table) — always use WAuth.getUser()
+  const authUser    = (typeof WAuth !== 'undefined' && WAuth.getUser) ? WAuth.getUser() : null;
+  const email       = authUser?.email || sp.email || lp.email || '';
   const teamName    = sp.team_name || lp.team || '';
   const teamStatus  = sp.team_status || lp.teamStatus || 'none';
   const plan        = sp.plan || (localGet().plan) ||
@@ -733,8 +738,8 @@ function renderProfile() {
   // Name & email
   document.getElementById('displayNameLabel').textContent = displayName || 'Your Name';
   document.getElementById('emailLabel').textContent = email || '—';
+  document.getElementById('emailDisplay').textContent = email || '—';
   document.getElementById('displayNameInput').value = displayName;
-  document.getElementById('emailInput').value = email;
 
   // Plan badge
   const planBadge = document.getElementById('planBadge');
@@ -854,6 +859,39 @@ function requestPlanUpgrade(plan) {
 function closeUpgradeModal() {
   const modal = document.getElementById('upgradeContactModal');
   if (modal) modal.style.display = 'none';
+}
+
+// ── Change Password ──
+function openChangePassword() {
+  document.getElementById('cpNewPw').value = '';
+  document.getElementById('cpConfirmPw').value = '';
+  document.getElementById('cpMsg').style.display = 'none';
+  document.getElementById('changePwModal').style.display = 'flex';
+}
+function closeChangePassword() {
+  document.getElementById('changePwModal').style.display = 'none';
+}
+async function submitChangePassword() {
+  const pw  = document.getElementById('cpNewPw').value;
+  const cpw = document.getElementById('cpConfirmPw').value;
+  const msg = document.getElementById('cpMsg');
+  const btn = document.getElementById('cpSaveBtn');
+
+  msg.style.display = 'none';
+  if (pw.length < 8) { msg.textContent = 'Password must be at least 8 characters.'; msg.style.display = 'block'; return; }
+  if (pw !== cpw)    { msg.textContent = "Passwords don't match."; msg.style.display = 'block'; return; }
+
+  btn.disabled = true; btn.textContent = 'Updating…';
+  const { error } = await WAuth._sb().auth.updateUser({ password: pw });
+  btn.disabled = false; btn.textContent = 'Update Password';
+
+  if (error) {
+    msg.textContent = error.message || 'Failed to update password.';
+    msg.style.display = 'block';
+  } else {
+    closeChangePassword();
+    toast('Password updated ✓', 'success');
+  }
 }
 
 // ── Export profile data ──
@@ -1049,6 +1087,37 @@ init();
       style="padding:10px 28px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:13px;cursor:pointer;font-weight:600;">
       Close
     </button>
+  </div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div id="changePwModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--surface2);border:1px solid var(--glass-border2);border-radius:20px;padding:28px 24px;max-width:340px;width:90%;">
+    <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">Change Password</div>
+    <p style="font-size:12px;color:var(--text3);margin:0 0 20px;">Enter a new password for your account.</p>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;">New Password</div>
+        <input id="cpNewPw" type="password" placeholder="Min. 8 characters"
+          style="width:100%;padding:10px 14px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text);font-size:13px;outline:none;">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;">Confirm Password</div>
+        <input id="cpConfirmPw" type="password" placeholder="Repeat new password"
+          style="width:100%;padding:10px 14px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text);font-size:13px;outline:none;">
+      </div>
+      <div id="cpMsg" style="font-size:12px;color:var(--red);display:none;"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button onclick="closeChangePassword()"
+        style="flex:1;padding:10px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:13px;cursor:pointer;font-weight:600;">
+        Cancel
+      </button>
+      <button id="cpSaveBtn" onclick="submitChangePassword()"
+        style="flex:2;padding:10px;border-radius:10px;background:var(--accent);border:none;color:#fff;font-size:13px;cursor:pointer;font-weight:700;">
+        Update Password
+      </button>
+    </div>
   </div>
 </div>
 

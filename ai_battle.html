@@ -1110,7 +1110,13 @@ const SCOUT_KEY_AB = 'warr_scout_data';
 let scoutLeagueAB = 'all';
 
 function loadScoutAB() {
-  try{ const r=localStorage.getItem(SCOUT_KEY_AB); return r?JSON.parse(r):{matches:[],teams:{}}; }catch(e){return{matches:[],teams:{}};}
+  try{
+    const r=localStorage.getItem(SCOUT_KEY_AB);
+    const db=r?JSON.parse(r):{matches:[],teams:{}};
+    // Strip AI Battle practice games — only use real MPL/Scrim scout data
+    db.matches=(db.matches||[]).filter(m=>m.league!=='AI Battle');
+    return db;
+  }catch(e){return{matches:[],teams:{}};}
 }
 
 function getScoutProfileAB(teamName) {
