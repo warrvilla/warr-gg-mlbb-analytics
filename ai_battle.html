@@ -1973,23 +1973,58 @@ async function claudeAI(step){
     return ctrs.length?`${mp.name} is countered by their ${ctrs.map(h=>h.name).join('+')}`:''
   }).filter(Boolean).join('; ');
 
-  let prompt=`You are an elite MLBB drafter AI vs ${pName}. You control ${step.team.toUpperCase()} side. WIN this draft.
+  // Build lane-aware available list — show ALL available meta heroes with their lane
+  const oppFilledLanes=new Set(['Gold','Jungle','Mid','EXP','Roam'].filter(l=>!oppNeeded.includes(l)));
+  const myFilledLanes=new Set(['Gold','Jungle','Mid','EXP','Roam'].filter(l=>!needed.includes(l)));
+  const topAFull=avail.filter(h=>h.mp!=='off'||['S','A','B'].includes(_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier)).slice(0,55).map(h=>{
+    const d=mem[h.name];const wr=d&&d.wins+d.losses>0?`,${Math.round(d.wins/(d.wins+d.losses)*100)}%WR`:'';
+    const ln=lane(h);const tier=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
+    const mustTag=h.mp==='mustban'?'[MUSTBAN]':h.mp==='highpick'?'[HP]':'';
+    return`${h.name}(${ln},${tier}${wr})${mustTag}`;
+  }).join(', ');
 
-META: ${buildMeta()}${aiScout?'\n'+aiScout:''}
+  let prompt=`You are an elite MLBB drafter AI. You control ${step.team.toUpperCase()} side vs ${pName}. WIN this draft.
+
+META:
+${buildMeta()}${aiScout?'\n'+aiScout:''}
 
 DRAFT STATE:
-You(${step.team}): picks=[${myP.map(h=>h.name+'('+lane(h)+')').join(',')||'None'}] bans=[${myB.map(h=>h.name).join(',')||'None'}] lanes_needed=[${needed.join(',')||'none'}]
-Human(${step.team==='blue'?'red':'blue'}): picks=[${oppP.map(h=>h.name+'('+lane(h)+')').join(',')||'None'}] bans=[${oppB.map(h=>h.name).join(',')||'None'}] lanes_needed=[${oppNeeded.join(',')||'none'}]
-${myCounterTargets?'Counter opportunities: '+myCounterTargets:''}
-${theyCounter?'Threats to our picks: '+theyCounter:''}
-Available (top): ${topA}
+YOUR team (${step.team}):
+  picks = [${myP.map(h=>h.name+'('+lane(h)+')').join(', ')||'none'}]
+  bans  = [${myB.map(h=>h.name).join(', ')||'none'}]
+  lanes still needed = [${needed.join(', ')||'ALL FILLED'}]
+
+OPPONENT (${step.team==='blue'?'red':'blue'}):
+  picks = [${oppP.map(h=>h.name+'('+lane(h)+')').join(', ')||'none'}]
+  bans  = [${oppB.map(h=>h.name).join(', ')||'none'}]
+  lanes still needed = [${oppNeeded.join(', ')||'ALL FILLED'}]
+  lanes already covered = [${[...oppFilledLanes].join(', ')||'none'}]
+
+${myCounterTargets?'Counter opportunities: '+myCounterTargets+'\n':''}${theyCounter?'Threats to your picks: '+theyCounter+'\n':''}
+Available heroes: ${topAFull}
 ${gmEx}
 
-${step.type==='ban'
-  ?`BAN RULES: (1) Must-bans first. (2) Ban S/A heroes that counter YOUR existing picks. (3) Ban strong heroes in lanes the HUMAN still needs [${oppNeeded.join('/')||'none'}]. (4) Do NOT ban heroes that fill YOUR needed lanes [${needed.join('/')||'none'}] unless must-ban. Pick the single best ban given these rules.`
-  :`PICK RULES: (1) Fill your needed lanes [${needed.join('/')||'none'}]. (2) Counter-pick opponent heroes where possible. (3) Pick high-tier heroes that synergize with your existing picks. (4) Avoid heroes your opponent already counters. Pick the single best hero.`}
+${step.type==='ban'?
+`BAN PHASE — choose ONE hero to ban. Priority order:
+1. MUSTBAN heroes — always ban first, UNLESS opponent already has a hero in that exact lane AND the hero only plays that lane (wasted ban). Exception: hero tagged [MUSTBAN] with Flex lane always ban.
+2. Heroes the opponent COMFORT picks (human favs above).
+3. S/A heroes that counter YOUR existing picks.
+4. S/A heroes in lanes the OPPONENT STILL NEEDS [${oppNeeded.join('/')||'none left'}].
+⚠️ CRITICAL — WASTED BANS (avoid these):
+- Do NOT ban a hero whose lane is ALREADY FILLED by the opponent: [${[...oppFilledLanes].join(', ')||'none'}]. Example: opponent has Jungler → banning another Jungler is wasted.
+- Do NOT ban heroes that fill YOUR OWN still-needed lanes [${needed.join('/')||'none'}] unless they are MUSTBAN.`
+:
+`PICK PHASE — choose ONE hero to pick. Priority order:
+1. Fill your NEEDED lanes [${needed.join(', ')||'ALL FILLED — pick best available'}].
+2. Counter-pick opponent heroes where possible.
+3. Synergy with your existing team composition.
+4. Avoid heroes your opponent already counters.
+⚠️ CRITICAL — MISTAKES to avoid:
+- Do NOT pick a hero in a lane you ALREADY HAVE: [${[...myFilledLanes].join(', ')||'none yet'}].
+- Do NOT pick a hero that is hard-countered by the opponent's existing picks.`}
 
-JSON only: {"hero":"ExactName","reason":"<20 words, specific — name the hero and why>","confidence":"high|medium|low"}`;
+Respond with JSON only (no extra text):
+{"hero":"ExactHeroNameFromList","reason":"<15 words max, specific>","confidence":"high|medium|low"}`;
 
   // ── enemy mode prompt override ──
   if(aiMode==='enemy'&&enemyProfile){
@@ -2015,7 +2050,7 @@ JSON only: {"hero":"ExactName","reason":"<12 words>","confidence":"high|medium|l
   }
 
   try{
-    const d=await callClaude({model:'claude-sonnet-4-6',max_tokens:150,messages:[{role:'user',content:prompt}]});
+    const d=await callClaude({model:'claude-sonnet-4-6',max_tokens:300,messages:[{role:'user',content:prompt}]});
     const raw=(d.content||[]).map(x=>x.text||'').join('');
     const m=raw.match(/\{[\s\S]*?\}/);if(!m)return localAI(step);
     let p;try{p=JSON.parse(m[0]);}catch(e){return localAI(step);}
