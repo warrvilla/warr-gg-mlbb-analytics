@@ -800,11 +800,14 @@ async function loadAllData() {
 
     // Load all users (paginated — we'll load all for client-side filtering)
     let allUsers = [];
-    let page = 1;
+    let page = 0;   // 0-based: adminGetAllProfiles uses page*pageSize as offset
     const pgSize = 100;
     while (true) {
       const batch = await WAuth.adminGetAllProfiles(page, pgSize);
       const rows = Array.isArray(batch) ? batch : (batch.data || []);
+      // Surface Supabase errors into the UI
+      const batchErr = !Array.isArray(batch) && batch.error;
+      if (batchErr) throw new Error('Supabase error: ' + (batchErr.message || JSON.stringify(batchErr)));
       allUsers = allUsers.concat(rows);
       if (rows.length < pgSize) break;
       page++;
