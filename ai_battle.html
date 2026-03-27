@@ -1139,16 +1139,141 @@ function buildScoutAB(teamName) {
   const p=getScoutProfileAB(teamName);
   if(!p||p.g<1) return '';
   const lg=scoutLeagueAB!=='all'?` [${scoutLeagueAB}]`:'';
-  // Also pull comfort picks + ban tendencies from raw match data for richer context
   let s=`SCOUT${lg} — ${p.name}: ${p.g}g ${p.wr}%WR`;
   if(p.picks) s+=` | TopPicks: ${p.picks}`;
   if(p.bans)  s+=` | TopBans: ${p.bans}`;
   if(p.wc)    s+=` | WinCon: ${p.wc}`;
   if(p.notes) s+=` | Intel: ${p.notes.slice(0,150)}`;
-  // Winning combos from scout
   const combos=getHumanComboThreats().filter(cb=>cb.source!=='battle'||cb.count>=3).slice(0,3);
   if(combos.length) s+=` | WinCombos: ${combos.map(cb=>cb.a+'+'+cb.b+'('+Math.round(cb.wr*100)+'%WR,'+cb.count+'g)').join(', ')}`;
   return s;
+}
+
+/**
+ * Full deep scout context for a team — reads ALL raw match data.
+ * Used by claudeAI prompt to give the model the richest possible intel.
+ */
+function buildDeepScoutContext(teamName, label='OPPONENT SCOUT INTEL'){
+  if(!teamName) return '';
+  const db=loadScoutAB();
+  const t=db.teams?.[teamName];
+  const allMatches=(db.matches||[]).filter(m=>m.blueTeam===teamName||m.redTeam===teamName);
+  if(!allMatches.length) return '';
+
+  // Filter by active league if set
+  const filtered=scoutLeagueAB==='all'?allMatches:allMatches.filter(m=>m.league===scoutLeagueAB);
+  const matches=filtered.length?filtered:allMatches; // fallback to all if league filter gives nothing
+  if(!matches.length) return '';
+
+  const lines=[];
+  const leagueNote=scoutLeagueAB!=='all'?` [${scoutLeagueAB}]`:'';
+  const wins=matches.filter(m=>(m.winner==='blue'&&m.blueTeam===teamName)||(m.winner==='red'&&m.redTeam===teamName)).length;
+  const wr=Math.round(wins/matches.length*100);
+
+  // Side WR
+  const bm=matches.filter(m=>m.blueTeam===teamName);
+  const rm=matches.filter(m=>m.redTeam===teamName);
+  const bwr=bm.length?Math.round(bm.filter(m=>m.winner==='blue').length/bm.length*100):null;
+  const rwr=rm.length?Math.round(rm.filter(m=>m.winner==='red').length/rm.length*100):null;
+  const sideStr=[bwr!==null?`Blue ${bwr}%(${bm.length}g)`:null, rwr!==null?`Red ${rwr}%(${rm.length}g)`:null].filter(Boolean).join(', ');
+
+  lines.push(`━━ ${label}${leagueNote}: ${teamName} ━━`);
+  lines.push(`Record: ${wins}W-${matches.length-wins}L (${wr}%WR) | ${sideStr}`);
+
+  // Per-league breakdown (MPL, Scrims, etc.)
+  const leagues=[...new Set(allMatches.map(m=>m.league).filter(Boolean))];
+  if(leagues.length>1){
+    const lgBreak=leagues.map(lg=>{
+      const lgm=allMatches.filter(m=>m.league===lg);
+      const lgw=lgm.filter(m=>(m.winner==='blue'&&m.blueTeam===teamName)||(m.winner==='red'&&m.redTeam===teamName)).length;
+      return`${lg}:${lgw}-${lgm.length-lgw}`;
+    }).join(', ');
+    lines.push(`By league: ${lgBreak}`);
+  }
+
+  // Scrim-specific data if available
+  const scrims=allMatches.filter(m=>m.league==='Scrims'||m.stage==='Scrim');
+  if(scrims.length){
+    const sw=scrims.filter(m=>(m.winner==='blue'&&m.blueTeam===teamName)||(m.winner==='red'&&m.redTeam===teamName)).length;
+    lines.push(`Scrim form: ${sw}W-${scrims.length-sw}L (${Math.round(sw/scrims.length*100)}%WR, ${scrims.length} games)`);
+  }
+
+  // Recent form (last 5 matches)
+  const recent=[...matches].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);
+  const recentForm=recent.map(m=>{
+    const won=(m.winner==='blue'&&m.blueTeam===teamName)||(m.winner==='red'&&m.redTeam===teamName);
+    return(won?'W':'L')+'('+[m.blueTeam,m.redTeam].filter(n=>n!==teamName)[0]+')';
+  }).join(' ');
+  if(recentForm) lines.push(`Recent form (newest first): ${recentForm}`);
+
+  // Hero pick stats with actual win rates from raw matches
+  const heroStats={};
+  matches.forEach(m=>{
+    const isBlue=m.blueTeam===teamName;
+    const won=(m.winner==='blue')===isBlue;
+    const picks=(isBlue?m.bluePicks:m.redPicks)||[];
+    const bans=(isBlue?m.blueBans:m.redBans)||[];
+    picks.forEach(p=>{
+      const n=p.name||p;if(!n)return;
+      if(!heroStats[n])heroStats[n]={picks:0,wins:0,bans:0,lane:p.lane||''};
+      heroStats[n].picks++;if(won)heroStats[n].wins++;
+    });
+    bans.forEach(b=>{
+      const n=b.name||b;if(!n)return;
+      if(!heroStats[n])heroStats[n]={picks:0,wins:0,bans:0,lane:''};
+      heroStats[n].bans++;
+    });
+  });
+
+  // Top picks sorted by frequency with WR
+  const topPicks=Object.entries(heroStats)
+    .filter(([,s])=>s.picks>0)
+    .sort((a,b)=>b[1].picks-a[1].picks)
+    .slice(0,8)
+    .map(([n,s])=>{
+      const wr=s.picks>0?Math.round(s.wins/s.picks*100):0;
+      const lane=s.lane?`(${s.lane})`:'';
+      return`${n}${lane} ${s.picks}g ${wr}%WR`;
+    });
+  if(topPicks.length) lines.push(`Pick pool: ${topPicks.join(' | ')}`);
+
+  // Top bans
+  const topBans=Object.entries(heroStats)
+    .filter(([,s])=>s.bans>0)
+    .sort((a,b)=>b[1].bans-a[1].bans)
+    .slice(0,6)
+    .map(([n,s])=>`${n}(x${s.bans})`);
+  if(topBans.length) lines.push(`Ban targets: ${topBans.join(', ')}`);
+
+  // Win combos — pairs of heroes they pick together and win with
+  const comboPairs={};
+  matches.forEach(m=>{
+    const isBlue=m.blueTeam===teamName;
+    const won=(m.winner==='blue')===isBlue;
+    const picks=((isBlue?m.bluePicks:m.redPicks)||[]).map(p=>p.name||p).filter(Boolean);
+    for(let i=0;i<picks.length;i++){for(let j=i+1;j<picks.length;j++){
+      const key=[picks[i],picks[j]].sort().join('+');
+      if(!comboPairs[key])comboPairs[key]={count:0,wins:0};
+      comboPairs[key].count++;if(won)comboPairs[key].wins++;
+    }}
+  });
+  const winCombos=Object.entries(comboPairs)
+    .filter(([,v])=>v.count>=2&&v.wins/v.count>=0.55)
+    .sort((a,b)=>(b[1].wins/b[1].count)-(a[1].wins/a[1].count))
+    .slice(0,4)
+    .map(([k,v])=>`${k}(${Math.round(v.wins/v.count*100)}%WR,${v.count}g)`);
+  if(winCombos.length) lines.push(`Win combos: ${winCombos.join(' | ')}`);
+
+  // Win condition + coach notes
+  if(t?.winCondition) lines.push(`Win condition: ${t.winCondition}`);
+  if(t?.coachNotes) lines.push(`Coach intel: ${t.coachNotes.slice(0,200)}`);
+
+  // Side preference note
+  if(bwr!==null&&rwr!==null&&Math.abs(bwr-rwr)>=15){
+    lines.push(`Side note: ${bwr>rwr?'Strongly prefers BLUE side':'Strongly prefers RED side'} (${Math.abs(bwr-rwr)}% gap)`);
+  }
+
+  return lines.join('\n');
 }
 
 function setScoutLB(l) {
@@ -1962,7 +2087,9 @@ async function claudeAI(step){
   const comboStr=humanCombosGM.length?`Human win combos: ${humanCombosGM.map(c=>c.a+'+'+c.b+'('+Math.round(c.wr*100)+'%WR)').join(', ')}`:''
   const gmEx=diff==='gm'?`\nGRANDMASTER: ${tendencyStr}${comboStr?'. '+comboStr:''} Exploit human tendencies — deny comfort picks, break combos, think 2-3 picks ahead. Opponent lane gaps: [${oppNeeded.join('/')||'none'}].`:'';
   const humanTeam=pName||'Human';
-  const aiScout=buildScoutAB(humanTeam);
+  // Deep scout context — reads ALL raw match data, not just summaries
+  const humanScoutCtx=buildDeepScoutContext(humanTeam,'YOUR OPPONENT SCOUT INTEL');
+  const aiScout=humanScoutCtx||buildScoutAB(humanTeam); // fallback to summary if no raw data
   // Counter context for prompt
   const myCounterTargets=oppP.map(op=>{
     const ctrs=avail.filter(h=>scoutCounters(h.name,op.name)&&!usedIds.includes(h.id));
@@ -1973,15 +2100,23 @@ async function claudeAI(step){
     return ctrs.length?`${mp.name} is countered by their ${ctrs.map(h=>h.name).join('+')}`:''
   }).filter(Boolean).join('; ');
 
-  // Build lane-aware available list — show ALL available meta heroes with their lane
+  // Build lane-aware available list — show ALL available meta heroes with their lane + scout presence
   const oppFilledLanes=new Set(['Gold','Jungle','Mid','EXP','Roam'].filter(l=>!oppNeeded.includes(l)));
   const myFilledLanes=new Set(['Gold','Jungle','Mid','EXP','Roam'].filter(l=>!needed.includes(l)));
   const topAFull=avail.filter(h=>h.mp!=='off'||['S','A','B'].includes(_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier)).slice(0,55).map(h=>{
     const d=mem[h.name];const wr=d&&d.wins+d.losses>0?`,${Math.round(d.wins/(d.wins+d.losses)*100)}%WR`:'';
     const ln=lane(h);const tier=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
+    const sc=_scoutTierCache?.[h.name];
+    const presence=sc?.presence!=null?`,${Math.round(sc.presence*100)}%pres`:'';
     const mustTag=h.mp==='mustban'?'[MUSTBAN]':h.mp==='highpick'?'[HP]':'';
-    return`${h.name}(${ln},${tier}${wr})${mustTag}`;
+    return`${h.name}(${ln},${tier}${presence}${wr})${mustTag}`;
   }).join(', ');
+
+  // Scout presence summary for top meta heroes (for AI to understand what's dominant this patch/data)
+  const scoutPresenceSummary=_scoutTierCache
+    ?Object.entries(_scoutTierCache).filter(([,d])=>d.presence>=0.2).sort((a,b)=>b[1].presence-a[1].presence).slice(0,10)
+      .map(([n,d])=>`${n}(${Math.round(d.presence*100)}%,${d.tier})`).join(', ')
+    :'';
 
   // Detect draft phase: phase1 = steps 0-5 (bans), phase2 picks = steps 6-11, phase2 bans = steps 12-15, phase3 picks = 16-19
   const draftPhase=ST.step<=5?'Phase 1 Bans':ST.step<=11?'Phase 1 Picks':ST.step<=15?'Phase 2 Bans':'Phase 2 Picks';
@@ -1998,7 +2133,9 @@ async function claudeAI(step){
   let prompt=`You are the world's best MPL MLBB head coach and draft strategist. You have coached championship-winning teams and understand every facet of competitive MLBB drafting at the highest level. You control the ${step.team.toUpperCase()} side. Your goal is to WIN this draft through superior strategy.
 
 CURRENT META:
-${buildMeta()}${aiScout?'\n'+aiScout:''}
+${buildMeta()}${scoutPresenceSummary?'\nMOST PICKED (scout data): '+scoutPresenceSummary:''}
+
+${aiScout||'(No scout data found for this team name)'}
 
 DRAFT PHASE: ${draftPhase} (step ${ST.step+1}/20)
 
@@ -2063,10 +2200,13 @@ Respond with JSON only (no explanation outside JSON):
   if(aiMode==='enemy'&&enemyProfile){
     const ep=enemyProfile;
     const epCtx=buildEnemyPromptCtx(step);
+    // Deep scout context for the enemy team — all raw match data
+    const epDeepScout=buildDeepScoutContext(ep.name,'FULL SCOUT INTEL FOR THIS TEAM');
     const usedIds2=[...ST.bb,...ST.rb,...ST.bp,...ST.rp].map(h=>h.id);
     const epAvail=ep.topPicks.filter(n=>{const hh=HEROES.find(h=>h.name===n);return hh&&!usedIds2.includes(hh.id);}).slice(0,6);
     const epBanAvail=ep.topBans.filter(n=>{const hh=HEROES.find(h=>h.name===n);return hh&&!usedIds2.includes(hh.id);}).slice(0,4);
     prompt=`${epCtx}
+${epDeepScout?'\n'+epDeepScout:''}
 
 DRAFT PHASE: ${draftPhase} (step ${ST.step+1}/20)
 
