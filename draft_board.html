@@ -1314,20 +1314,19 @@ function tc(t){return{S:'#f59e0b',A:'#9ca3af',B:'#b45309',C:'#4b5563'}[t]||'#4b5
 function sideNames(){return{bt:document.getElementById('blueTeamName').value.trim()||'Blue Team',rt:document.getElementById('redTeamName').value.trim()||'Red Team'};}
 function teamHasTendency(name){ return !!TEAM_TENDENCIES[name]; }
 function updateTeamDropdowns(){
-  // Merge names from both TEAM_TENDENCIES (Excel) and Scout DB
+  // Merge names from TEAM_TENDENCIES (Excel) + Scout DB + WTeams registry
   const tendNames = Object.keys(TEAM_TENDENCIES);
   let scoutNames = [];
   try { scoutNames = Object.keys(loadScoutDB().teams||{}); } catch(e){}
-  const allNames = [...new Set([...tendNames, ...scoutNames])].sort();
-  const buildOpts = (currentVal, defaultLabel) => {
-    const base = `<option value="${defaultLabel}">${defaultLabel}</option>`;
-    const items = allNames.map(n=>`<option value="${n}"${n===currentVal?' selected':''}>${n}</option>`).join('');
-    return base + items;
-  };
+  // Normalize all names via alias map
+  const normalize = n => (typeof WTeams!=='undefined' ? WTeams.normalize(n) : n);
+  const extraNames = [...new Set([...tendNames,...scoutNames].map(normalize))];
   const bSel = document.getElementById('blueTeamName');
   const rSel = document.getElementById('redTeamName');
-  if(bSel) bSel.innerHTML = buildOpts(bSel.value,'Blue Team');
-  if(rSel) rSel.innerHTML = buildOpts(rSel.value,'Red Team');
+  if(bSel && typeof WTeams!=='undefined')
+    bSel.innerHTML = WTeams.buildOptgroups(extraNames, normalize(bSel.value)||'Blue Team','Blue Team');
+  if(rSel && typeof WTeams!=='undefined')
+    rSel.innerHTML = WTeams.buildOptgroups(extraNames, normalize(rSel.value)||'Red Team','Red Team');
 }
 function createTeamProfile(side){
   const name = document.getElementById(side+'TeamName').value.trim();
@@ -2072,15 +2071,61 @@ async function getAIPreds(step){
     updateDBTokenDisplay();
   }
   const{bt,rt}=sideNames();
+  const myName    = step.team==='blue' ? bt : rt;
   const enemyName = step.team==='blue' ? rt : bt;
+  const enemySide = step.team==='blue' ? 'red' : 'blue';
+
+  // ── Excel sheet scouting ──
   const tend = TEAM_TENDENCIES[enemyName] || null;
   const tendCtx = tend
-    ? `\nENEMY SCOUTING (sheet) — ${enemyName}: Fav picks: ${tend.favoritePicks.join(', ')} | Fav bans: ${tend.favoriteBans.join(', ')} | Style: ${tend.style} | Win cond: ${tend.winCondition}`
+    ? `\nSCOUT SHEET — ${enemyName}: FavPicks:[${tend.favoritePicks.join(',')}] FavBans:[${tend.favoriteBans.join(',')}] Style:${tend.style} WinCond:${tend.winCondition}`
     : '';
-  // Scout database context — team profiles from logged MPL games
-  const enemySide = step.team==='blue' ? 'red' : 'blue';
-  const scoutCtx = buildScoutContext(enemyName, enemySide);
-  const myScoutCtx = buildScoutContext(step.team==='blue' ? bt : rt, step.team);
+
+  // ── Live scout DB context (MPL/Scrim match history) ──
+  const scoutCtx   = buildScoutContext(enemyName, enemySide);
+  const myScoutCtx = buildScoutContext(myName, step.team);
+
+  // ── Deep scout stats from localStorage match history ──
+  function buildDeepScoutStats(teamName) {
+    try {
+      const raw = localStorage.getItem('warr_scout_data');
+      if (!raw) return '';
+      const db = JSON.parse(raw);
+      const matches = (db.matches||[]).filter(m =>
+        (m.blueTeam===teamName||m.redTeam===teamName) && m.league!=='AI Battle'
+      );
+      if (!matches.length) return '';
+      const wins = matches.filter(m=>(m.blueTeam===teamName&&m.winner==='blue')||(m.redTeam===teamName&&m.winner==='red')).length;
+      const wr = Math.round(wins/matches.length*100);
+      // Top picks
+      const pickCount = {};
+      matches.forEach(m=>{
+        const side = m.blueTeam===teamName?'blue':'red';
+        const picks = side==='blue'?(m.bluePicks||[]):(m.redPicks||[]);
+        picks.forEach(p=>{ const n=p.name||p; pickCount[n]=(pickCount[n]||0)+1; });
+      });
+      const topPicks = Object.entries(pickCount).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([n,c])=>`${n}(${c}x)`).join(',');
+      // Top bans
+      const banCount = {};
+      matches.forEach(m=>{
+        const side = m.blueTeam===teamName?'blue':'red';
+        const bans = side==='blue'?(m.blueBans||[]):(m.redBans||[]);
+        bans.forEach(b=>{ const n=b.name||b; banCount[n]=(banCount[n]||0)+1; });
+      });
+      const topBans = Object.entries(banCount).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([n,c])=>`${n}(${c}x)`).join(',');
+      // Blue/Red WR
+      const blueG=matches.filter(m=>m.blueTeam===teamName);
+      const blueW=blueG.filter(m=>m.winner==='blue').length;
+      const redG=matches.filter(m=>m.redTeam===teamName);
+      const redW=redG.filter(m=>m.winner==='red').length;
+      const bwr=blueG.length?`${Math.round(blueW/blueG.length*100)}%`:'N/A';
+      const rwr=redG.length?`${Math.round(redW/redG.length*100)}%`:'N/A';
+      return `\nSCOUT DB — ${teamName}: ${matches.length}g ${wr}%WR (Blue:${bwr} Red:${rwr}) | TopPicks:[${topPicks}] | TopBans:[${topBans}]`;
+    } catch(e) { return ''; }
+  }
+  const enemyDeep = buildDeepScoutStats(enemyName);
+  const myDeep    = buildDeepScoutStats(myName);
+
   const usedIds=[...state.blueBans,...state.redBans,...state.bluePicks,...state.redPicks].map(h=>h.id);
   const avail=FINAL_HEROES.filter(h=>!usedIds.includes(h.id));
   const top=avail.filter(h=>h.mp!=='off').sort((a,b)=>b.ms-a.ms).slice(0,28).map(h=>h.name).join(', ');
@@ -2091,16 +2136,32 @@ async function getAIPreds(step){
   const myPicks=step.team==='blue'?state.bluePicks:state.redPicks;
   const { needed } = getRoleNeeds(myPicks);
   const neededStr = needed.length ? `Lanes still needed: ${needed.join(', ')}` : 'All lanes filled — suggest best flex/counter picks';
-  const sc=series.mode>1?`BO${series.mode} Game ${series.currentGame} (${bt} ${series.blueWins}-${series.redWins} ${rt}). Prev picks: ${series.matches.flatMap(m=>[...m.bluePicks,...m.redPicks].map(h=>h.name)).join(', ')||'None'}.`:'';
+  const sc=series.mode>1?`BO${series.mode} G${series.currentGame} (${bt} ${series.blueWins}-${series.redWins} ${rt}). PrevPicks:[${series.matches.flatMap(m=>[...m.bluePicks,...m.redPicks].map(h=>h.name)).join(',')||'None'}].`:'';
   // Hero pool context — prioritise pool heroes in suggestions
   const _poolDB = (typeof WDB!=='undefined'&&WDB.getHeroPool) ? WDB.getHeroPool() : [];
   const poolAvailDB = _poolDB.filter(n=>avail.some(h=>h.name===n));
   const poolCtxDB = poolAvailDB.length>0
-    ? `\nPLAYER HERO POOL (prioritise these if they fit the lane/comp): [${poolAvailDB.join(', ')}]`
+    ? `\nPLAYER POOL (prioritise if fits lane/comp): [${poolAvailDB.join(', ')}]`
     : '';
-  const p=`${buildMetaContext()}\nDraft state — ${bt} Bans:${bBans} Picks:${bPicks} | ${rt} Bans:${rBans} Picks:${rPicks}\n${sc}${tendCtx}${scoutCtx}${myScoutCtx?`\nOUR TEAM SCOUT — ${step.team==='blue'?bt:rt}:${myScoutCtx}`:''}${poolCtxDB}\nNEXT: ${step.team.toUpperCase()} must ${step.type.toUpperCase()} (step ${state.currentStep+1}/20).\n${neededStr}\nAvailable top meta heroes: ${top}\n\nRULES: Lanes are Gold/Jungle/Mid/EXP/Roam. For picks, ONLY suggest heroes for lanes still needed. Do NOT suggest a hero for a lane already filled (e.g. if Gold is filled do not suggest another MM/Gold laner). If the player has a hero pool, prefer pool heroes that fit the needed lane and comp. If enemy scouting data is available, factor in counter-picks. Each reason must be short (max 10 words), mentioning the lane gap and M7 stat or enemy counter.\nJSON only: {"picks":[{"name":"HeroName","reason":"short reason","priority":"must|high|good"},{"name":"...","reason":"...","priority":"..."},{"name":"...","reason":"...","priority":"..."},{"name":"...","reason":"...","priority":"..."},{"name":"...","reason":"...","priority":"..."}]}`;
+
+  const p=`You are an expert MLBB competitive draft AI. Use ALL available data to suggest the best 5 picks/bans.
+
+${buildMetaContext()}
+DRAFT: ${bt} Bans:[${bBans}] Picks:[${bPicks}] | ${rt} Bans:[${rBans}] Picks:[${rPicks}]
+${sc}${tendCtx}${enemyDeep}${scoutCtx}${myDeep}${myScoutCtx?`\nOUR TEAM — ${myName}:${myScoutCtx}`:''}${poolCtxDB}
+NEXT: ${step.team.toUpperCase()} must ${step.type.toUpperCase()} (step ${state.currentStep+1}/20).
+${neededStr}
+Top meta: ${top}
+
+RULES:
+- For PICKS: only suggest heroes for EMPTY lanes. If Gold lane is filled do NOT suggest another Gold/MM.
+- Use enemy scout data (topPicks/bans) to decide counter-picks and what to ban.
+- Use our scout data to suggest heroes our team plays best.
+- If hero pool available, prefer pool heroes that fit the empty lane.
+- Each reason: max 10 words, name the counter/synergy or scout stat.
+JSON only: {"picks":[{"name":"HeroName","reason":"<10w>","priority":"must|high|good"},{"name":"...","reason":"...","priority":"..."},{"name":"...","reason":"...","priority":"..."},{"name":"...","reason":"...","priority":"..."},{"name":"...","reason":"...","priority":"..."}]}`;
   try{
-    const d=await callClaude({model:'claude-sonnet-4-20250514',max_tokens:500,messages:[{role:'user',content:p}]});
+    const d=await callClaude({model:'claude-sonnet-4-6',max_tokens:500,messages:[{role:'user',content:p}]});
     const raw=(d.content||[]).map(x=>x.text||'').join('');
     const m=raw.match(/\{[\s\S]*\}/);if(!m)return null;
     const parsed=JSON.parse(m[0]);

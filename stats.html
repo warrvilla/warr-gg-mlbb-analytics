@@ -720,6 +720,8 @@ async function init() {
 })();
 WAuth.renderAuthChip('authChip');
   await loadDBFromSupabase();
+  // Normalize all team names in DB
+  if (typeof WTeams !== 'undefined') WTeams.normalizeDB(DB);
   const teams = Object.keys(DB.teams||{}).sort();
   const blueSel = document.getElementById('blueTeamSel');
   const redSel  = document.getElementById('redTeamSel');
@@ -729,10 +731,17 @@ WAuth.renderAuthChip('authChip');
     return;
   }
 
-  teams.forEach(name => {
-    const o1 = document.createElement('option'); o1.value = name; o1.textContent = name; blueSel.appendChild(o1);
-    const o2 = document.createElement('option'); o2.value = name; o2.textContent = name; redSel.appendChild(o2);
-  });
+  // Use regional optgroups if WTeams available
+  if (typeof WTeams !== 'undefined') {
+    const extraTeams = teams.filter(n => !WTeams.all().includes(n));
+    blueSel.innerHTML = WTeams.buildOptgroups(extraTeams, '', '— Select our team —');
+    redSel.innerHTML  = WTeams.buildOptgroups(extraTeams, '', '— Select enemy team —');
+  } else {
+    teams.forEach(name => {
+      const o1 = document.createElement('option'); o1.value = name; o1.textContent = name; blueSel.appendChild(o1);
+      const o2 = document.createElement('option'); o2.value = name; o2.textContent = name; redSel.appendChild(o2);
+    });
+  }
 
   // Build league filter pills
   const leagues = [...new Set((DB.matches||[]).map(m=>m.league).filter(Boolean))].sort();

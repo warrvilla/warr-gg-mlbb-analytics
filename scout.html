@@ -637,6 +637,7 @@ body {
 .lg-mplph { background: rgba(79,142,247,.12); color: #60a5fa; border: 1px solid rgba(79,142,247,.25); }
 .lg-mplmy { background: rgba(168,85,247,.12); color: #c084fc; border: 1px solid rgba(168,85,247,.25); }
 .lg-mplid { background: rgba(240,82,82,.12); color: #f87171; border: 1px solid rgba(240,82,82,.25); }
+.lg-mplkh { background: rgba(52,209,160,.12); color: #34d1a0; border: 1px solid rgba(52,209,160,.25); }
 .lg-mplsg { background: rgba(34,209,122,.12); color: #4ade80; border: 1px solid rgba(34,209,122,.25); }
 .lg-msc { background: rgba(244,165,52,.12); color: #fbbf24; border: 1px solid rgba(244,165,52,.25); }
 .lg-mseries { background: rgba(34,211,238,.12); color: #22d3ee; border: 1px solid rgba(34,211,238,.25); }
@@ -967,13 +968,13 @@ body::after {
 // ══════════════════════════════════════════════════════════════
 // DATA MODEL & CONSTANTS
 // ══════════════════════════════════════════════════════════════
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 const STORAGE_KEY = 'warr_scout_data';
 const DRAFT_KEY = 'mlbb_draft_data';
 
-const LEAGUES = ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series','Scrims','Draft Board','Other'];
-const LEAGUE_CSS = {'MPL PH':'lg-mplph','MPL MY':'lg-mplmy','MPL ID':'lg-mplid','MPL SG':'lg-mplsg','MSC':'lg-msc','M-Series':'lg-mseries','Scrims':'lg-scrims','Draft Board':'lg-draftboard','Other':'lg-other'};
-const LEAGUE_COLOR = {'MPL PH':'#60a5fa','MPL MY':'#c084fc','MPL ID':'#f87171','MPL SG':'#4ade80','MSC':'#fbbf24','M-Series':'#22d3ee','Scrims':'#fb923c','Draft Board':'#f97316','Other':'#4f5d78'};
+const LEAGUES = ['MPL PH','MPL MY','MPL ID','MPL KH','MPL SG','MSC','M-Series','Scrims','Draft Board','Other'];
+const LEAGUE_CSS = {'MPL PH':'lg-mplph','MPL MY':'lg-mplmy','MPL ID':'lg-mplid','MPL KH':'lg-mplkh','MPL SG':'lg-mplsg','MSC':'lg-msc','M-Series':'lg-mseries','Scrims':'lg-scrims','Draft Board':'lg-draftboard','Other':'lg-other'};
+const LEAGUE_COLOR = {'MPL PH':'#60a5fa','MPL MY':'#c084fc','MPL ID':'#f87171','MPL KH':'#34d1a0','MPL SG':'#4ade80','MSC':'#fbbf24','M-Series':'#22d3ee','Scrims':'#fb923c','Draft Board':'#f97316','Other':'#4f5d78'};
 const LANES = ['Gold','Jungle','Mid','EXP','Roam'];
 const LANE_COLORS = {Gold:'#f4a534',Mid:'#a855f7',Roam:'#34d17a',Jungle:'#f05252',EXP:'#38bdf8',Flex:'#8b97b0'};
 const LANE_ICONS = {Gold:'GLD',Mid:'MID',Roam:'RMG',Jungle:'JGL',EXP:'EXP',Flex:'FLX'};
@@ -1102,6 +1103,23 @@ const DB_MODULE = (() => {
         }
       });
       db.version = 3;
+    }
+    if (db.version < 4) {
+      // v3→v4: normalize team names via WTeams aliases
+      if (typeof WTeams !== 'undefined') {
+        db.matches.forEach(m => {
+          if (m.blueTeam) m.blueTeam = WTeams.normalize(m.blueTeam);
+          if (m.redTeam)  m.redTeam  = WTeams.normalize(m.redTeam);
+        });
+        const newTeams = {};
+        Object.entries(db.teams||{}).forEach(([k,v]) => {
+          const nk = WTeams.normalize(k);
+          v.name = nk;
+          newTeams[nk] = v;
+        });
+        db.teams = newTeams;
+      }
+      db.version = 4;
     }
     return db;
   }
@@ -1715,7 +1733,9 @@ function openEditMatch(id) {
 
 function _openMatchModal(m) {
   const existingTeams = Object.keys(DB_MODULE.getTeams());
-  const teamOpts = existingTeams.map(t => `<option value="${t}">${t}</option>`).join('');
+  const allWTeams = (typeof WTeams !== 'undefined') ? WTeams.all() : [];
+  const mergedTeams = [...new Set([...allWTeams, ...existingTeams])].sort();
+  const teamOpts = mergedTeams.map(t => `<option value="${t}">${t}</option>`).join('');
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';

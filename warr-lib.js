@@ -222,6 +222,99 @@ const WAuth = {
 // ─────────────────────────────────────────────────────────────────
 
 // ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// TEAM REGISTRY — regional teams + name normalization
+// All team dropdowns across pages call WTeams.buildOptgroups()
+// ═══════════════════════════════════════════════════════════════
+window.WTeams = {
+  // Canonical team lists per league/region
+  LEAGUES: {
+    'MPL PH': ['AP.Bren','Team Liquid PH','Aurora PH','TNC Pro Team','ONIC PH','Twisted Minds PH','Smart Omega'],
+    'MPL ID': ['Natus Vincere','Bigetron Alpha','Dewa United','EVOS Legends','Geek Fam ID','ONIC Esports','Team Liquid ID','Alter Ego','RRQ Hoshi'],
+    'MPL MY': ['AC Esports','Bigetron MY','Invictus Gaming','Selangor Red Giants','Team Flash','Team Rey','Team Vamos'],
+    'MPL KH': ['CFU Gaming','Galaxy Legends','Pro Esports','Team Max','See You Soon','Valhalla','Duck Rice Esports','Vigor Apex'],
+  },
+
+  // Old name → canonical name (for fixing existing scout data)
+  ALIASES: {
+    'Twisted Minds':        'Twisted Minds PH',
+    'Blacklist International': 'Blacklist International',
+    'ECHO':                 'ECHO PH',
+    'Nexplay EVOS':         'Nexplay EVOS',
+    'ONIC Philippines':     'ONIC PH',
+    'AP Bren':              'AP.Bren',
+    'RSG Philippines':      'RSG PH',
+    'Omega Esports':        'Smart Omega',
+    'Geek Fam':             'Geek Fam ID',
+    'Team HAQ':             'Team HAQ',
+    'DRX MY':               'DRX MY',
+    'Todak':                'Todak',
+    'Team SMG':             'Team SMG',
+    'ONIC MY':              'ONIC MY',
+  },
+
+  // Normalize a team name — applies alias mapping
+  normalize(name) {
+    if (!name) return name;
+    return WTeams.ALIASES[name] || name;
+  },
+
+  // All canonical team names flat list (for searching)
+  all() {
+    return [...new Set(Object.values(WTeams.LEAGUES).flat())];
+  },
+
+  // Which league does this team belong to?
+  leagueOf(name) {
+    const n = WTeams.normalize(name);
+    for (const [lg, teams] of Object.entries(WTeams.LEAGUES)) {
+      if (teams.includes(n)) return lg;
+    }
+    return null;
+  },
+
+  // Build <option> / <optgroup> HTML for a select element
+  // extraNames = additional names from scout data not in LEAGUES
+  // currentVal = pre-selected value
+  // defaultLabel = first blank option label
+  buildOptgroups(extraNames = [], currentVal = '', defaultLabel = '— Select team —') {
+    const sel = v => v === currentVal ? ' selected' : '';
+    // Group extras by league or put in 'Custom Teams'
+    const knownAll = WTeams.all();
+    const extras = extraNames.filter(n => !knownAll.includes(n) && n && n !== defaultLabel);
+
+    let html = `<option value="">${defaultLabel}</option>`;
+    for (const [lg, teams] of Object.entries(WTeams.LEAGUES)) {
+      html += `<optgroup label="${lg}">`;
+      html += teams.map(t => `<option value="${t}"${sel(t)}>${t}</option>`).join('');
+      html += `</optgroup>`;
+    }
+    if (extras.length) {
+      html += `<optgroup label="Other / Custom">`;
+      html += extras.sort().map(t => `<option value="${t}"${sel(t)}>${t}</option>`).join('');
+      html += `</optgroup>`;
+    }
+    return html;
+  },
+
+  // Apply name normalization to all matches in a scout DB object (mutates in-place)
+  normalizeDB(db) {
+    if (!db) return db;
+    (db.matches || []).forEach(m => {
+      if (m.blueTeam) m.blueTeam = WTeams.normalize(m.blueTeam);
+      if (m.redTeam)  m.redTeam  = WTeams.normalize(m.redTeam);
+    });
+    // Re-key teams object with normalized names
+    const newTeams = {};
+    for (const [k, v] of Object.entries(db.teams || {})) {
+      const nk = WTeams.normalize(k);
+      newTeams[nk] = { ...v, name: nk };
+    }
+    db.teams = newTeams;
+    return db;
+  },
+};
+
 // ── ADMIN SYSTEM ──
 // Only the designated admin email can add/delete official competition data.
 // Leagues marked as ADMIN_LOCKED require admin auth for write operations.
@@ -230,7 +323,7 @@ window.WAdmin = {
   ADMIN_EMAIL: 'wrrenvillapando@gmail.com',
 
   // Leagues that require admin auth to write/delete
-  LOCKED_LEAGUES: ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series'],
+  LOCKED_LEAGUES: ['MPL PH','MPL MY','MPL ID','MPL KH','MSC','M-Series'],
 
   // Check if the currently signed-in user is the admin
   isAdmin() {
