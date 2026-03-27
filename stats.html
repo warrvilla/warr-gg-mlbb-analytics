@@ -623,10 +623,20 @@ async function updateKeyStatus() {
 }
 
 // ══════ LOAD DATA ══════
+// Exclude AI Battle practice matches — analysis should only use real scout data
+const EXCLUDED_LEAGUES = ['AI Battle'];
+
+function isScoutMatch(m) {
+  return !EXCLUDED_LEAGUES.includes(m.league);
+}
+
 function loadDB() {
   try {
     const r = localStorage.getItem(SCOUT_KEY);
-    return r ? JSON.parse(r) : {matches:[], teams:{}};
+    const db = r ? JSON.parse(r) : {matches:[], teams:{}};
+    // Strip AI Battle matches from localStorage too
+    db.matches = (db.matches || []).filter(isScoutMatch);
+    return db;
   } catch(e) { return {matches:[], teams:{}}; }
 }
 
@@ -634,8 +644,10 @@ async function loadDBFromSupabase() {
   // Always load localStorage as base (Supabase may be unconfigured)
   const localDB = loadDB();
   try {
-    const matches = await WDB.getAllMatches();
-    if (matches && matches.length > 0) {
+    const allMatches = await WDB.loadMatches();
+    // Only real scout data — no AI Battle practice games
+    const matches = (allMatches || []).filter(isScoutMatch);
+    if (matches.length > 0) {
       // Merge: Supabase data + any local-only matches not in Supabase
       const sbIds = new Set(matches.map(m => m.id).filter(Boolean));
       const localOnly = (localDB.matches || []).filter(m => m.id && !sbIds.has(m.id));
