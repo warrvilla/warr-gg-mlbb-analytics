@@ -641,6 +641,7 @@ body {
 .lg-msc { background: rgba(244,165,52,.12); color: #fbbf24; border: 1px solid rgba(244,165,52,.25); }
 .lg-mseries { background: rgba(34,211,238,.12); color: #22d3ee; border: 1px solid rgba(34,211,238,.25); }
 .lg-scrims { background: rgba(251,146,60,.12); color: #fb923c; border: 1px solid rgba(251,146,60,.25); }
+.lg-draftboard { background: rgba(249,115,22,.12); color: #f97316; border: 1px solid rgba(249,115,22,.25); }
 .lg-other { background: var(--surface3); color: var(--text3); border: 1px solid var(--border); }
 
 /* ── MODAL ── */
@@ -970,9 +971,9 @@ const SCHEMA_VERSION = 3;
 const STORAGE_KEY = 'warr_scout_data';
 const DRAFT_KEY = 'mlbb_draft_data';
 
-const LEAGUES = ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series','Scrims','Other'];
-const LEAGUE_CSS = {'MPL PH':'lg-mplph','MPL MY':'lg-mplmy','MPL ID':'lg-mplid','MPL SG':'lg-mplsg','MSC':'lg-msc','M-Series':'lg-mseries','Scrims':'lg-scrims','Other':'lg-other'};
-const LEAGUE_COLOR = {'MPL PH':'#60a5fa','MPL MY':'#c084fc','MPL ID':'#f87171','MPL SG':'#4ade80','MSC':'#fbbf24','M-Series':'#22d3ee','Scrims':'#fb923c','Other':'#4f5d78'};
+const LEAGUES = ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series','Scrims','Draft Board','Other'];
+const LEAGUE_CSS = {'MPL PH':'lg-mplph','MPL MY':'lg-mplmy','MPL ID':'lg-mplid','MPL SG':'lg-mplsg','MSC':'lg-msc','M-Series':'lg-mseries','Scrims':'lg-scrims','Draft Board':'lg-draftboard','Other':'lg-other'};
+const LEAGUE_COLOR = {'MPL PH':'#60a5fa','MPL MY':'#c084fc','MPL ID':'#f87171','MPL SG':'#4ade80','MSC':'#fbbf24','M-Series':'#22d3ee','Scrims':'#fb923c','Draft Board':'#f97316','Other':'#4f5d78'};
 const LANES = ['Gold','Jungle','Mid','EXP','Roam'];
 const LANE_COLORS = {Gold:'#f4a534',Mid:'#a855f7',Roam:'#34d17a',Jungle:'#f05252',EXP:'#38bdf8',Flex:'#8b97b0'};
 const LANE_ICONS = {Gold:'GLD',Mid:'MID',Roam:'RMG',Jungle:'JGL',EXP:'EXP',Flex:'FLX'};

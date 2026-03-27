@@ -282,6 +282,35 @@ table.users-table {
       </button>
     </div>
 
+    <!-- RLS SETUP NOTICE — shown only when users count is 0 or error -->
+    <div id="rlsNotice" style="display:none;margin-bottom:16px;padding:14px 18px;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.3);border-radius:10px;">
+      <div style="font-size:13px;font-weight:700;color:#f87171;margin-bottom:6px;">No users found — Supabase RLS policy needed</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Run this SQL in your <a href="https://supabase.com/dashboard" target="_blank" style="color:#60a5fa;">Supabase SQL Editor</a> to allow admin to read all profiles:</div>
+      <pre id="rlsSqlBox" style="font-size:11px;background:rgba(0,0,0,.35);border:1px solid var(--border2);border-radius:6px;padding:12px;overflow-x:auto;color:#a5f3fc;white-space:pre;margin:0 0 10px;">-- Drop old restrictive SELECT policy (if any)
+DROP POLICY IF EXISTS "Users read own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Admin reads all profiles" ON public.profiles;
+
+-- New policy: own row OR admin email
+CREATE POLICY "Users read own profile" ON public.profiles
+  FOR SELECT USING (
+    auth.uid() = id
+    OR auth.email() = 'wrrenvillapando@gmail.com'
+  );
+
+-- Also ensure write policies exist
+CREATE POLICY IF NOT EXISTS "Users insert own profile" ON public.profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY IF NOT EXISTS "Users update own profile" ON public.profiles
+  FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+
+-- Ensure required columns exist
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS tokens_used integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS token_reset_date text DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS plan text DEFAULT 'free';</pre>
+      <button onclick="navigator.clipboard.writeText(document.getElementById('rlsSqlBox').textContent).then(()=>alert('Copied! Paste in Supabase SQL Editor → Run.'))" style="padding:6px 16px;background:var(--blue);border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">Copy SQL</button>
+    </div>
+
     <!-- STATS ROW -->
     <div class="stats-row">
       <div class="stat-chip">
@@ -816,12 +845,18 @@ async function loadAllData() {
     _allUsers = allUsers;
     _filteredUsers = [..._allUsers];
 
+    // Show RLS setup notice if no users found (likely missing SELECT policy)
+    const rlsNotice = document.getElementById('rlsNotice');
+    if (rlsNotice) rlsNotice.style.display = allUsers.length === 0 ? 'block' : 'none';
+
     updateStats();
     renderPending(_allUsers);
     renderUsersTable();
     renderPagination();
 
   } catch(e) {
+    const rlsNotice = document.getElementById('rlsNotice');
+    if (rlsNotice) rlsNotice.style.display = 'block';
     document.getElementById('pendingList').innerHTML =
       `<div class="empty-state" style="color:var(--red);">Error loading data: ${escHtml(e.message || String(e))}</div>`;
     document.getElementById('usersTableBody').innerHTML =

@@ -1460,6 +1460,34 @@ function openDeclareModal(){
   document.body.appendChild(el);
 }
 
+function saveMatchToScout(winner){
+  try{
+    const{bt,rt}=sideNames();
+    const scoutMatch={
+      id:'db_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),
+      date:new Date().toISOString().slice(0,10),
+      league:'Draft Board',
+      blueTeam:bt,
+      redTeam:rt,
+      bluePicks:(state.bluePicks||[]).map(h=>({name:h.name,role:h.role})),
+      redPicks:(state.redPicks||[]).map(h=>({name:h.name,role:h.role})),
+      blueBans:(state.blueBans||[]).map(h=>h.name),
+      redBans:(state.redBans||[]).map(h=>h.name),
+      winner:winner||null,
+      ourSide:ourSide||null,
+    };
+    const raw=localStorage.getItem('warr_scout_data');
+    const db=raw?JSON.parse(raw):{matches:[],teams:{}};
+    db.matches=db.matches||[];
+    db.matches.push(scoutMatch);
+    // update teams registry
+    [bt,rt].forEach(name=>{if(name&&name!=='Blue Team'&&name!=='Red Team')db.teams[name]={name};});
+    localStorage.setItem('warr_scout_data',JSON.stringify(db));
+    // also try Supabase async if available
+    if(typeof WDB!=='undefined'&&WDB.saveMatch)WDB.saveMatch(scoutMatch).catch(()=>{});
+  }catch(e){console.warn('saveMatchToScout:',e);}
+}
+
 function recordResultBase(winner){
   document.getElementById('declareModal')?.remove();
   const match={game:series.currentGame,blueBans:[...state.blueBans],redBans:[...state.redBans],bluePicks:[...state.bluePicks],redPicks:[...state.redPicks],winner,ourSide};
@@ -1467,6 +1495,7 @@ function recordResultBase(winner){
   if(ei>=0)series.matches[ei]=match;else series.matches.push(match);
   if(winner==='blue')series.blueWins++;
   if(winner==='red')series.redWins++;
+  saveMatchToScout(winner);
   const needed=Math.ceil(series.mode/2);
   if(series.blueWins>=needed||series.redWins>=needed){
     series.finished=true;updateSeriesScore();
@@ -2201,12 +2230,23 @@ async function analyzeDraft(){
   const redScoutCtx  = buildScoutContext(rt, 'red');
   const scoutSummary = (blueScoutCtx||redScoutCtx) ? `\nSCOUT DATABASE:${blueScoutCtx}${redScoutCtx}` : '';
 
-  const prompt = `MLBB Draft Coach. ${leanMeta}${scoutSummary}${historyCtx}
-BLUE(${bt}) bans:${bBans} picks:${bPicks}
-RED(${rt}) bans:${rBans} picks:${rPicks}
-${hasHistory?'Use match history above.':''}
+  const prompt = `You are an elite MLBB competitive draft analyst with MPL-level expertise. Analyze this draft in extreme depth — reference actual hero names in EVERY field, never use generic statements.
+
+${leanMeta}${scoutSummary}${historyCtx}
+BLUE SIDE (${bt}): bans=[${bBans}] picks=[${bPicks}]
+RED SIDE (${rt}): bans=[${rBans}] picks=[${rPicks}]
+${hasHistory?'Apply match history patterns above to validate your analysis.':''}
+
+Rules:
+- Every strength/weakness/key must NAME specific heroes from this draft
+- laning entries must describe the EXACT hero matchup and power spike timing
+- jungleStrategy must name the actual jungler and their path vs opponent
+- teamfightSetup must describe the specific CC/engage chain using named heroes
+- objectivePriority must reference specific heroes' objective-taking ability
+- counterplay must explain how each team counters the other's win condition
+
 JSON only, no markdown:
-{"blueWinrate":<0-100>,"redWinrate":<0-100>,"winner":"blue|red","blueCompArchetype":"<4 words>","redCompArchetype":"<4 words>","blueScores":{"teamfight":<0-100>,"earlyGame":<0-100>,"lateGame":<0-100>,"objectiveControl":<0-100>,"pickPotential":<0-100>,"sustainability":<0-100>,"laneControl":<0-100>,"burstDamage":<0-100>},"redScores":{"teamfight":<0-100>,"earlyGame":<0-100>,"lateGame":<0-100>,"objectiveControl":<0-100>,"pickPotential":<0-100>,"sustainability":<0-100>,"laneControl":<0-100>,"burstDamage":<0-100>},"blueLaning":{"exp":"<20w>","gold":"<20w>","mid":"<20w>","jungle":"<20w>","roam":"<20w>"},"redLaning":{"exp":"<20w>","gold":"<20w>","mid":"<20w>","jungle":"<20w>","roam":"<20w>"},"blueStrengths":["<15w>","<15w>","<15w>"],"blueWeaknesses":["<15w>","<15w>"],"redStrengths":["<15w>","<15w>","<15w>"],"redWeaknesses":["<15w>","<15w>"],"blueKeysToVictory":["<20w>","<20w>","<20w>"],"redKeysToVictory":["<20w>","<20w>","<20w>"],"blueAvoid":["<15w>","<15w>"],"redAvoid":["<15w>","<15w>"],"blueComposition":"<40w>","redComposition":"<40w>","keyMatchup":"<25w>","criticalTiming":"<20w>","banAnalysis":"<30w>","draftVerdict":"<50w>","mvpHero":"<name>","mvpReason":"<15w>"}`;
+{"blueWinrate":<0-100>,"redWinrate":<0-100>,"winner":"blue|red","blueCompArchetype":"<archetype e.g. Protect Hypercarry>","redCompArchetype":"<archetype>","blueScores":{"teamfight":<0-100>,"earlyGame":<0-100>,"lateGame":<0-100>,"objectiveControl":<0-100>,"pickPotential":<0-100>,"sustainability":<0-100>,"laneControl":<0-100>,"burstDamage":<0-100>},"redScores":{"teamfight":<0-100>,"earlyGame":<0-100>,"lateGame":<0-100>,"objectiveControl":<0-100>,"pickPotential":<0-100>,"sustainability":<0-100>,"laneControl":<0-100>,"burstDamage":<0-100>},"blueLaning":{"exp":"<name hero, their laner matchup, level spike timing — 25w>","gold":"<name hero, farm priority, when to fight — 25w>","mid":"<name hero, wave control, rotation timing — 25w>","jungle":"<name jungler, full jungle path, first gank target, Turtle route — 30w>","roam":"<name roamer, level 1 vision, rotation priority, engage call timing — 25w>"},"redLaning":{"exp":"<same depth>","gold":"<same depth>","mid":"<same depth>","jungle":"<same depth — name jungler, path, targets>","roam":"<same depth>"},"blueStrengths":["<hero-specific strength — name the hero — 20w>","<hero-specific strength — 20w>","<hero-specific strength — 20w>"],"blueWeaknesses":["<named hero vulnerability — 20w>","<named hero vulnerability — 20w>"],"redStrengths":["<hero-specific — 20w>","<hero-specific — 20w>","<hero-specific — 20w>"],"redWeaknesses":["<named — 20w>","<named — 20w>"],"blueKeysToVictory":["<name hero + specific objective action — 25w>","<name hero + specific action — 25w>","<name hero + macro move — 25w>"],"redKeysToVictory":["<same depth>","<same depth>","<same depth>"],"blueAvoid":["<specific mistake this comp must not make — 20w>","<specific mistake — 20w>"],"redAvoid":["<specific mistake — 20w>","<specific mistake — 20w>"],"blueTeamfight":"<describe the full teamfight setup: who initiates, CC chain order, carry positioning, follow-up — name all heroes — 50w>","redTeamfight":"<same depth for red — 50w>","blueObjectivePriority":"<which objectives this comp takes best and why — name heroes — 25w>","redObjectivePriority":"<same for red — 25w>","blueCounterplay":"<how blue counters red's win condition — name specific heroes — 25w>","redCounterplay":"<how red counters blue's win condition — 25w>","blueComposition":"<full comp description: type, win condition, power spike timing, name all roles — 50w>","redComposition":"<same for red — 50w>","keyMatchup":"<Hero A vs Hero B — explain why this 1v1 or matchup decides the game — 30w>","criticalTiming":"<the exact power spike moment in minutes and what must happen — name heroes — 25w>","banAnalysis":"<what each team's bans accomplish vs the opponent's style — name heroes — 35w>","draftVerdict":"<3-4 sentence verdict naming the heroes that win or lose this draft and why — 70w>","mvpHero":"<hero name>","mvpReason":"<why this specific hero is the game-changer — name counter or synergy — 20w>"}`;
 
   const el = document.getElementById('analysisSection');
   el.style.display = 'block';
@@ -2215,14 +2255,14 @@ JSON only, no markdown:
       <div style="width:20px;height:20px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;"></div>
       <div>
         <div style="font-size:13px;font-weight:700;color:var(--blue);letter-spacing:1px;">ANALYZING DRAFT</div>
-        <div id="analyzeStatus" style="font-size:10px;color:var(--text3);margin-top:3px;">${hasHistory?`Using ${historyData.matches.length} games of history`:'Using meta & draft theory'}</div>
+        <div id="analyzeStatus" style="font-size:10px;color:var(--text3);margin-top:3px;">${hasHistory?`Using ${historyData.matches.length} games of history`:'Deep analysis — may take a moment'}</div>
       </div>
     </div>
   </div>`;
   el.scrollIntoView({behavior:'smooth',block:'start'});
 
   try {
-    const d = await callClaude({model:'claude-sonnet-4-20250514', max_tokens:900, messages:[{role:'user',content:prompt}]});
+    const d = await callClaude({model:'claude-sonnet-4-6', max_tokens:1800, messages:[{role:'user',content:prompt}]});
     const raw = (d.content||[]).map(c=>c.text||'').join('');
     const m = raw.match(/\{[\s\S]*\}/);
     if(!m) throw new Error('No JSON');
@@ -2359,10 +2399,14 @@ function renderAnalysis(a,bt,rt,partial=false){
     const weak=b?a.blueWeaknesses:a.redWeaknesses;
     const keys=b?a.blueKeysToVictory:a.redKeysToVictory;
     const avoid=b?a.blueAvoid:a.redAvoid;
+    const teamfight=b?a.blueTeamfight:a.redTeamfight;
+    const objPrio=b?a.blueObjectivePriority:a.redObjectivePriority;
+    const counter=b?a.blueCounterplay:a.redCounterplay;
     const icon=b?'[B]':'[R]';
     const li=(items,dot,marker)=>(items||[]).map(s=>`<li style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.65;list-style:none;"><span style="color:${dot};flex-shrink:0;font-size:9px;margin-top:3px;">${marker}</span><span>${s}</span></li>`).join('');
     const laneRow=(lbl,txt)=>txt?`<tr><td style="font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--muted);letter-spacing:1px;padding:5px 10px 5px 0;white-space:nowrap;vertical-align:top;width:50px;">${lbl}</td><td style="font-size:12px;line-height:1.6;padding:5px 0;color:var(--text);">${txt}</td></tr>`:'';
     const sectionHd=(icon2,lbl,color2)=>`<div style="font-family:-apple-system,Inter,sans-serif;font-size:9px;color:${color2};letter-spacing:2px;margin:12px 0 5px;padding-bottom:5px;border-bottom:1px solid ${color2}22;">${icon2} ${lbl}</div>`;
+    const infoRow=(lbl,txt,c)=>txt?`<div style="margin-bottom:6px;"><span style="font-size:8px;font-weight:700;letter-spacing:1px;color:${c};">${lbl}: </span><span style="font-size:12px;line-height:1.65;color:var(--text);">${txt}</span></div>`:'';
     return`<div style="border:1px solid ${bdrCol};border-radius:8px;overflow:hidden;flex:1;min-width:0;">
       <div style="padding:12px 16px;background:${hdBg};border-bottom:1px solid ${bdrCol};display:flex;align-items:center;gap:10px;">
         <span style="font-size:16px;">${icon}</span>
@@ -2383,6 +2427,10 @@ function renderAnalysis(a,bt,rt,partial=false){
         <ul style="list-style:none;padding:0;margin:0 0 4px;">${li(weak,'#ff5577','▶')}</ul>
         ${sectionHd('','KEYS TO VICTORY','#ffd700')}
         <ul style="list-style:none;padding:0;margin:0 0 4px;">${li(keys,'#ffd700','▶')}</ul>
+        ${teamfight||objPrio||counter?`${sectionHd('','DEEP BREAKDOWN','#22d3ee')}
+        ${infoRow('TEAMFIGHT',teamfight,'#22d3ee')}
+        ${infoRow('OBJECTIVES',objPrio,'#a855f7')}
+        ${infoRow('COUNTERPLAY',counter,'#f97316')}`:''}
         ${sectionHd('','WHAT TO AVOID','#aa55ff')}
         <ul style="list-style:none;padding:0;margin:0;">${li(avoid,'#aa55ff','▶')}</ul>
       </div>

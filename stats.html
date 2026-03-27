@@ -518,15 +518,21 @@ select:focus, input:focus {
       <div id="leagueFilterPills" style="margin-left:auto;display:flex;gap:5px;flex-wrap:wrap;"></div>
     </div>
     <div class="card-body">
+      <!-- Side selector -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        <span style="font-size:11px;font-weight:700;color:var(--text2);">We are playing:</span>
+        <button id="sideBlueBtn" onclick="setOurSide('blue')" style="padding:4px 14px;font-size:11px;font-weight:700;border-radius:20px;border:1.5px solid var(--blue);background:var(--blue);color:#fff;cursor:pointer;transition:all .15s;">Blue Side</button>
+        <button id="sideRedBtn" onclick="setOurSide('red')" style="padding:4px 14px;font-size:11px;font-weight:700;border-radius:20px;border:1.5px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;">Red Side</button>
+      </div>
       <div class="setup-grid">
         <div>
-          <div class="form-label" style="color:var(--blue);">Blue Side (Us)</div>
+          <div class="form-label" id="ourSideLabel" style="color:var(--blue);">Blue Side (Us)</div>
           <select id="blueTeamSel" style="width:100%;" onchange="onTeamChange()">
             <option value="">— Select our team —</option>
           </select>
         </div>
         <div>
-          <div class="form-label" style="color:var(--red);">Red Side (Enemy)</div>
+          <div class="form-label" id="enemySideLabel" style="color:var(--red);">Red Side (Enemy)</div>
           <select id="redTeamSel" style="width:100%;" onchange="onTeamChange()">
             <option value="">— Select enemy team —</option>
           </select>
@@ -562,6 +568,38 @@ const MEM_KEY   = 'mlbb_ai_draft_memory';
 let DB = {matches:[], teams:{}};
 let patchSuggestions = {};
 let _reportLeagueFilter = 'all';
+let _ourSide = 'blue'; // which side WE are playing — affects AI report perspective
+
+function setOurSide(side) {
+  _ourSide = side;
+  const blueBtn = document.getElementById('sideBlueBtn');
+  const redBtn  = document.getElementById('sideRedBtn');
+  const ourLbl  = document.getElementById('ourSideLabel');
+  const enemyLbl = document.getElementById('enemySideLabel');
+  if (side === 'blue') {
+    blueBtn.style.background = 'var(--blue)';
+    blueBtn.style.borderColor = 'var(--blue)';
+    blueBtn.style.color = '#fff';
+    redBtn.style.background = 'transparent';
+    redBtn.style.borderColor = 'var(--border2)';
+    redBtn.style.color = 'var(--text2)';
+    ourLbl.textContent = 'Blue Side (Us)';
+    ourLbl.style.color = 'var(--blue)';
+    enemyLbl.textContent = 'Red Side (Enemy)';
+    enemyLbl.style.color = 'var(--red)';
+  } else {
+    redBtn.style.background = 'var(--red)';
+    redBtn.style.borderColor = 'var(--red)';
+    redBtn.style.color = '#fff';
+    blueBtn.style.background = 'transparent';
+    blueBtn.style.borderColor = 'var(--border2)';
+    blueBtn.style.color = 'var(--text2)';
+    ourLbl.textContent = 'Red Side (Us)';
+    ourLbl.style.color = 'var(--red)';
+    enemyLbl.textContent = 'Blue Side (Enemy)';
+    enemyLbl.style.color = 'var(--blue)';
+  }
+}
 
 // Hero name → portrait id mapping for names that don't survive simple normalization
 const HERO_NAME_TO_ID = {
@@ -887,9 +925,17 @@ function statBar(label, val, max, color) {
 
 // ══════ GENERATE REPORT ══════
 async function generateReport() {
-  const blueName = document.getElementById('blueTeamSel').value;
-  const redName  = document.getElementById('redTeamSel').value;
-  if (!blueName || !redName) return;
+  const blueSel = document.getElementById('blueTeamSel').value;
+  const redSel  = document.getElementById('redTeamSel').value;
+  if (!blueSel || !redSel) return;
+
+  // ourName = the team WE are, enemyName = opponent
+  // blueTeamSel = team on blue side, redTeamSel = team on red side
+  // _ourSide tells us which position WE are in
+  const ourName   = _ourSide === 'blue' ? blueSel : redSel;
+  const enemyName = _ourSide === 'blue' ? redSel  : blueSel;
+  const blueName  = blueSel;
+  const redName   = redSel;
 
   const blueStats = getTeamStats(blueName, redName);
   const redStats  = getTeamStats(redName, blueName);
@@ -906,12 +952,11 @@ async function generateReport() {
     if (aiEl) aiEl.innerHTML = `
       <div class="report-hdr"><span class="report-hdr-title">AI Draft Strategy</span></div>
       <div class="report-body" style="text-align:center;padding:24px;">
-        
         <div style="font-size:12px;color:var(--text3);">Add your Anthropic API key to unlock AI-powered strategy.</div>
       </div>`;
     return;
   }
-  await runAIReport(blueName, redName, blueStats, redStats, h2h);
+  await runAIReport(ourName, enemyName, _ourSide === 'blue' ? blueStats : redStats, _ourSide === 'blue' ? redStats : blueStats, h2h, _ourSide);
 }
 
 // ══════ STATIC REPORT ══════
@@ -1145,12 +1190,12 @@ function buildMemorySection() {
 }
 
 // ══════ AI REPORT ══════
-async function runAIReport(blueName, redName, blueStats, redStats, h2h) {
+async function runAIReport(ourName, enemyName, ourStats, enemyStats, h2h, ourSide = 'blue') {
   const aiSection = document.getElementById('aiReportSection');
   if (!aiSection) return;
 
-  const profile = (stats, side) => {
-    if (!stats) return `No data for ${side}.`;
+  const profile = (stats, role) => {
+    if (!stats) return `No data for ${role}.`;
     const vs = stats.vsData ? `\nVS THIS OPPONENT (${stats.vsData.games}g, ${stats.vsData.wins}W):\n  Picks: ${stats.vsData.topPicks.map(p=>`${p.name}(${p.count}g,${p.wr}%WR)`).join(', ')||'N/A'}\n  Bans: ${stats.vsData.topBans.map(b=>`${b.name}(${b.count}x)`).join(', ')||'N/A'}` : '';
     return `${stats.name} | ${stats.total}g | ${stats.wr}%WR | Blue:${stats.blueWR??'N/A'}% | Red:${stats.redWR??'N/A'}%
 Picks: ${stats.topPicks.slice(0,6).map(p=>`${p.name}(${p.count}g,${p.wr}%WR)`).join(', ')}
@@ -1160,15 +1205,20 @@ First picks: ${stats.topFirstPick?.map(p=>`${p.name}(${p.count}x)`).join(', ')||
 Win Condition: ${stats.winCondition||'unknown'}\nCoach Notes: ${stats.coachNotes||'none'}${vs}`;
   };
 
-  const prompt = `You are a professional MLBB draft coach. Generate a pre-match scouting report in JSON only (no markdown).
+  const ourSideLabel   = ourSide === 'blue' ? 'BLUE SIDE' : 'RED SIDE';
+  const enemySideLabel = ourSide === 'blue' ? 'RED SIDE'  : 'BLUE SIDE';
+  const h2hOurWins   = ourSide === 'blue' ? h2h.blueWins : h2h.redWins;
+  const h2hEnemyWins = ourSide === 'blue' ? h2h.redWins  : h2h.blueWins;
 
-BLUE SIDE (OUR TEAM):
-${profile(blueStats,'blue')}
+  const prompt = `You are a professional MLBB draft coach. Generate a pre-match scouting report from OUR team's perspective. JSON only (no markdown).
 
-RED SIDE (ENEMY):
-${profile(redStats,'red')}
+${ourSideLabel} (OUR TEAM — ${ourName}):
+${profile(ourStats,'us')}
 
-HEAD TO HEAD: ${h2h.total}g — Blue: ${h2h.blueWins}W, Red: ${h2h.redWins}W
+${enemySideLabel} (ENEMY — ${enemyName}):
+${profile(enemyStats,'enemy')}
+
+HEAD TO HEAD: ${h2h.total}g — Us (${ourName}): ${h2hOurWins}W, Enemy (${enemyName}): ${h2hEnemyWins}W
 
 Respond ONLY with JSON matching this exact schema:
 {
