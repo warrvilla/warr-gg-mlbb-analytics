@@ -714,16 +714,7 @@ input:focus, .search-input:focus {
   </div>
   <div class="setup-card">
     <div class="card-title">Scout Data Source</div>
-    <div style="display:flex;flex-wrap:wrap;gap:5px;">
-      <button class="scout-lb active" onclick="setScoutLB('all')">All Leagues</button>
-      <button class="scout-lb" onclick="setScoutLB('MPL PH')">MPL PH</button>
-      <button class="scout-lb" onclick="setScoutLB('MPL MY')">MPL MY</button>
-      <button class="scout-lb" onclick="setScoutLB('MPL ID')">MPL ID</button>
-      <button class="scout-lb" onclick="setScoutLB('MPL SG')">MPL SG</button>
-      <button class="scout-lb" onclick="setScoutLB('MSC')">MSC</button>
-      <button class="scout-lb" onclick="setScoutLB('M-Series')">M-Series</button>
-      <button class="scout-lb" onclick="setScoutLB('Scrims')">Scrims Only</button>
-    </div>
+    <div id="scoutLBContainer" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
     <div id="scoutStatusAB" style="margin-top:8px;font-size:10px;color:var(--text3);"></div>
   </div>
   <div class="setup-card">
@@ -1292,11 +1283,7 @@ function buildDeepScoutContext(teamName, label='OPPONENT SCOUT INTEL'){
 
 function setScoutLB(l) {
   scoutLeagueAB = l;
-  document.querySelectorAll('.scout-lb').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.scout-lb').forEach(b => {
-    const txt = b.textContent.trim();
-    if((l==='all'&&txt==='All Leagues')||(txt===l)) b.classList.add('active');
-  });
+  _renderScoutLBs(); // rebuilds buttons with correct active state
   // Show how many games available for this filter
   const db = loadScoutAB();
   const count = l==='all' ? (db.matches||[]).length : (db.matches||[]).filter(m=>m.league===l).length;
@@ -1400,6 +1387,21 @@ function _getABExtraTeams() {
     return [...new Set(names)];
   } catch(e) { return []; }
 }
+// Static non-regional leagues always shown in Scout Data Source
+const _AB_STATIC_LBS = ['MSC','M-Series','Scrims'];
+
+function _renderScoutLBs() {
+  const container = document.getElementById('scoutLBContainer');
+  if (!container) return;
+  const regional = (typeof WTeams !== 'undefined') ? Object.keys(WTeams.LEAGUES) : [];
+  const all = [...new Set([...regional, ..._AB_STATIC_LBS])];
+  container.innerHTML =
+    `<button class="scout-lb${scoutLeagueAB==='all'?' active':''}" onclick="setScoutLB('all')">All Leagues</button>` +
+    all.map(l =>
+      `<button class="scout-lb${scoutLeagueAB===l?' active':''}" onclick="setScoutLB('${l}')">${l==='Scrims'?'Scrims Only':l}</button>`
+    ).join('');
+}
+
 function _initABPicker() {
   const sel = document.getElementById('nameIn');
   if (!sel || typeof WTeamPicker === 'undefined') return;
@@ -1408,10 +1410,12 @@ function _initABPicker() {
     extraTeams: _getABExtraTeams(),
     onSelect: null,
   });
+  _renderScoutLBs();
 }
 function _refreshABPicker() {
   if (!_abPicker) { _initABPicker(); return; }
   _abPicker.refresh(_getABExtraTeams());
+  _renderScoutLBs(); // re-render in case WTeams.LEAGUES updated after DB load
 }
 // Legacy alias kept so any stray references don't crash
 function updateABTeamDropdown() { _refreshABPicker(); }
