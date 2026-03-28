@@ -1034,7 +1034,13 @@ async function lmSave() {
     saveOk.style.display = 'inline';
     setTimeout(() => saveOk.style.display = 'none', 3000);
   } catch(e) {
-    saveErr.textContent = 'Save failed: ' + (e.message || String(e));
+    const msg = e.message || String(e);
+    const needsSQL = msg.includes('app_settings') || msg.includes('schema cache') || msg.includes('relation') || msg.includes('does not exist');
+    if (needsSQL) {
+      saveErr.innerHTML = 'Table missing — <a href="#" onclick="document.getElementById(\'rlsNotice\').style.display=\'block\';this.closest(\'span\').style.display=\'none\';return false;" style="color:var(--red);font-weight:800;text-decoration:underline;">click here to run DB Setup SQL</a>, then try again.';
+    } else {
+      saveErr.textContent = 'Save failed: ' + msg;
+    }
     saveErr.style.display = 'inline';
   }
 }
