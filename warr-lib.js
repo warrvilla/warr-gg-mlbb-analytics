@@ -192,7 +192,7 @@ const WAuth = {
       if (typeof WDB !== 'undefined' && WDB.getSubscription) {
         const sub  = WDB.getSubscription();
         const plan = sub.plan || 'free';
-        const label = plan === 'team' ? '⚡ TEAM' : plan === 'pro' ? '✦ PRO' : 'FREE';
+        const label = plan === 'team' ? 'TEAM' : plan === 'pro' ? 'PRO' : 'FREE';
         tierTag = `<span class="wtier-badge wtier-${plan}" title="${plan.toUpperCase()} plan">${label}</span>`;
       }
       el.innerHTML = `
