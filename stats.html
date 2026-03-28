@@ -195,9 +195,11 @@ body::after {
   border: 0.5px solid rgba(255,255,255,0.07) !important;
   border-radius: 22px !important;
   box-shadow: 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07) !important;
-  overflow: hidden !important;
+  overflow: visible !important;
   position: relative !important;
 }
+/* Keep header corners clipped inside the card */
+.card-hdr { border-radius: 22px 22px 0 0 !important; overflow: hidden; }
 .card::before {
   content: '';
   position: absolute; top: 0; left: 8%; right: 8%;
@@ -732,15 +734,19 @@ WAuth.renderAuthChip('authChip');
     return;
   }
 
-  const extraTeams = (typeof WTeams !== 'undefined') ? teams.filter(n => !WTeams.all().includes(n)) : teams;
+  // Extra teams = scouted teams not in ANY season of any league (truly custom/unknown)
+  const allHistoricalTeams = (typeof WTeams !== 'undefined' && WTeams.getAllTimeTeams)
+    ? [...new Set(Object.keys(WTeams.LEAGUES).flatMap(lg => WTeams.getAllTimeTeams(lg)))]
+    : (typeof WTeams !== 'undefined' ? WTeams.all() : []);
+  const extraTeams = teams.filter(n => !allHistoricalTeams.includes(n));
 
-  // Init or refresh WTeamPicker instances
+  // Init or refresh WTeamPicker instances — allTime:true shows historical team rosters
   if (typeof WTeamPicker !== 'undefined') {
     if (!_stBluePicker) {
-      _stBluePicker = WTeamPicker.create(blueSel, { placeholder: '— Select our team —',   extraTeams, onSelect: onTeamChange });
+      _stBluePicker = WTeamPicker.create(blueSel, { placeholder: '— Select our team —',   extraTeams, onSelect: onTeamChange, allTime: true });
     } else { _stBluePicker.refresh(extraTeams); }
     if (!_stRedPicker) {
-      _stRedPicker  = WTeamPicker.create(redSel,  { placeholder: '— Select enemy team —', extraTeams, onSelect: onTeamChange });
+      _stRedPicker  = WTeamPicker.create(redSel,  { placeholder: '— Select enemy team —', extraTeams, onSelect: onTeamChange, allTime: true });
     } else { _stRedPicker.refresh(extraTeams); }
   } else {
     // Fallback: native select rebuild
@@ -859,6 +865,20 @@ function getTeamStats(name, vsOpponent=null) {
   const topFirstPick = Object.entries(fpC).sort((a,b)=>b[1]-a[1]).slice(0,5)
     .map(([n,c])=>({name:n,count:c}));
 
+  // Objective control — turtle & lord
+  let turtleWon=0, turtleTotal=0, lordWon=0, lordTotal=0;
+  allMatches.forEach(m => {
+    const isBlue = m.blueTeam === name;
+    const side   = isBlue ? 'blue' : 'red';
+    const obj    = m.objectives || {};
+    const tArr   = obj.turtle || [obj.t1, obj.t2, obj.t3].filter(Boolean);
+    const lArr   = obj.lord   || [obj.l1, obj.l2, obj.l3].filter(Boolean);
+    tArr.forEach(v => { if (v) { turtleTotal++; if (v === side) turtleWon++; } });
+    lArr.forEach(v => { if (v) { lordTotal++;   if (v === side) lordWon++;   } });
+  });
+  const turtleCtrl = turtleTotal > 0 ? Math.round(turtleWon / turtleTotal * 100) : null;
+  const lordCtrl   = lordTotal   > 0 ? Math.round(lordWon   / lordTotal   * 100) : null;
+
   // VS-opponent specific
   let vsData = null;
   if (vsOpponent) {
@@ -896,6 +916,7 @@ function getTeamStats(name, vsOpponent=null) {
     coachNotes:   t.coachNotes||'',
     leagues: t.leagues||[],
     poolDepth: t.poolDepth||0,
+    turtleCtrl, turtleTotal, lordCtrl, lordTotal,
   };
 }
 
@@ -1100,6 +1121,22 @@ function buildTeamCard(stats, side, name) {
       <div class="info-row"><span class="info-key">Red Side</span><span class="info-val">${stats.redSide>0?`${stats.redWR}% (${stats.redSide}g)`:'—'}</span></div>
       <div class="info-row"><span class="info-key">Pool Depth</span><span class="info-val">${stats.poolDepth} heroes</span></div>
       ${stats.winCondition?`<div class="info-row"><span class="info-key">Win Condition</span><span class="info-val" style="max-width:160px;text-align:right;font-size:10px;">${stats.winCondition}</span></div>`:''}
+      ${(stats.turtleCtrl!==null||stats.lordCtrl!==null)?`
+      <div style="margin-top:12px;">
+        <div class="section-label">Objective Control</div>
+        ${stats.turtleCtrl!==null?`<div class="stat-bar-row">
+          <div class="stat-bar-label">Turtle</div>
+          <div class="stat-bar-bg"><div class="stat-bar-fill" style="width:${stats.turtleCtrl}%;background:var(--neon);"></div></div>
+          <div class="stat-bar-val" style="color:var(--neon);">${stats.turtleCtrl}%</div>
+          <div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);width:28px;text-align:right;">${stats.turtleTotal}x</div>
+        </div>`:''}
+        ${stats.lordCtrl!==null?`<div class="stat-bar-row">
+          <div class="stat-bar-label">Lord</div>
+          <div class="stat-bar-bg"><div class="stat-bar-fill" style="width:${stats.lordCtrl}%;background:var(--gold);"></div></div>
+          <div class="stat-bar-val" style="color:var(--gold);">${stats.lordCtrl}%</div>
+          <div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);width:28px;text-align:right;">${stats.lordTotal}x</div>
+        </div>`:''}
+      </div>`:''}
       <div style="margin-top:12px;">
         <div class="section-label">Top Picks</div>
         ${stats.topPicks.slice(0,6).map(p => statBar(p.name, p.count, maxPick, color)).join('')}

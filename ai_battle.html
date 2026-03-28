@@ -715,6 +715,11 @@ input:focus, .search-input:focus {
   <div class="setup-card">
     <div class="card-title">Scout Data Source</div>
     <div id="scoutLBContainer" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+    <!-- Season filter row — visible only when a specific league is selected -->
+    <div id="scoutSeasonRowAB" style="display:none;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+      <span style="font-size:9px;color:var(--text3);font-weight:700;letter-spacing:.1em;text-transform:uppercase;flex-shrink:0;">Season</span>
+      <div id="scoutSeasonBtnsAB" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+    </div>
     <div id="scoutStatusAB" style="margin-top:8px;font-size:10px;color:var(--text3);"></div>
   </div>
   <div class="setup-card">
@@ -1107,6 +1112,7 @@ let _scoutTierCache = null;
 // ── SCOUT DATA ──────────────────────────────────────────
 const SCOUT_KEY_AB = 'warr_scout_data';
 let scoutLeagueAB = 'all';
+let _scoutSeasonAB = 'all'; // 'all' or a specific season name like 'Season 15'
 
 function loadScoutAB() {
   try{
@@ -1123,8 +1129,11 @@ function getScoutProfileAB(teamName) {
   const db=loadScoutAB();
   const t=db.teams[teamName];
   if(!t||!t.gamesPlayed) return null;
-  if(scoutLeagueAB!=='all'){
-    const lm=(db.matches||[]).filter(m=>m.league===scoutLeagueAB&&(m.blueTeam===teamName||m.redTeam===teamName));
+  if(scoutLeagueAB!=='all' || _scoutSeasonAB!=='all'){
+    const lm=(db.matches||[]).filter(m=>
+      (scoutLeagueAB==='all'||m.league===scoutLeagueAB) &&
+      (_scoutSeasonAB==='all'||m.season===_scoutSeasonAB) &&
+      (m.blueTeam===teamName||m.redTeam===teamName));
     if(!lm.length) return null;
     const wins=lm.filter(m=>(m.winner==='blue'&&m.blueTeam===teamName)||(m.winner==='red'&&m.redTeam===teamName)).length;
     const pc={},bc={};
@@ -1143,7 +1152,7 @@ function getScoutProfileAB(teamName) {
 function buildScoutAB(teamName) {
   const p=getScoutProfileAB(teamName);
   if(!p||p.g<1) return '';
-  const lg=scoutLeagueAB!=='all'?` [${scoutLeagueAB}]`:'';
+  const lg=[scoutLeagueAB!=='all'?scoutLeagueAB:'', _scoutSeasonAB!=='all'?_scoutSeasonAB:''].filter(Boolean).map(x=>` [${x}]`).join('');
   let s=`SCOUT${lg} — ${p.name}: ${p.g}g ${p.wr}%WR`;
   if(p.picks) s+=` | TopPicks: ${p.picks}`;
   if(p.bans)  s+=` | TopBans: ${p.bans}`;
@@ -1165,13 +1174,15 @@ function buildDeepScoutContext(teamName, label='OPPONENT SCOUT INTEL'){
   const allMatches=(db.matches||[]).filter(m=>m.blueTeam===teamName||m.redTeam===teamName);
   if(!allMatches.length) return '';
 
-  // Filter by active league if set
-  const filtered=scoutLeagueAB==='all'?allMatches:allMatches.filter(m=>m.league===scoutLeagueAB);
-  const matches=filtered.length?filtered:allMatches; // fallback to all if league filter gives nothing
+  // Filter by active league + season if set
+  const filtered=allMatches.filter(m=>
+    (scoutLeagueAB==='all'||m.league===scoutLeagueAB) &&
+    (_scoutSeasonAB==='all'||m.season===_scoutSeasonAB));
+  const matches=filtered.length?filtered:allMatches; // fallback to all if filter gives nothing
   if(!matches.length) return '';
 
   const lines=[];
-  const leagueNote=scoutLeagueAB!=='all'?` [${scoutLeagueAB}]`:'';
+  const leagueNote=[scoutLeagueAB!=='all'?scoutLeagueAB:'', _scoutSeasonAB!=='all'?_scoutSeasonAB:''].filter(Boolean).map(s=>` [${s}]`).join('');
   const wins=matches.filter(m=>(m.winner==='blue'&&m.blueTeam===teamName)||(m.winner==='red'&&m.redTeam===teamName)).length;
   const wr=Math.round(wins/matches.length*100);
 
@@ -1283,12 +1294,44 @@ function buildDeepScoutContext(teamName, label='OPPONENT SCOUT INTEL'){
 
 function setScoutLB(l) {
   scoutLeagueAB = l;
-  _renderScoutLBs(); // rebuilds buttons with correct active state
-  // Show how many games available for this filter
+  _scoutSeasonAB = 'all'; // reset season when switching league
+  _renderScoutLBs();
+  _renderSeasonRowAB();
+  _updateScoutStatusAB();
+}
+
+function _updateScoutStatusAB() {
   const db = loadScoutAB();
-  const count = l==='all' ? (db.matches||[]).length : (db.matches||[]).filter(m=>m.league===l).length;
+  const count = (db.matches||[]).filter(m =>
+    (scoutLeagueAB === 'all' || m.league === scoutLeagueAB) &&
+    (_scoutSeasonAB === 'all' || m.season === _scoutSeasonAB)
+  ).length;
   const el = document.getElementById('scoutStatusAB');
-  if(el) el.textContent = count > 0 ? `✓ ${count} game${count>1?'s':''} available` : 'No games logged for this league yet';
+  if (el) el.textContent = count > 0 ? `✓ ${count} game${count>1?'s':''} available` : 'No games for this filter yet';
+}
+
+function _renderSeasonRowAB() {
+  const row  = document.getElementById('scoutSeasonRowAB');
+  const btns = document.getElementById('scoutSeasonBtnsAB');
+  if (!row || !btns) return;
+  if (scoutLeagueAB === 'all' || typeof WTeams === 'undefined' || !WTeams.getSeasons) {
+    row.style.display = 'none';
+    return;
+  }
+  const seasons = WTeams.getSeasons(scoutLeagueAB);
+  if (!seasons.length) { row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+  btns.innerHTML =
+    `<button class="scout-lb${_scoutSeasonAB==='all'?' active':''}" onclick="setScoutSeasonAB('all')">All Seasons</button>` +
+    seasons.map(s =>
+      `<button class="scout-lb${_scoutSeasonAB===s?' active':''}" onclick="setScoutSeasonAB('${s.replace(/'/g,"\\'")}')">${s}</button>`
+    ).join('');
+}
+
+function setScoutSeasonAB(season) {
+  _scoutSeasonAB = season;
+  _renderSeasonRowAB();
+  _updateScoutStatusAB();
 }
 function loadMem(){try{const r=localStorage.getItem(MK);return r?JSON.parse(r):{}}catch(e){return{}}}
 function saveMem(m){try{localStorage.setItem(MK,JSON.stringify(m))}catch(e){}}
@@ -1411,11 +1454,14 @@ function _initABPicker() {
     onSelect: null,
   });
   _renderScoutLBs();
+  _renderSeasonRowAB();
+  _updateScoutStatusAB();
 }
 function _refreshABPicker() {
   if (!_abPicker) { _initABPicker(); return; }
   _abPicker.refresh(_getABExtraTeams());
-  _renderScoutLBs(); // re-render in case WTeams.LEAGUES updated after DB load
+  _renderScoutLBs();
+  _renderSeasonRowAB();
 }
 // Legacy alias kept so any stray references don't crash
 function updateABTeamDropdown() { _refreshABPicker(); }

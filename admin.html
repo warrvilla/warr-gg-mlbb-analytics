@@ -389,31 +389,67 @@ CREATE POLICY "Admin write app_settings" ON public.app_settings
     <div class="admin-card" id="leagueManagerCard">
       <div class="admin-section-title" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         League Manager
-        <span id="lmSaveStatus" style="font-size:10px;font-weight:600;color:var(--green);display:none;margin-left:4px;">Saved to database</span>
-        <span id="lmSaveErr"    style="font-size:10px;font-weight:600;color:var(--red);display:none;margin-left:4px;"></span>
-        <button onclick="lmSave()" style="margin-left:auto;padding:5px 18px;border-radius:8px;background:var(--accent-dim,rgba(99,102,241,.15));border:1px solid var(--accent-border,rgba(99,102,241,.3));color:var(--accent,#818cf8);font-size:11px;font-weight:700;cursor:pointer;">Save Changes</button>
-      </div>
-      <div style="font-size:11px;color:var(--text3);margin-bottom:14px;">Manage team rosters per league. Changes are saved to the database and apply to all users. Run the DB Setup SQL first if not yet done.</div>
-
-      <!-- League tabs row -->
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
-        <div id="lmLeagueTabs" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
-        <button onclick="lmAddLeague()" style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px dashed var(--border2);background:transparent;color:var(--text3);">+ League</button>
+        <span id="lmSaveStatus" style="font-size:10px;font-weight:600;color:var(--green);display:none;margin-left:4px;">Saved</span>
+        <span id="lmSaveErr" style="font-size:10px;font-weight:600;color:var(--red);display:none;margin-left:4px;"></span>
+        <button onclick="lmSave()" style="margin-left:auto;padding:5px 18px;border-radius:8px;background:rgba(129,140,248,.1);border:1px solid rgba(129,140,248,.3);color:var(--accent,#818cf8);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.04em;">Save All Changes</button>
       </div>
 
-      <!-- Team panel for selected league -->
-      <div id="lmTeamPanel" style="display:none;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:14px;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
-          <div id="lmLeagueTitle" style="font-size:13px;font-weight:800;color:var(--text);"></div>
-          <button onclick="lmRemoveLeague()" style="margin-left:auto;padding:3px 12px;border-radius:8px;background:var(--red-dim);border:1px solid var(--red-border);color:var(--red);font-size:10px;font-weight:700;cursor:pointer;">Remove League</button>
+      <div style="display:grid;grid-template-columns:200px 1fr;gap:14px;min-height:320px;" id="lmGrid">
+
+        <!-- LEFT — League sidebar -->
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.12em;color:var(--text4);margin-bottom:2px;text-transform:uppercase;">Leagues</div>
+          <div id="lmLeagueList" style="flex:1;display:flex;flex-direction:column;gap:3px;"></div>
+          <button onclick="lmAddLeague()" style="margin-top:6px;padding:8px 0;border-radius:10px;border:1.5px dashed var(--glass-border2);background:transparent;color:var(--text4);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.04em;" onmouseover="this.style.color='var(--text2)';this.style.borderColor='var(--border2)'" onmouseout="this.style.color='var(--text4)';this.style.borderColor='var(--glass-border2)'">+ New League</button>
         </div>
-        <div id="lmTeamList" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px;margin-bottom:12px;"></div>
-        <div style="display:flex;gap:6px;align-items:center;">
-          <input id="lmAddTeamInput" placeholder="Team name..." autocomplete="off"
-            style="flex:1;padding:7px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--surface);color:var(--text);font-size:12px;outline:none;"
-            onkeydown="if(event.key==='Enter')lmAddTeam()">
-          <button onclick="lmAddTeam()" style="padding:7px 16px;border-radius:8px;background:var(--blue);border:none;color:#fff;font-size:11px;font-weight:700;cursor:pointer;">Add Team</button>
+
+        <!-- RIGHT — Detail panel -->
+        <div id="lmDetailPanel" style="display:none;background:var(--surface2);border:1px solid var(--glass-border2);border-radius:14px;padding:18px 20px;flex-direction:column;gap:0;">
+
+          <!-- Row 1: label + color + remove -->
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+            <input id="lmLabelInput" type="text" placeholder="League label..."
+              style="flex:1;min-width:120px;padding:7px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--surface3);color:var(--text);font-size:14px;font-weight:700;outline:none;font-family:inherit;"
+              oninput="_lmSyncLabel()">
+            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+              <label style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.08em;">Color</label>
+              <input id="lmColorInput" type="color" value="#818cf8"
+                style="width:30px;height:30px;border-radius:6px;border:1px solid var(--border2);background:none;cursor:pointer;padding:2px;" oninput="_lmSyncColor()">
+            </div>
+            <button onclick="lmRemoveLeague()" style="padding:6px 14px;border-radius:8px;background:rgba(220,80,80,.07);border:1px solid rgba(220,80,80,.25);color:var(--red);font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;">Remove League</button>
+          </div>
+
+          <!-- Row 2: season selector + badge + new season -->
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+            <label style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;flex-shrink:0;">Season</label>
+            <select id="lmSeasonSelect" onchange="lmSelectSeason(this.value)"
+              style="padding:5px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--surface3);color:var(--text);font-size:12px;font-weight:600;font-family:inherit;outline:none;cursor:pointer;flex:1;max-width:200px;"></select>
+            <span id="lmActiveSeasonBadge" style="padding:2px 9px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:none;flex-shrink:0;">Active</span>
+            <button onclick="lmNewSeason()" style="margin-left:auto;padding:5px 14px;border-radius:8px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);color:#34d399;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;">+ New Season</button>
+          </div>
+
+          <!-- Row 3: team roster label -->
+          <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;">
+            Teams &mdash; <span id="lmRosterSeasonLabel" style="color:var(--text2);font-weight:700;"></span>
+          </div>
+
+          <!-- Row 4: team chips -->
+          <div id="lmTeamList" style="display:flex;flex-wrap:wrap;gap:6px;min-height:38px;margin-bottom:14px;"></div>
+
+          <!-- Row 5: add team input -->
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input id="lmAddTeamInput" placeholder="Team name..." autocomplete="off"
+              style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--surface3);color:var(--text);font-size:12px;outline:none;font-family:inherit;"
+              onkeydown="if(event.key==='Enter')lmAddTeam()">
+            <button onclick="lmAddTeam()" style="padding:8px 18px;border-radius:8px;background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.3);color:var(--accent,#818cf8);font-size:11px;font-weight:700;cursor:pointer;">Add Team</button>
+          </div>
         </div>
+
+        <!-- Empty state -->
+        <div id="lmEmptyState" style="display:flex;align-items:center;justify-content:center;color:var(--text4);font-size:12px;font-weight:600;letter-spacing:.04em;border:1.5px dashed var(--glass-border2);border-radius:14px;min-height:180px;">
+          Select a league to manage
+        </div>
+
       </div>
     </div>
 
@@ -927,60 +963,123 @@ async function refreshAll() {
 }
 
 // ════════════════════════════════════════════════════════════
-// LEAGUE MANAGER
+// LEAGUE MANAGER — Season-Aware
 // ════════════════════════════════════════════════════════════
-let _lmLeagues = {};
-let _lmSelected = null;
+let _lmConfig = {};      // { league: { label, color, activeSeason, seasons:{} } }
+let _lmSelected = null;  // currently selected league key
+let _lmViewSeason = null; // season being edited (may differ from activeSeason)
 
 async function lmInit() {
-  WTeams.bustCache(); // always pull fresh from DB when admin opens
+  WTeams.bustCache(); // admin always gets fresh data
   await WTeams.loadFromDB();
-  _lmLeagues = JSON.parse(JSON.stringify(WTeams.LEAGUES));
-  lmRenderTabs();
-  // Select first league automatically
-  const first = Object.keys(_lmLeagues)[0];
+  if (WTeams._config && Object.keys(WTeams._config).length) {
+    _lmConfig = JSON.parse(JSON.stringify(WTeams._config));
+  } else {
+    // Bootstrap from hardcoded LEAGUES if DB has nothing
+    _lmConfig = {};
+    Object.entries(WTeams.LEAGUES).forEach(([lg, teams]) => {
+      _lmConfig[lg] = {
+        label: lg,
+        color: WTeams._COLORS[lg] || '#818cf8',
+        activeSeason: 'Season 1',
+        seasons: { 'Season 1': [...teams] },
+      };
+    });
+  }
+  lmRenderLeagueList();
+  const first = Object.keys(_lmConfig)[0];
   if (first) lmSelectLeague(first);
 }
 
-function lmRenderTabs() {
-  const tabs = document.getElementById('lmLeagueTabs');
-  if (!tabs) return;
-  tabs.innerHTML = Object.keys(_lmLeagues).map(k => {
+function lmRenderLeagueList() {
+  const el = document.getElementById('lmLeagueList');
+  if (!el) return;
+  const keys = Object.keys(_lmConfig);
+  if (!keys.length) {
+    el.innerHTML = `<div style="font-size:11px;color:var(--text4);padding:16px 0;text-align:center;">No leagues yet</div>`;
+    return;
+  }
+  el.innerHTML = keys.map(k => {
+    const cfg = _lmConfig[k];
     const active = k === _lmSelected;
+    const dot = cfg.color || '#818cf8';
+    // Show team count from activeSeason
+    const teamCount = (cfg.seasons && cfg.seasons[cfg.activeSeason] || []).length;
+    const seasonCount = Object.keys(cfg.seasons || {}).length;
     return `<button onclick="lmSelectLeague('${k.replace(/'/g,"\\'")}')"
-      style="padding:4px 14px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;
-             border:1.5px solid ${active?'var(--accent,#818cf8)':'var(--border2)'};
-             background:${active?'var(--accent-dim,rgba(99,102,241,.15))':'transparent'};
-             color:${active?'var(--accent,#818cf8)':'var(--text2)'};">
-      ${k} <span style="opacity:.5;font-size:9px;">${(_lmLeagues[k]||[]).length}</span>
-    </button>`;
+      style="width:100%;text-align:left;padding:9px 12px;border-radius:10px;
+             border:1px solid ${active ? 'rgba(129,140,248,.4)' : 'var(--glass-border2)'};
+             background:${active ? 'rgba(129,140,248,.1)' : 'var(--surface2)'};
+             cursor:pointer;display:flex;align-items:center;gap:8px;transition:border-color .15s,background .15s;">
+        <span style="width:8px;height:8px;border-radius:50%;background:${dot};flex-shrink:0;box-shadow:0 0 6px ${dot}88;"></span>
+        <span style="flex:1;font-size:12px;font-weight:700;color:${active ? 'var(--accent,#818cf8)' : 'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${cfg.label || k}</span>
+        <span style="font-size:9px;color:var(--text4);flex-shrink:0;">${teamCount}t · ${seasonCount}s</span>
+      </button>`;
   }).join('');
 }
 
 function lmSelectLeague(key) {
   _lmSelected = key;
-  lmRenderTabs();
-  const panel = document.getElementById('lmTeamPanel');
-  if (!panel) return;
-  panel.style.display = 'block';
-  document.getElementById('lmLeagueTitle').textContent = key;
+  const cfg = _lmConfig[key];
+  if (!cfg) return;
+  _lmViewSeason = cfg.activeSeason;
+  lmRenderLeagueList();
+  // Show detail panel
+  document.getElementById('lmEmptyState').style.display = 'none';
+  const panel = document.getElementById('lmDetailPanel');
+  panel.style.display = 'flex';
+  // Fill header fields
+  document.getElementById('lmLabelInput').value = cfg.label || key;
+  document.getElementById('lmColorInput').value = cfg.color || '#818cf8';
+  // Render season selector + teams
+  lmRenderSeasonSelect();
+  lmRenderTeams();
   document.getElementById('lmAddTeamInput').value = '';
+}
+
+function lmRenderSeasonSelect() {
+  if (!_lmSelected) return;
+  const cfg = _lmConfig[_lmSelected];
+  const sel   = document.getElementById('lmSeasonSelect');
+  const badge = document.getElementById('lmActiveSeasonBadge');
+  const lbl   = document.getElementById('lmRosterSeasonLabel');
+  if (!sel || !cfg) return;
+  const seasons = Object.keys(cfg.seasons || {});
+  sel.innerHTML = seasons.map(s =>
+    `<option value="${s}"${s === _lmViewSeason ? ' selected' : ''}>${s}</option>`
+  ).join('');
+  // Active season badge
+  const isActive = _lmViewSeason === cfg.activeSeason;
+  badge.style.display = isActive ? 'inline-block' : 'none';
+  if (isActive) {
+    const c = cfg.color || '#818cf8';
+    badge.style.cssText += `;background:${c}22;color:${c};border:1px solid ${c}55;`;
+  }
+  if (lbl) lbl.textContent = _lmViewSeason || '';
+}
+
+function lmSelectSeason(season) {
+  _lmViewSeason = season;
+  lmRenderSeasonSelect();
   lmRenderTeams();
 }
 
 function lmRenderTeams() {
   const el = document.getElementById('lmTeamList');
-  if (!el) return;
-  const teams = (_lmLeagues[_lmSelected] || []).slice().sort();
+  if (!el || !_lmSelected) return;
+  const cfg = _lmConfig[_lmSelected];
+  const teams = ((cfg?.seasons || {})[_lmViewSeason] || []).slice().sort();
+  const isActive = _lmViewSeason === cfg?.activeSeason;
   if (!teams.length) {
-    el.innerHTML = `<span style="font-size:11px;color:var(--text3);">No teams yet — add one below</span>`;
+    el.innerHTML = `<span style="font-size:11px;color:var(--text4);padding:4px 0;">${isActive ? 'No teams yet — add one below' : 'No teams in this season'}</span>`;
     return;
   }
   el.innerHTML = teams.map(t =>
-    `<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px 4px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:20px;font-size:11px;font-weight:600;color:var(--text);">
+    `<div style="display:inline-flex;align-items:center;gap:4px;padding:5px 8px 5px 12px;background:var(--surface3);border:1px solid var(--glass-border2);border-radius:20px;font-size:11px;font-weight:600;color:var(--text);">
       ${t}
-      <button onclick="lmRemoveTeam('${t.replace(/'/g,"\\'")}')"
-        style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;line-height:1;padding:0;margin-left:2px;" title="Remove">x</button>
+      ${isActive ? `<button onclick="lmRemoveTeam('${t.replace(/'/g,"\\'")}') "title="Remove"
+        style="background:none;border:none;color:var(--text4);cursor:pointer;font-size:14px;line-height:1;padding:0 2px;margin-left:1px;"
+        onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text4)'">×</button>` : ''}
     </div>`
   ).join('');
 }
@@ -990,10 +1089,13 @@ function lmAddTeam() {
   if (!inp || !_lmSelected) return;
   const name = inp.value.trim();
   if (!name) return;
-  if (!_lmLeagues[_lmSelected]) _lmLeagues[_lmSelected] = [];
-  if (!_lmLeagues[_lmSelected].includes(name)) {
-    _lmLeagues[_lmSelected].push(name);
+  const cfg = _lmConfig[_lmSelected];
+  if (!cfg.seasons) cfg.seasons = {};
+  if (!cfg.seasons[_lmViewSeason]) cfg.seasons[_lmViewSeason] = [];
+  if (!cfg.seasons[_lmViewSeason].includes(name)) {
+    cfg.seasons[_lmViewSeason].push(name);
     lmRenderTeams();
+    lmRenderLeagueList();
   }
   inp.value = '';
   inp.focus();
@@ -1001,27 +1103,66 @@ function lmAddTeam() {
 
 function lmRemoveTeam(name) {
   if (!_lmSelected) return;
-  _lmLeagues[_lmSelected] = (_lmLeagues[_lmSelected] || []).filter(t => t !== name);
-  lmRenderTeams();
+  const cfg = _lmConfig[_lmSelected];
+  if (cfg?.seasons?.[_lmViewSeason]) {
+    cfg.seasons[_lmViewSeason] = cfg.seasons[_lmViewSeason].filter(t => t !== name);
+    lmRenderTeams();
+    lmRenderLeagueList();
+  }
+}
+
+function _lmSyncLabel() {
+  if (!_lmSelected) return;
+  _lmConfig[_lmSelected].label = document.getElementById('lmLabelInput').value.trim() || _lmSelected;
+  lmRenderLeagueList();
+}
+
+function _lmSyncColor() {
+  if (!_lmSelected) return;
+  _lmConfig[_lmSelected].color = document.getElementById('lmColorInput').value;
+  lmRenderLeagueList();
+  lmRenderSeasonSelect(); // update badge color
 }
 
 async function lmAddLeague() {
-  const name = prompt('New league name (e.g. MPL SG):');
+  const name = prompt('New league key (e.g. MPL SG):');
   if (!name?.trim()) return;
   const key = name.trim();
-  if (_lmLeagues[key]) { alert(`"${key}" already exists.`); return; }
-  _lmLeagues[key] = [];
-  lmRenderTabs();
+  if (_lmConfig[key]) { alert(`"${key}" already exists.`); return; }
+  const color = WTeams._COLORS[key] || '#818cf8';
+  _lmConfig[key] = { label: key, color, activeSeason: 'Season 1', seasons: { 'Season 1': [] } };
+  lmRenderLeagueList();
   lmSelectLeague(key);
 }
 
 async function lmRemoveLeague() {
   if (!_lmSelected) return;
-  if (!confirm(`Remove league "${_lmSelected}" and all its teams? This cannot be undone.`)) return;
-  delete _lmLeagues[_lmSelected];
+  const label = _lmConfig[_lmSelected]?.label || _lmSelected;
+  if (!confirm(`Remove "${label}" and all its seasons and teams?\nThis cannot be undone.`)) return;
+  delete _lmConfig[_lmSelected];
   _lmSelected = null;
-  document.getElementById('lmTeamPanel').style.display = 'none';
-  lmRenderTabs();
+  _lmViewSeason = null;
+  document.getElementById('lmDetailPanel').style.display = 'none';
+  document.getElementById('lmEmptyState').style.display = 'flex';
+  lmRenderLeagueList();
+}
+
+async function lmNewSeason() {
+  if (!_lmSelected) return;
+  const cfg = _lmConfig[_lmSelected];
+  const existing = Object.keys(cfg.seasons || {});
+  const suggested = `Season ${existing.length + 1}`;
+  const seasonName = prompt(`New season name for ${cfg.label || _lmSelected}:`, suggested);
+  if (!seasonName?.trim()) return;
+  const key = seasonName.trim();
+  if (cfg.seasons[key]) { alert(`Season "${key}" already exists.`); return; }
+  const copy = confirm(`Copy roster from "${cfg.activeSeason}" as a starting point?`);
+  cfg.seasons[key] = copy ? [...(cfg.seasons[cfg.activeSeason] || [])] : [];
+  cfg.activeSeason = key;
+  _lmViewSeason = key;
+  lmRenderLeagueList();
+  lmRenderSeasonSelect();
+  lmRenderTeams();
 }
 
 async function lmSave() {
@@ -1030,14 +1171,14 @@ async function lmSave() {
   saveErr.style.display = 'none';
   saveOk.style.display  = 'none';
   try {
-    await WTeams.saveToDB(_lmLeagues);
+    await WTeams.saveToDB(_lmConfig);
     saveOk.style.display = 'inline';
     setTimeout(() => saveOk.style.display = 'none', 3000);
   } catch(e) {
     const msg = e.message || String(e);
     const needsSQL = msg.includes('app_settings') || msg.includes('schema cache') || msg.includes('relation') || msg.includes('does not exist');
     if (needsSQL) {
-      saveErr.innerHTML = 'Table missing — <a href="#" onclick="document.getElementById(\'rlsNotice\').style.display=\'block\';this.closest(\'span\').style.display=\'none\';return false;" style="color:var(--red);font-weight:800;text-decoration:underline;">click here to run DB Setup SQL</a>, then try again.';
+      saveErr.innerHTML = 'Table missing — <a href="#" onclick="document.getElementById(\'rlsNotice\').style.display=\'block\';this.closest(\'span\').style.display=\'none\';return false;" style="color:var(--red);font-weight:800;text-decoration:underline;">run DB Setup SQL first</a>';
     } else {
       saveErr.textContent = 'Save failed: ' + msg;
     }

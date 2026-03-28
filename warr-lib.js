@@ -342,16 +342,59 @@ window.WTeams = {
   // ── DYNAMIC LEAGUE CONFIG ─────────────────────────────────────
   _CACHE_KEY: 'warr_lcfg',
   _CACHE_TTL:  5 * 60 * 1000, // 5 minutes
+  _config: null, // Season-aware config: { league: { label, color, activeSeason, seasons:{} } }
 
-  /** Load league config from Supabase. Merges with hardcoded; DB wins on overlap. */
+  // Default accent colors for known leagues (used when bootstrapping new entries)
+  _COLORS: {
+    'MPL PH': '#60a5fa', 'MPL ID': '#34d399', 'MPL MY': '#f472b6',
+    'MPL KH': '#fb923c', 'MPL SG': '#a78bfa', 'MPL MM': '#facc15',
+  },
+
+  // Derive WTeams.LEAGUES (flat) from each league's activeSeason in _config
+  _syncLeagues() {
+    if (!WTeams._config) return;
+    const configKeys = Object.keys(WTeams._config);
+    // Guard: if config came back empty from DB, keep the hardcoded fallback data intact
+    if (!configKeys.length) return;
+    configKeys.forEach(lg => {
+      const info = WTeams._config[lg];
+      WTeams.LEAGUES[lg] = (info.seasons && info.seasons[info.activeSeason]) || [];
+    });
+    // Remove leagues no longer in config
+    Object.keys(WTeams.LEAGUES).forEach(k => {
+      if (!WTeams._config[k]) delete WTeams.LEAGUES[k];
+    });
+  },
+
+  // Auto-migrate old flat { "MPL PH": [...] } format to season-aware format
+  _migrate(raw) {
+    const out = {};
+    for (const [lg, val] of Object.entries(raw)) {
+      if (Array.isArray(val)) {
+        // Old format — wrap in Season 1
+        out[lg] = {
+          label: lg,
+          color: WTeams._COLORS[lg] || '#818cf8',
+          activeSeason: 'Season 1',
+          seasons: { 'Season 1': [...val] },
+        };
+      } else if (val && typeof val === 'object' && val.seasons) {
+        out[lg] = val; // Already season-aware
+      }
+    }
+    return out;
+  },
+
+  /** Load league config from Supabase. Falls back to hardcoded LEAGUES on error. */
   async loadFromDB() {
     try {
       const raw = localStorage.getItem(WTeams._CACHE_KEY);
       if (raw) {
         const { d, t } = JSON.parse(raw);
         if (d && typeof d === 'object' && Date.now() - t < WTeams._CACHE_TTL) {
-          WTeams.LEAGUES = d;
-          return d;
+          WTeams._config = d;
+          WTeams._syncLeagues();
+          return WTeams._config;
         }
       }
       const { data, error } = await _sbClient
@@ -360,26 +403,53 @@ window.WTeams = {
         .eq('key', 'league_config')
         .maybeSingle();
       if (!error && data?.value && typeof data.value === 'object') {
-        WTeams.LEAGUES = data.value;
-        localStorage.setItem(WTeams._CACHE_KEY, JSON.stringify({ d: data.value, t: Date.now() }));
+        const val = data.value;
+        const isOld = Object.values(val).some(v => Array.isArray(v));
+        WTeams._config = isOld ? WTeams._migrate(val) : val;
+        WTeams._syncLeagues();
+        localStorage.setItem(WTeams._CACHE_KEY, JSON.stringify({ d: WTeams._config, t: Date.now() }));
+        // Auto-save migrated format back to DB
+        if (isOld) WTeams.saveToDB(WTeams._config).catch(() => {});
       }
-    } catch(e) { /* fail silently — use hardcoded */ }
-    return WTeams.LEAGUES;
+    } catch(e) { /* fail silently — use hardcoded LEAGUES */ }
+    return WTeams._config;
   },
 
-  /** Save league config to Supabase (admin only). Updates local cache too. */
-  async saveToDB(leagues) {
+  /** Save full season-aware config to Supabase (admin only). Syncs LEAGUES immediately. */
+  async saveToDB(config) {
     const { error } = await _sbClient.from('app_settings').upsert(
-      { key: 'league_config', value: leagues, updated_at: new Date().toISOString() },
+      { key: 'league_config', value: config, updated_at: new Date().toISOString() },
       { onConflict: 'key' }
     );
     if (error) throw error;
-    WTeams.LEAGUES = leagues;
-    localStorage.setItem(WTeams._CACHE_KEY, JSON.stringify({ d: leagues, t: Date.now() }));
+    WTeams._config = config;
+    WTeams._syncLeagues();
+    localStorage.setItem(WTeams._CACHE_KEY, JSON.stringify({ d: config, t: Date.now() }));
   },
 
   /** Bust local cache so next loadFromDB() hits the network. */
   bustCache() { localStorage.removeItem(WTeams._CACHE_KEY); },
+
+  // ── SEASON HELPERS ─────────────────────────────────────────────
+
+  /** All season names for a league, newest first. */
+  getSeasons(league) {
+    const cfg = WTeams._config?.[league];
+    if (!cfg?.seasons) return [];
+    return Object.keys(cfg.seasons).reverse();
+  },
+
+  /** Team roster for a specific league+season. */
+  getSeasonRoster(league, season) {
+    return [...(WTeams._config?.[league]?.seasons?.[season] || [])];
+  },
+
+  /** Every unique team ever listed in any season for a league (for historical analysis). */
+  getAllTimeTeams(league) {
+    const cfg = WTeams._config?.[league];
+    if (!cfg?.seasons) return [...(WTeams.LEAGUES[league] || [])];
+    return [...new Set(Object.values(cfg.seasons).flat())].sort();
+  },
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -457,7 +527,7 @@ window.WTeamPicker = (() => {
     // Events re-attached via delegation on the container (set once in create())
   }
 
-  function create(selectEl, { onSelect, extraTeams = [], placeholder = '— Select team —' } = {}) {
+  function create(selectEl, { onSelect, extraTeams = [], placeholder = '— Select team —', allTime = false } = {}) {
     if (!selectEl) return null;
     _injectCSS();
     _autoLoadDB();
@@ -494,7 +564,7 @@ window.WTeamPicker = (() => {
     `;
     wrap.appendChild(drop);
 
-    const st = { id, selectEl, btn, drop, placeholder, region: '', search: '', extraTeams, onSelect };
+    const st = { id, selectEl, btn, drop, placeholder, region: '', search: '', extraTeams, onSelect, allTime };
     _insts[id] = st;
 
     // Events — use delegation on .wtp-tabs so _renderTabs() can freely rebuild innerHTML
@@ -541,9 +611,27 @@ window.WTeamPicker = (() => {
     const q = (s.search || '').toLowerCase();
     const cur = s.selectEl.value;
     const leagues = (typeof WTeams !== 'undefined') ? WTeams.LEAGUES : {};
-    const knownAll = (typeof WTeams !== 'undefined') ? WTeams.all() : [];
+
+    // Resolve team list for a league — allTime shows every historical team, default shows active season
+    const _teamsFor = (lg) => {
+      if (s.allTime && typeof WTeams !== 'undefined' && WTeams.getAllTimeTeams) return WTeams.getAllTimeTeams(lg);
+      return leagues[lg] || [];
+    };
+
+    // knownAll: used to filter extraTeams so we don't double-list canonical teams
+    const knownAll = s.allTime && typeof WTeams !== 'undefined' && WTeams.getAllTimeTeams
+      ? [...new Set(Object.keys(leagues).flatMap(lg => WTeams.getAllTimeTeams(lg)))]
+      : (typeof WTeams !== 'undefined' ? WTeams.all() : []);
+
     const extras = (s.extraTeams || []).filter(n => !knownAll.includes(n));
-    const leaguesToShow = s.region ? { [s.region]: leagues[s.region] || [] } : leagues;
+
+    // leaguesToShow: for a specific tab use that league's teams; for "All" use allTime override
+    // or fall back to the original direct leagues reference (preserves original behaviour)
+    const leaguesToShow = s.region
+      ? { [s.region]: _teamsFor(s.region) }
+      : s.allTime
+        ? Object.fromEntries(Object.keys(leagues).map(lg => [lg, _teamsFor(lg)]))
+        : leagues; // original direct reference — unchanged behaviour for non-allTime pickers
 
     let html = `<div class="wtp-clear-item" data-v="">${s.placeholder}</div>`;
     for (const [lg, teams] of Object.entries(leaguesToShow)) {
@@ -559,8 +647,12 @@ window.WTeamPicker = (() => {
         html += fe.map(t => `<div class="wtp-item${t===cur?' selected':''}" data-v="${t}">${t}</div>`).join('');
       }
     }
-    const noResults = !Object.values(leaguesToShow).flat().some(t => !q || t.toLowerCase().includes(q)) && !extras.some(t => !q || t.toLowerCase().includes(q));
-    if (noResults) html += `<div class="wtp-empty">No teams found for "${s.search}"</div>`;
+    // Only show "no results" when there is actually a search query
+    if (q) {
+      const hasAny = Object.values(leaguesToShow).flat().some(t => t.toLowerCase().includes(q))
+        || extras.some(t => t.toLowerCase().includes(q));
+      if (!hasAny) html += `<div class="wtp-empty">No teams found for "${s.search}"</div>`;
+    }
 
     const list = s.drop.querySelector('.wtp-list');
     list.innerHTML = html;

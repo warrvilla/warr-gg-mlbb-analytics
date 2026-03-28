@@ -1338,6 +1338,7 @@ function _initTeamPickers() {
     _dbBluePicker = WTeamPicker.create(bSel, {
       placeholder: 'Blue Team',
       extraTeams: extra,
+      allTime: true,
       onSelect: () => { updateSeriesScore(); updateScoutBadges(); }
     });
   }
@@ -1345,6 +1346,7 @@ function _initTeamPickers() {
     _dbRedPicker = WTeamPicker.create(rSel, {
       placeholder: 'Red Team',
       extraTeams: extra,
+      allTime: true,
       onSelect: () => { updateSeriesScore(); updateScoutBadges(); }
     });
   }
