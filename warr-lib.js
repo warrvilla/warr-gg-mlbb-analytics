@@ -599,8 +599,12 @@ window.WTeamPicker = (() => {
 window.WAdmin = {
   ADMIN_EMAIL: 'wrrenvillapando@gmail.com',
 
-  // Leagues that require admin auth to write/delete
-  LOCKED_LEAGUES: ['MPL PH','MPL MY','MPL ID','MPL KH','MSC','M-Series'],
+  // Leagues that require admin auth to write/delete.
+  // Derived from WTeams.LEAGUES so any league added via admin is automatically locked.
+  get LOCKED_LEAGUES() {
+    const dynamic = (typeof WTeams !== 'undefined') ? Object.keys(WTeams.LEAGUES) : [];
+    return [...new Set([...dynamic, 'MSC', 'M-Series'])];
+  },
 
   // Check if the currently signed-in user is the admin
   isAdmin() {
@@ -637,8 +641,12 @@ const WDB = {
 
   // ── SCOUT MATCHES — public leagues shared; Scrims/Other private to creator ─────
 
-  // Leagues visible to ALL users
-  PUBLIC_LEAGUES: ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series'],
+  // Leagues visible to ALL users.
+  // Derived from WTeams.LEAGUES so any league added via admin is automatically public.
+  get PUBLIC_LEAGUES() {
+    const dynamic = (typeof WTeams !== 'undefined') ? Object.keys(WTeams.LEAGUES) : [];
+    return [...new Set([...dynamic, 'MSC', 'M-Series'])];
+  },
 
   /** Fetch scout matches — public leagues for everyone, private leagues only own */
   async loadMatches() {
