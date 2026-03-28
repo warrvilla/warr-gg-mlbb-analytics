@@ -1734,18 +1734,22 @@ function openEditMatch(id) {
 }
 
 function _buildTeamOpts(filterLeague) {
-  const existingTeams = Object.keys(DB_MODULE.getTeams());
   if (typeof WTeams !== 'undefined' && filterLeague && WTeams.LEAGUES[filterLeague]) {
-    // Filter to selected league + any extra scouted teams from that league
     const leagueTeams = WTeams.LEAGUES[filterLeague];
-    const normalized = existingTeams.map(t => WTeams.normalize(t));
-    const extra = normalized.filter(t => !leagueTeams.includes(t));
-    return [...leagueTeams, ...extra].map(t=>`<option value="${t}">${t}</option>`).join('');
+    // Extra: only teams from scouted matches that are tagged to THIS league but not in the official roster
+    const scoutedInLeague = [...new Set(
+      DB_MODULE.getMatches()
+        .filter(m => m.league === filterLeague)
+        .flatMap(m => [m.blueTeam, m.redTeam].filter(Boolean))
+        .map(t => WTeams.normalize(t))
+    )].filter(t => !leagueTeams.includes(t));
+    return [...leagueTeams, ...scoutedInLeague].map(t => `<option value="${t}">${t}</option>`).join('');
   }
-  // No filter — all WTeams + DB
+  // No league filter — show all WTeams + all scouted teams
+  const existingTeams = Object.keys(DB_MODULE.getTeams());
   const allWTeams = (typeof WTeams !== 'undefined') ? WTeams.all() : [];
   const merged = [...new Set([...allWTeams, ...existingTeams])].sort();
-  return merged.map(t=>`<option value="${t}">${t}</option>`).join('');
+  return merged.map(t => `<option value="${t}">${t}</option>`).join('');
 }
 
 function updateScoutTeamList() {
