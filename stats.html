@@ -1253,6 +1253,8 @@ Respond ONLY with JSON matching this exact schema:
   },
   "winCondition": "max 30 words",
   "watchOut": "max 15 words — biggest enemy threat",
+  "lordControl": "max 20 words — who controls Lord and how, name heroes",
+  "turtleControl": "max 20 words — who secures early Turtles and how, name heroes",
   "confidence": "high|medium|low",
   "confidenceReason": "max 12 words"
 }`;
@@ -1357,6 +1359,14 @@ function renderAIReport(r, section) {
           <div class="section-label" style="color:var(--red);">Watch Out</div>
           <div style="font-size:12px;line-height:1.65;color:var(--text);">${r.watchOut||'—'}</div>
         </div>
+        ${r.lordControl?`<div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:12px;">
+          <div class="section-label" style="color:#f59e0b;">Lord Control</div>
+          <div style="font-size:12px;line-height:1.65;color:var(--text);">${r.lordControl}</div>
+        </div>`:''}
+        ${r.turtleControl?`<div style="background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.2);border-radius:8px;padding:12px;">
+          <div class="section-label" style="color:#34d399;">Turtle Control</div>
+          <div style="font-size:12px;line-height:1.65;color:var(--text);">${r.turtleControl}</div>
+        </div>`:''}
       </div>
 
       ${r.pickStrategy?`<div style="margin-top:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;font-size:11px;color:var(--text2);line-height:1.6;"> <strong>Pick Strategy:</strong> ${r.pickStrategy}</div>`:''}

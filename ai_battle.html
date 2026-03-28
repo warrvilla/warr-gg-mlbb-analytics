@@ -137,6 +137,13 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
 .slot-hname{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .slot-role{font-size:9px;color:var(--text2);margin-top:1px;}
 .slot-lane{font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;background:var(--surface);border:1px solid var(--border);color:var(--text3);display:inline-block;margin-top:3px;}
+.wr-bar{position:absolute;bottom:0;left:0;right:0;height:2px;border-radius:0 0 7px 7px;pointer-events:none;overflow:hidden;}
+.wr-bar-fill{height:100%;border-radius:0 0 7px 7px;transition:width .3s;}
+.wr-high .wr-bar-fill{background:linear-gradient(90deg,#4ade80,#22c55e);}
+.wr-mid .wr-bar-fill{background:linear-gradient(90deg,#facc15,#eab308);}
+.wr-low .wr-bar-fill{background:linear-gradient(90deg,#f87171,#ef4444);}
+.wr-label{position:absolute;bottom:5px;right:4px;font-size:7px;font-weight:800;font-family:var(--font-mono);opacity:.75;pointer-events:none;}
+.wr-high .wr-label{color:#4ade80;}.wr-mid .wr-label{color:#facc15;}.wr-low .wr-label{color:#f87171;}
 .slot-order{position:absolute;top:4px;right:8px;font-size:9px;color:var(--text3);font-weight:600;}
 .slot-tier{font-size:11px;font-weight:700;flex-shrink:0;}
 
@@ -693,8 +700,20 @@ input:focus, .search-input:focus {
     <div class="setup-sub">1v1 vs Warr.GG AI · Powered by your scout data</div>
   </div>
   <div class="setup-card">
-    <div class="card-title">Your Name</div>
-    <input class="name-in" id="nameIn" value="You" maxlength="20" placeholder="Enter your name..."/>
+    <div class="card-title">Your Team</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+      <span style="font-size:11px;color:var(--text3);">Region:</span>
+      <select id="abRegionFilter" onchange="updateABTeamDropdown()" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer;outline:none;">
+        <option value="">All Regions</option>
+        <option value="MPL PH">MPL PH</option>
+        <option value="MPL ID">MPL ID</option>
+        <option value="MPL MY">MPL MY</option>
+        <option value="MPL KH">MPL KH</option>
+      </select>
+    </div>
+    <select class="name-in" id="nameIn" style="width:100%;font-size:13px;font-weight:700;padding:7px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer;outline:none;">
+      <option value="You">You (Custom)</option>
+    </select>
   </div>
   <div class="setup-card">
     <div class="card-title">Choose Your Side</div>
@@ -1325,6 +1344,26 @@ function recordOutcome(picks,bans,won,isHuman=false,oppPicks=[]){
   saveMem(m);
 }
 
+// ═══════ HERO SCOUT STATS (WR bars on hero cards) ═══════
+let heroScoutStatsAB = {}; // { heroName: { picks, wins, winRate } }
+function computeHeroScoutStatsAB(matches) {
+  const stats = {};
+  matches.forEach(m => {
+    [{ picks: m.bluePicks||[], won: m.winner==='blue' }, { picks: m.redPicks||[], won: m.winner==='red' }].forEach(({ picks, won }) => {
+      picks.forEach(p => {
+        const name = p.name || p; if(!name) return;
+        if(!stats[name]) stats[name] = { picks:0, wins:0 };
+        stats[name].picks++; if(won) stats[name].wins++;
+      });
+    });
+  });
+  Object.entries(stats).forEach(([n,s]) => {
+    if(s.picks >= 3) s.winRate = Math.round(s.wins/s.picks*100);
+    else delete stats[n];
+  });
+  return stats;
+}
+
 // ═══════ LANE HELPERS ═══════
 const LANE_COLORS_AB = { Gold:'#f59e0b', Mid:'#a855f7', Roam:'#22c55e', Jungle:'#ef4444', EXP:'#38bdf8', Flex:'#94a3b8' };
 const LANE_ICONS_AB  = { Gold:'GLD', Mid:'MID', Roam:'RMG', Jungle:'JGL', EXP:'EXP', Flex:'FLX' };
@@ -1359,9 +1398,22 @@ document.addEventListener('DOMContentLoaded',async()=>{
   if(typeof WDB!=='undefined'&&WDB.getAdminApiKey) await WDB.getAdminApiKey();
   updateApiKeyCard();
   updateTokenDisplay();
+  updateABTeamDropdown();
 });
 
 // ═══════ ENEMY TEAM MODE ═══════
+function updateABTeamDropdown(){
+  const region = document.getElementById('abRegionFilter')?.value || '';
+  const sel = document.getElementById('nameIn');
+  if(!sel || typeof WTeams === 'undefined') return;
+  let scoutNames = [];
+  try{ const db=loadScoutAB(); scoutNames=Object.keys(db.teams||{}); }catch(e){}
+  const normalize = n => WTeams.normalize(n);
+  const extraNames = [...new Set(scoutNames.map(normalize))];
+  const curVal = sel.value || 'You';
+  sel.innerHTML = `<option value="You">You (Custom)</option>` + WTeams.buildOptgroups(extraNames, curVal, '', region);
+}
+
 function setAIMode(m){
   aiMode=m;
   document.getElementById('mode-generic').className='opt-card'+(m==='generic'?' sel-gold':'');
@@ -1633,6 +1685,8 @@ function renderPool(){
     const displayLaneAB=(isLaneModeAB && alane!=='All') ? alane : primary;
     const pc=LANE_COLORS_AB[displayLaneAB]||'#94a3b8';
     const inPool = _abPool.has(h.name);
+    const _abWR = heroScoutStatsAB[h.name];
+    const _wrBar = _abWR ? (()=>{ const wr=_abWR.winRate; const cls=wr>=55?'wr-high':wr>=45?'wr-mid':'wr-low'; return`<div class="wr-bar ${cls}" title="WR ${wr}% · ${_abWR.picks}g"><div class="wr-bar-fill" style="width:${Math.min(100,wr)}%"></div></div><div class="wr-label ${cls}">${wr}%</div>`; })() : '';
     return`<div class="${cls}" data-id="${h.id}" ${used||locked?'data-locked="1"':''} onclick="if(!this.dataset.locked)pick(this.dataset.id)" title="${h.name} · ${h.role} · ${displayLaneAB} · ${h.tier}${inPool?' · ★ Your Pool':''}">
       <img src="${u}" class="hero-img" alt="${h.name}" onerror="if(this.dataset.t){this.src='${fb(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${iun(h)}';}">
       <div class="hero-cname">${h.name}</div><div class="hero-crole" style="color:${LANE_COLORS_AB[displayLaneAB]||'#94a3b8'}">${isLaneModeAB?displayLaneAB:h.role.split('/')[0]}</div>
@@ -1640,6 +1694,7 @@ function renderPool(){
       ${h.mp==='mustban'?'<div class="meta-badge mb-ban">BAN</div>':h.mp==='highpick'?'<div class="meta-badge mb-pick">HOT</div>':''}
       ${inPool?'<div style="position:absolute;top:3px;left:4px;font-size:9px;color:#f5c842;line-height:1;" title="In your hero pool">★</div>':''}
       ${ban?'<div class="banned-overlay">✕</div>':pick?'<div class="banned-overlay" style="background:rgba(79,142,247,.15);color:rgba(79,142,247,.7);">✓</div>':''}
+      ${_wrBar}
     </div>`;
   }
 
@@ -2604,7 +2659,7 @@ Rules (violation = bad analysis):
 - draftVerdict: 3-4 sentences naming the heroes that decide this draft and exactly why
 
 JSON only (no markdown):
-{"blueWinrate":<0-100>,"redWinrate":<0-100>,"winner":"blue|red","blueCompArchetype":"<e.g. Protect Hypercarry>","redCompArchetype":"<archetype>","blueStrengths":["<name hero + specific strength — 20w>","<name hero — 20w>","<name hero — 20w>"],"blueWeaknesses":["<named hero vulnerability — 20w>","<named — 20w>"],"redStrengths":["<name hero + specific — 20w>","<name hero — 20w>","<name hero — 20w>"],"redWeaknesses":["<named — 20w>","<named — 20w>"],"blueKeysToVictory":["<hero + specific objective action — 25w>","<hero + action — 25w>","<hero + macro — 25w>"],"redKeysToVictory":["<same depth>","<same depth>","<same depth>"],"blueTeamfight":"<full teamfight setup: initiator, CC chain order, carry positioning, follow-up — name all heroes — 40w>","redTeamfight":"<same for red — 40w>","blueObjectivePriority":"<which objectives this comp takes best and why — name heroes — 20w>","redObjectivePriority":"<same for red — 20w>","blueCounterplay":"<how blue counters red's win condition — name heroes — 20w>","redCounterplay":"<how red counters blue — 20w>","blueComposition":"<full comp: type, win condition, power spike timing, role breakdown — name heroes — 50w>","redComposition":"<same for red — 50w>","keyMatchup":"<Hero A vs Hero B — why this 1v1 decides the game — 25w>","criticalTiming":"<exact minute and what must happen — name heroes — 20w>","draftVerdict":"<3-4 sentences naming the heroes that win/lose this draft and why — 60w>","mvpHero":"<hero name>","mvpReason":"<why this hero decides the game — name synergy or counter — 20w>"}`;
+{"blueWinrate":<0-100>,"redWinrate":<0-100>,"winner":"blue|red","blueCompArchetype":"<e.g. Protect Hypercarry>","redCompArchetype":"<archetype>","blueStrengths":["<name hero + specific strength — 20w>","<name hero — 20w>","<name hero — 20w>"],"blueWeaknesses":["<named hero vulnerability — 20w>","<named — 20w>"],"redStrengths":["<name hero + specific — 20w>","<name hero — 20w>","<name hero — 20w>"],"redWeaknesses":["<named — 20w>","<named — 20w>"],"blueKeysToVictory":["<hero + specific objective action — 25w>","<hero + action — 25w>","<hero + macro — 25w>"],"redKeysToVictory":["<same depth>","<same depth>","<same depth>"],"blueTeamfight":"<full teamfight setup: initiator, CC chain order, carry positioning, follow-up — name all heroes — 40w>","redTeamfight":"<same for red — 40w>","blueObjectivePriority":"<which objectives this comp takes best and why — name heroes — 20w>","redObjectivePriority":"<same for red — 20w>","blueLordControl":"<how blue contests/secures Lord: engage tool, vision, timing — name heroes — 20w>","redLordControl":"<same for red — 20w>","blueTurtleControl":"<how blue secures early Turtles: who dives, who peels, power spike — name heroes — 20w>","redTurtleControl":"<same for red — 20w>","blueCounterplay":"<how blue counters red's win condition — name heroes — 20w>","redCounterplay":"<how red counters blue — 20w>","blueComposition":"<full comp: type, win condition, power spike timing, role breakdown — name heroes — 50w>","redComposition":"<same for red — 50w>","keyMatchup":"<Hero A vs Hero B — why this 1v1 decides the game — 25w>","criticalTiming":"<exact minute and what must happen — name heroes — 20w>","draftVerdict":"<3-4 sentences naming the heroes that win/lose this draft and why — 60w>","mvpHero":"<hero name>","mvpReason":"<why this hero decides the game — name synergy or counter — 20w>"}`;
     const d=await callClaude({model:'claude-sonnet-4-6',max_tokens:1400,messages:[{role:'user',content:prompt}]});
     const raw=(d.content||[]).map(x=>x.text||'').join('');
     const mj=raw.match(/\{[\s\S]*\}/);
@@ -2645,18 +2700,22 @@ function renderAnalysis(a,bt,rt){
       ${a.redKeysToVictory?.length?`<div style="font-size:8px;color:var(--gold);font-weight:700;margin:5px 0 2px;">Keys to Victory</div><ul style="list-style:none;padding:0;margin:0;">${li(a.redKeysToVictory)}</ul>`:''}
     </div>
   </div>
-  ${(a.blueTeamfight||a.blueObjectivePriority||a.blueCounterplay)?`
+  ${(a.blueTeamfight||a.blueObjectivePriority||a.blueCounterplay||a.blueLordControl)?`
   <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:10px;">
     <div>
       <div style="font-size:8px;font-weight:700;color:#22d3ee;letter-spacing:1px;margin-bottom:4px;">BLUE DEEP BREAKDOWN</div>
       ${deepRow('TEAMFIGHT',a.blueTeamfight,'#22d3ee')}
       ${deepRow('OBJECTIVES',a.blueObjectivePriority,'#a855f7')}
+      ${deepRow('LORD',a.blueLordControl,'#f59e0b')}
+      ${deepRow('TURTLE',a.blueTurtleControl,'#34d399')}
       ${deepRow('COUNTERPLAY',a.blueCounterplay,'#f97316')}
     </div>
     <div>
       <div style="font-size:8px;font-weight:700;color:#f87171;letter-spacing:1px;margin-bottom:4px;">RED DEEP BREAKDOWN</div>
       ${deepRow('TEAMFIGHT',a.redTeamfight,'#22d3ee')}
       ${deepRow('OBJECTIVES',a.redObjectivePriority,'#a855f7')}
+      ${deepRow('LORD',a.redLordControl,'#f59e0b')}
+      ${deepRow('TURTLE',a.redTurtleControl,'#34d399')}
       ${deepRow('COUNTERPLAY',a.redCounterplay,'#f97316')}
     </div>
   </div>`:''}
@@ -2684,12 +2743,14 @@ updateMemChip();
     await WDB.initDailyReset();
     updateTokenDisplay(); // refresh display after potential reset
   }
-  // Patch LANES_MAP with observed lanes from scout match data
+  // Load scout matches: patch LANES_MAP + compute hero WR stats for cards
   try {
+    const scoutMatches = await WDB.loadMatches();
     const scoutRoles = await WDB.computeHeroRoles(1);
-    Object.entries(scoutRoles).forEach(([hero, primaryLane]) => {
-      LANES_MAP[hero] = primaryLane;
-    });
+    Object.entries(scoutRoles).forEach(([hero, primaryLane]) => { LANES_MAP[hero] = primaryLane; });
+    heroScoutStatsAB = computeHeroScoutStatsAB(scoutMatches);
+    renderPool(); // redraw hero cards with WR badges
+    updateABTeamDropdown(); // populate team select with scout team names
   } catch(e) { /* fail silently — defaults still apply */ }
 })();
 WAuth.renderAuthChip('authChip');

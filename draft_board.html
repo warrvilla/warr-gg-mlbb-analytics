@@ -944,6 +944,18 @@ select {
   </div>
 </div>
 
+<!-- REGION FILTER — controls which league's teams appear in dropdowns -->
+<div style="max-width:1400px;margin:0 auto 10px;padding:0 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+  <span style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.5px;">REGION</span>
+  <select id="dbRegionFilter" onchange="updateTeamDropdowns()" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer;outline:none;">
+    <option value="">All Regions</option>
+    <option value="MPL PH">MPL PH</option>
+    <option value="MPL ID">MPL ID</option>
+    <option value="MPL MY">MPL MY</option>
+    <option value="MPL KH">MPL KH</option>
+  </select>
+</div>
+
 <!-- DRAFT PANELS -->
 <div class="draft-layout">
   <div class="team-panel blue-panel" id="bluePanel">
@@ -1323,10 +1335,11 @@ function updateTeamDropdowns(){
   const extraNames = [...new Set([...tendNames,...scoutNames].map(normalize))];
   const bSel = document.getElementById('blueTeamName');
   const rSel = document.getElementById('redTeamName');
+  const region = document.getElementById('dbRegionFilter')?.value || '';
   if(bSel && typeof WTeams!=='undefined')
-    bSel.innerHTML = WTeams.buildOptgroups(extraNames, normalize(bSel.value)||'Blue Team','Blue Team');
+    bSel.innerHTML = WTeams.buildOptgroups(extraNames, normalize(bSel.value)||'Blue Team','Blue Team', region);
   if(rSel && typeof WTeams!=='undefined')
-    rSel.innerHTML = WTeams.buildOptgroups(extraNames, normalize(rSel.value)||'Red Team','Red Team');
+    rSel.innerHTML = WTeams.buildOptgroups(extraNames, normalize(rSel.value)||'Red Team','Red Team', region);
 }
 function createTeamProfile(side){
   const name = document.getElementById(side+'TeamName').value.trim();
@@ -2324,7 +2337,7 @@ Rules:
 - counterplay must explain how each team counters the other's win condition
 
 JSON only, no markdown:
-{"blueWinrate":<0-100>,"redWinrate":<0-100>,"winner":"blue|red","blueCompArchetype":"<archetype e.g. Protect Hypercarry>","redCompArchetype":"<archetype>","blueScores":{"teamfight":<0-100>,"earlyGame":<0-100>,"lateGame":<0-100>,"objectiveControl":<0-100>,"pickPotential":<0-100>,"sustainability":<0-100>,"laneControl":<0-100>,"burstDamage":<0-100>},"redScores":{"teamfight":<0-100>,"earlyGame":<0-100>,"lateGame":<0-100>,"objectiveControl":<0-100>,"pickPotential":<0-100>,"sustainability":<0-100>,"laneControl":<0-100>,"burstDamage":<0-100>},"blueLaning":{"exp":"<name hero, their laner matchup, level spike timing — 25w>","gold":"<name hero, farm priority, when to fight — 25w>","mid":"<name hero, wave control, rotation timing — 25w>","jungle":"<name jungler, full jungle path, first gank target, Turtle route — 30w>","roam":"<name roamer, level 1 vision, rotation priority, engage call timing — 25w>"},"redLaning":{"exp":"<same depth>","gold":"<same depth>","mid":"<same depth>","jungle":"<same depth — name jungler, path, targets>","roam":"<same depth>"},"blueStrengths":["<hero-specific strength — name the hero — 20w>","<hero-specific strength — 20w>","<hero-specific strength — 20w>"],"blueWeaknesses":["<named hero vulnerability — 20w>","<named hero vulnerability — 20w>"],"redStrengths":["<hero-specific — 20w>","<hero-specific — 20w>","<hero-specific — 20w>"],"redWeaknesses":["<named — 20w>","<named — 20w>"],"blueKeysToVictory":["<name hero + specific objective action — 25w>","<name hero + specific action — 25w>","<name hero + macro move — 25w>"],"redKeysToVictory":["<same depth>","<same depth>","<same depth>"],"blueAvoid":["<specific mistake this comp must not make — 20w>","<specific mistake — 20w>"],"redAvoid":["<specific mistake — 20w>","<specific mistake — 20w>"],"blueTeamfight":"<describe the full teamfight setup: who initiates, CC chain order, carry positioning, follow-up — name all heroes — 50w>","redTeamfight":"<same depth for red — 50w>","blueObjectivePriority":"<which objectives this comp takes best and why — name heroes — 25w>","redObjectivePriority":"<same for red — 25w>","blueCounterplay":"<how blue counters red's win condition — name specific heroes — 25w>","redCounterplay":"<how red counters blue's win condition — 25w>","blueComposition":"<full comp description: type, win condition, power spike timing, name all roles — 50w>","redComposition":"<same for red — 50w>","keyMatchup":"<Hero A vs Hero B — explain why this 1v1 or matchup decides the game — 30w>","criticalTiming":"<the exact power spike moment in minutes and what must happen — name heroes — 25w>","banAnalysis":"<what each team's bans accomplish vs the opponent's style — name heroes — 35w>","draftVerdict":"<3-4 sentence verdict naming the heroes that win or lose this draft and why — 70w>","mvpHero":"<hero name>","mvpReason":"<why this specific hero is the game-changer — name counter or synergy — 20w>"}`;
+{"blueWinrate":<0-100>,"redWinrate":<0-100>,"winner":"blue|red","blueCompArchetype":"<archetype e.g. Protect Hypercarry>","redCompArchetype":"<archetype>","blueScores":{"teamfight":<0-100>,"earlyGame":<0-100>,"lateGame":<0-100>,"objectiveControl":<0-100>,"pickPotential":<0-100>,"sustainability":<0-100>,"laneControl":<0-100>,"burstDamage":<0-100>},"redScores":{"teamfight":<0-100>,"earlyGame":<0-100>,"lateGame":<0-100>,"objectiveControl":<0-100>,"pickPotential":<0-100>,"sustainability":<0-100>,"laneControl":<0-100>,"burstDamage":<0-100>},"blueLaning":{"exp":"<name hero, their laner matchup, level spike timing — 25w>","gold":"<name hero, farm priority, when to fight — 25w>","mid":"<name hero, wave control, rotation timing — 25w>","jungle":"<name jungler, full jungle path, first gank target, Turtle route — 30w>","roam":"<name roamer, level 1 vision, rotation priority, engage call timing — 25w>"},"redLaning":{"exp":"<same depth>","gold":"<same depth>","mid":"<same depth>","jungle":"<same depth — name jungler, path, targets>","roam":"<same depth>"},"blueStrengths":["<hero-specific strength — name the hero — 20w>","<hero-specific strength — 20w>","<hero-specific strength — 20w>"],"blueWeaknesses":["<named hero vulnerability — 20w>","<named hero vulnerability — 20w>"],"redStrengths":["<hero-specific — 20w>","<hero-specific — 20w>","<hero-specific — 20w>"],"redWeaknesses":["<named — 20w>","<named — 20w>"],"blueKeysToVictory":["<name hero + specific objective action — 25w>","<name hero + specific action — 25w>","<name hero + macro move — 25w>"],"redKeysToVictory":["<same depth>","<same depth>","<same depth>"],"blueAvoid":["<specific mistake this comp must not make — 20w>","<specific mistake — 20w>"],"redAvoid":["<specific mistake — 20w>","<specific mistake — 20w>"],"blueTeamfight":"<describe the full teamfight setup: who initiates, CC chain order, carry positioning, follow-up — name all heroes — 50w>","redTeamfight":"<same depth for red — 50w>","blueObjectivePriority":"<which objectives this comp takes best and why — name heroes — 25w>","redObjectivePriority":"<same for red — 25w>","blueLordControl":"<how blue contests or secures Lord: engage tool, vision control, timing — name heroes — 20w>","redLordControl":"<same for red — 20w>","blueTurtleControl":"<how blue secures early Turtles: who dives, who peels, power spike — name heroes — 20w>","redTurtleControl":"<same for red — 20w>","blueCounterplay":"<how blue counters red's win condition — name specific heroes — 25w>","redCounterplay":"<how red counters blue's win condition — 25w>","blueComposition":"<full comp description: type, win condition, power spike timing, name all roles — 50w>","redComposition":"<same for red — 50w>","keyMatchup":"<Hero A vs Hero B — explain why this 1v1 or matchup decides the game — 30w>","criticalTiming":"<the exact power spike moment in minutes and what must happen — name heroes — 25w>","banAnalysis":"<what each team's bans accomplish vs the opponent's style — name heroes — 35w>","draftVerdict":"<3-4 sentence verdict naming the heroes that win or lose this draft and why — 70w>","mvpHero":"<hero name>","mvpReason":"<why this specific hero is the game-changer — name counter or synergy — 20w>"}`;
 
   const el = document.getElementById('analysisSection');
   el.style.display = 'block';
@@ -2479,6 +2492,8 @@ function renderAnalysis(a,bt,rt,partial=false){
     const avoid=b?a.blueAvoid:a.redAvoid;
     const teamfight=b?a.blueTeamfight:a.redTeamfight;
     const objPrio=b?a.blueObjectivePriority:a.redObjectivePriority;
+    const lordCtrl=b?a.blueLordControl:a.redLordControl;
+    const turtleCtrl=b?a.blueTurtleControl:a.redTurtleControl;
     const counter=b?a.blueCounterplay:a.redCounterplay;
     const icon=b?'[B]':'[R]';
     const li=(items,dot,marker)=>(items||[]).map(s=>`<li style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.65;list-style:none;"><span style="color:${dot};flex-shrink:0;font-size:9px;margin-top:3px;">${marker}</span><span>${s}</span></li>`).join('');
@@ -2505,9 +2520,11 @@ function renderAnalysis(a,bt,rt,partial=false){
         <ul style="list-style:none;padding:0;margin:0 0 4px;">${li(weak,'#ff5577','▶')}</ul>
         ${sectionHd('','KEYS TO VICTORY','#ffd700')}
         <ul style="list-style:none;padding:0;margin:0 0 4px;">${li(keys,'#ffd700','▶')}</ul>
-        ${teamfight||objPrio||counter?`${sectionHd('','DEEP BREAKDOWN','#22d3ee')}
+        ${teamfight||objPrio||lordCtrl||turtleCtrl||counter?`${sectionHd('','DEEP BREAKDOWN','#22d3ee')}
         ${infoRow('TEAMFIGHT',teamfight,'#22d3ee')}
         ${infoRow('OBJECTIVES',objPrio,'#a855f7')}
+        ${infoRow('LORD',lordCtrl,'#f59e0b')}
+        ${infoRow('TURTLE',turtleCtrl,'#34d399')}
         ${infoRow('COUNTERPLAY',counter,'#f97316')}`:''}
         ${sectionHd('','WHAT TO AVOID','#aa55ff')}
         <ul style="list-style:none;padding:0;margin:0;">${li(avoid,'#aa55ff','▶')}</ul>

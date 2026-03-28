@@ -1731,11 +1731,29 @@ function openEditMatch(id) {
   _openMatchModal(m);
 }
 
-function _openMatchModal(m) {
+function _buildTeamOpts(filterLeague) {
   const existingTeams = Object.keys(DB_MODULE.getTeams());
+  if (typeof WTeams !== 'undefined' && filterLeague && WTeams.LEAGUES[filterLeague]) {
+    // Filter to selected league + any extra scouted teams from that league
+    const leagueTeams = WTeams.LEAGUES[filterLeague];
+    const normalized = existingTeams.map(t => WTeams.normalize(t));
+    const extra = normalized.filter(t => !leagueTeams.includes(t));
+    return [...leagueTeams, ...extra].map(t=>`<option value="${t}">${t}</option>`).join('');
+  }
+  // No filter — all WTeams + DB
   const allWTeams = (typeof WTeams !== 'undefined') ? WTeams.all() : [];
-  const mergedTeams = [...new Set([...allWTeams, ...existingTeams])].sort();
-  const teamOpts = mergedTeams.map(t => `<option value="${t}">${t}</option>`).join('');
+  const merged = [...new Set([...allWTeams, ...existingTeams])].sort();
+  return merged.map(t=>`<option value="${t}">${t}</option>`).join('');
+}
+
+function updateScoutTeamList() {
+  const league = document.getElementById('mf-league')?.value || '';
+  const dl = document.getElementById('teamList');
+  if (dl) dl.innerHTML = _buildTeamOpts(league);
+}
+
+function _openMatchModal(m) {
+  const teamOpts = _buildTeamOpts(m.league || '');
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -1757,7 +1775,7 @@ function _openMatchModal(m) {
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">League</label>
-              <select class="form-select" id="mf-league" onchange="checkLeagueAdminLock(this.value)">
+              <select class="form-select" id="mf-league" onchange="checkLeagueAdminLock(this.value);updateScoutTeamList()">
                 ${LEAGUES.map(l=>`<option value="${l}" ${m.league===l?'selected':''}>${l}</option>`).join('')}
               </select>
               <div id="leagueAdminWarning" style="display:none;margin-top:5px;font-size:10px;color:var(--gold);background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:6px;padding:5px 10px;">

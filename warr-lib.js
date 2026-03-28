@@ -277,19 +277,23 @@ window.WTeams = {
   // extraNames = additional names from scout data not in LEAGUES
   // currentVal = pre-selected value
   // defaultLabel = first blank option label
-  buildOptgroups(extraNames = [], currentVal = '', defaultLabel = '— Select team —') {
+  // filterLeague = 'MPL PH' | 'MPL ID' | 'MPL MY' | 'MPL KH' | '' (all)
+  buildOptgroups(extraNames = [], currentVal = '', defaultLabel = '— Select team —', filterLeague = '') {
     const sel = v => v === currentVal ? ' selected' : '';
-    // Group extras by league or put in 'Custom Teams'
     const knownAll = WTeams.all();
     const extras = extraNames.filter(n => !knownAll.includes(n) && n && n !== defaultLabel);
 
     let html = `<option value="">${defaultLabel}</option>`;
-    for (const [lg, teams] of Object.entries(WTeams.LEAGUES)) {
+    const leagues = filterLeague
+      ? Object.entries(WTeams.LEAGUES).filter(([lg]) => lg === filterLeague)
+      : Object.entries(WTeams.LEAGUES);
+    for (const [lg, teams] of leagues) {
       html += `<optgroup label="${lg}">`;
       html += teams.map(t => `<option value="${t}"${sel(t)}>${t}</option>`).join('');
       html += `</optgroup>`;
     }
-    if (extras.length) {
+    // Only show extras when not filtering (they'd be from other regions or custom)
+    if (!filterLeague && extras.length) {
       html += `<optgroup label="Other / Custom">`;
       html += extras.sort().map(t => `<option value="${t}"${sel(t)}>${t}</option>`).join('');
       html += `</optgroup>`;

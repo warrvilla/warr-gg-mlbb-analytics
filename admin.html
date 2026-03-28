@@ -277,7 +277,10 @@ table.users-table {
         <div class="admin-title">Admin Panel</div>
         <div class="admin-subtitle">Warr.GG — User & Subscription Management</div>
       </div>
-      <div style="display:flex;gap:8px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button onclick="document.getElementById('rlsNotice').style.display='block'" style="padding:9px 20px;border-radius:10px;background:var(--surface3);border:1px solid rgba(96,165,250,.4);color:#60a5fa;font-size:12px;cursor:pointer;font-weight:600;">
+          DB Setup SQL
+        </button>
         <button onclick="document.getElementById('diagPanel').style.display='block';runDiagnostic();" style="padding:9px 20px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:#fbbf24;font-size:12px;cursor:pointer;font-weight:600;">
           Diagnostics
         </button>
@@ -296,10 +299,13 @@ table.users-table {
       <div id="diagBox" style="font-family:monospace;background:rgba(0,0,0,.3);border-radius:6px;padding:10px;min-height:40px;"></div>
     </div>
 
-    <!-- RLS SETUP NOTICE — shown only when users count is 0 or error -->
-    <div id="rlsNotice" style="display:none;margin-bottom:16px;padding:14px 18px;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.3);border-radius:10px;">
-      <div style="font-size:13px;font-weight:700;color:#f87171;margin-bottom:6px;">No users found — Supabase RLS policy needed</div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Run this SQL in your <a href="https://supabase.com/dashboard" target="_blank" style="color:#60a5fa;">Supabase SQL Editor</a> to allow admin to read all profiles:</div>
+    <!-- RLS SETUP NOTICE — toggleable via "DB Setup SQL" button or auto-shown when users=0 -->
+    <div id="rlsNotice" style="display:none;margin-bottom:16px;padding:14px 18px;background:rgba(15,23,42,.7);border:1px solid rgba(96,165,250,.3);border-radius:10px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:700;color:#60a5fa;">Supabase DB Setup SQL</div>
+        <button onclick="document.getElementById('rlsNotice').style.display='none'" style="margin-left:auto;background:transparent;border:none;color:var(--text3);font-size:13px;cursor:pointer;">✕</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Run this in your <a href="https://supabase.com/dashboard" target="_blank" style="color:#60a5fa;">Supabase SQL Editor</a>. Fixes: RLS policy, email/name display, auto-profile trigger. <strong>Safe to re-run anytime.</strong></div>
       <pre id="rlsSqlBox" style="font-size:11px;background:rgba(0,0,0,.35);border:1px solid var(--border2);border-radius:6px;padding:12px;overflow-x:auto;color:#a5f3fc;white-space:pre;margin:0 0 10px;">-- Drop old restrictive SELECT policy (if any)
 DROP POLICY IF EXISTS "Users read own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Admin reads all profiles" ON public.profiles;
@@ -312,16 +318,56 @@ CREATE POLICY "Users read own profile" ON public.profiles
   );
 
 -- Also ensure write policies exist
-CREATE POLICY IF NOT EXISTS "Users insert own profile" ON public.profiles
+DROP POLICY IF EXISTS "Users insert own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users update own profile" ON public.profiles;
+CREATE POLICY "Users insert own profile" ON public.profiles
   FOR INSERT WITH CHECK (auth.uid() = id);
-CREATE POLICY IF NOT EXISTS "Users update own profile" ON public.profiles
+CREATE POLICY "Users update own profile" ON public.profiles
   FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
--- Ensure required columns exist
+-- Ensure required columns exist (including email + display_name)
 ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS email text,
+  ADD COLUMN IF NOT EXISTS display_name text,
   ADD COLUMN IF NOT EXISTS tokens_used integer DEFAULT 0,
   ADD COLUMN IF NOT EXISTS token_reset_date text DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS plan text DEFAULT 'free';</pre>
+  ADD COLUMN IF NOT EXISTS plan text DEFAULT 'free';
+
+-- Backfill email + display_name from auth.users
+UPDATE public.profiles p
+SET
+  email = u.email,
+  display_name = COALESCE(
+    p.display_name,
+    u.raw_user_meta_data->>'full_name',
+    u.raw_user_meta_data->>'name',
+    split_part(u.email, '@', 1)
+  )
+FROM auth.users u
+WHERE p.id = u.id;
+
+-- Update trigger so new signups auto-get email + display_name
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, display_name, created_at)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', split_part(NEW.email,'@',1)),
+    now()
+  )
+  ON CONFLICT (id) DO UPDATE
+    SET email = EXCLUDED.email,
+        display_name = COALESCE(EXCLUDED.display_name, public.profiles.display_name);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION handle_new_user();</pre>
       <button onclick="navigator.clipboard.writeText(document.getElementById('rlsSqlBox').textContent).then(()=>alert('Copied! Paste in Supabase SQL Editor → Run.'))" style="padding:6px 16px;background:var(--blue);border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">Copy SQL</button>
     </div>
 
