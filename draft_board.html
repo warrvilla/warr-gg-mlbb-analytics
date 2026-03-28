@@ -944,18 +944,6 @@ select {
   </div>
 </div>
 
-<!-- REGION FILTER — controls which league's teams appear in dropdowns -->
-<div style="max-width:1400px;margin:0 auto 10px;padding:0 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-  <span style="font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.5px;">REGION</span>
-  <select id="dbRegionFilter" onchange="updateTeamDropdowns()" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer;outline:none;">
-    <option value="">All Regions</option>
-    <option value="MPL PH">MPL PH</option>
-    <option value="MPL ID">MPL ID</option>
-    <option value="MPL MY">MPL MY</option>
-    <option value="MPL KH">MPL KH</option>
-  </select>
-</div>
-
 <!-- DRAFT PANELS -->
 <div class="draft-layout">
   <div class="team-panel blue-panel" id="bluePanel">
@@ -1325,21 +1313,41 @@ function rc(r){const m={'MM':'#f59e0b','Mage':'#a855f7','Tank':'#3b82f6','Fighte
 function tc(t){return{S:'#f59e0b',A:'#9ca3af',B:'#b45309',C:'#4b5563'}[t]||'#4b5563';}
 function sideNames(){return{bt:document.getElementById('blueTeamName').value.trim()||'Blue Team',rt:document.getElementById('redTeamName').value.trim()||'Red Team'};}
 function teamHasTendency(name){ return !!TEAM_TENDENCIES[name]; }
-function updateTeamDropdowns(){
-  // Merge names from TEAM_TENDENCIES (Excel) + Scout DB + WTeams registry
+// Picker instances for blue/red team selects
+let _dbBluePicker = null, _dbRedPicker = null;
+
+function _getExtraTeamNames() {
   const tendNames = Object.keys(TEAM_TENDENCIES);
   let scoutNames = [];
   try { scoutNames = Object.keys(loadScoutDB().teams||{}); } catch(e){}
-  // Normalize all names via alias map
   const normalize = n => (typeof WTeams!=='undefined' ? WTeams.normalize(n) : n);
-  const extraNames = [...new Set([...tendNames,...scoutNames].map(normalize))];
+  return [...new Set([...tendNames,...scoutNames].map(normalize))];
+}
+
+function updateTeamDropdowns(){
+  const extra = _getExtraTeamNames();
+  if (_dbBluePicker) _dbBluePicker.refresh(extra);
+  if (_dbRedPicker)  _dbRedPicker.refresh(extra);
+}
+
+function _initTeamPickers() {
+  const extra = _getExtraTeamNames();
   const bSel = document.getElementById('blueTeamName');
   const rSel = document.getElementById('redTeamName');
-  const region = document.getElementById('dbRegionFilter')?.value || '';
-  if(bSel && typeof WTeams!=='undefined')
-    bSel.innerHTML = WTeams.buildOptgroups(extraNames, normalize(bSel.value)||'Blue Team','Blue Team', region);
-  if(rSel && typeof WTeams!=='undefined')
-    rSel.innerHTML = WTeams.buildOptgroups(extraNames, normalize(rSel.value)||'Red Team','Red Team', region);
+  if (bSel && typeof WTeamPicker !== 'undefined') {
+    _dbBluePicker = WTeamPicker.create(bSel, {
+      placeholder: 'Blue Team',
+      extraTeams: extra,
+      onSelect: () => { updateSeriesScore(); updateScoutBadges(); }
+    });
+  }
+  if (rSel && typeof WTeamPicker !== 'undefined') {
+    _dbRedPicker = WTeamPicker.create(rSel, {
+      placeholder: 'Red Team',
+      extraTeams: extra,
+      onSelect: () => { updateSeriesScore(); updateScoutBadges(); }
+    });
+  }
 }
 function createTeamProfile(side){
   const name = document.getElementById(side+'TeamName').value.trim();
@@ -4455,8 +4463,8 @@ function _restoreDraftSnapshot(snap) {
   // Restore team names
   const bInput = document.getElementById('blueTeamName');
   const rInput = document.getElementById('redTeamName');
-  if (bInput) bInput.value = snap.blueTeamName || 'Blue Team';
-  if (rInput) rInput.value = snap.redTeamName  || 'Red Team';
+  if (bInput) { bInput.value = snap.blueTeamName || 'Blue Team'; if (_dbBluePicker) _dbBluePicker.sync(); }
+  if (rInput) { rInput.value = snap.redTeamName  || 'Red Team';  if (_dbRedPicker)  _dbRedPicker.sync(); }
   // Restore state
   state = snap.state || {currentStep:0, blueBans:[], redBans:[], bluePicks:[], redPicks:[], history:[]};
   laneAssignments = snap.laneAssignments || {};
@@ -4650,6 +4658,7 @@ function computeHeroScoutStats(matches) {
 WAuth.renderAuthChip('authChip');
 
 init();
+_initTeamPickers(); // replace native selects with custom pickers after DOM ready
 updateApiKeyStatus();
 updateDBTokenDisplay();
 </script>

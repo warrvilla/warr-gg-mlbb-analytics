@@ -527,15 +527,13 @@ select:focus, input:focus {
       <div class="setup-grid">
         <div>
           <div class="form-label" id="ourSideLabel" style="color:var(--blue);">Blue Side (Us)</div>
-          <select id="blueTeamSel" style="width:100%;" onchange="onTeamChange()">
-            <option value="">— Select our team —</option>
-          </select>
+          <!-- WTeamPicker replaces native select -->
+          <select id="blueTeamSel" style="display:none"><option value="">— Select our team —</option></select>
         </div>
         <div>
           <div class="form-label" id="enemySideLabel" style="color:var(--red);">Red Side (Enemy)</div>
-          <select id="redTeamSel" style="width:100%;" onchange="onTeamChange()">
-            <option value="">— Select enemy team —</option>
-          </select>
+          <!-- WTeamPicker replaces native select -->
+          <select id="redTeamSel" style="display:none"><option value="">— Select enemy team —</option></select>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;">
           <button class="btn btn-accent" onclick="generateReport()" id="generateBtn" disabled>Generate</button>
@@ -569,6 +567,7 @@ let DB = {matches:[], teams:{}};
 let patchSuggestions = {};
 let _reportLeagueFilter = 'all';
 let _ourSide = 'blue'; // which side WE are playing — affects AI report perspective
+let _stBluePicker = null, _stRedPicker = null; // WTeamPicker instances
 
 function setOurSide(side) {
   _ourSide = side;
@@ -731,16 +730,27 @@ WAuth.renderAuthChip('authChip');
     return;
   }
 
-  // Use regional optgroups if WTeams available
-  if (typeof WTeams !== 'undefined') {
-    const extraTeams = teams.filter(n => !WTeams.all().includes(n));
-    blueSel.innerHTML = WTeams.buildOptgroups(extraTeams, '', '— Select our team —');
-    redSel.innerHTML  = WTeams.buildOptgroups(extraTeams, '', '— Select enemy team —');
+  const extraTeams = (typeof WTeams !== 'undefined') ? teams.filter(n => !WTeams.all().includes(n)) : teams;
+
+  // Init or refresh WTeamPicker instances
+  if (typeof WTeamPicker !== 'undefined') {
+    if (!_stBluePicker) {
+      _stBluePicker = WTeamPicker.create(blueSel, { placeholder: '— Select our team —',   extraTeams, onSelect: onTeamChange });
+    } else { _stBluePicker.refresh(extraTeams); }
+    if (!_stRedPicker) {
+      _stRedPicker  = WTeamPicker.create(redSel,  { placeholder: '— Select enemy team —', extraTeams, onSelect: onTeamChange });
+    } else { _stRedPicker.refresh(extraTeams); }
   } else {
-    teams.forEach(name => {
-      const o1 = document.createElement('option'); o1.value = name; o1.textContent = name; blueSel.appendChild(o1);
-      const o2 = document.createElement('option'); o2.value = name; o2.textContent = name; redSel.appendChild(o2);
-    });
+    // Fallback: native select rebuild
+    if (typeof WTeams !== 'undefined') {
+      blueSel.innerHTML = WTeams.buildOptgroups(extraTeams, '', '— Select our team —');
+      redSel.innerHTML  = WTeams.buildOptgroups(extraTeams, '', '— Select enemy team —');
+    } else {
+      teams.forEach(name => {
+        const o1 = document.createElement('option'); o1.value = name; o1.textContent = name; blueSel.appendChild(o1);
+        const o2 = document.createElement('option'); o2.value = name; o2.textContent = name; redSel.appendChild(o2);
+      });
+    }
   }
 
   // Build league filter pills

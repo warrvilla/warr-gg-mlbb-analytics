@@ -170,16 +170,37 @@ const WAuth = {
   async renderAuthChip(containerId = 'authChip') {
     // init() is a no-op if already called
     if (!this._user) await this.init();
+    // Inject tier badge CSS once
+    if (!document.getElementById('_wtier-css')) {
+      const s = document.createElement('style');
+      s.id = '_wtier-css';
+      s.textContent = `
+        .wtier-badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;line-height:1;}
+        .wtier-free{background:rgba(148,163,184,.1);color:#94a3b8;border:1px solid rgba(148,163,184,.18);}
+        .wtier-pro{background:var(--accent-dim,rgba(99,102,241,.15));color:var(--accent,#818cf8);border:1px solid var(--accent-border,rgba(99,102,241,.3));}
+        .wtier-team{background:var(--gold-dim,rgba(245,158,11,.12));color:var(--gold,#f59e0b);border:1px solid var(--gold-border,rgba(245,158,11,.25));}
+      `;
+      document.head.appendChild(s);
+    }
     const el = document.getElementById(containerId);
     if (!el) return;
     if (this._user) {
       const name     = this.getDisplayName();
       const teamTag  = this._profile?.team_name ? `<span class="wauth-team">${this._profile.team_name}</span>` : '';
+      // Subscription tier badge
+      let tierTag = '';
+      if (typeof WDB !== 'undefined' && WDB.getSubscription) {
+        const sub  = WDB.getSubscription();
+        const plan = sub.plan || 'free';
+        const label = plan === 'team' ? '⚡ TEAM' : plan === 'pro' ? '✦ PRO' : 'FREE';
+        tierTag = `<span class="wtier-badge wtier-${plan}" title="${plan.toUpperCase()} plan">${label}</span>`;
+      }
       el.innerHTML = `
         <div class="wauth-chip">
           <div class="wauth-dot"></div>
           <span class="wauth-name" title="${this._user.email}">${name}</span>
           ${teamTag}
+          ${tierTag}
           <button class="wauth-out" onclick="WAuth.signOut().then(()=>location.href='auth.html')">Sign Out</button>
         </div>`;
     } else {
@@ -318,6 +339,197 @@ window.WTeams = {
     return db;
   },
 };
+
+// ═══════════════════════════════════════════════════════════════
+// TEAM PICKER — custom dropdown replacing native <select>
+// Usage: const p = WTeamPicker.create(selectElement, { onSelect, extraTeams })
+//        p.setValue('Team Name')  — set value programmatically
+//        p.sync()                 — re-read selectEl.value and refresh button
+//        p.refresh(extraTeams)   — update extra teams list
+// ═══════════════════════════════════════════════════════════════
+window.WTeamPicker = (() => {
+  const FLAGS = { 'MPL PH':'🇵🇭', 'MPL ID':'🇮🇩', 'MPL MY':'🇲🇾', 'MPL KH':'🇰🇭' };
+  const REGION_TABS = [
+    { k:'', label:'All' },
+    { k:'MPL PH', label:'🇵🇭 PH' },
+    { k:'MPL ID', label:'🇮🇩 ID' },
+    { k:'MPL MY', label:'🇲🇾 MY' },
+    { k:'MPL KH', label:'🇰🇭 KH' },
+  ];
+
+  let _cssInjected = false;
+  function _injectCSS() {
+    if (_cssInjected) return; _cssInjected = true;
+    const s = document.createElement('style');
+    s.textContent = `
+.wtp-wrap{position:relative;display:inline-block;}
+.wtp-btn{display:flex;align-items:center;gap:6px;padding:5px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--surface2);color:var(--text);cursor:pointer;font-size:13px;font-weight:700;min-width:150px;max-width:210px;transition:border-color .15s,box-shadow .15s;outline:none;text-align:left;}
+.wtp-btn:hover{border-color:var(--accent);}
+.wtp-btn.open{border-color:var(--accent);box-shadow:0 0 0 2px rgba(168,136,204,.2);}
+.wtp-btn-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.wtp-btn-arrow{font-size:8px;color:var(--text3);transition:transform .15s;flex-shrink:0;}
+.wtp-btn.open .wtp-btn-arrow{transform:rotate(180deg);}
+.wtp-drop{position:absolute;top:calc(100% + 6px);left:0;z-index:9000;background:var(--surface);border:1px solid var(--border2);border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.55);width:250px;display:none;overflow:hidden;}
+.wtp-drop.open{display:flex;flex-direction:column;}
+.wtp-search-wrap{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;}
+.wtp-search-icon{color:var(--text3);font-size:11px;flex-shrink:0;}
+.wtp-search{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:12px;font-family:inherit;}
+.wtp-search::placeholder{color:var(--text3);}
+.wtp-tabs{display:flex;gap:4px;padding:8px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap;background:rgba(0,0,0,.12);}
+.wtp-tab{padding:3px 9px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;letter-spacing:.5px;transition:all .12s;}
+.wtp-tab:hover{border-color:var(--text2);color:var(--text2);}
+.wtp-tab.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+.wtp-list{max-height:210px;overflow-y:auto;}
+.wtp-list::-webkit-scrollbar{width:4px;}
+.wtp-list::-webkit-scrollbar-track{background:transparent;}
+.wtp-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.wtp-section-hd{padding:5px 12px 3px;font-size:8px;font-weight:700;color:var(--text3);letter-spacing:2px;background:rgba(0,0,0,.15);border-bottom:1px solid rgba(255,255,255,.04);}
+.wtp-item{padding:9px 14px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);border-bottom:1px solid rgba(255,255,255,.03);transition:background .1s,color .1s;display:flex;align-items:center;gap:6px;}
+.wtp-item:hover{background:var(--surface2);color:var(--text);}
+.wtp-item.selected{color:var(--accent);}
+.wtp-item-flag{font-size:11px;flex-shrink:0;}
+.wtp-empty{padding:16px;font-size:11px;color:var(--text3);text-align:center;}
+.wtp-clear-item{padding:8px 14px;cursor:pointer;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);transition:background .1s;}
+.wtp-clear-item:hover{background:var(--surface2);color:var(--text);}
+    `;
+    document.head.appendChild(s);
+  }
+
+  const _insts = {};
+
+  function create(selectEl, { onSelect, extraTeams = [], placeholder = '— Select team —' } = {}) {
+    if (!selectEl) return null;
+    _injectCSS();
+
+    const id = selectEl.id || ('wtp_' + Math.random().toString(36).slice(2, 8));
+    selectEl.style.display = 'none';
+
+    // Wrapper
+    const wrap = document.createElement('div');
+    wrap.className = 'wtp-wrap';
+    wrap.dataset.wtpId = id;
+    selectEl.parentNode.insertBefore(wrap, selectEl);
+    wrap.appendChild(selectEl);
+
+    // Trigger button
+    const btn = document.createElement('button');
+    btn.className = 'wtp-btn';
+    btn.type = 'button';
+    btn.innerHTML = `<span class="wtp-btn-name">${selectEl.value || placeholder}</span><span class="wtp-btn-arrow">▾</span>`;
+    wrap.insertBefore(btn, selectEl);
+
+    // Dropdown panel
+    const drop = document.createElement('div');
+    drop.className = 'wtp-drop';
+    drop.innerHTML = `
+      <div class="wtp-search-wrap">
+        <span class="wtp-search-icon">⌕</span>
+        <input class="wtp-search" placeholder="Search team..." autocomplete="off" spellcheck="false">
+      </div>
+      <div class="wtp-tabs">
+        ${REGION_TABS.map(t => `<button class="wtp-tab${t.k===''?' active':''}" data-r="${t.k}" type="button">${t.label}</button>`).join('')}
+      </div>
+      <div class="wtp-list"></div>
+    `;
+    wrap.appendChild(drop);
+
+    const st = { id, selectEl, btn, drop, placeholder, region: '', search: '', extraTeams, onSelect };
+    _insts[id] = st;
+
+    // Events
+    btn.addEventListener('click', e => { e.stopPropagation(); _toggle(id); });
+    drop.querySelector('.wtp-search').addEventListener('input', e => { st.search = e.target.value; _renderList(id); });
+    drop.querySelectorAll('.wtp-tab').forEach(t => t.addEventListener('click', e => {
+      e.stopPropagation(); st.region = t.dataset.r; drop.querySelector('.wtp-search').value = ''; st.search = ''; _renderList(id);
+    }));
+    document.addEventListener('click', e => { if (!wrap.contains(e.target)) _close(id); });
+    window.addEventListener('keydown', e => { if (e.key === 'Escape') _close(id); });
+
+    _renderList(id);
+    return {
+      setValue(v) { _setValue(id, v); },
+      sync() { _sync(id); },
+      refresh(extra) { if (extra) st.extraTeams = extra; _renderList(id); },
+    };
+  }
+
+  function _toggle(id) {
+    const s = _insts[id]; if (!s) return;
+    const isOpen = s.drop.classList.contains('open');
+    Object.keys(_insts).forEach(k => { if (k !== id) _close(k); });
+    if (isOpen) _close(id); else _open(id);
+  }
+
+  function _open(id) {
+    const s = _insts[id]; if (!s) return;
+    s.drop.classList.add('open');
+    s.btn.classList.add('open');
+    setTimeout(() => s.drop.querySelector('.wtp-search')?.focus(), 30);
+  }
+
+  function _close(id) {
+    const s = _insts[id]; if (!s) return;
+    s.drop.classList.remove('open');
+    s.btn.classList.remove('open');
+  }
+
+  function _renderList(id) {
+    const s = _insts[id]; if (!s) return;
+    s.drop.querySelectorAll('.wtp-tab').forEach(t => t.classList.toggle('active', t.dataset.r === s.region));
+    const q = (s.search || '').toLowerCase();
+    const cur = s.selectEl.value;
+    const leagues = (typeof WTeams !== 'undefined') ? WTeams.LEAGUES : {};
+    const knownAll = (typeof WTeams !== 'undefined') ? WTeams.all() : [];
+    const extras = (s.extraTeams || []).filter(n => !knownAll.includes(n));
+    const leaguesToShow = s.region ? { [s.region]: leagues[s.region] || [] } : leagues;
+    const leagueOf = n => { for (const [lg, ts] of Object.entries(leagues)) if (ts.includes(n)) return lg; return null; };
+
+    let html = `<div class="wtp-clear-item" data-v="">${s.placeholder}</div>`;
+    for (const [lg, teams] of Object.entries(leaguesToShow)) {
+      const filtered = (teams || []).filter(t => !q || t.toLowerCase().includes(q));
+      if (!filtered.length) continue;
+      html += `<div class="wtp-section-hd">${FLAGS[lg]||''} ${lg}</div>`;
+      html += filtered.map(t => `<div class="wtp-item${t===cur?' selected':''}" data-v="${t}"><span class="wtp-item-flag">${FLAGS[leagueOf(t)]||''}</span>${t}</div>`).join('');
+    }
+    if (!s.region && extras.length) {
+      const fe = extras.filter(t => !q || t.toLowerCase().includes(q)).sort();
+      if (fe.length) {
+        html += `<div class="wtp-section-hd">CUSTOM</div>`;
+        html += fe.map(t => `<div class="wtp-item${t===cur?' selected':''}" data-v="${t}">${t}</div>`).join('');
+      }
+    }
+    const noResults = !Object.values(leaguesToShow).flat().some(t => !q || t.toLowerCase().includes(q)) && !extras.some(t => !q || t.toLowerCase().includes(q));
+    if (noResults) html += `<div class="wtp-empty">No teams found for "${s.search}"</div>`;
+
+    const list = s.drop.querySelector('.wtp-list');
+    list.innerHTML = html;
+    list.querySelectorAll('[data-v]').forEach(item => item.addEventListener('click', () => { _setValue(id, item.dataset.v); _close(id); }));
+  }
+
+  function _setValue(id, value) {
+    const s = _insts[id]; if (!s) return;
+    // Ensure option exists
+    if (value && !s.selectEl.querySelector(`option[value="${CSS.escape(value)}"]`)) {
+      const opt = document.createElement('option');
+      opt.value = value; opt.textContent = value;
+      s.selectEl.appendChild(opt);
+    }
+    s.selectEl.value = value || '';
+    s.btn.querySelector('.wtp-btn-name').textContent = value || s.placeholder;
+    s.selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+    if (s.onSelect) s.onSelect(value);
+    _renderList(id);
+  }
+
+  function _sync(id) {
+    const s = _insts[id]; if (!s) return;
+    const v = s.selectEl.value;
+    s.btn.querySelector('.wtp-btn-name').textContent = v || s.placeholder;
+    _renderList(id);
+  }
+
+  return { create, sync: _sync, setValue: _setValue };
+})();
 
 // ── ADMIN SYSTEM ──
 // Only the designated admin email can add/delete official competition data.

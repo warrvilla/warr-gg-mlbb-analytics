@@ -701,19 +701,8 @@ input:focus, .search-input:focus {
   </div>
   <div class="setup-card">
     <div class="card-title">Your Team</div>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
-      <span style="font-size:11px;color:var(--text3);">Region:</span>
-      <select id="abRegionFilter" onchange="updateABTeamDropdown()" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer;outline:none;">
-        <option value="">All Regions</option>
-        <option value="MPL PH">MPL PH</option>
-        <option value="MPL ID">MPL ID</option>
-        <option value="MPL MY">MPL MY</option>
-        <option value="MPL KH">MPL KH</option>
-      </select>
-    </div>
-    <select class="name-in" id="nameIn" style="width:100%;font-size:13px;font-weight:700;padding:7px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer;outline:none;">
-      <option value="You">You (Custom)</option>
-    </select>
+    <!-- WTeamPicker replaces region filter + native select -->
+    <select id="nameIn" style="display:none"><option value="">You (Custom)</option></select>
   </div>
   <div class="setup-card">
     <div class="card-title">Choose Your Side</div>
@@ -1398,21 +1387,36 @@ document.addEventListener('DOMContentLoaded',async()=>{
   if(typeof WDB!=='undefined'&&WDB.getAdminApiKey) await WDB.getAdminApiKey();
   updateApiKeyCard();
   updateTokenDisplay();
-  updateABTeamDropdown();
+  _initABPicker();
 });
 
-// ═══════ ENEMY TEAM MODE ═══════
-function updateABTeamDropdown(){
-  const region = document.getElementById('abRegionFilter')?.value || '';
-  const sel = document.getElementById('nameIn');
-  if(!sel || typeof WTeams === 'undefined') return;
-  let scoutNames = [];
-  try{ const db=loadScoutAB(); scoutNames=Object.keys(db.teams||{}); }catch(e){}
-  const normalize = n => WTeams.normalize(n);
-  const extraNames = [...new Set(scoutNames.map(normalize))];
-  const curVal = sel.value || 'You';
-  sel.innerHTML = `<option value="You">You (Custom)</option>` + WTeams.buildOptgroups(extraNames, curVal, '', region);
+// ═══════ TEAM PICKER (Your Team) ═══════
+let _abPicker = null;
+function _getABExtraTeams() {
+  try {
+    const db = loadScoutAB();
+    const names = Object.keys(db.teams || {});
+    if (typeof WTeams !== 'undefined') return [...new Set(names.map(n => WTeams.normalize(n)))];
+    return [...new Set(names)];
+  } catch(e) { return []; }
 }
+function _initABPicker() {
+  const sel = document.getElementById('nameIn');
+  if (!sel || typeof WTeamPicker === 'undefined') return;
+  _abPicker = WTeamPicker.create(sel, {
+    placeholder: 'You (Custom)',
+    extraTeams: _getABExtraTeams(),
+    onSelect: null,
+  });
+}
+function _refreshABPicker() {
+  if (!_abPicker) { _initABPicker(); return; }
+  _abPicker.refresh(_getABExtraTeams());
+}
+// Legacy alias kept so any stray references don't crash
+function updateABTeamDropdown() { _refreshABPicker(); }
+
+// ═══════ ENEMY TEAM MODE ═══════
 
 function setAIMode(m){
   aiMode=m;
@@ -2750,7 +2754,7 @@ updateMemChip();
     Object.entries(scoutRoles).forEach(([hero, primaryLane]) => { LANES_MAP[hero] = primaryLane; });
     heroScoutStatsAB = computeHeroScoutStatsAB(scoutMatches);
     renderPool(); // redraw hero cards with WR badges
-    updateABTeamDropdown(); // populate team select with scout team names
+    _refreshABPicker(); // re-populate team picker with scout team names
   } catch(e) { /* fail silently — defaults still apply */ }
 })();
 WAuth.renderAuthChip('authChip');
