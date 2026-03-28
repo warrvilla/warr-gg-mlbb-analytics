@@ -390,14 +390,11 @@ window.WTeams = {
 //        p.refresh(extraTeams)   — update extra teams list
 // ═══════════════════════════════════════════════════════════════
 window.WTeamPicker = (() => {
-  const FLAGS = { 'MPL PH':'🇵🇭', 'MPL ID':'🇮🇩', 'MPL MY':'🇲🇾', 'MPL KH':'🇰🇭' };
-  const REGION_TABS = [
-    { k:'', label:'All' },
-    { k:'MPL PH', label:'🇵🇭 PH' },
-    { k:'MPL ID', label:'🇮🇩 ID' },
-    { k:'MPL MY', label:'🇲🇾 MY' },
-    { k:'MPL KH', label:'🇰🇭 KH' },
-  ];
+  // Tabs are derived dynamically from WTeams.LEAGUES so new leagues appear automatically
+  function _getTabs() {
+    const keys = (typeof WTeams !== 'undefined') ? Object.keys(WTeams.LEAGUES) : [];
+    return [{ k: '', label: 'All' }, ...keys.map(k => ({ k, label: k }))];
+  }
 
   let _cssInjected = false;
   function _injectCSS() {
@@ -439,14 +436,25 @@ window.WTeamPicker = (() => {
 
   const _insts = {};
 
-  // Auto-load league config from DB once per session — refreshes all open pickers
+  // Auto-load league config from DB once per session — rebuilds tabs + list for all pickers
   let _dbLoaded = false;
   function _autoLoadDB() {
     if (_dbLoaded || typeof WTeams === 'undefined' || !WTeams.loadFromDB) return;
     _dbLoaded = true;
     WTeams.loadFromDB().then(() => {
-      Object.keys(_insts).forEach(k => _renderList(k));
+      Object.keys(_insts).forEach(k => { _renderTabs(k); _renderList(k); });
     }).catch(() => {});
+  }
+
+  // Build and inject tab buttons into an existing picker — safe to call anytime
+  function _renderTabs(id) {
+    const s = _insts[id]; if (!s) return;
+    const tabsEl = s.drop.querySelector('.wtp-tabs');
+    if (!tabsEl) return;
+    tabsEl.innerHTML = _getTabs().map(t =>
+      `<button class="wtp-tab${t.k === s.region ? ' active' : ''}" data-r="${t.k}" type="button">${t.label}</button>`
+    ).join('');
+    // Events re-attached via delegation on the container (set once in create())
   }
 
   function create(selectEl, { onSelect, extraTeams = [], placeholder = '— Select team —' } = {}) {
@@ -480,7 +488,7 @@ window.WTeamPicker = (() => {
         <input class="wtp-search" placeholder="Search team..." autocomplete="off" spellcheck="false">
       </div>
       <div class="wtp-tabs">
-        ${REGION_TABS.map(t => `<button class="wtp-tab${t.k===''?' active':''}" data-r="${t.k}" type="button">${t.label}</button>`).join('')}
+        ${_getTabs().map(t => `<button class="wtp-tab${t.k===''?' active':''}" data-r="${t.k}" type="button">${t.label}</button>`).join('')}
       </div>
       <div class="wtp-list"></div>
     `;
@@ -489,12 +497,14 @@ window.WTeamPicker = (() => {
     const st = { id, selectEl, btn, drop, placeholder, region: '', search: '', extraTeams, onSelect };
     _insts[id] = st;
 
-    // Events
+    // Events — use delegation on .wtp-tabs so _renderTabs() can freely rebuild innerHTML
     btn.addEventListener('click', e => { e.stopPropagation(); _toggle(id); });
     drop.querySelector('.wtp-search').addEventListener('input', e => { st.search = e.target.value; _renderList(id); });
-    drop.querySelectorAll('.wtp-tab').forEach(t => t.addEventListener('click', e => {
-      e.stopPropagation(); st.region = t.dataset.r; drop.querySelector('.wtp-search').value = ''; st.search = ''; _renderList(id);
-    }));
+    drop.querySelector('.wtp-tabs').addEventListener('click', e => {
+      const tab = e.target.closest('.wtp-tab'); if (!tab) return;
+      e.stopPropagation(); st.region = tab.dataset.r; drop.querySelector('.wtp-search').value = ''; st.search = '';
+      _renderTabs(id); _renderList(id);
+    });
     document.addEventListener('click', e => { if (!wrap.contains(e.target)) _close(id); });
     window.addEventListener('keydown', e => { if (e.key === 'Escape') _close(id); });
 
@@ -528,21 +538,19 @@ window.WTeamPicker = (() => {
 
   function _renderList(id) {
     const s = _insts[id]; if (!s) return;
-    s.drop.querySelectorAll('.wtp-tab').forEach(t => t.classList.toggle('active', t.dataset.r === s.region));
     const q = (s.search || '').toLowerCase();
     const cur = s.selectEl.value;
     const leagues = (typeof WTeams !== 'undefined') ? WTeams.LEAGUES : {};
     const knownAll = (typeof WTeams !== 'undefined') ? WTeams.all() : [];
     const extras = (s.extraTeams || []).filter(n => !knownAll.includes(n));
     const leaguesToShow = s.region ? { [s.region]: leagues[s.region] || [] } : leagues;
-    const leagueOf = n => { for (const [lg, ts] of Object.entries(leagues)) if (ts.includes(n)) return lg; return null; };
 
     let html = `<div class="wtp-clear-item" data-v="">${s.placeholder}</div>`;
     for (const [lg, teams] of Object.entries(leaguesToShow)) {
       const filtered = (teams || []).filter(t => !q || t.toLowerCase().includes(q));
       if (!filtered.length) continue;
-      html += `<div class="wtp-section-hd">${FLAGS[lg]||''} ${lg}</div>`;
-      html += filtered.map(t => `<div class="wtp-item${t===cur?' selected':''}" data-v="${t}"><span class="wtp-item-flag">${FLAGS[leagueOf(t)]||''}</span>${t}</div>`).join('');
+      html += `<div class="wtp-section-hd">${lg}</div>`;
+      html += filtered.map(t => `<div class="wtp-item${t===cur?' selected':''}" data-v="${t}">${t}</div>`).join('');
     }
     if (!s.region && extras.length) {
       const fe = extras.filter(t => !q || t.toLowerCase().includes(q)).sort();
