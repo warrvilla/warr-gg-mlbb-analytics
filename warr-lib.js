@@ -583,8 +583,11 @@ window.WTeamPicker = (() => {
       const s = _insts[id]; if (!s) return;
       if (!s.wrap.contains(e.target) && !s.drop.contains(e.target)) _close(id);
     });
-    // Close on scroll or resize so dropdown doesn't drift from its anchor
-    window.addEventListener('scroll', () => _close(id), { passive: true, capture: true });
+    // Close on page scroll (but NOT when scrolling inside the dropdown list)
+    window.addEventListener('scroll', e => {
+      const s = _insts[id]; if (!s) return;
+      if (!s.drop.contains(e.target)) _close(id);
+    }, { passive: true, capture: true });
     window.addEventListener('resize', () => _close(id));
     window.addEventListener('keydown', e => { if (e.key === 'Escape') _close(id); });
 

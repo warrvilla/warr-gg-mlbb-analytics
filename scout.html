@@ -1767,20 +1767,18 @@ function updateScoutTeamList() {
   if (dl) dl.innerHTML = _buildTeamOpts(league, season);
 }
 
-// Rebuild season <select> options when league changes
+// Rebuild season datalist suggestions when league changes
 function updateScoutSeasonOpts() {
-  const leagueEl  = document.getElementById('mf-league');
-  const seasonEl  = document.getElementById('mf-season');
+  const leagueEl = document.getElementById('mf-league');
+  const seasonEl = document.getElementById('mf-season');
+  const dl       = document.getElementById('seasonSuggestions');
   if (!leagueEl || !seasonEl || typeof WTeams === 'undefined' || !WTeams.getSeasons) return;
   const league  = leagueEl.value;
   const seasons = WTeams.getSeasons(league); // newest first from _config
-  const cur     = seasonEl.value;
-  seasonEl.innerHTML = `<option value="">— Select season —</option>` +
-    seasons.map(s => `<option value="${s}"${cur===s?' selected':''}>${s}</option>`).join('') +
-    // Preserve any value already entered that's not in the list (legacy / custom)
-    (cur && !seasons.includes(cur) ? `<option value="${cur}" selected>${cur} (custom)</option>` : '');
-  // Auto-select activeSeason if nothing is selected and a season exists
-  if (!cur && seasons.length && WTeams._config?.[league]?.activeSeason) {
+  // Populate datalist with suggestions — user can still type any value freely
+  if (dl) dl.innerHTML = seasons.map(s => `<option value="${s}">`).join('');
+  // Auto-fill only when field is empty (never overwrite what the user typed)
+  if (!seasonEl.value && league && WTeams._config?.[league]?.activeSeason) {
     seasonEl.value = WTeams._config[league].activeSeason;
   }
 }
@@ -1817,11 +1815,11 @@ function _openMatchModal(m) {
             </div>
             <div class="form-group">
               <label class="form-label">Season</label>
-              <select class="form-select" id="mf-season" onchange="updateScoutTeamList()">
-                <option value="">— Select season —</option>
-                ${(typeof WTeams!=='undefined'&&WTeams.getSeasons?WTeams.getSeasons(m.league||''):[]).map(s=>`<option value="${s}"${m.season===s?' selected':''}>${s}</option>`).join('')}
-                ${m.season&&(typeof WTeams==='undefined'||!WTeams.getSeasons||!WTeams.getSeasons(m.league||'').includes(m.season))?`<option value="${m.season}" selected>${m.season} (custom)</option>`:''}
-              </select>
+              <input class="form-input" id="mf-season" placeholder="e.g. Season 15" autocomplete="off"
+                list="seasonSuggestions" value="${m.season||''}" oninput="updateScoutTeamList()">
+              <datalist id="seasonSuggestions">
+                ${(typeof WTeams!=='undefined'&&WTeams.getSeasons?WTeams.getSeasons(m.league||''):[]).map(s=>`<option value="${s}">`).join('')}
+              </datalist>
             </div>
             <div class="form-group">
               <label class="form-label">Stage</label>
