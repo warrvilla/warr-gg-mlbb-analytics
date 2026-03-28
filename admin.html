@@ -425,6 +425,7 @@ CREATE POLICY "Admin write app_settings" ON public.app_settings
             <select id="lmSeasonSelect" onchange="lmSelectSeason(this.value)"
               style="padding:5px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--surface3);color:var(--text);font-size:12px;font-weight:600;font-family:inherit;outline:none;cursor:pointer;flex:1;max-width:200px;"></select>
             <span id="lmActiveSeasonBadge" style="padding:2px 9px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:none;flex-shrink:0;">Active</span>
+            <button onclick="lmRenameSeason()" title="Rename this season" style="padding:5px 10px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid var(--border2);color:var(--text3);font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">Rename</button>
             <button onclick="lmNewSeason()" style="margin-left:auto;padding:5px 14px;border-radius:8px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);color:#34d399;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;">+ New Season</button>
           </div>
 
@@ -981,8 +982,8 @@ async function lmInit() {
       _lmConfig[lg] = {
         label: lg,
         color: WTeams._COLORS[lg] || '#818cf8',
-        activeSeason: 'Season 1',
-        seasons: { 'Season 1': [...teams] },
+        activeSeason: 'Current Season',
+        seasons: { 'Current Season': [...teams] },
       };
     });
   }
@@ -1129,8 +1130,11 @@ async function lmAddLeague() {
   if (!name?.trim()) return;
   const key = name.trim();
   if (_lmConfig[key]) { alert(`"${key}" already exists.`); return; }
+  const seasonName = prompt(`Initial season name for ${key}:`, 'Season 1');
+  if (!seasonName?.trim()) return;
+  const sKey = seasonName.trim();
   const color = WTeams._COLORS[key] || '#818cf8';
-  _lmConfig[key] = { label: key, color, activeSeason: 'Season 1', seasons: { 'Season 1': [] } };
+  _lmConfig[key] = { label: key, color, activeSeason: sKey, seasons: { [sKey]: [] } };
   lmRenderLeagueList();
   lmSelectLeague(key);
 }
@@ -1159,6 +1163,24 @@ async function lmNewSeason() {
   const copy = confirm(`Copy roster from "${cfg.activeSeason}" as a starting point?`);
   cfg.seasons[key] = copy ? [...(cfg.seasons[cfg.activeSeason] || [])] : [];
   cfg.activeSeason = key;
+  _lmViewSeason = key;
+  lmRenderLeagueList();
+  lmRenderSeasonSelect();
+  lmRenderTeams();
+}
+
+function lmRenameSeason() {
+  if (!_lmSelected || !_lmViewSeason) return;
+  const cfg = _lmConfig[_lmSelected];
+  const newName = prompt(`Rename "${_lmViewSeason}" to:`, _lmViewSeason);
+  if (!newName?.trim() || newName.trim() === _lmViewSeason) return;
+  const key = newName.trim();
+  if (cfg.seasons[key]) { alert(`Season "${key}" already exists.`); return; }
+  // Move the roster to the new key
+  cfg.seasons[key] = cfg.seasons[_lmViewSeason];
+  delete cfg.seasons[_lmViewSeason];
+  // Update activeSeason pointer if needed
+  if (cfg.activeSeason === _lmViewSeason) cfg.activeSeason = key;
   _lmViewSeason = key;
   lmRenderLeagueList();
   lmRenderSeasonSelect();

@@ -478,7 +478,7 @@ window.WTeamPicker = (() => {
 .wtp-btn-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .wtp-btn-arrow{font-size:8px;color:var(--text3);transition:transform .15s;flex-shrink:0;}
 .wtp-btn.open .wtp-btn-arrow{transform:rotate(180deg);}
-.wtp-drop{position:absolute;top:calc(100% + 6px);left:0;z-index:9000;background:var(--surface);border:1px solid var(--border2);border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.55);width:250px;display:none;overflow:hidden;}
+.wtp-drop{position:fixed;top:0;left:0;z-index:9999;background:var(--surface);border:1px solid var(--border2);border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.55);width:260px;display:none;overflow:hidden;}
 .wtp-drop.open{display:flex;flex-direction:column;}
 .wtp-search-wrap{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;}
 .wtp-search-icon{color:var(--text3);font-size:11px;flex-shrink:0;}
@@ -549,7 +549,8 @@ window.WTeamPicker = (() => {
     btn.innerHTML = `<span class="wtp-btn-name">${selectEl.value || placeholder}</span><span class="wtp-btn-arrow">▾</span>`;
     wrap.insertBefore(btn, selectEl);
 
-    // Dropdown panel
+    // Dropdown panel — portalled to document.body so it escapes any backdrop-filter
+    // stacking contexts (e.g. glass cards) that would clip z-index:9000
     const drop = document.createElement('div');
     drop.className = 'wtp-drop';
     drop.innerHTML = `
@@ -562,9 +563,11 @@ window.WTeamPicker = (() => {
       </div>
       <div class="wtp-list"></div>
     `;
-    wrap.appendChild(drop);
+    // Override absolute positioning — portal uses fixed so z-index is root-level
+    drop.style.position = 'fixed';
+    document.body.appendChild(drop);
 
-    const st = { id, selectEl, btn, drop, placeholder, region: '', search: '', extraTeams, onSelect, allTime };
+    const st = { id, selectEl, btn, drop, wrap, placeholder, region: '', search: '', extraTeams, onSelect, allTime };
     _insts[id] = st;
 
     // Events — use delegation on .wtp-tabs so _renderTabs() can freely rebuild innerHTML
@@ -575,7 +578,14 @@ window.WTeamPicker = (() => {
       e.stopPropagation(); st.region = tab.dataset.r; drop.querySelector('.wtp-search').value = ''; st.search = '';
       _renderTabs(id); _renderList(id);
     });
-    document.addEventListener('click', e => { if (!wrap.contains(e.target)) _close(id); });
+    // Close when clicking outside both the trigger button and the portalled dropdown
+    document.addEventListener('click', e => {
+      const s = _insts[id]; if (!s) return;
+      if (!s.wrap.contains(e.target) && !s.drop.contains(e.target)) _close(id);
+    });
+    // Close on scroll or resize so dropdown doesn't drift from its anchor
+    window.addEventListener('scroll', () => _close(id), { passive: true, capture: true });
+    window.addEventListener('resize', () => _close(id));
     window.addEventListener('keydown', e => { if (e.key === 'Escape') _close(id); });
 
     _renderList(id);
@@ -595,6 +605,14 @@ window.WTeamPicker = (() => {
 
   function _open(id) {
     const s = _insts[id]; if (!s) return;
+    // Position the portalled dropdown below the trigger button (fixed coords)
+    const rect = s.btn.getBoundingClientRect();
+    const dropW = 260;
+    const left  = Math.min(rect.left, window.innerWidth - dropW - 8);
+    const top   = rect.bottom + 6;
+    s.drop.style.top  = top  + 'px';
+    s.drop.style.left = left + 'px';
+    s.drop.style.width = dropW + 'px';
     s.drop.classList.add('open');
     s.btn.classList.add('open');
     setTimeout(() => s.drop.querySelector('.wtp-search')?.focus(), 30);
@@ -661,8 +679,8 @@ window.WTeamPicker = (() => {
 
   function _setValue(id, value) {
     const s = _insts[id]; if (!s) return;
-    // Ensure option exists
-    if (value && !s.selectEl.querySelector(`option[value="${CSS.escape(value)}"]`)) {
+    // Ensure option exists — iterate directly instead of CSS.escape in querySelector
+    if (value && !Array.from(s.selectEl.options).some(o => o.value === value)) {
       const opt = document.createElement('option');
       opt.value = value; opt.textContent = value;
       s.selectEl.appendChild(opt);
