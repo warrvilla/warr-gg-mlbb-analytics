@@ -718,6 +718,8 @@ async function init() {
   if (!ok) return; // redirecting to auth.html
 })();
 WAuth.renderAuthChip('authChip');
+  // Load dynamic league config (non-blocking — pickers auto-refresh via WTeamPicker._autoLoadDB)
+  if (typeof WTeams !== 'undefined' && WTeams.loadFromDB) WTeams.loadFromDB().catch(() => {});
   await loadDBFromSupabase();
   // Normalize all team names in DB
   if (typeof WTeams !== 'undefined') WTeams.normalizeDB(DB);

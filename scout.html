@@ -1406,6 +1406,8 @@ let _searchDebounce = null;
   } catch(e) { /* fail silently */ }
 })();
 WAuth.renderAuthChip('authChip');
+// Load dynamic league/team config from DB (updates WTeams.LEAGUES for team pickers)
+if (typeof WTeams !== 'undefined' && WTeams.loadFromDB) WTeams.loadFromDB().then(() => updateScoutTeamList()).catch(() => {});
 // Auto-load from Supabase on page load
 loadFromSupabase().catch(() => {});
 

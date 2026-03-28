@@ -338,6 +338,48 @@ window.WTeams = {
     db.teams = newTeams;
     return db;
   },
+
+  // ── DYNAMIC LEAGUE CONFIG ─────────────────────────────────────
+  _CACHE_KEY: 'warr_lcfg',
+  _CACHE_TTL:  5 * 60 * 1000, // 5 minutes
+
+  /** Load league config from Supabase. Merges with hardcoded; DB wins on overlap. */
+  async loadFromDB() {
+    try {
+      const raw = localStorage.getItem(WTeams._CACHE_KEY);
+      if (raw) {
+        const { d, t } = JSON.parse(raw);
+        if (d && typeof d === 'object' && Date.now() - t < WTeams._CACHE_TTL) {
+          WTeams.LEAGUES = d;
+          return d;
+        }
+      }
+      const { data, error } = await _sbClient
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'league_config')
+        .maybeSingle();
+      if (!error && data?.value && typeof data.value === 'object') {
+        WTeams.LEAGUES = data.value;
+        localStorage.setItem(WTeams._CACHE_KEY, JSON.stringify({ d: data.value, t: Date.now() }));
+      }
+    } catch(e) { /* fail silently — use hardcoded */ }
+    return WTeams.LEAGUES;
+  },
+
+  /** Save league config to Supabase (admin only). Updates local cache too. */
+  async saveToDB(leagues) {
+    const { error } = await _sbClient.from('app_settings').upsert(
+      { key: 'league_config', value: leagues, updated_at: new Date().toISOString() },
+      { onConflict: 'key' }
+    );
+    if (error) throw error;
+    WTeams.LEAGUES = leagues;
+    localStorage.setItem(WTeams._CACHE_KEY, JSON.stringify({ d: leagues, t: Date.now() }));
+  },
+
+  /** Bust local cache so next loadFromDB() hits the network. */
+  bustCache() { localStorage.removeItem(WTeams._CACHE_KEY); },
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -397,9 +439,20 @@ window.WTeamPicker = (() => {
 
   const _insts = {};
 
+  // Auto-load league config from DB once per session — refreshes all open pickers
+  let _dbLoaded = false;
+  function _autoLoadDB() {
+    if (_dbLoaded || typeof WTeams === 'undefined' || !WTeams.loadFromDB) return;
+    _dbLoaded = true;
+    WTeams.loadFromDB().then(() => {
+      Object.keys(_insts).forEach(k => _renderList(k));
+    }).catch(() => {});
+  }
+
   function create(selectEl, { onSelect, extraTeams = [], placeholder = '— Select team —' } = {}) {
     if (!selectEl) return null;
     _injectCSS();
+    _autoLoadDB();
 
     const id = selectEl.id || ('wtp_' + Math.random().toString(36).slice(2, 8));
     selectEl.style.display = 'none';
