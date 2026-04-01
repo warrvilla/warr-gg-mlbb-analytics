@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Warr.GG</title>
+<link rel="stylesheet" href="warr-styles.css">
+<style>
+:root { --nav-h: 52px; }
+body { background: var(--bg); min-height: 100vh; }
+.page-wrap { max-width: 1100px; margin: 0 auto; padding: calc(var(--nav-h) + 32px) 20px 80px; }
+
+/* ── Admin header ── */
+.admin-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 28px; flex-wrap: wrap; gap: 12px;
+}
+.admin-title {
+  font-size: 22px; font-weight: 800; color: var(--gold); letter-spacing: -.01em;
+}
+.admin-subtitle { font-size: 13px; color: var(--text3); margin-top: 2px; }
+
+/* ── Section card ── */
+.admin-card {
+  background: var(--surface);
+  border: 1px solid var(--glass-border2);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.admin-section-title {
+  font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+}
+.badge-count {
+  background: var(--purple); color: #fff;
+  font-size: 10px; font-weight: 800;
+  padding: 2px 8px; border-radius: 20px; letter-spacing: 0;
+}
+.badge-count.gold { background: var(--gold); color: #000; }
+
+/* ── Stats row ── */
+.stats-row {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;
+}
+@media(max-width:700px){ .stats-row { grid-template-columns: repeat(2,1fr); } }
+.stat-chip {
+  background: var(--surface2); border: 1px solid var(--glass-border);
+  border-radius: 12px; padding: 14px 16px; text-align: center;
+}
+.stat-chip-val { font-size: 26px; font-weight: 800; color: var(--text); }
+.stat-chip-label { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+/* ── Pending table ── */
+.pending-list { display: flex; flex-direction: column; gap: 10px; }
+.pending-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface2); border: 1px solid var(--gold-border);
+  border-radius: 12px; padding: 14px 16px; gap: 12px; flex-wrap: wrap;
+}
+.pending-info { flex: 1; min-width: 160px; }
+.pending-email { font-size: 13px; font-weight: 600; color: var(--text); }
+.pending-team  { font-size: 11px; color: var(--gold); margin-top: 2px; }
+.pending-date  { font-size: 10px; color: var(--text4); margin-top: 2px; }
+.pending-actions { display: flex; gap: 8px; }
+.btn-approve {
+  padding: 7px 16px; border-radius: 8px; font-size: 11px; font-weight: 700;
+  background: rgba(68,200,130,.15); color: #44c882; border: 1px solid rgba(68,200,130,.4);
+  cursor: pointer; letter-spacing: .04em;
+}
+.btn-approve:hover { background: rgba(68,200,130,.3); }
+.btn-reject {
+  padding: 7px 16px; border-radius: 8px; font-size: 11px; font-weight: 700;
+  background: var(--surface3); color: var(--red); border: 1px solid var(--red-border);
+  cursor: pointer; letter-spacing: .04em;
+}
+.btn-reject:hover { background: rgba(220,80,80,.1); }
+
+/* ── Users table ── */
+.users-toolbar {
+  display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; align-items: center;
+}
+.search-input {
+  flex: 1; min-width: 180px; padding: 9px 14px;
+  background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: 10px; color: var(--text); font-size: 13px;
+  font-family: inherit; outline: none;
+}
+.search-input:focus { border-color: var(--purple); }
+.filter-select {
+  padding: 9px 14px; background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: 10px; color: var(--text); font-size: 12px; font-family: inherit;
+  outline: none; cursor: pointer;
+}
+
+.users-table-wrap { overflow-x: auto; }
+table.users-table {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+}
+.users-table th {
+  text-align: left; padding: 8px 10px; font-size: 10px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--text3);
+  border-bottom: 1px solid var(--glass-border); white-space: nowrap;
+}
+.users-table td {
+  padding: 10px 10px; border-bottom: 1px solid var(--glass-border);
+  color: var(--text2); vertical-align: middle;
+}
+.users-table tr:last-child td { border-bottom: none; }
+.users-table tr:hover td { background: var(--surface2); }
+
+.user-email-cell { color: var(--text); font-weight: 500; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-name-cell  { color: var(--text2); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-cell { font-size: 11px; }
+
+.plan-select {
+  padding: 5px 8px; background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: 7px; color: var(--text); font-size: 11px; font-family: inherit;
+  outline: none; cursor: pointer;
+}
+.plan-select.plan-pro  { border-color: var(--purple-border); color: var(--purple); }
+.plan-select.plan-team { border-color: var(--gold-border); color: var(--gold); }
+
+.status-chip {
+  display: inline-block; padding: 2px 8px; border-radius: 6px;
+  font-size: 10px; font-weight: 700; letter-spacing: .04em;
+}
+.status-chip.pending  { background: var(--gold-dim); color: var(--gold); }
+.status-chip.approved { background: rgba(68,200,130,.12); color: #44c882; }
+.status-chip.rejected { background: rgba(220,80,80,.1); color: var(--red); }
+.status-chip.none     { background: var(--surface3); color: var(--text4); }
+
+.btn-ban {
+  padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 700;
+  background: var(--surface3); border: 1px solid var(--border2); cursor: pointer;
+  color: var(--text3); letter-spacing: .04em;
+}
+.btn-ban.is-banned {
+  background: rgba(220,80,80,.1); color: var(--red); border-color: var(--red-border);
+}
+.btn-ban:hover { border-color: var(--red-border); color: var(--red); }
+.btn-delete {
+  padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 700;
+  background: var(--surface3); border: 1px solid var(--red-border);
+  color: var(--red); cursor: pointer;
+}
+.btn-delete:hover { background: rgba(220,80,80,.15); }
+
+/* ── Pagination ── */
+.pagination {
+  display: flex; align-items: center; gap: 8px; margin-top: 16px; justify-content: flex-end;
+}
+.page-btn {
+  padding: 6px 14px; border-radius: 8px; font-size: 11px; font-weight: 600;
+  background: var(--surface3); border: 1px solid var(--border2); color: var(--text2);
+  cursor: pointer;
+}
+.page-btn:hover { background: var(--surface4); }
+.page-btn.active { background: var(--purple); border-color: var(--purple); color: #fff; }
+.page-btn:disabled { opacity: .4; cursor: default; }
+
+/* ── Hard delete box ── */
+.hard-delete-box {
+  background: rgba(220,80,80,.06); border: 1px solid var(--red-border);
+  border-radius: 12px; padding: 16px 18px; margin-top: 4px;
+}
+.hard-delete-box h4 { font-size: 12px; font-weight: 700; color: var(--red); margin-bottom: 8px; }
+.hard-delete-box p  { font-size: 12px; color: var(--text3); margin-bottom: 8px; line-height: 1.6; }
+.sql-block {
+  background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 10px 14px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px;
+  color: #d4935a; overflow-x: auto; white-space: pre;
+  margin-bottom: 8px;
+}
+.copy-sql-btn {
+  padding: 6px 14px; border-radius: 7px; font-size: 11px; font-weight: 700;
+  background: var(--surface3); border: 1px solid var(--border2); color: var(--text2);
+  cursor: pointer;
+}
+.copy-sql-btn:hover { background: var(--surface4); }
+
+/* ── Notes modal ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.7);
+  z-index: 1000; display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.modal-box {
+  background: var(--surface); border: 1px solid var(--glass-border2);
+  border-radius: 16px; padding: 24px; width: 100%; max-width: 480px;
+}
+.modal-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 12px; }
+.modal-textarea {
+  width: 100%; height: 100px; padding: 10px 14px;
+  background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: 10px; color: var(--text); font-size: 13px;
+  font-family: inherit; outline: none; resize: vertical;
+}
+.modal-actions { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
+.btn-modal-save {
+  padding: 9px 20px; border-radius: 9px; font-size: 12px; font-weight: 700;
+  background: var(--purple); border: 1px solid var(--purple); color: #fff; cursor: pointer;
+}
+.btn-modal-cancel {
+  padding: 9px 20px; border-radius: 9px; font-size: 12px; font-weight: 700;
+  background: var(--surface3); border: 1px solid var(--border2); color: var(--text2); cursor: pointer;
+}
+
+/* ── Access gate ── */
+.access-gate {
+  text-align: center; padding: 100px 20px;
+}
+.access-gate h2 { font-size: 20px; color: var(--red); margin-bottom: 10px; }
+.access-gate p  { font-size: 13px; color: var(--text3); }
+
+/* ── Empty state ── */
+.empty-state {
+  text-align: center; padding: 32px 20px; color: var(--text3); font-size: 13px;
+}
+
+/* ── Loading spinner ── */
+.loading-row { text-align: center; padding: 24px; color: var(--text3); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="topnav">
+  <a class="nav-brand" href="index.html">
+    <span class="nav-brand-name">Warr.GG</span>
+    <span class="nav-brand-sub">MLBB Intel</span>
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="draft_board.html">Draft</a>
+    <a class="nav-link" href="ai_battle.html">AI Battle</a>
+    <a class="nav-link" href="scout.html">Scout</a>
+    <a class="nav-link" href="stats.html">Analysis</a>
+    <a class="nav-link" href="patch_meta.html">Patch</a>
+    <a class="nav-link" href="profile.html">Profile</a>
+  </div>
+  <div class="nav-right">
+    <div id="authChip"></div>
+  </div>
+  <button class="mobile-menu-btn" onclick="document.querySelector('.mobile-nav').classList.toggle('open')" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<nav class="mobile-nav">
+  <a class="mobile-nav-link" href="draft_board.html">Draft</a>
+  <a class="mobile-nav-link" href="ai_battle.html">AI Battle</a>
+  <a class="mobile-nav-link" href="scout.html">Scout</a>
+  <a class="mobile-nav-link" href="stats.html">Analysis</a>
+  <a class="mobile-nav-link" href="patch_meta.html">Patch</a>
+  <a class="mobile-nav-link" href="profile.html">Profile</a>
+</nav>
+
+<div class="page-wrap">
+
+  <!-- ACCESS DENIED -->
+  <div id="accessGate" class="access-gate" style="display:none;">
+    <h2>Access Restricted</h2>
+    <p>This page is restricted to Warr.GG administrators.</p>
+  </div>
+
+  <!-- LOADING -->
+  <div id="loadingState" style="text-align:center;padding:80px 20px;">
+    <div style="font-size:13px;color:var(--text3);">Loading admin panel…</div>
+  </div>
+
+  <!-- MAIN ADMIN CONTENT -->
+  <div id="adminContent" style="display:none;">
+
+    <div class="admin-header">
+      <div>
+        <div class="admin-title">Admin Panel</div>
+        <div class="admin-subtitle">Warr.GG — User & Subscription Management</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button onclick="document.getElementById('rlsNotice').style.display='block'" style="padding:9px 20px;border-radius:10px;background:var(--surface3);border:1px solid rgba(96,165,250,.4);color:#60a5fa;font-size:12px;cursor:pointer;font-weight:600;">
+          DB Setup SQL
+        </button>
+        <button onclick="document.getElementById('diagPanel').style.display='block';runDiagnostic();" style="padding:9px 20px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:#fbbf24;font-size:12px;cursor:pointer;font-weight:600;">
+          Diagnostics
+        </button>
+        <button onclick="refreshAll()" style="padding:9px 20px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:12px;cursor:pointer;font-weight:600;">
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- DIAGNOSTIC PANEL -->
+    <div id="diagPanel" style="display:none;margin-bottom:16px;padding:14px 18px;background:rgba(15,23,42,.6);border:1px solid var(--border2);border-radius:10px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span style="font-size:12px;font-weight:700;color:var(--text2);">Connection Diagnostics</span>
+        <button onclick="document.getElementById('diagPanel').style.display='none'" style="margin-left:auto;background:transparent;border:none;color:var(--text3);font-size:12px;cursor:pointer;">✕</button>
+      </div>
+      <div id="diagBox" style="font-family:monospace;background:rgba(0,0,0,.3);border-radius:6px;padding:10px;min-height:40px;"></div>
+    </div>
+
+    <!-- RLS SETUP NOTICE — toggleable via "DB Setup SQL" button or auto-shown when users=0 -->
+    <div id="rlsNotice" style="display:none;margin-bottom:16px;padding:14px 18px;background:rgba(15,23,42,.7);border:1px solid rgba(96,165,250,.3);border-radius:10px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:700;color:#60a5fa;">Supabase DB Setup SQL</div>
+        <button onclick="document.getElementById('rlsNotice').style.display='none'" style="margin-left:auto;background:transparent;border:none;color:var(--text3);font-size:13px;cursor:pointer;">✕</button>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Run this in your <a href="https://supabase.com/dashboard" target="_blank" style="color:#60a5fa;">Supabase SQL Editor</a>. Fixes: RLS policy, email/name display, auto-profile trigger. <strong>Safe to re-run anytime.</strong></div>
+      <pre id="rlsSqlBox" style="font-size:11px;background:rgba(0,0,0,.35);border:1px solid var(--border2);border-radius:6px;padding:12px;overflow-x:auto;color:#a5f3fc;white-space:pre;margin:0 0 10px;">-- Drop old restrictive SELECT policy (if any)
+DROP POLICY IF EXISTS "Users read own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Admin reads all profiles" ON public.profiles;
+
+-- New policy: own row OR admin email
+CREATE POLICY "Users read own profile" ON public.profiles
+  FOR SELECT USING (
+    auth.uid() = id
+    OR auth.email() = 'wrrenvillapando@gmail.com'
+  );
+
+-- Also ensure write policies exist
+DROP POLICY IF EXISTS "Users insert own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users update own profile" ON public.profiles;
+CREATE POLICY "Users insert own profile" ON public.profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users update own profile" ON public.profiles
+  FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
+
+-- Ensure required columns exist (including email + display_name)
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS email text,
+  ADD COLUMN IF NOT EXISTS display_name text,
+  ADD COLUMN IF NOT EXISTS tokens_used integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS token_reset_date text DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS plan text DEFAULT 'free';
+
+-- Backfill email + display_name from auth.users
+UPDATE public.profiles p
+SET
+  email = u.email,
+  display_name = COALESCE(
+    p.display_name,
+    u.raw_user_meta_data->>'full_name',
+    u.raw_user_meta_data->>'name',
+    split_part(u.email, '@', 1)
+  )
+FROM auth.users u
+WHERE p.id = u.id;
+
+-- Update trigger so new signups auto-get email + display_name
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, display_name, created_at)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', split_part(NEW.email,'@',1)),
+    now()
+  )
+  ON CONFLICT (id) DO UPDATE
+    SET email = EXCLUDED.email,
+        display_name = COALESCE(EXCLUDED.display_name, public.profiles.display_name);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- app_settings table (league config + future global settings)
+CREATE TABLE IF NOT EXISTS public.app_settings (
+  key         text PRIMARY KEY,
+  value       jsonb NOT NULL,
+  updated_at  timestamptz DEFAULT now()
+);
+ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "All users read app_settings" ON public.app_settings;
+DROP POLICY IF EXISTS "Admin write app_settings"    ON public.app_settings;
+CREATE POLICY "All users read app_settings" ON public.app_settings
+  FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Admin write app_settings" ON public.app_settings
+  FOR ALL USING (auth.email() = 'wrrenvillapando@gmail.com');</pre>
+      <button onclick="navigator.clipboard.writeText(document.getElementById('rlsSqlBox').textContent).then(()=>alert('Copied! Paste in Supabase SQL Editor → Run.'))" style="padding:6px 16px;background:var(--blue);border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">Copy SQL</button>
+    </div>
+
+    <!-- LEAGUE MANAGER -->
+    <div class="admin-card" id="leagueManagerCard">
+      <div class="admin-section-title" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        League Manager
+        <span id="lmSaveStatus" style="font-size:10px;font-weight:600;color:var(--green);display:none;margin-left:4px;">Saved</span>
+        <span id="lmSaveErr" style="font-size:10px;font-weight:600;color:var(--red);display:none;margin-left:4px;"></span>
+        <button onclick="lmSave()" style="margin-left:auto;padding:5px 18px;border-radius:8px;background:rgba(129,140,248,.1);border:1px solid rgba(129,140,248,.3);color:var(--accent,#818cf8);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.04em;">Save All Changes</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:200px 1fr;gap:14px;min-height:320px;" id="lmGrid">
+
+        <!-- LEFT — League sidebar -->
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.12em;color:var(--text4);margin-bottom:2px;text-transform:uppercase;">Leagues</div>
+          <div id="lmLeagueList" style="flex:1;display:flex;flex-direction:column;gap:3px;"></div>
+          <button onclick="lmAddLeague()" style="margin-top:6px;padding:8px 0;border-radius:10px;border:1.5px dashed var(--glass-border2);background:transparent;color:var(--text4);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.04em;" onmouseover="this.style.color='var(--text2)';this.style.borderColor='var(--border2)'" onmouseout="this.style.color='var(--text4)';this.style.borderColor='var(--glass-border2)'">+ New League</button>
+        </div>
+
+        <!-- RIGHT — Detail panel -->
+        <div id="lmDetailPanel" style="display:none;background:var(--surface2);border:1px solid var(--glass-border2);border-radius:14px;padding:18px 20px;flex-direction:column;gap:0;">
+
+          <!-- Row 1: label + color + remove -->
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+            <input id="lmLabelInput" type="text" placeholder="League label..."
+              style="flex:1;min-width:120px;padding:7px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--surface3);color:var(--text);font-size:14px;font-weight:700;outline:none;font-family:inherit;"
+              oninput="_lmSyncLabel()">
+            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+              <label style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.08em;">Color</label>
+              <input id="lmColorInput" type="color" value="#818cf8"
+                style="width:30px;height:30px;border-radius:6px;border:1px solid var(--border2);background:none;cursor:pointer;padding:2px;" oninput="_lmSyncColor()">
+            </div>
+            <button onclick="lmRemoveLeague()" style="padding:6px 14px;border-radius:8px;background:rgba(220,80,80,.07);border:1px solid rgba(220,80,80,.25);color:var(--red);font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;">Remove League</button>
+          </div>
+
+          <!-- Row 2: season selector + badge + new season -->
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+            <label style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;flex-shrink:0;">Season</label>
+            <select id="lmSeasonSelect" onchange="lmSelectSeason(this.value)"
+              style="padding:5px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--surface3);color:var(--text);font-size:12px;font-weight:600;font-family:inherit;outline:none;cursor:pointer;flex:1;max-width:200px;"></select>
+            <span id="lmActiveSeasonBadge" style="padding:2px 9px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:none;flex-shrink:0;">Active</span>
+            <button onclick="lmRenameSeason()" title="Rename this season" style="padding:5px 10px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid var(--border2);color:var(--text3);font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">Rename</button>
+            <button onclick="lmNewSeason()" style="margin-left:auto;padding:5px 14px;border-radius:8px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);color:#34d399;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;">+ New Season</button>
+          </div>
+
+          <!-- Row 3: team roster label -->
+          <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;">
+            Teams &mdash; <span id="lmRosterSeasonLabel" style="color:var(--text2);font-weight:700;"></span>
+          </div>
+
+          <!-- Row 4: team chips -->
+          <div id="lmTeamList" style="display:flex;flex-wrap:wrap;gap:6px;min-height:38px;margin-bottom:14px;"></div>
+
+          <!-- Row 5: add team input -->
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input id="lmAddTeamInput" placeholder="Team name..." autocomplete="off"
+              style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--surface3);color:var(--text);font-size:12px;outline:none;font-family:inherit;"
+              onkeydown="if(event.key==='Enter')lmAddTeam()">
+            <button onclick="lmAddTeam()" style="padding:8px 18px;border-radius:8px;background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.3);color:var(--accent,#818cf8);font-size:11px;font-weight:700;cursor:pointer;">Add Team</button>
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <div id="lmEmptyState" style="display:flex;align-items:center;justify-content:center;color:var(--text4);font-size:12px;font-weight:600;letter-spacing:.04em;border:1.5px dashed var(--glass-border2);border-radius:14px;min-height:180px;">
+          Select a league to manage
+        </div>
+
+      </div>
+    </div>
+
+    <!-- STATS ROW -->
+    <div class="stats-row">
+      <div class="stat-chip">
+        <div class="stat-chip-val" id="statTotal">—</div>
+        <div class="stat-chip-label">Total Users</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-chip-val" id="statPending" style="color:var(--gold);">—</div>
+        <div class="stat-chip-label">Pending Requests</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-chip-val" id="statPro" style="color:var(--purple);">—</div>
+        <div class="stat-chip-label">Pro / Team</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-chip-val" id="statBanned" style="color:var(--red);">—</div>
+        <div class="stat-chip-label">Banned</div>
+      </div>
+    </div>
+
+    <!-- PENDING TEAM REQUESTS -->
+    <div class="admin-card">
+      <div class="admin-section-title">
+        Team Affiliation Requests
+        <span class="badge-count gold" id="pendingCount">0</span>
+      </div>
+      <div id="pendingList" class="pending-list">
+        <div class="loading-row">Loading…</div>
+      </div>
+    </div>
+
+    <!-- ALL USERS -->
+    <div class="admin-card">
+      <div class="admin-section-title">
+        All Users
+        <span class="badge-count" id="usersCount">0</span>
+      </div>
+      <div class="users-toolbar">
+        <input type="text" id="userSearch" class="search-input" placeholder="Search by email or name…" oninput="filterUsers()">
+        <select class="filter-select" id="planFilter" onchange="filterUsers()">
+          <option value="">All Plans</option>
+          <option value="free">Free</option>
+          <option value="pro">Pro</option>
+          <option value="team">Team</option>
+        </select>
+        <select class="filter-select" id="statusFilter" onchange="filterUsers()">
+          <option value="">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="none">No Team</option>
+        </select>
+      </div>
+      <div class="users-table-wrap">
+        <table class="users-table">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Name</th>
+              <th>Team</th>
+              <th>Status</th>
+              <th>Plan — click to grant</th>
+              <th>Tokens Used</th>
+              <th>Joined</th>
+              <th>Notes</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody">
+            <tr><td colspan="9" class="loading-row">Loading users…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination" id="pagination"></div>
+    </div>
+
+    <!-- HARD DELETE BOX -->
+    <div class="admin-card">
+      <div class="admin-section-title">Force-Delete Stuck Users</div>
+      <div class="hard-delete-box">
+        <h4>When Supabase UI won't let you delete a user</h4>
+        <p>
+          Some auth users can't be removed from the Supabase dashboard due to foreign key constraints.
+          Run this SQL in your <strong>Supabase → SQL Editor</strong> to force-delete by UUID.
+          This cascades to <code>profiles</code>, <code>teams</code>, and <code>scrims</code> automatically.
+        </p>
+        <div class="sql-block" id="hardDeleteSql">-- Replace USER_UUID with the actual auth.users.id
+DELETE FROM auth.users WHERE id = 'USER_UUID';</div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <button class="copy-sql-btn" onclick="copySql()">Copy SQL</button>
+          <input type="text" id="hardDeleteUidInput" class="search-input" style="max-width:320px;font-family:monospace;"
+            placeholder="Paste User UUID here…" oninput="updateSqlBlock()">
+        </div>
+      </div>
+    </div>
+
+    <!-- EXTRA ADMINS -->
+    <!-- ── API KEY MANAGEMENT ── -->
+    <div class="admin-card" style="border-color:rgba(59,130,246,.25);">
+      <div class="admin-section-title" style="color:var(--blue);">🔑 AI API Key</div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6;">
+        Set one API key here — it will be used by <strong style="color:var(--text);">all users</strong> automatically.
+        Users will never see or be able to change it. The key is obfuscated before storage.
+      </p>
+      <div id="apiKeyStatus" style="margin-bottom:12px;padding:9px 12px;border-radius:8px;font-size:11px;font-weight:700;background:var(--surface3);border:1px solid var(--border2);color:var(--text3);">
+        Checking…
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <input type="password" id="adminApiKeyIn"
+          style="flex:1;min-width:220px;padding:9px 12px;background:var(--surface3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:monospace;font-size:12px;"
+          placeholder="sk-ant-api03-… or AIza…"
+          oninput="document.getElementById('adminApiKeySaveBtn').disabled=!this.value.trim()"/>
+        <button id="adminApiKeySaveBtn" disabled onclick="adminSaveApiKey()"
+          style="padding:9px 18px;border-radius:9px;background:var(--blue-dim);border:1px solid var(--blue-border);color:var(--blue);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
+          Save Key
+        </button>
+        <button onclick="adminClearApiKey()"
+          style="padding:9px 14px;border-radius:9px;background:transparent;border:1px solid rgba(240,82,82,.3);color:var(--red);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
+          Remove
+        </button>
+      </div>
+      <p style="font-size:10px;color:var(--text3);margin-top:10px;line-height:1.5;">
+        ⚠️ Requires a <code>site_config</code> table in Supabase — see setup note below.
+      </p>
+    </div>
+
+    <div class="admin-card">
+      <div class="admin-section-title">Admin Access</div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6;">
+        Only <strong style="color:var(--gold);">wrrenvillapando@gmail.com</strong> is the permanent super-admin.
+        You can grant temporary admin access to additional emails below.
+        Extra admins can manage users but cannot add/remove other admins.
+      </p>
+      <div id="extraAdminList" style="margin-bottom:12px;display:flex;flex-direction:column;gap:8px;"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="email" id="extraAdminInput" class="search-input" style="max-width:280px;" placeholder="email@example.com">
+        <button onclick="addExtraAdmin()" style="padding:9px 18px;border-radius:9px;background:var(--purple);border:1px solid var(--purple);color:#fff;font-size:12px;font-weight:700;cursor:pointer;">
+          Grant Access
+        </button>
+      </div>
+    </div>
+
+  </div><!-- /adminContent -->
+
+</div><!-- /page-wrap -->
+
+<div id="toast" class="toast"></div>
+
+<!-- NOTES MODAL -->
+<div id="notesModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">Admin Notes</div>
+    <textarea id="notesTextarea" class="modal-textarea" placeholder="Internal notes for this user…"></textarea>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeNotesModal()">Cancel</button>
+      <button class="btn-modal-save" onclick="saveNotes()">Save Notes</button>
+    </div>
+  </div>
+</div>
+
+<!-- GRANT PLAN MODAL -->
+<div id="grantPlanModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box" style="max-width:400px;">
+    <div class="modal-title" style="margin-bottom:6px;">Grant Subscription Plan</div>
+    <p id="grantPlanEmail" style="font-size:12px;color:var(--text3);margin-bottom:20px;"></p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button onclick="confirmGrantPlan('free')"
+        style="padding:14px 20px;border-radius:12px;text-align:left;border:1px solid var(--border2);background:var(--surface3);color:var(--text2);cursor:pointer;font-size:13px;">
+        <div style="font-weight:700;margin-bottom:2px;">Free</div>
+        <div style="font-size:11px;opacity:.6;">10 AI analyses / month · No charge</div>
+      </button>
+      <button onclick="confirmGrantPlan('pro')"
+        style="padding:14px 20px;border-radius:12px;text-align:left;border:1px solid var(--purple-border);background:rgba(168,136,204,.08);color:var(--purple);cursor:pointer;font-size:13px;">
+        <div style="font-weight:700;margin-bottom:2px;">Pro</div>
+        <div style="font-size:11px;opacity:.7;">50 AI analyses / month · $9.99/mo</div>
+      </button>
+      <button onclick="confirmGrantPlan('team')"
+        style="padding:14px 20px;border-radius:12px;text-align:left;border:1px solid var(--gold-border);background:rgba(200,144,80,.08);color:var(--gold);cursor:pointer;font-size:13px;">
+        <div style="font-weight:700;margin-bottom:2px;">Team</div>
+        <div style="font-size:11px;opacity:.7;">200 AI analyses / month · $29.99/mo</div>
+      </button>
+    </div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn-modal-cancel" onclick="closeGrantPlanModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="warr-lib.js"></script>
+<script>
+// ── State ──
+let _allUsers = [];
+let _filteredUsers = [];
+let _currentPage = 1;
+const PAGE_SIZE = 25;
+let _notesUserId = null;
+
+// ── Toast ──
+function toast(msg, type = '') {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => { t.className = 'toast'; }, 3000);
+}
+
+// ── Format date ──
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en', { month: 'short', day: 'numeric', year: '2-digit' });
+}
+
+// ── Render pending requests ──
+function renderPending(users) {
+  const pending = users.filter(u => u.team_status === 'pending');
+  document.getElementById('pendingCount').textContent = pending.length;
+  const el = document.getElementById('pendingList');
+
+  if (pending.length === 0) {
+    el.innerHTML = '<div class="empty-state">No pending team requests 🎉</div>';
+    return;
+  }
+
+  el.innerHTML = pending.map(u => `
+    <div class="pending-row" id="pendingRow-${u.id}">
+      <div class="pending-info">
+        <div class="pending-email">${escHtml(u.email || u.id)}</div>
+        <div class="pending-team">🏆 Requesting: ${escHtml(u.team_name || '—')}</div>
+        <div class="pending-date">Joined ${fmtDate(u.created_at)}</div>
+      </div>
+      <div class="pending-actions">
+        <button class="btn-approve" onclick="approveTeam('${u.id}', '${escHtml(u.team_name || '')}')">✓ Approve</button>
+        <button class="btn-reject"  onclick="rejectTeam('${u.id}')">✕ Reject</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Approve / reject team ──
+async function approveTeam(userId, teamName) {
+  if (!confirm(`Approve "${teamName}" affiliation for this user?`)) return;
+  try {
+    await WAuth.adminUpdateProfile(userId, { team_status: 'approved' });
+    toast(`✓ Team approved`, 'success');
+    const u = _allUsers.find(x => x.id === userId);
+    if (u) u.team_status = 'approved';
+    renderPending(_allUsers);
+    renderUsersTable();
+  } catch(e) {
+    toast('Error: ' + (e.message || e), 'error');
+  }
+}
+
+async function rejectTeam(userId) {
+  if (!confirm('Reject this team affiliation request?')) return;
+  try {
+    await WAuth.adminUpdateProfile(userId, { team_status: 'rejected' });
+    toast('Team request rejected', 'success');
+    const u = _allUsers.find(x => x.id === userId);
+    if (u) u.team_status = 'rejected';
+    renderPending(_allUsers);
+    renderUsersTable();
+  } catch(e) {
+    toast('Error: ' + (e.message || e), 'error');
+  }
+}
+
+// ── Plan change ──
+async function changePlan(userId, newPlan) {
+  try {
+    await WAuth.adminUpdateProfile(userId, { plan: newPlan });
+    const u = _allUsers.find(x => x.id === userId);
+    if (u) u.plan = newPlan;
+    // Update plan select styling
+    const sel = document.getElementById('planSel-' + userId);
+    if (sel) {
+      sel.className = 'plan-select plan-' + newPlan;
+    }
+    updateStats();
+    toast(`Plan updated to ${newPlan} ✓`, 'success');
+  } catch(e) {
+    toast('Error: ' + (e.message || e), 'error');
+  }
+}
+
+// ── Reset a user's daily draft count ──
+async function adminResetDrafts(userId) {
+  const u = _allUsers.find(x => x.id === userId);
+  const email = u ? (u.email || userId) : userId;
+  if (!confirm(`Reset daily draft count for ${email}?`)) return;
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    await WAuth.adminUpdateProfile(userId, { tokens_used: 0, token_reset_date: today });
+    if (u) u.tokens_used = 0;
+    const el = document.getElementById('draftsUsed-' + userId);
+    if (el) el.textContent = '0';
+    toast(`Draft count reset for ${email} ✓`, 'success');
+  } catch(e) {
+    toast('Error: ' + (e.message || e), 'error');
+  }
+}
+
+// ── Ban / unban ──
+async function toggleBan(userId) {
+  const u = _allUsers.find(x => x.id === userId);
+  if (!u) return;
+  const newBan = !u.is_banned;
+  const msg = newBan
+    ? `Ban user ${u.email || userId}? They won't be able to use Warr.GG features.`
+    : `Unban user ${u.email || userId}?`;
+  if (!confirm(msg)) return;
+  try {
+    await WAuth.adminBanUser(userId, newBan);
+    u.is_banned = newBan;
+    const btn = document.getElementById('banBtn-' + userId);
+    if (btn) {
+      btn.textContent = newBan ? 'Unban' : 'Ban';
+      btn.className = 'btn-ban' + (newBan ? ' is-banned' : '');
+    }
+    updateStats();
+    toast(newBan ? 'User banned' : 'User unbanned', 'success');
+  } catch(e) {
+    toast('Error: ' + (e.message || e), 'error');
+  }
+}
+
+// ── Delete profile ──
+async function deleteUserProfile(userId) {
+  const u = _allUsers.find(x => x.id === userId);
+  const email = u ? u.email : userId;
+  if (!confirm(`Delete profile for ${email}?\n\nThis removes their profile row. To fully delete their auth account, use the Hard-Delete SQL below.`)) return;
+  try {
+    await WAuth.adminDeleteProfile(userId);
+    _allUsers = _allUsers.filter(x => x.id !== userId);
+    filterUsers();
+    renderPending(_allUsers);
+    updateStats();
+    toast('Profile deleted ✓', 'success');
+    // Show UUID in hard-delete box
+    document.getElementById('hardDeleteUidInput').value = userId;
+    updateSqlBlock();
+  } catch(e) {
+    toast('Error: ' + (e.message || e), 'error');
+  }
+}
+
+// ── Notes modal ──
+function openNotesModal(userId) {
+  const u = _allUsers.find(x => x.id === userId);
+  _notesUserId = userId;
+  document.getElementById('notesTextarea').value = u ? (u.admin_notes || '') : '';
+  document.getElementById('notesModal').style.display = 'flex';
+}
+function closeNotesModal() {
+  document.getElementById('notesModal').style.display = 'none';
+  _notesUserId = null;
+}
+async function saveNotes() {
+  if (!_notesUserId) return;
+  const notes = document.getElementById('notesTextarea').value.trim();
+  try {
+    await WAuth.adminUpdateProfile(_notesUserId, { admin_notes: notes });
+    const u = _allUsers.find(x => x.id === _notesUserId);
+    if (u) u.admin_notes = notes;
+    const noteBtn = document.getElementById('noteBtn-' + _notesUserId);
+    if (noteBtn) noteBtn.title = notes || 'Add note';
+    closeNotesModal();
+    toast('Notes saved ✓', 'success');
+  } catch(e) {
+    toast('Error: ' + (e.message || e), 'error');
+  }
+}
+
+// ── Filter users ──
+function filterUsers() {
+  const q = (document.getElementById('userSearch').value || '').toLowerCase();
+  const planF = document.getElementById('planFilter').value;
+  const statusF = document.getElementById('statusFilter').value;
+
+  _filteredUsers = _allUsers.filter(u => {
+    const matchQ = !q ||
+      (u.email || '').toLowerCase().includes(q) ||
+      (u.display_name || '').toLowerCase().includes(q) ||
+      (u.team_name || '').toLowerCase().includes(q);
+    const matchPlan   = !planF   || u.plan === planF;
+    const matchStatus = !statusF || u.team_status === statusF;
+    return matchQ && matchPlan && matchStatus;
+  });
+
+  _currentPage = 1;
+  renderUsersTable();
+  renderPagination();
+}
+
+// ── Render users table ──
+function renderUsersTable() {
+  const tbody = document.getElementById('usersTableBody');
+  document.getElementById('usersCount').textContent = _filteredUsers.length;
+
+  const start = (_currentPage - 1) * PAGE_SIZE;
+  const page  = _filteredUsers.slice(start, start + PAGE_SIZE);
+
+  if (page.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No users found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = page.map(u => {
+    const plan = u.plan || 'free';
+    const planLabel = {free:'Free',pro:'Pro',team:'Team'}[plan] || plan;
+    const planColor = plan==='pro'?'var(--purple)':plan==='team'?'var(--gold)':'var(--text3)';
+    const statusCls = u.team_status || 'none';
+    const isBanned = u.is_banned;
+    const hasNotes = !!(u.admin_notes && u.admin_notes.trim());
+    return `<tr style="${isBanned ? 'opacity:.5' : ''}">
+      <td class="user-email-cell" title="${escHtml(u.email || '')}">${escHtml(u.email || u.id)}</td>
+      <td class="user-name-cell">${escHtml(u.display_name || '—')}</td>
+      <td class="team-cell">${escHtml(u.team_name || '—')}</td>
+      <td><span class="status-chip ${statusCls}">${statusCls}</span></td>
+      <td>
+        <button onclick="openGrantPlanModal('${u.id}')" style="padding:5px 12px;border-radius:7px;font-size:11px;font-weight:700;border:1px solid ${planColor}44;background:transparent;color:${planColor};cursor:pointer;white-space:nowrap;" title="Click to grant a plan">
+          ${planLabel}
+        </button>
+      </td>
+      <td style="text-align:right;">
+        <span id="draftsUsed-${u.id}">${u.tokens_used || 0}</span>
+        <button onclick="adminResetDrafts('${u.id}')" title="Reset today's draft count"
+          style="margin-left:6px;padding:2px 7px;border-radius:5px;font-size:10px;background:transparent;border:1px solid var(--border2);color:var(--text3);cursor:pointer;">↺</button>
+      </td>
+      <td>${fmtDate(u.created_at)}</td>
+      <td>
+        <button id="noteBtn-${u.id}" class="btn-ban" title="${escHtml(u.admin_notes || 'Add note')}"
+          onclick="openNotesModal('${u.id}')">${hasNotes ? 'Note' : '+'}</button>
+      </td>
+      <td>
+        <div style="display:flex;gap:6px;">
+          <button id="banBtn-${u.id}" class="btn-ban${isBanned?' is-banned':''}"
+            onclick="toggleBan('${u.id}')">${isBanned ? 'Unban' : 'Ban'}</button>
+          <button class="btn-delete" onclick="deleteUserProfile('${u.id}')">Del</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Render pagination ──
+function renderPagination() {
+  const total = _filteredUsers.length;
+  const pages = Math.ceil(total / PAGE_SIZE);
+  const el = document.getElementById('pagination');
+  if (pages <= 1) { el.innerHTML = ''; return; }
+
+  let html = `<button class="page-btn" onclick="goPage(${_currentPage-1})" ${_currentPage===1?'disabled':''}>‹ Prev</button>`;
+  for (let i = 1; i <= pages; i++) {
+    if (pages > 8 && i > 2 && i < pages - 1 && Math.abs(i - _currentPage) > 1) {
+      if (i === 3 || i === pages - 2) html += '<span style="color:var(--text4);padding:0 4px;">…</span>';
+      continue;
+    }
+    html += `<button class="page-btn${i===_currentPage?' active':''}" onclick="goPage(${i})">${i}</button>`;
+  }
+  html += `<button class="page-btn" onclick="goPage(${_currentPage+1})" ${_currentPage===pages?'disabled':''}>Next ›</button>`;
+  el.innerHTML = html;
+}
+
+function goPage(p) {
+  const pages = Math.ceil(_filteredUsers.length / PAGE_SIZE);
+  if (p < 1 || p > pages) return;
+  _currentPage = p;
+  renderUsersTable();
+  renderPagination();
+}
+
+// ── Update stats ──
+function updateStats() {
+  document.getElementById('statTotal').textContent = _allUsers.length;
+  document.getElementById('statPending').textContent = _allUsers.filter(u => u.team_status === 'pending').length;
+  document.getElementById('statPro').textContent = _allUsers.filter(u => u.plan === 'pro' || u.plan === 'team').length;
+  document.getElementById('statBanned').textContent = _allUsers.filter(u => u.is_banned).length;
+}
+
+// ── Hard-delete SQL ──
+function updateSqlBlock() {
+  const uid = (document.getElementById('hardDeleteUidInput').value || '').trim();
+  const sql = uid
+    ? `DELETE FROM auth.users WHERE id = '${uid.replace(/'/g,"''")}';`
+    : `-- Replace USER_UUID with the actual auth.users.id\nDELETE FROM auth.users WHERE id = 'USER_UUID';`;
+  document.getElementById('hardDeleteSql').textContent = sql;
+}
+function copySql() {
+  const sql = document.getElementById('hardDeleteSql').textContent;
+  navigator.clipboard.writeText(sql).then(() => toast('SQL copied ✓', 'success'));
+}
+
+// ── Escape HTML ──
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── Refresh all data ──
+async function refreshAll() {
+  document.getElementById('pendingList').innerHTML = '<div class="loading-row">Loading…</div>';
+  document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="9" class="loading-row">Loading users…</td></tr>';
+  await loadAllData();
+}
+
+// ════════════════════════════════════════════════════════════
+// LEAGUE MANAGER — Season-Aware
+// ════════════════════════════════════════════════════════════
+let _lmConfig = {};      // { league: { label, color, activeSeason, seasons:{} } }
+let _lmSelected = null;  // currently selected league key
+let _lmViewSeason = null; // season being edited (may differ from activeSeason)
+
+async function lmInit() {
+  WTeams.bustCache(); // admin always gets fresh data
+  await WTeams.loadFromDB();
+  if (WTeams._config && Object.keys(WTeams._config).length) {
+    _lmConfig = JSON.parse(JSON.stringify(WTeams._config));
+  } else {
+    // Bootstrap from hardcoded LEAGUES if DB has nothing
+    _lmConfig = {};
+    Object.entries(WTeams.LEAGUES).forEach(([lg, teams]) => {
+      _lmConfig[lg] = {
+        label: lg,
+        color: WTeams._COLORS[lg] || '#818cf8',
+        activeSeason: 'Current Season',
+        seasons: { 'Current Season': [...teams] },
+      };
+    });
+  }
+  lmRenderLeagueList();
+  const first = Object.keys(_lmConfig)[0];
+  if (first) lmSelectLeague(first);
+}
+
+function lmRenderLeagueList() {
+  const el = document.getElementById('lmLeagueList');
+  if (!el) return;
+  const keys = Object.keys(_lmConfig);
+  if (!keys.length) {
+    el.innerHTML = `<div style="font-size:11px;color:var(--text4);padding:16px 0;text-align:center;">No leagues yet</div>`;
+    return;
+  }
+  el.innerHTML = keys.map(k => {
+    const cfg = _lmConfig[k];
+    const active = k === _lmSelected;
+    const dot = cfg.color || '#818cf8';
+    // Show team count from activeSeason
+    const teamCount = (cfg.seasons && cfg.seasons[cfg.activeSeason] || []).length;
+    const seasonCount = Object.keys(cfg.seasons || {}).length;
+    return `<button onclick="lmSelectLeague('${k.replace(/'/g,"\\'")}')"
+      style="width:100%;text-align:left;padding:9px 12px;border-radius:10px;
+             border:1px solid ${active ? 'rgba(129,140,248,.4)' : 'var(--glass-border2)'};
+             background:${active ? 'rgba(129,140,248,.1)' : 'var(--surface2)'};
+             cursor:pointer;display:flex;align-items:center;gap:8px;transition:border-color .15s,background .15s;">
+        <span style="width:8px;height:8px;border-radius:50%;background:${dot};flex-shrink:0;box-shadow:0 0 6px ${dot}88;"></span>
+        <span style="flex:1;font-size:12px;font-weight:700;color:${active ? 'var(--accent,#818cf8)' : 'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${cfg.label || k}</span>
+        <span style="font-size:9px;color:var(--text4);flex-shrink:0;">${teamCount}t · ${seasonCount}s</span>
+      </button>`;
+  }).join('');
+}
+
+function lmSelectLeague(key) {
+  _lmSelected = key;
+  const cfg = _lmConfig[key];
+  if (!cfg) return;
+  _lmViewSeason = cfg.activeSeason;
+  lmRenderLeagueList();
+  // Show detail panel
+  document.getElementById('lmEmptyState').style.display = 'none';
+  const panel = document.getElementById('lmDetailPanel');
+  panel.style.display = 'flex';
+  // Fill header fields
+  document.getElementById('lmLabelInput').value = cfg.label || key;
+  document.getElementById('lmColorInput').value = cfg.color || '#818cf8';
+  // Render season selector + teams
+  lmRenderSeasonSelect();
+  lmRenderTeams();
+  document.getElementById('lmAddTeamInput').value = '';
+}
+
+function lmRenderSeasonSelect() {
+  if (!_lmSelected) return;
+  const cfg = _lmConfig[_lmSelected];
+  const sel   = document.getElementById('lmSeasonSelect');
+  const badge = document.getElementById('lmActiveSeasonBadge');
+  const lbl   = document.getElementById('lmRosterSeasonLabel');
+  if (!sel || !cfg) return;
+  const seasons = Object.keys(cfg.seasons || {});
+  sel.innerHTML = seasons.map(s =>
+    `<option value="${s}"${s === _lmViewSeason ? ' selected' : ''}>${s}</option>`
+  ).join('');
+  // Active season badge
+  const isActive = _lmViewSeason === cfg.activeSeason;
+  badge.style.display = isActive ? 'inline-block' : 'none';
+  if (isActive) {
+    const c = cfg.color || '#818cf8';
+    badge.style.cssText += `;background:${c}22;color:${c};border:1px solid ${c}55;`;
+  }
+  if (lbl) lbl.textContent = _lmViewSeason || '';
+}
+
+function lmSelectSeason(season) {
+  _lmViewSeason = season;
+  lmRenderSeasonSelect();
+  lmRenderTeams();
+}
+
+function lmRenderTeams() {
+  const el = document.getElementById('lmTeamList');
+  if (!el || !_lmSelected) return;
+  const cfg = _lmConfig[_lmSelected];
+  const teams = ((cfg?.seasons || {})[_lmViewSeason] || []).slice().sort();
+  const isActive = _lmViewSeason === cfg?.activeSeason;
+  if (!teams.length) {
+    el.innerHTML = `<span style="font-size:11px;color:var(--text4);padding:4px 0;">${isActive ? 'No teams yet — add one below' : 'No teams in this season'}</span>`;
+    return;
+  }
+  el.innerHTML = teams.map(t =>
+    `<div style="display:inline-flex;align-items:center;gap:4px;padding:5px 8px 5px 12px;background:var(--surface3);border:1px solid var(--glass-border2);border-radius:20px;font-size:11px;font-weight:600;color:var(--text);">
+      ${t}
+      ${isActive ? `<button onclick="lmRemoveTeam('${t.replace(/'/g,"\\'")}') "title="Remove"
+        style="background:none;border:none;color:var(--text4);cursor:pointer;font-size:14px;line-height:1;padding:0 2px;margin-left:1px;"
+        onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text4)'">×</button>` : ''}
+    </div>`
+  ).join('');
+}
+
+function lmAddTeam() {
+  const inp = document.getElementById('lmAddTeamInput');
+  if (!inp || !_lmSelected) return;
+  const name = inp.value.trim();
+  if (!name) return;
+  const cfg = _lmConfig[_lmSelected];
+  if (!cfg.seasons) cfg.seasons = {};
+  if (!cfg.seasons[_lmViewSeason]) cfg.seasons[_lmViewSeason] = [];
+  if (!cfg.seasons[_lmViewSeason].includes(name)) {
+    cfg.seasons[_lmViewSeason].push(name);
+    lmRenderTeams();
+    lmRenderLeagueList();
+  }
+  inp.value = '';
+  inp.focus();
+}
+
+function lmRemoveTeam(name) {
+  if (!_lmSelected) return;
+  const cfg = _lmConfig[_lmSelected];
+  if (cfg?.seasons?.[_lmViewSeason]) {
+    cfg.seasons[_lmViewSeason] = cfg.seasons[_lmViewSeason].filter(t => t !== name);
+    lmRenderTeams();
+    lmRenderLeagueList();
+  }
+}
+
+function _lmSyncLabel() {
+  if (!_lmSelected) return;
+  _lmConfig[_lmSelected].label = document.getElementById('lmLabelInput').value.trim() || _lmSelected;
+  lmRenderLeagueList();
+}
+
+function _lmSyncColor() {
+  if (!_lmSelected) return;
+  _lmConfig[_lmSelected].color = document.getElementById('lmColorInput').value;
+  lmRenderLeagueList();
+  lmRenderSeasonSelect(); // update badge color
+}
+
+async function lmAddLeague() {
+  const name = prompt('New league key (e.g. MPL SG):');
+  if (!name?.trim()) return;
+  const key = name.trim();
+  if (_lmConfig[key]) { alert(`"${key}" already exists.`); return; }
+  const seasonName = prompt(`Initial season name for ${key}:`, 'Season 1');
+  if (!seasonName?.trim()) return;
+  const sKey = seasonName.trim();
+  const color = WTeams._COLORS[key] || '#818cf8';
+  _lmConfig[key] = { label: key, color, activeSeason: sKey, seasons: { [sKey]: [] } };
+  lmRenderLeagueList();
+  lmSelectLeague(key);
+}
+
+async function lmRemoveLeague() {
+  if (!_lmSelected) return;
+  const label = _lmConfig[_lmSelected]?.label || _lmSelected;
+  if (!confirm(`Remove "${label}" and all its seasons and teams?\nThis cannot be undone.`)) return;
+  delete _lmConfig[_lmSelected];
+  _lmSelected = null;
+  _lmViewSeason = null;
+  document.getElementById('lmDetailPanel').style.display = 'none';
+  document.getElementById('lmEmptyState').style.display = 'flex';
+  lmRenderLeagueList();
+}
+
+async function lmNewSeason() {
+  if (!_lmSelected) return;
+  const cfg = _lmConfig[_lmSelected];
+  const existing = Object.keys(cfg.seasons || {});
+  const suggested = `Season ${existing.length + 1}`;
+  const seasonName = prompt(`New season name for ${cfg.label || _lmSelected}:`, suggested);
+  if (!seasonName?.trim()) return;
+  const key = seasonName.trim();
+  if (cfg.seasons[key]) { alert(`Season "${key}" already exists.`); return; }
+  const copy = confirm(`Copy roster from "${cfg.activeSeason}" as a starting point?`);
+  cfg.seasons[key] = copy ? [...(cfg.seasons[cfg.activeSeason] || [])] : [];
+  cfg.activeSeason = key;
+  _lmViewSeason = key;
+  lmRenderLeagueList();
+  lmRenderSeasonSelect();
+  lmRenderTeams();
+}
+
+function lmRenameSeason() {
+  if (!_lmSelected || !_lmViewSeason) return;
+  const cfg = _lmConfig[_lmSelected];
+  const newName = prompt(`Rename "${_lmViewSeason}" to:`, _lmViewSeason);
+  if (!newName?.trim() || newName.trim() === _lmViewSeason) return;
+  const key = newName.trim();
+  if (cfg.seasons[key]) { alert(`Season "${key}" already exists.`); return; }
+  // Move the roster to the new key
+  cfg.seasons[key] = cfg.seasons[_lmViewSeason];
+  delete cfg.seasons[_lmViewSeason];
+  // Update activeSeason pointer if needed
+  if (cfg.activeSeason === _lmViewSeason) cfg.activeSeason = key;
+  _lmViewSeason = key;
+  lmRenderLeagueList();
+  lmRenderSeasonSelect();
+  lmRenderTeams();
+}
+
+async function lmSave() {
+  const saveErr = document.getElementById('lmSaveErr');
+  const saveOk  = document.getElementById('lmSaveStatus');
+  saveErr.style.display = 'none';
+  saveOk.style.display  = 'none';
+  try {
+    await WTeams.saveToDB(_lmConfig);
+    saveOk.style.display = 'inline';
+    setTimeout(() => saveOk.style.display = 'none', 3000);
+  } catch(e) {
+    const msg = e.message || String(e);
+    const needsSQL = msg.includes('app_settings') || msg.includes('schema cache') || msg.includes('relation') || msg.includes('does not exist');
+    if (needsSQL) {
+      saveErr.innerHTML = 'Table missing — <a href="#" onclick="document.getElementById(\'rlsNotice\').style.display=\'block\';this.closest(\'span\').style.display=\'none\';return false;" style="color:var(--red);font-weight:800;text-decoration:underline;">run DB Setup SQL first</a>';
+    } else {
+      saveErr.textContent = 'Save failed: ' + msg;
+    }
+    saveErr.style.display = 'inline';
+  }
+}
+
+// ── Diagnostic — shows exactly where the chain breaks ──
+async function runDiagnostic() {
+  const box = document.getElementById('diagBox');
+  if (!box) return;
+  box.style.display = 'block';
+  const log = (msg, ok) => {
+    const color = ok === true ? '#4ade80' : ok === false ? '#f87171' : '#fbbf24';
+    box.innerHTML += `<div style="color:${color};font-size:11px;padding:2px 0;">${msg}</div>`;
+  };
+  box.innerHTML = '<div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Running diagnostics…</div>';
+
+  // Step 1: auth user
+  const user = WAuth.getUser();
+  if (user) {
+    log(`✓ Logged in as: ${user.email}`, true);
+  } else {
+    log('✗ No auth user — not logged in', false);
+    return;
+  }
+
+  // Step 2: isAdmin check
+  const admin = WAdmin.isAdmin();
+  log(`${admin ? '✓' : '✗'} WAdmin.isAdmin() = ${admin}  (expected: true)`, admin);
+  if (!admin) {
+    log('  → Email in JWT does not match ADMIN_EMAIL. Check you are signed in as wrrenvillapando@gmail.com', false);
+    return;
+  }
+
+  // Step 3: raw Supabase SELECT on profiles (bypasses WAuth wrapper)
+  const _sb = WAuth._sb();
+  const { data: selfRow, error: selfErr } = await _sb.from('profiles').select('id,plan').eq('id', user.id).maybeSingle();
+  if (selfErr) {
+    log(`✗ SELECT own profile row failed: ${selfErr.message}`, false);
+    log('  → profiles table may not exist, or RLS blocks even own row', false);
+  } else if (selfRow) {
+    log(`✓ Own profile row found (plan=${selfRow.plan||'free'})`, true);
+  } else {
+    log('⚠ No profile row for admin yet — will be created on first save', null);
+  }
+
+  // Step 4: SELECT all profiles (tests admin RLS policy)
+  const { data: allRows, error: allErr, count } = await _sb
+    .from('profiles')
+    .select('id', { count: 'exact' })
+    .limit(5);
+  if (allErr) {
+    log(`✗ SELECT all profiles failed: ${allErr.message}`, false);
+    log('  → RLS policy is still blocking. Re-run the SQL in Supabase dashboard.', false);
+  } else {
+    log(`✓ SELECT all profiles OK — ${count ?? (allRows||[]).length} total rows visible`, true);
+  }
+
+  // Step 5: check created_at column (query uses it for ordering)
+  const { error: orderErr } = await _sb.from('profiles').select('id').order('created_at', { ascending: false }).limit(1);
+  if (orderErr && orderErr.message.includes('created_at')) {
+    log('⚠ profiles table has no created_at column — ordering will fail', null);
+    log('  → Run: ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();', null);
+  } else if (!orderErr) {
+    log('✓ created_at column OK', true);
+  }
+
+  log('— Diagnostic complete —', null);
+}
+
+// ── Load all data from Supabase ──
+async function loadAllData() {
+  try {
+    // Load pending requests first (fast)
+    const pendingResult = await WAuth.adminGetPendingRequests();
+    const pending = Array.isArray(pendingResult) ? pendingResult : (pendingResult.data || []);
+
+    // Load all users (paginated — we'll load all for client-side filtering)
+    let allUsers = [];
+    let page = 0;   // 0-based: adminGetAllProfiles uses page*pageSize as offset
+    const pgSize = 100;
+    while (true) {
+      const batch = await WAuth.adminGetAllProfiles(page, pgSize);
+      const rows = Array.isArray(batch) ? batch : (batch.data || []);
+      // Surface Supabase errors into the UI
+      const batchErr = !Array.isArray(batch) && batch.error;
+      if (batchErr) throw new Error('Supabase error: ' + (batchErr.message || JSON.stringify(batchErr)));
+      allUsers = allUsers.concat(rows);
+      if (rows.length < pgSize) break;
+      page++;
+    }
+
+    _allUsers = allUsers;
+    _filteredUsers = [..._allUsers];
+
+    // Show RLS setup notice + auto-run diagnostics if no users found
+    const rlsNotice = document.getElementById('rlsNotice');
+    if (rlsNotice) rlsNotice.style.display = allUsers.length === 0 ? 'block' : 'none';
+    if (allUsers.length === 0) {
+      document.getElementById('diagPanel').style.display = 'block';
+      runDiagnostic();
+    }
+
+    updateStats();
+    renderPending(_allUsers);
+    renderUsersTable();
+    renderPagination();
+
+  } catch(e) {
+    const rlsNotice = document.getElementById('rlsNotice');
+    if (rlsNotice) rlsNotice.style.display = 'block';
+    document.getElementById('pendingList').innerHTML =
+      `<div class="empty-state" style="color:var(--red);">Error loading data: ${escHtml(e.message || String(e))}</div>`;
+    document.getElementById('usersTableBody').innerHTML =
+      `<tr><td colspan="9" class="empty-state" style="color:var(--red);">Error: ${escHtml(e.message || String(e))}</td></tr>`;
+  }
+}
+
+// ── Init ──
+async function init() {
+  const loading = document.getElementById('loadingState');
+  const gate    = document.getElementById('accessGate');
+  const content = document.getElementById('adminContent');
+
+  // Init WAuth
+  if (typeof WAuth !== 'undefined' && WAuth.init) {
+    try { await WAuth.init(); } catch(e) { console.warn('WAuth init:', e); }
+  }
+
+  // Auth chip
+  const user = typeof WAuth !== 'undefined' ? WAuth.getUser() : null;
+  const chip = document.getElementById('authChip');
+  if (chip) {
+    chip.innerHTML = user
+      ? `<a href="profile.html" class="cta-secondary" style="padding:7px 18px;font-size:13px;">${(user.email||'').split('@')[0]}</a>`
+      : `<a href="auth.html" class="cta-secondary" style="padding:7px 18px;font-size:13px;">Sign In</a>`;
+  }
+
+  // Check admin access
+  const isAdmin = typeof WAdmin !== 'undefined' && WAdmin.isAdmin && WAdmin.isAdmin();
+  loading.style.display = 'none';
+
+  if (!isAdmin) {
+    // Redirect unauthorized visitors back to profile — no hint that this page exists
+    window.location.replace('profile.html');
+    return;
+  }
+
+  content.style.display = 'block';
+  renderExtraAdmins();
+  refreshApiKeyStatus(); // async — no need to await
+  lmInit();             // load league manager (async, non-blocking)
+  await loadAllData();
+}
+
+// ── Grant plan modal ──
+let _grantPlanUserId = null;
+function openGrantPlanModal(userId) {
+  const u = _allUsers.find(x => x.id === userId);
+  _grantPlanUserId = userId;
+  const emailEl = document.getElementById('grantPlanEmail');
+  if (emailEl) emailEl.textContent = u ? `${escHtml(u.email || u.id)} — currently on ${(u.plan||'free')} plan` : userId;
+  document.getElementById('grantPlanModal').style.display = 'flex';
+}
+function closeGrantPlanModal() {
+  document.getElementById('grantPlanModal').style.display = 'none';
+  _grantPlanUserId = null;
+}
+async function confirmGrantPlan(plan) {
+  if (!_grantPlanUserId) return;
+  const userId = _grantPlanUserId;
+  closeGrantPlanModal();
+  await changePlan(userId, plan);
+}
+
+// ── Extra admin management ──
+function renderExtraAdmins() {
+  const list = typeof WAdmin !== 'undefined' ? WAdmin._getExtraAdmins() : [];
+  const el = document.getElementById('extraAdminList');
+  if (!el) return;
+  if (list.length === 0) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text4);">No extra admins granted.</div>';
+    return;
+  }
+  el.innerHTML = list.map(email => `
+    <div style="display:flex;align-items:center;gap:10px;background:var(--surface3);border:1px solid var(--border2);border-radius:9px;padding:8px 14px;">
+      <span style="flex:1;font-size:12px;color:var(--text);">${escHtml(email)}</span>
+      <button onclick="removeExtraAdmin('${escHtml(email)}')" class="btn-reject" style="padding:3px 10px;">Revoke</button>
+    </div>
+  `).join('');
+}
+function addExtraAdmin() {
+  const email = (document.getElementById('extraAdminInput').value || '').trim().toLowerCase();
+  if (!email || !email.includes('@')) { toast('Enter a valid email', 'error'); return; }
+  const list = WAdmin._getExtraAdmins();
+  if (list.includes(email)) { toast('Already an admin', 'error'); return; }
+  list.push(email);
+  WAdmin._setExtraAdmins(list);
+  document.getElementById('extraAdminInput').value = '';
+  renderExtraAdmins();
+  toast(`Admin access granted to ${email} ✓`, 'success');
+}
+function removeExtraAdmin(email) {
+  if (!confirm(`Revoke admin access for ${email}?`)) return;
+  const list = WAdmin._getExtraAdmins().filter(e => e !== email);
+  WAdmin._setExtraAdmins(list);
+  renderExtraAdmins();
+  toast('Admin access revoked', 'success');
+}
+
+// ── API KEY ADMIN FUNCTIONS ──
+async function refreshApiKeyStatus() {
+  const el = document.getElementById('apiKeyStatus');
+  if (!el) return;
+  const key = await WDB.getAdminApiKey();
+  if (key) {
+    const masked = key.slice(0,8) + '••••••••' + key.slice(-4);
+    el.innerHTML = `<span style="color:#22c55e;">✓ Key active</span> <span style="color:var(--text3);font-weight:400;">${masked}</span>`;
+    el.style.borderColor = 'rgba(34,197,94,.3)';
+  } else {
+    el.innerHTML = '<span style="color:var(--red);">✗ No key set — AI features will use rule-based fallback</span>';
+    el.style.borderColor = 'rgba(240,82,82,.3)';
+  }
+}
+async function adminSaveApiKey() {
+  const v = document.getElementById('adminApiKeyIn').value.trim();
+  if (!v) { toast('Enter a key first', 'error'); return; }
+  try {
+    await WDB.setAdminApiKey(v);
+    document.getElementById('adminApiKeyIn').value = '';
+    document.getElementById('adminApiKeySaveBtn').disabled = true;
+    await refreshApiKeyStatus();
+    toast('API key saved & synced ✓', 'success');
+  } catch(e) {
+    toast('Error saving key: ' + e.message, 'error');
+  }
+}
+async function adminClearApiKey() {
+  if (!confirm('Remove the API key? All users will fall back to rule-based AI.')) return;
+  await WDB.clearAdminApiKey();
+  await refreshApiKeyStatus();
+  toast('API key removed', 'success');
+}
+
+// Close modals on overlay click
+document.getElementById('notesModal').addEventListener('click', function(e) {
+  if (e.target === this) closeNotesModal();
+});
+document.getElementById('grantPlanModal').addEventListener('click', function(e) {
+  if (e.target === this) closeGrantPlanModal();
+});
+
+init();
+</script>
+</body>
+</html>

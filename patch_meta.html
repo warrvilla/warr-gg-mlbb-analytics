@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patch Meta — Warr.GG</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="warr-lib.js"></script>
+<link rel="stylesheet" href="warr-styles.css">
+<style>
+:root {
+    --bg:#07070C; --bg2:#0B0B12; --surface:#101018; --surface2:#161620; --surface3:#1E1E2A; --surface4:#272734;
+    --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.07); --border3:rgba(255,255,255,0.11);
+    --accent:#A888CC; --accent-dim:rgba(168,136,204,0.09); --accent-glow:rgba(168,136,204,0.22); --accent-border:rgba(168,136,204,0.22);
+  --neon:#4CB87A; --neon-dim:rgba(76,184,122,0.09); --neon-glow:rgba(76,184,122,0.20); --neon-border:rgba(76,184,122,0.22);
+  --blue:#5EA0D8; --blue2:#3B82F6; --blue-dim:rgba(94,160,216,0.09); --blue-border:rgba(94,160,216,0.22); --blue-glow:rgba(94,160,216,0.18);
+  --red:#D87880; --red-dim:rgba(216,120,128,0.09); --red-border:rgba(216,120,128,0.22);
+  --gold:#C89050; --gold-dim:rgba(200,144,80,0.09); --gold-border:rgba(200,144,80,0.22);
+  --green:#34D399; --green-dim:rgba(52,209,122,.08); --green-border:rgba(52,209,122,.25);
+  --purple:#A78BFA; --purple-dim:rgba(139,92,246,.08); --purple-border:rgba(139,92,246,.28);
+  --ai:#A78BFA; --ai-dim:rgba(167,139,250,0.10); --ai-border:rgba(167,139,250,0.28);
+  --cyan:#22D3EE; --orange:#F97316;
+  --text:#F0F0F8; --text2:rgba(240,240,248,0.54); --text3:rgba(240,240,248,0.28); --text4:rgba(240,240,248,0.12);
+  --ban-red:#D87880; --accent-main:#4F8EF7;
+  --font-head:-apple-system,'SF Pro Display','Inter',sans-serif; --font-body:'Inter',sans-serif; --font-mono:'JetBrains Mono',monospace;
+  --r:12px; --r2:18px; --r3:24px; --radius:8px; --radius2:12px; --radius3:16px;
+  --shadow:0 2px 16px rgba(0,0,0,.7); --shadow2:0 8px 40px rgba(0,0,0,.9);
+  --nav-h:52px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:14px;scroll-behavior:smooth;}
+body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;-webkit-font-smoothing:antialiased;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border3);border-radius:8px;}
+
+/* ── LAYOUT ── */
+.page-wrap{display:flex;min-height:calc(100vh - var(--nav-h));}
+
+/* ── SIDEBAR ── */
+.sidebar{width:216px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;}
+.sidebar-section{padding:16px 14px 5px;font-size:9px;font-weight:700;font-family:var(--font-head);color:var(--text4);letter-spacing:2px;text-transform:uppercase;}
+.patch-entry{display:flex;align-items:center;gap:8px;padding:9px 14px;font-size:11px;font-weight:500;color:var(--text3);cursor:pointer;border:none;background:transparent;width:100%;text-align:left;border-left:2px solid transparent;transition:all .12s;position:relative;}
+.patch-entry:hover{background:var(--surface);color:var(--text2);}
+.patch-entry.active{background:var(--accent-dim);color:var(--accent);border-left-color:var(--accent);}
+.patch-entry .patch-num{font-family:var(--font-mono);font-size:11px;font-weight:500;flex:1;}
+.patch-entry .patch-games{font-size:9px;font-family:var(--font-mono);background:var(--surface3);color:var(--text3);padding:1px 6px;border-radius:8px;border:1px solid var(--border);}
+.patch-entry.active .patch-games{background:var(--accent-dim);color:var(--accent);border-color:var(--accent-border);}
+.sidebar-add-btn{display:flex;align-items:center;justify-content:center;gap:6px;margin:10px 12px;padding:7px;font-size:11px;font-weight:700;font-family:var(--font-head);border:1px dashed var(--border2);border-radius:var(--radius);background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;letter-spacing:.3px;}
+.sidebar-add-btn:hover{border-color:var(--accent-border);color:var(--accent);background:var(--accent-dim);}
+
+/* ── MAIN ── */
+.main{flex:1;overflow-y:auto;padding:28px 36px;}
+
+/* ── PATCH HEADER ── */
+.patch-header-bar{display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap;}
+.patch-title-big{font-size:24px;font-weight:800;font-family:var(--font-head);letter-spacing:-.3px;}
+.patch-date-badge{font-size:10px;font-weight:600;font-family:var(--font-mono);color:var(--text3);background:var(--surface2);border:1px solid var(--border2);padding:3px 9px;border-radius:10px;}
+.patch-actions{display:flex;gap:6px;margin-left:auto;}
+
+/* ── TIER SECTION ── */
+.tier-section{margin-bottom:26px;}
+.tier-row-header{display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:var(--radius);margin-bottom:10px;}
+.tier-label{font-size:13px;font-weight:800;font-family:var(--font-head);letter-spacing:.5px;width:28px;text-align:center;flex-shrink:0;}
+.tier-S .tier-label{color:#fbbf24;} .tier-A .tier-label{color:var(--green);}
+.tier-B .tier-label{color:var(--blue);} .tier-C .tier-label{color:var(--text2);}
+.tier-D .tier-label{color:var(--text3);}
+.tier-S{background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.15);}
+.tier-A{background:rgba(52,209,122,.06);border:1px solid rgba(52,209,122,.15);}
+.tier-B{background:rgba(79,142,247,.06);border:1px solid rgba(79,142,247,.15);}
+.tier-C{background:rgba(139,151,176,.06);border:1px solid rgba(139,151,176,.12);}
+.tier-D{background:rgba(79,93,120,.04);border:1px solid rgba(79,93,120,.1);}
+.tier-heroes{display:flex;flex-wrap:wrap;gap:8px;flex:1;}
+
+/* ── HERO TILE ── */
+.hero-tile{display:flex;flex-direction:column;align-items:center;gap:4px;width:84px;cursor:pointer;transition:transform .1s;}
+.hero-tile:hover{transform:translateY(-2px);}
+.hero-tile-img-wrap{position:relative;width:68px;height:68px;}
+.hero-tile-img-wrap img{width:68px;height:68px;border-radius:8px;object-fit:cover;border:1px solid var(--border2);display:block;}
+.hero-tile-img-wrap .trend-pip{position:absolute;bottom:-3px;right:-3px;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;border:2px solid var(--bg);}
+.trend-pip.up{background:var(--green);}
+.trend-pip.down{background:var(--red);}
+.trend-pip.new{background:var(--gold);}
+.trend-pip.same{background:var(--surface4);}
+.hero-tile-name{font-size:9px;font-weight:600;color:var(--text);text-align:center;line-height:1.2;max-width:82px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hero-tile-stat{font-size:8px;color:var(--text3);font-family:var(--font-mono);}
+
+/* ── COMPARE VIEW ── */
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.compare-col-title{font-size:11px;font-weight:700;font-family:var(--font-head);letter-spacing:.5px;color:var(--text2);margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.diff-hero-row{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;margin-bottom:3px;}
+.diff-up{background:rgba(52,209,122,.07);border:1px solid rgba(52,209,122,.15);}
+.diff-down{background:rgba(240,82,82,.07);border:1px solid rgba(240,82,82,.15);}
+.diff-new{background:rgba(244,165,52,.07);border:1px solid rgba(244,165,52,.15);}
+.diff-gone{background:rgba(79,93,120,.07);border:1px solid rgba(79,93,120,.12);opacity:.6;}
+.diff-icon{font-size:11px;width:16px;text-align:center;flex-shrink:0;}
+.diff-name{font-size:11px;font-weight:600;color:var(--text);flex:1;}
+.diff-from{font-size:10px;font-family:var(--font-mono);}
+.diff-arrow{font-size:9px;color:var(--text3);}
+
+/* ── STAT BAR (for pick/ban rates) ── */
+.mini-bar{height:3px;border-radius:2px;background:var(--surface3);overflow:hidden;width:50px;display:inline-block;vertical-align:middle;}
+.mini-fill{height:100%;border-radius:2px;}
+
+/* ── FILTER ROW ── */
+.filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+.filter-badge{padding:3px 10px;font-size:10px;font-weight:700;font-family:var(--font-head);border:1px solid var(--border2);border-radius:10px;background:transparent;color:var(--text3);cursor:pointer;transition:all .12s;letter-spacing:.2px;}
+.filter-badge:hover{color:var(--text2);border-color:var(--border3);}
+.filter-badge.active{background:var(--accent-dim);border-color:var(--accent-border);color:var(--accent);}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;animation:fadeIn .15s ease;}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius3);width:100%;max-width:520px;max-height:92vh;display:flex;flex-direction:column;box-shadow:var(--shadow2);animation:slideUp .2s ease;}
+@keyframes slideUp{from{transform:translateY(12px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-header{padding:15px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.modal-title{font-size:14px;font-weight:700;font-family:var(--font-head);flex:1;}
+.modal-body{flex:1;overflow-y:auto;padding:18px 20px;}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;}
+
+/* ── HERO EDIT MODAL ── */
+.hero-edit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:7px;max-height:380px;overflow-y:auto;padding:6px 4px;}
+.he-card{border:1px solid var(--border);border-radius:8px;padding:6px 4px 7px;cursor:pointer;transition:all .1s;text-align:center;background:var(--surface2);position:relative;}
+.he-card:hover{border-color:var(--blue-border);background:var(--blue-dim);}
+.he-card.selected-S{border-color:rgba(251,191,36,.6);background:rgba(251,191,36,.1);}
+.he-card.selected-A{border-color:rgba(52,209,122,.6);background:rgba(52,209,122,.1);}
+.he-card.selected-B{border-color:rgba(79,142,247,.6);background:rgba(79,142,247,.1);}
+.he-card.selected-C{border-color:rgba(139,151,176,.4);background:rgba(139,151,176,.07);}
+.he-card.selected-D{border-color:rgba(79,93,120,.4);background:rgba(79,93,120,.07);}
+.he-card img{width:56px;height:56px;border-radius:6px;object-fit:cover;display:block;margin:0 auto 3px;}
+.he-card-name{font-size:9px;font-weight:600;color:var(--text);line-height:1.2;}
+.tier-pip{position:absolute;top:2px;right:2px;font-size:8px;font-weight:800;font-family:var(--font-head);width:14px;height:14px;border-radius:8px;display:flex;align-items:center;justify-content:center;}
+.pip-S{background:#fbbf24;color:#111;} .pip-A{background:var(--green);color:#111;}
+.pip-B{background:var(--blue);color:#fff;} .pip-C{background:var(--surface4);color:var(--text2);}
+.pip-D{background:var(--surface3);color:var(--text3);}
+
+/* ── FORM ── */
+.form-row{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
+.form-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:100px;}
+.form-label{font-size:9px;font-weight:700;font-family:var(--font-head);color:var(--text3);text-transform:uppercase;letter-spacing:1.2px;}
+.form-input,.form-select,.form-textarea{background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:var(--radius);padding:7px 10px;font-size:12px;font-family:var(--font-body);width:100%;transition:border-color .15s,background .15s;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--accent-border);background:var(--surface3);}
+.form-select option{background:var(--surface2);}
+.form-textarea{resize:vertical;min-height:58px;}
+
+/* ── BUTTONS ── */
+.btn{padding:7px 14px;font-size:11px;font-weight:700;font-family:var(--font-head);letter-spacing:.3px;border-radius:var(--radius);cursor:pointer;border:none;transition:all .15s;display:inline-flex;align-items:center;gap:5px;}
+.btn-accent{background:var(--accent);color:#fff;border:1px solid var(--accent-border);}
+.btn-accent:hover{background:rgba(139,92,246,0.90);box-shadow:0 0 16px var(--accent-glow);}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--text2);}
+.btn-ghost:hover{border-color:var(--border3);color:var(--text);}
+.btn-danger{background:transparent;border:1px solid var(--red-border);color:var(--red);}
+.btn-danger:hover{background:var(--red-dim);}
+.btn-sm{padding:4px 10px;font-size:10px;}
+.btn-green{background:rgba(52,209,122,.15);border:1px solid rgba(52,209,122,.3);color:var(--green);}
+.btn-green:hover{background:rgba(52,209,122,.25);}
+
+/* ── TABS ── */
+.view-tabs{display:flex;gap:4px;margin-bottom:18px;border-bottom:1px solid var(--border);padding-bottom:1px;}
+.view-tab{padding:6px 14px;font-size:11px;font-weight:700;font-family:var(--font-head);color:var(--text3);background:transparent;border:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s;letter-spacing:.3px;}
+.view-tab:hover{color:var(--text2);}
+.view-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* ── NOTE CARD ── */
+.note-card{background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--text2);line-height:1.55;margin-top:4px;}
+
+/* ── EMPTY STATE ── */
+.empty-state{text-align:center;padding:60px 20px;color:var(--text3);}
+.empty-state .icon{font-size:36px;margin-bottom:12px;opacity:.5;}
+.empty-state p{font-size:12px;line-height:1.7;}
+
+/* ── SEARCH ── */
+.search-bar{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);padding:6px 12px;margin-bottom:12px;}
+.search-bar input{background:transparent;border:none;color:var(--text);font-size:12px;flex:1;outline:none;}
+.search-bar input::placeholder{color:var(--text3);}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:9px 18px;border-radius:8px;font-size:12px;font-weight:600;font-family:var(--font-head);z-index:9999;transition:transform .25s cubic-bezier(.34,1.56,.64,1);pointer-events:none;white-space:nowrap;}
+#toast.show{transform:translateX(-50%) translateY(0);}
+
+/* ── HERO NOTE TOOLTIP ── */
+.hero-note-badge{position:absolute;top:-2px;left:-2px;width:10px;height:10px;background:var(--cyan);border-radius:50%;border:2px solid var(--bg);opacity:.8;}
+@media (max-width: 768px) {
+  .page-wrap { flex-direction: column; height: auto; }
+  .sidebar { width: 100%; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); max-height: 100px; overflow-x: auto; overflow-y: hidden; }
+  .sidebar-section { display: none; }
+  .patch-entry { padding: 6px 10px; border-left: none; border-bottom: 2px solid transparent; white-space: nowrap; }
+  .patch-entry.active { border-bottom-color: var(--blue); }
+  .main { padding: 14px 16px; }
+  .tier-heroes { gap: 4px; }
+}
+@media (max-width: 480px) {
+  .hero-tile { width: 68px; }
+  .hero-tile-img-wrap { width: 54px; height: 54px; }
+  .hero-tile-img-wrap img { width: 54px; height: 54px; }
+  .patch-title-big { font-size: 18px; }
+  .filter-row { gap: 4px; }
+  .filter-badge { padding: 2px 8px; font-size: 9px; }
+  /* iOS: prevent auto-zoom on input focus */
+  input, select, textarea { font-size: 16px !important; }
+  /* Hero tiles — 4 per row on small phones */
+  .tier-heroes { grid-template-columns: repeat(4, 68px); }
+}
+@media (hover: none) { .sidebar-add-btn:active { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); } }
+
+/* ═══════════ APPLE LIQUID GLASS OVERRIDE ═══════════ */
+
+:root {
+  --radius:  16px;
+  --radius2: 22px;
+  --radius3: 28px;
+  --nav-h:   52px;
+}
+
+/* Ambient background */
+body::after {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(ellipse 55% 50% at 0% 0%,   rgba(168,136,204,0.09) 0%, transparent 60%),
+    radial-gradient(ellipse 45% 40% at 100% 90%, rgba(94,160,216,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 35% 35% at 70% 40%,  rgba(255,159,10,0.06) 0%, transparent 55%);
+}
+.page-wrap, .main, .sidebar { position:relative; z-index:1; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  background: rgba(10,10,16,0.74) !important;
+  backdrop-filter: blur(30px) saturate(130%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(130%) !important;
+  border-right: 0.5px solid rgba(255,255,255,0.08) !important;
+  width: 210px !important;
+}
+.sidebar-section {
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-size: 10px !important; font-weight: 600 !important;
+  letter-spacing: 0.08em !important; text-transform: uppercase !important;
+  color: var(--text4) !important;
+  padding: 18px 14px 6px !important;
+}
+
+/* ── PATCH ENTRIES ── */
+.patch-entry {
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-size: 12px !important; font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  color: var(--text3) !important;
+  border-left: 2px solid transparent !important;
+  transition: all 0.15s ease !important;
+  border-radius: 0 !important;
+}
+.patch-entry:hover {
+  background: rgba(255,255,255,0.05) !important;
+  color: var(--text2) !important;
+}
+.patch-entry.active {
+  background: rgba(168,136,204,0.08) !important;
+  color: var(--accent) !important;
+  border-left-color: var(--accent) !important;
+}
+.patch-entry .patch-num {
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-size: 12px !important; font-weight: 500 !important;
+}
+.patch-entry .patch-games {
+  background: rgba(255,255,255,0.07) !important;
+  border: 0.5px solid rgba(255,255,255,0.07) !important;
+  border-radius: 9999px !important;
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-size: 10px !important;
+  color: var(--text4) !important;
+  padding: 1px 8px !important;
+}
+.patch-entry.active .patch-games {
+  background: rgba(168,136,204,0.09) !important;
+  border-color: rgba(168,136,204,0.28) !important;
+  color: var(--accent) !important;
+}
+
+/* ── SIDEBAR ADD BUTTON ── */
+.sidebar-add-btn {
+  border-radius: 12px !important;
+  border: 0.5px dashed rgba(255,255,255,0.15) !important;
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-size: 12px !important; font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  color: var(--text3) !important;
+  margin: 8px 12px !important;
+  background: rgba(255,255,255,0.03) !important;
+}
+.sidebar-add-btn:hover {
+  border-color: rgba(168,136,204,0.24) !important;
+  color: var(--accent) !important;
+  background: rgba(168,136,204,0.08) !important;
+}
+
+/* ── MAIN CONTENT ── */
+.main { background: transparent !important; }
+
+/* ── PATCH TITLE ── */
+.patch-title-big {
+  font-family: -apple-system,'SF Pro Display','Inter',sans-serif !important;
+  font-size: 26px !important; font-weight: 700 !important;
+  letter-spacing: -0.03em !important;
+  color: var(--text) !important;
+}
+.patch-date-badge {
+  background: rgba(255,255,255,0.07) !important;
+  border: 0.5px solid rgba(255,255,255,0.08) !important;
+  border-radius: 9999px !important;
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-size: 11px !important; font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  color: var(--text3) !important;
+}
+
+/* ── PATCH ACTION BUTTONS ── */
+.patch-actions .btn {
+  border-radius: 9999px !important;
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-weight: 500 !important; letter-spacing: -0.01em !important;
+  font-size: 12px !important; text-transform: none !important;
+}
+
+/* ── TIER SECTIONS (glass panels with color tints) ── */
+.tier-section { margin-bottom: 14px !important; }
+
+.tier-row-header {
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border-radius: 14px !important;
+  margin-bottom: 8px !important;
+  padding: 10px 16px !important;
+  position: relative !important; overflow: hidden !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08) !important;
+}
+.tier-row-header::before {
+  content: '';
+  position: absolute; top: 0; left: 8%; right: 8%;
+  height: 0.5px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.11), transparent);
+  pointer-events: none;
+}
+
+.tier-label {
+  font-family: -apple-system,'SF Pro Display','Inter',sans-serif !important;
+  font-size: 14px !important; font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* Tier S — Gold/premium */
+.tier-S {
+  background: rgba(200,144,80,0.08) !important;
+  border: 0.5px solid rgba(200,144,80,0.14) !important;
+}
+.tier-S .tier-label { color: var(--gold) !important; }
+
+/* Tier A — Green */
+.tier-A {
+  background: rgba(76,184,122,0.07) !important;
+  border: 0.5px solid rgba(76,184,122,0.13) !important;
+}
+.tier-A .tier-label { color: var(--neon) !important; }
+
+/* Tier B — Blue */
+.tier-B {
+  background: rgba(94,160,216,0.08) !important;
+  border: 0.5px solid rgba(94,160,216,0.20) !important;
+}
+.tier-B .tier-label { color: var(--blue) !important; }
+
+/* Tier C — Muted */
+.tier-C {
+  background: rgba(255,255,255,0.04) !important;
+  border: 0.5px solid rgba(255,255,255,0.06) !important;
+}
+.tier-C .tier-label { color: var(--text2) !important; }
+
+/* Tier D — Very muted */
+.tier-D {
+  background: rgba(255,255,255,0.02) !important;
+  border: 0.5px solid rgba(255,255,255,0.06) !important;
+}
+.tier-D .tier-label { color: var(--text3) !important; }
+
+/* ── HERO CHIPS IN TIERS ── */
+.hero-chip, .te-chip {
+  background: rgba(255,255,255,0.06) !important;
+  border: 0.5px solid rgba(255,255,255,0.07) !important;
+  border-radius: 12px !important;
+  transition: all 0.18s ease !important;
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+}
+.hero-chip:hover, .te-chip:hover {
+  background: rgba(255,255,255,0.11) !important;
+  border-color: rgba(255,255,255,0.11) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.4) !important;
+}
+.hero-chip img, .te-chip img { border-radius: 8px !important; }
+
+/* ── TIER EDITOR PANEL ── */
+.te-zone {
+  background: rgba(16,16,26,0.65) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 0.5px solid rgba(255,255,255,0.06) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07) !important;
+}
+.te-zone-title {
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-size: 11px !important; font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+}
+.te-tier-cur {
+  font-family: -apple-system,'SF Pro Display','Inter',sans-serif !important;
+  font-size: 16px !important; font-weight: 800 !important;
+  letter-spacing: -0.03em !important;
+}
+.te-chip-tier {
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-weight: 700 !important; border-radius: 8px !important;
+}
+
+/* ── BUTTONS ── */
+.btn {
+  border-radius: 9999px !important;
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-weight: 500 !important; letter-spacing: -0.01em !important;
+  text-transform: none !important;
+}
+.btn-accent {
+  background: var(--accent) !important;
+  border: none !important; color: #fff !important;
+  box-shadow: 0 4px 16px rgba(168,136,204,0.24), inset 0 1px 0 rgba(255,255,255,0.11) !important;
+}
+.btn-accent:not(:disabled):hover { background: #B898D8 !important; transform: translateY(-1px) !important; box-shadow: 0 4px 24px rgba(168,136,204,0.28) !important; }
+.btn-ghost {
+  background: rgba(255,255,255,0.07) !important;
+  border: 0.5px solid rgba(255,255,255,0.08) !important;
+  color: var(--text2) !important;
+}
+.btn-ghost:hover { background: rgba(255,255,255,0.08) !important; color: var(--text) !important; }
+.btn-red { background: rgba(255,55,95,0.15) !important; border: 0.5px solid rgba(216,120,128,0.20) !important; color: var(--red) !important; }
+
+/* ── INPUTS / SELECT ── */
+select, input[type=text] {
+  background: rgba(118,118,128,0.14) !important;
+  border: 0.5px solid rgba(255,255,255,0.07) !important;
+  border-radius: 14px !important;
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  color: var(--text) !important;
+}
+input:focus, select:focus {
+  border-color: rgba(168,136,204,0.22) !important;
+  box-shadow: 0 0 0 3px rgba(168,136,204,0.08) !important;
+  outline: none !important;
+}
+
+/* ── MODAL ── */
+.modal-overlay { background: rgba(7,7,12,0.80) !important; backdrop-filter: blur(20px) !important; }
+.modal {
+  background: rgba(16,16,26,0.76) !important;
+  backdrop-filter: blur(40px) saturate(135%) !important;
+  border: 0.5px solid rgba(255,255,255,0.09) !important;
+  border-radius: 28px !important;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.07) !important;
+}
+
+/* ── TOAST ── */
+.toast {
+  background: rgba(16,16,26,0.76) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 0.5px solid rgba(255,255,255,0.09) !important;
+  border-radius: 9999px !important;
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-size: 13px !important; font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08) !important;
+}
+
+/* ── LOADING BAR ── */
+.loading-bar { background: rgba(255,255,255,0.06) !important; border-radius: 9999px !important; }
+.loading-bar-fill { background: var(--accent) !important; }
+.spinner { border-color: rgba(255,255,255,0.07) !important; border-top-color: var(--accent) !important; }
+
+/* ═══════════════════════════════════════════════════════ */
+</style>
+<script src="warr-theme.js"></script>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <a class="nav-brand" href="index.html">
+    <span class="nav-brand-name">Warr.GG</span>
+    <span class="nav-brand-sub">MLBB Intel</span>
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="draft_board.html">Draft</a>
+    <a class="nav-link" href="ai_battle.html">AI Battle</a>
+    <a class="nav-link" href="scout.html">Scout</a>
+    <a class="nav-link" href="stats.html">Analysis</a>
+    <a class="nav-link active" href="patch_meta.html">Patch</a>
+    <a class="nav-link" href="profile.html">Profile</a>
+  </div>
+  <div class="nav-right">
+  <div class="theme-switcher" title="Switch theme">
+    <button class="theme-btn" data-t="dark" title="Dark">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+    </button>
+    <button class="theme-btn" data-t="light" title="Light">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+    </button>
+    <button class="theme-btn" data-t="neon" title="Neon">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z"/></svg>
+    </button>
+  </div>
+    <div id="authChip"></div>
+  </div>
+  <button class="mobile-menu-btn" onclick="document.getElementById('mobileNav').classList.toggle('open')" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+<div class="mobile-nav" id="mobileNav">
+  <a class="mobile-nav-link" href="draft_board.html">Draft</a>
+  <a class="mobile-nav-link" href="ai_battle.html">AI Battle</a>
+  <a class="mobile-nav-link" href="scout.html">Scout</a>
+  <a class="mobile-nav-link" href="stats.html">Analysis</a>
+  <a class="mobile-nav-link active" href="patch_meta.html">Patch</a>
+  <a class="mobile-nav-link" href="profile.html">Profile</a>
+</div>
+
+<div class="page-body">
+
+<div class="page-wrap">
+  <!-- SIDEBAR: patch list -->
+  <div class="sidebar" id="patchSidebar">
+    <div class="sidebar-section">Patches</div>
+    <div id="patchList"></div>
+    <button class="sidebar-add-btn" onclick="openNewPatchModal()">＋ New Patch</button>
+  </div>
+
+  <!-- MAIN AREA -->
+  <div class="main" id="mainArea">
+    <div class="empty-state">
+      
+      <p>No patches yet.<br>Click <b>+ New Patch</b> to start tracking the meta.</p>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// CONSTANTS & HERO ROSTER
+// ══════════════════════════════════════════════════════════════
+const PATCH_KEY   = 'warr_patch_meta';
+const SCOUT_KEY   = 'warr_scout_data';
+
+const ALL_HEROES = [
+  {id:'tigreal',name:'Tigreal',role:'Tank'},{id:'akai',name:'Akai',role:'Tank'},{id:'franco',name:'Franco',role:'Tank'},
+  {id:'minotaur',name:'Minotaur',role:'Tank'},{id:'lolita',name:'Lolita',role:'Tank'},{id:'johnson',name:'Johnson',role:'Tank'},
+  {id:'atlas',name:'Atlas',role:'Tank'},{id:'khufra',name:'Khufra',role:'Tank'},{id:'esmeralda',name:'Esmeralda',role:'Tank/Mage'},
+  {id:'uranus',name:'Uranus',role:'Tank'},{id:'hylos',name:'Hylos',role:'Tank'},{id:'belerick',name:'Belerick',role:'Tank'},
+  {id:'grock',name:'Grock',role:'Tank'},{id:'carmilla',name:'Carmilla',role:'Tank'},{id:'baxia',name:'Baxia',role:'Tank'},
+  {id:'gloo',name:'Gloo',role:'Tank'},{id:'chip',name:'Chip',role:'Tank'},{id:'fredrinn',name:'Fredrinn',role:'Tank/Fighter'},
+  {id:'kalea',name:'Kalea',role:'Tank'},{id:'edith',name:'Edith',role:'Tank/MM'},{id:'marcel',name:'Marcel',role:'Tank'},
+  {id:'balmond',name:'Balmond',role:'Fighter'},{id:'zilong',name:'Zilong',role:'Fighter'},{id:'alucard',name:'Alucard',role:'Fighter'},
+  {id:'alpha',name:'Alpha',role:'Fighter'},{id:'sun',name:'Sun',role:'Fighter'},{id:'argus',name:'Argus',role:'Fighter'},
+  {id:'hilda',name:'Hilda',role:'Fighter'},{id:'ruby',name:'Ruby',role:'Fighter'},{id:'xborg',name:'X.Borg',role:'Fighter'},
+  {id:'aldous',name:'Aldous',role:'Fighter'},{id:'chou',name:'Chou',role:'Fighter'},{id:'badang',name:'Badang',role:'Fighter'},
+  {id:'guinevere',name:'Guinevere',role:'Fighter'},{id:'terizla',name:'Terizla',role:'Fighter'},{id:'thamuz',name:'Thamuz',role:'Fighter'},
+  {id:'masha',name:'Masha',role:'Fighter'},{id:'khaleed',name:'Khaleed',role:'Fighter'},{id:'paquito',name:'Paquito',role:'Fighter'},
+  {id:'yuzhong',name:'Yu Zhong',role:'Fighter'},{id:'dyrroth',name:'Dyrroth',role:'Fighter'},{id:'jawhead',name:'Jawhead',role:'Fighter'},
+  {id:'martis',name:'Martis',role:'Fighter'},{id:'silvanna',name:'Silvanna',role:'Fighter'},{id:'yin',name:'Yin',role:'Fighter'},
+  {id:'minsitthar',name:'Minsitthar',role:'Fighter'},{id:'aulus',name:'Aulus',role:'Fighter'},{id:'freya',name:'Freya',role:'Fighter'},
+  {id:'lapulapu',name:'Lapu-Lapu',role:'Fighter'},{id:'leomord',name:'Leomord',role:'Fighter'},{id:'phoveus',name:'Phoveus',role:'Fighter'},
+  {id:'arlott',name:'Arlott',role:'Fighter'},{id:'cici',name:'Cici',role:'Fighter'},{id:'sora',name:'Sora',role:'Fighter/Assassin'},
+  {id:'bane',name:'Bane',role:'Fighter'},{id:'lukas',name:'Lukas',role:'Fighter'},{id:'gatotkaca',name:'Gatotkaca',role:'Tank/Fighter'},
+  {id:'roger',name:'Roger',role:'Fighter/MM'},
+  {id:'saber',name:'Saber',role:'Assassin'},{id:'karina',name:'Karina',role:'Assassin'},{id:'fanny',name:'Fanny',role:'Assassin'},
+  {id:'hayabusa',name:'Hayabusa',role:'Assassin'},{id:'natalia',name:'Natalia',role:'Assassin'},{id:'helcurt',name:'Helcurt',role:'Assassin'},
+  {id:'lancelot',name:'Lancelot',role:'Assassin'},{id:'gusion',name:'Gusion',role:'Assassin'},{id:'ling',name:'Ling',role:'Assassin'},
+  {id:'selena',name:'Selena',role:'Assassin/Mage'},{id:'benedetta',name:'Benedetta',role:'Assassin'},{id:'aamon',name:'Aamon',role:'Assassin'},
+  {id:'nolan',name:'Nolan',role:'Assassin'},{id:'yss',name:'Yi Sun-shin',role:'Assassin/MM'},{id:'suyou',name:'Suyou',role:'Assassin'},
+  {id:'joy',name:'Joy',role:'Assassin'},{id:'julian',name:'Julian',role:'Fighter/Assassin'},{id:'hanzo',name:'Hanzo',role:'Assassin'},
+  {id:'nana',name:'Nana',role:'Mage/Support'},{id:'eudora',name:'Eudora',role:'Mage'},{id:'aurora',name:'Aurora',role:'Mage'},
+  {id:'gord',name:'Gord',role:'Mage'},{id:'cyclops',name:'Cyclops',role:'Mage'},{id:'alice',name:'Alice',role:'Mage/Tank'},
+  {id:'harley',name:'Harley',role:'Mage/Assassin'},{id:'odette',name:'Odette',role:'Mage'},{id:'vexana',name:'Vexana',role:'Mage'},
+  {id:'lunox',name:'Lunox',role:'Mage'},{id:'kagura',name:'Kagura',role:'Mage'},{id:'lylia',name:'Lylia',role:'Mage'},
+  {id:'cecilion',name:'Cecilion',role:'Mage'},{id:'yve',name:'Yve',role:'Mage'},{id:'valentina',name:'Valentina',role:'Mage'},
+  {id:'xavier',name:'Xavier',role:'Mage'},{id:'change',name:"Chang'e",role:'Mage'},{id:'pharsa',name:'Pharsa',role:'Mage'},
+  {id:'novaria',name:'Novaria',role:'Mage'},{id:'luoyi',name:'Luo Yi',role:'Mage'},{id:'zhuxin',name:'Zhuxin',role:'Mage'},
+  {id:'faramis',name:'Faramis',role:'Mage/Support'},{id:'kadita',name:'Kadita',role:'Mage/Assassin'},{id:'kimmy',name:'Kimmy',role:'Mage/MM'},
+  {id:'zhask',name:'Zhask',role:'Mage'},{id:'vale',name:'Vale',role:'Mage'},{id:'harith',name:'Harith',role:'Mage'},{id:'zetian',name:'Zetian',role:'Mage'},
+  {id:'miya',name:'Miya',role:'MM'},{id:'layla',name:'Layla',role:'MM'},{id:'moskov',name:'Moskov',role:'MM'},
+  {id:'clint',name:'Clint',role:'MM'},{id:'bruno',name:'Bruno',role:'MM'},{id:'irithel',name:'Irithel',role:'MM'},
+  {id:'lesley',name:'Lesley',role:'MM/Assassin'},{id:'hanabi',name:'Hanabi',role:'MM'},{id:'claude',name:'Claude',role:'MM'},
+  {id:'granger',name:'Granger',role:'MM'},{id:'brody',name:'Brody',role:'MM'},{id:'karrie',name:'Karrie',role:'MM'},
+  {id:'beatrix',name:'Beatrix',role:'MM'},{id:'melissa',name:'Melissa',role:'MM'},{id:'natan',name:'Natan',role:'MM'},
+  {id:'wanwan',name:'Wanwan',role:'MM'},{id:'ixia',name:'Ixia',role:'MM'},{id:'obsidia',name:'Obsidia',role:'MM'},
+  {id:'estes',name:'Estes',role:'Support'},{id:'angela',name:'Angela',role:'Support'},{id:'rafaela',name:'Rafaela',role:'Support'},
+  {id:'diggie',name:'Diggie',role:'Support'},{id:'floryn',name:'Floryn',role:'Support'},{id:'mathilda',name:'Mathilda',role:'Support'},
+  {id:'kaja',name:'Kaja',role:'Support/Fighter'},{id:'popol',name:'Popol & Kupa',role:'Support/MM'},{id:'barats',name:'Barats',role:'Fighter/Tank'},
+].sort((a,b)=>a.name.localeCompare(b.name));
+
+const HERO_BY_NAME = Object.fromEntries(ALL_HEROES.map(h=>[h.name,h]));
+const TIERS = ['S','A','B','C','D'];
+const TIER_COLORS = {S:'#fbbf24',A:'#34d17a',B:'#4f8ef7',C:'#8b97b0',D:'#4f5d78'};
+const LANES = ['All','Gold','Jungle','Mid','EXP','Roam'];
+const LANE_ICONS = {Gold:'GLD',Jungle:'JGL',Mid:'MID',EXP:'EXP',Roam:'RMG'};
+
+const HERO_LANES_MAP = {
+  'Claude':['Gold'],'Karrie':['Gold'],'Beatrix':['Gold'],'Wanwan':['Gold'],
+  'Granger':['Gold'],'Brody':['Gold'],'Miya':['Gold'],'Bruno':['Gold'],
+  'Clint':['Gold'],'Hanabi':['Gold'],'Irithel':['Gold'],'Layla':['Gold'],
+  'Lesley':['Gold'],'Melissa':['Gold'],'Moskov':['Gold'],'Natan':['Gold'],
+  'Ixia':['Gold'],'Aulus':['Gold'],'Obsidia':['Gold'],
+  'Roger':['Gold','Jungle'],'Freya':['Gold'],'Harith':['Gold'],'Alice':['Gold'],
+  'Yi Sun-shin':['Jungle'],'Hayabusa':['Jungle'],'Lancelot':['Jungle'],
+  'Ling':['Jungle'],'Fanny':['Jungle'],'Nolan':['Jungle'],'Gusion':['Jungle'],
+  'Karina':['Jungle'],'Benedetta':['Jungle'],'Helcurt':['Jungle'],
+  'Joy':['Jungle'],'Aamon':['Jungle'],'Natalia':['Jungle'],'Saber':['Jungle'],
+  'Hanzo':['Jungle'],'Suyou':['Jungle'],'Fredrinn':['Jungle','EXP'],
+  'Phoveus':['Jungle'],'Martis':['Jungle','EXP'],
+  'Aldous':['EXP','Jungle'],'Argus':['EXP','Jungle'],'Barats':['Jungle','EXP'],
+  'Leomord':['Jungle'],'Alpha':['Jungle'],'Harley':['Jungle','Mid'],
+  'Julian':['Jungle','Mid'],'Balmond':['EXP'],'Guinevere':['Jungle'],
+  'Sun':['EXP','Jungle'],'Baxia':['Roam','Jungle'],
+  'Zhuxin':['Mid'],'Yve':['Mid'],'Pharsa':['Mid'],'Kagura':['Mid'],'Zetian':['Mid'],
+  'Valentina':['Mid'],'Xavier':['Mid'],'Novaria':['Mid'],'Lylia':['Mid'],
+  'Lunox':['Mid'],'Kadita':['Mid','Jungle'],'Luo Yi':['Mid'],'Odette':['Mid'],
+  'Cecilion':['Mid'],'Vale':['Mid'],'Eudora':['Mid'],'Aurora':['Mid'],
+  'Gord':['Mid'],'Cyclops':['Mid'],'Vexana':['Mid'],'Zhask':['Mid'],
+  'Nana':['Mid','Roam'],'Kimmy':['Mid'],"Chang'e":['Mid'],
+  'Selena':['Mid','Roam'],'Faramis':['Roam','Mid'],
+  'Yu Zhong':['EXP'],'Arlott':['EXP'],'Cici':['EXP'],'Gatotkaca':['EXP'],
+  'Esmeralda':['EXP'],'Dyrroth':['EXP'],'Terizla':['EXP'],'Thamuz':['EXP'],
+  'Khaleed':['EXP'],'Paquito':['EXP'],'Silvanna':['EXP'],
+  'Badang':['EXP'],'Ruby':['EXP','Roam'],
+  'Hilda':['EXP','Roam'],'Masha':['EXP'],'X.Borg':['EXP'],
+  'Lapu-Lapu':['EXP'],'Zilong':['EXP'],'Alucard':['EXP'],'Yin':['EXP'],
+  'Lukas':['EXP','Jungle'],'Sora':['EXP'],'Bane':['EXP'],
+  'Jawhead':['Roam'],'Uranus':['EXP'],'Minsitthar':['Roam','EXP'],
+  'Hylos':['Roam'],'Atlas':['Roam'],'Khufra':['Roam'],
+  'Gloo':['Roam'],'Chip':['Roam'],'Kalea':['Roam'],'Mathilda':['Roam'],
+  'Angela':['Roam'],'Floryn':['Roam'],'Franco':['Roam'],'Tigreal':['Roam'],
+  'Johnson':['Roam'],'Akai':['Roam'],'Minotaur':['Roam'],'Lolita':['Roam'],
+  'Grock':['Roam'],'Belerick':['Roam'],'Carmilla':['Roam'],
+  'Kaja':['Roam'],'Diggie':['Roam'],'Estes':['Roam'],'Rafaela':['Roam'],
+  'Edith':['Roam'],'Marcel':['Roam'],'Chou':['Roam','Gold'],'Popol & Kupa':['Roam'],
+};
+
+function heroLanes(h) {
+  if (HERO_LANES_MAP[h.name]) return HERO_LANES_MAP[h.name];
+  const r = h.role;
+  if (r.includes('Support')) return ['Roam'];
+  if (r.startsWith('MM') || r === 'MM') return ['Gold'];
+  if (r.includes('Assassin') && !r.includes('Fighter')) return ['Jungle'];
+  if (r.includes('Mage') && !r.includes('Support')) return ['Mid'];
+  if (r.includes('Tank') && !r.includes('Fighter')) return ['Roam'];
+  return ['EXP'];
+}
+
+// ══════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════
+let patches = [];       // [{id, name, dateFrom, dateTo, note, heroes:{heroName:{tier,note}}, createdAt}]
+let activePatchId = null;
+let activeTab = 'tier'; // 'tier' | 'stats' | 'compare'
+let laneFilter = 'All';
+let heroSearch = '';
+let editingHeroSearch = '';
+
+// ══════════════════════════════════════════════════════════════
+// PERSISTENCE
+// ══════════════════════════════════════════════════════════════
+function loadPatches() {
+  try { patches = JSON.parse(localStorage.getItem(PATCH_KEY)||'[]'); } catch(e){ patches=[]; }
+}
+function savePatches() {
+  try { localStorage.setItem(PATCH_KEY, JSON.stringify(patches)); } catch(e){}
+}
+
+// ══════════════════════════════════════════════════════════════
+// SCOUT MATCH DATA (read-only from scout's localStorage)
+// ══════════════════════════════════════════════════════════════
+function getScoutMatches() {
+  try {
+    const raw = localStorage.getItem(SCOUT_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw).matches || [];
+  } catch(e){ return []; }
+}
+
+function deriveStatsForPatch(patch) {
+  const matches = getScoutMatches();
+  const from = patch.dateFrom ? new Date(patch.dateFrom) : null;
+  const to   = patch.dateTo   ? new Date(patch.dateTo)   : null;
+  const filtered = matches.filter(m => {
+    if (!m.date) return false;
+    const d = new Date(m.date);
+    if (from && d < from) return false;
+    if (to   && d > to)   return false;
+    return true;
+  });
+
+  if (!filtered.length) return { games: 0, stats: {} };
+
+  const pickC={}, banC={}, pickW={};
+  filtered.forEach(m => {
+    const winner = m.winner;
+    ['bluePicks','redPicks'].forEach((side,si) => {
+      (m[side]||[]).forEach(p => {
+        const n=p.name||p; if(!n) return;
+        pickC[n]=(pickC[n]||0)+1;
+        const won=(si===0&&winner==='blue')||(si===1&&winner==='red');
+        if(won) pickW[n]=(pickW[n]||0)+1;
+      });
+    });
+    ['blueBans','redBans'].forEach(side => {
+      (m[side]||[]).forEach(b => { const n=b.name||b; if(n) banC[n]=(banC[n]||0)+1; });
+    });
+  });
+
+  const totalGames = filtered.length;
+  const stats = {};
+  ALL_HEROES.forEach(h => {
+    const picks = pickC[h.name]||0;
+    const bans  = banC[h.name]||0;
+    const wins  = pickW[h.name]||0;
+    stats[h.name] = {
+      picks, bans,
+      wr:   picks>0 ? Math.round(wins/picks*100) : null,
+      pr:   Math.round(picks/totalGames*100),
+      br:   Math.round(bans/totalGames*100),
+      presence: Math.round((picks+bans)/totalGames*100),
+    };
+  });
+  return { games: totalGames, stats };
+}
+
+// ══════════════════════════════════════════════════════════════
+// SIDEBAR RENDER
+// ══════════════════════════════════════════════════════════════
+function renderSidebar() {
+  const list = document.getElementById('patchList');
+  if (!patches.length) {
+    list.innerHTML = `<div style="padding:10px 14px;font-size:11px;color:var(--text4);font-style:italic;">No patches yet</div>`;
+    return;
+  }
+  // Sort newest first
+  const sorted = [...patches].sort((a,b)=>b.createdAt-a.createdAt);
+  list.innerHTML = sorted.map(p => {
+    const heroCount = Object.keys(p.heroes||{}).length;
+    return `<button class="patch-entry${p.id===activePatchId?' active':''}" onclick="selectPatch('${p.id}')">
+      <span class="patch-num">v${p.name}</span>
+      <span class="patch-games">${heroCount}H</span>
+    </button>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+// SELECT PATCH
+// ══════════════════════════════════════════════════════════════
+function selectPatch(id) {
+  activePatchId = id;
+  activeTab = 'tier';
+  laneFilter = 'All';
+  heroSearch = '';
+  renderSidebar();
+  renderMain();
+}
+
+// ══════════════════════════════════════════════════════════════
+// MAIN RENDER
+// ══════════════════════════════════════════════════════════════
+function renderMain() {
+  const area = document.getElementById('mainArea');
+  if (!activePatchId) {
+    area.innerHTML = `<div class="empty-state"><p>Select a patch from the sidebar<br>or create a new one.</p></div>`;
+    return;
+  }
+  const patch = patches.find(p=>p.id===activePatchId);
+  if (!patch) return;
+
+  const { games, stats } = deriveStatsForPatch(patch);
+  const prevPatch = getPrevPatch(patch);
+
+  const tabs = [
+    ['tier','Tier List'],
+    ['stats',' Match Stats'],
+    ['compare',' Compare'],
+  ];
+
+  area.innerHTML = `
+    <!-- PATCH HEADER -->
+    <div class="patch-header-bar">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="patch-title-big">Patch v${patch.name}</div>
+          ${patch.dateFrom||patch.dateTo ? `<span class="patch-date-badge">${patch.dateFrom||'?'} → ${patch.dateTo||'now'}</span>` : ''}
+          ${games>0 ? `<span class="patch-date-badge" style="color:var(--green);border-color:rgba(52,209,122,.3);"> ${games} games</span>` : '<span class="patch-date-badge" style="color:var(--text4);">no log data</span>'}
+        </div>
+        ${patch.note ? `<div style="font-size:11px;color:var(--text3);margin-top:4px;"> ${patch.note}</div>` : ''}
+      </div>
+      <div class="patch-actions">
+        <button class="btn btn-green btn-sm" onclick="autoPopulateStats('${patch.id}')" title="Fill pick/ban/WR from your match log for this date range">Auto-populate from Log</button>
+        <button class="btn btn-ghost btn-sm" onclick="openEditHeroes('${patch.id}')">Edit Tiers</button>
+        <button class="btn btn-ghost btn-sm" onclick="openEditPatchModal('${patch.id}')">Settings</button>
+        <button class="btn btn-danger btn-sm" onclick="deletePatch('${patch.id}')">✕</button>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="view-tabs">
+      ${tabs.map(([k,l])=>`<button class="view-tab${activeTab===k?' active':''}" onclick="setTab('${k}')">${l}</button>`).join('')}
+    </div>
+
+    <!-- TAB CONTENT -->
+    <div id="tabContent"></div>
+  `;
+
+  renderTabContent(patch, stats, games, prevPatch);
+}
+
+function setTab(t) {
+  activeTab = t;
+  const patch = patches.find(p=>p.id===activePatchId);
+  if (!patch) return;
+  const { games, stats } = deriveStatsForPatch(patch);
+  const prevPatch = getPrevPatch(patch);
+  document.querySelectorAll('.view-tab').forEach(b=>b.classList.toggle('active',b.textContent.includes(t==='tier'?'Tier':t==='stats'?'Stats':'Compare')));
+  renderTabContent(patch, stats, games, prevPatch);
+}
+
+function getPrevPatch(patch) {
+  const sorted = [...patches].sort((a,b)=>b.createdAt-a.createdAt);
+  const idx = sorted.findIndex(p=>p.id===patch.id);
+  return sorted[idx+1] || null;
+}
+
+// ══════════════════════════════════════════════════════════════
+// TAB CONTENT
+// ══════════════════════════════════════════════════════════════
+function renderTabContent(patch, stats, games, prevPatch) {
+  const content = document.getElementById('tabContent');
+  if (!content) return;
+
+  if (activeTab === 'tier')    content.innerHTML = buildTierView(patch, stats, games, prevPatch);
+  else if (activeTab === 'stats')   content.innerHTML = buildStatsView(patch, stats, games);
+  else if (activeTab === 'compare') content.innerHTML = buildCompareView(patch, prevPatch);
+}
+
+// ── TIER VIEW ──
+function buildTierView(patch, stats, games, prevPatch) {
+  const heroes = patch.heroes || {};
+
+  // Group heroes by tier
+  const tierGroups = {S:[],A:[],B:[],C:[],D:[]};
+  Object.entries(heroes).forEach(([name, hdata]) => {
+    const tier = hdata.tier || 'C';
+    const hero = HERO_BY_NAME[name];
+    if (!hero) return;
+    if (laneFilter !== 'All' && !heroLanes(hero).includes(laneFilter)) return;
+    if (heroSearch && !name.toLowerCase().includes(heroSearch.toLowerCase())) return;
+    tierGroups[tier].push({ name, hero, hdata, stat: stats[name]||null });
+  });
+
+  const tierHtml = TIERS.map(tier => {
+    const list = tierGroups[tier];
+    if (!list.length) return '';
+    const heroesHtml = list.map(({name, hero, hdata, stat}) => {
+      const prevHeroes = prevPatch?.heroes||{};
+      const prevTier = prevHeroes[name]?.tier;
+      const trend = !prevTier ? 'new'
+        : TIERS.indexOf(tier) < TIERS.indexOf(prevTier) ? 'up'
+        : TIERS.indexOf(tier) > TIERS.indexOf(prevTier) ? 'down' : 'same';
+      const trendEmoji = trend==='up'?'↑':trend==='down'?'↓':trend==='new'?'*':'';
+      const trendTitle = trend==='up'?`↑ from ${prevTier}`:trend==='down'?`↓ from ${prevTier}`:trend==='new'?'New this patch':'Unchanged';
+      const statLine = stat && games>0 && (stat.picks>0||stat.bans>0)
+        ? `${stat.pr}%P/${stat.br}%B` : '';
+      return `<div class="hero-tile" title="${name}${hdata.note?'\n'+hdata.note:''}\n${trendTitle}${statLine?'\n'+statLine:''}">
+        <div class="hero-tile-img-wrap">
+          <img src="portraits/${hero.id}.png" onerror="this.src=''" loading="lazy">
+          <div class="trend-pip ${trend}" title="${trendTitle}">${trendEmoji}</div>
+          ${hdata.note ? '<div class="hero-note-badge"></div>' : ''}
+        </div>
+        <div class="hero-tile-name">${name}</div>
+        ${statLine ? `<div class="hero-tile-stat">${statLine}</div>` : ''}
+      </div>`;
+    }).join('');
+
+    return `<div class="tier-section">
+      <div class="tier-row-header tier-${tier}">
+        <div class="tier-label">${tier}</div>
+        <div class="tier-heroes">${heroesHtml}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const heroCount = Object.keys(heroes).length;
+
+  return `
+    <div class="filter-row">
+      ${LANES.map(l=>`<button class="filter-badge${laneFilter===l?' active':''}" onclick="setLaneFilter('${l}')">${l}</button>`).join('')}
+      <div style="flex:1;"></div>
+      <div class="search-bar" style="margin-bottom:0;padding:4px 10px;width:180px;">
+        
+        <input placeholder="Search hero…" value="${heroSearch}" oninput="heroSearch=this.value;rerenderTier()" style="font-size:11px;">
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:10px;color:var(--text3);">
+      <span style="display:flex;align-items:center;gap:4px;"><span class="trend-pip up" style="position:relative;width:10px;height:10px;border-radius:50%;background:var(--green);font-size:7px;display:inline-flex;align-items:center;justify-content:center;">↑</span> Moved up</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:var(--red);font-size:7px;display:inline-flex;align-items:center;justify-content:center;">↓</span> Moved down</span>
+      <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:50%;background:var(--gold);font-size:7px;display:inline-flex;align-items:center;justify-content:center;">*</span> New this patch</span>
+      <span style="display:flex;align-items:center;gap:4px;"><div class="hero-note-badge" style="position:relative;width:8px;height:8px;background:var(--cyan);border-radius:50%;"></div> Has note</span>
+      <span style="margin-left:auto;color:var(--text4);">${heroCount} heroes rated</span>
+    </div>
+    ${tierHtml || `<div class="empty-state"><p>No heroes rated for this patch yet.<br>Click <b>Edit Tiers</b> to start rating.</p></div>`}
+  `;
+}
+
+function setLaneFilter(l) { laneFilter=l; rerenderTier(); }
+function rerenderTier() {
+  const patch = patches.find(p=>p.id===activePatchId); if(!patch) return;
+  const {games,stats} = deriveStatsForPatch(patch);
+  const prevPatch = getPrevPatch(patch);
+  const content = document.getElementById('tabContent'); if(!content) return;
+  content.innerHTML = buildTierView(patch, stats, games, prevPatch);
+}
+
+// ── STATS VIEW ──
+function buildStatsView(patch, stats, games) {
+  if (!games) return `<div class="empty-state"><p>No match log data for this patch.<br>Set the date range and click <b>Auto-populate from Log</b>.</p></div>`;
+
+  const rows = ALL_HEROES
+    .map(h => ({ h, s: stats[h.name]||{picks:0,bans:0,wr:null,pr:0,br:0,presence:0} }))
+    .filter(({s}) => s.picks>0 || s.bans>0)
+    .sort((a,b) => b.s.presence - a.s.presence);
+
+  const maxPres = Math.max(...rows.map(r=>r.s.presence), 1);
+
+  return `
+    <div style="font-size:11px;color:var(--text3);margin-bottom:12px;">Derived from <b style="color:var(--text);">${games} games</b> in the date range${patch.dateFrom?` (${patch.dateFrom} → ${patch.dateTo||'now'})`:''}.
+    <span style="margin-left:8px;color:var(--text4);">P% = pick rate &nbsp;·&nbsp; B% = ban rate &nbsp;·&nbsp; WR% = win rate when picked</span></div>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="font-size:9px;font-weight:700;font-family:var(--font-head);letter-spacing:1px;color:var(--text3);text-transform:uppercase;">
+          <th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--border);">Hero</th>
+          <th style="padding:6px 10px;text-align:center;border-bottom:1px solid var(--border);">Tier</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:1px solid var(--border);">Presence</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:1px solid var(--border);">P%</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:1px solid var(--border);">B%</th>
+          <th style="padding:6px 10px;text-align:right;border-bottom:1px solid var(--border);">WR%</th>
+          <th style="padding:6px 10px;text-align:left;border-bottom:1px solid var(--border);">Bar</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(({h,s}) => {
+          const hdata = (patch.heroes||{})[h.name]||{};
+          const tier = hdata.tier||'—';
+          const tierColor = TIER_COLORS[tier]||'var(--text3)';
+          const wr = s.wr;
+          const wrColor = wr===null?'var(--text3)':wr>=55?'var(--green)':wr>=45?'var(--gold)':'var(--red)';
+          const barW = Math.round(s.presence/maxPres*100);
+          return `<tr style="cursor:default;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+            <td style="padding:6px 10px;border-bottom:1px solid var(--border);">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <img src="portraits/${h.id}.png" onerror="this.style.display='none'" style="width:26px;height:26px;border-radius:10px;object-fit:cover;flex-shrink:0;">
+                <span style="font-size:12px;font-weight:600;">${h.name}</span>
+                <span style="font-size:9px;color:var(--text3);">${h.role}</span>
+              </div>
+            </td>
+            <td style="padding:6px 10px;border-bottom:1px solid var(--border);text-align:center;">
+              <span style="font-size:11px;font-weight:800;font-family:var(--font-head);color:${tierColor};">${tier}</span>
+            </td>
+            <td style="padding:6px 10px;border-bottom:1px solid var(--border);text-align:right;font-size:11px;font-family:var(--font-mono);">${s.presence}%</td>
+            <td style="padding:6px 10px;border-bottom:1px solid var(--border);text-align:right;font-size:11px;font-family:var(--font-mono);">${s.pr}%</td>
+            <td style="padding:6px 10px;border-bottom:1px solid var(--border);text-align:right;font-size:11px;font-family:var(--font-mono);color:var(--red);">${s.br}%</td>
+            <td style="padding:6px 10px;border-bottom:1px solid var(--border);text-align:right;font-size:11px;font-family:var(--font-mono);color:${wrColor};">${wr!==null?wr+'%':'—'}</td>
+            <td style="padding:6px 10px;border-bottom:1px solid var(--border);">
+              <div class="mini-bar"><div class="mini-fill" style="width:${barW}%;background:var(--accent);"></div></div>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+// ── COMPARE VIEW ──
+function buildCompareView(patch, prevPatch) {
+  if (!prevPatch) return `<div class="empty-state"><p>No previous patch to compare with.<br>Create another patch and you'll see the diff here.</p></div>`;
+
+  const curr = patch.heroes||{};
+  const prev = prevPatch.heroes||{};
+  const allNames = new Set([...Object.keys(curr),...Object.keys(prev)]);
+
+  const risen=[], fallen=[], newHeroes=[], dropped=[], unchanged=[];
+  allNames.forEach(name => {
+    const c = curr[name]; const p = prev[name];
+    if (!p && c)  { newHeroes.push({name,tier:c.tier}); return; }
+    if (!c && p)  { dropped.push({name,tier:p.tier}); return; }
+    if (!c && !p) return;
+    const ci = TIERS.indexOf(c.tier), pi = TIERS.indexOf(p.tier);
+    if (ci < pi)  risen.push({name, from:p.tier, to:c.tier});
+    else if (ci > pi) fallen.push({name, from:p.tier, to:c.tier});
+    else          unchanged.push({name, tier:c.tier});
+  });
+
+  const diffRow = ({name,from,to,type}) => {
+    const hero = HERO_BY_NAME[name];
+    const icons = {risen:'↑',fallen:'↓',new:'*',dropped:'✕'};
+    const cls   = {risen:'diff-up',fallen:'diff-down',new:'diff-new',dropped:'diff-gone'};
+    return `<div class="diff-hero-row ${cls[type]}">
+      ${hero?`<img src="portraits/${hero.id}.png" onerror="this.style.display='none'" style="width:22px;height:22px;border-radius:8px;object-fit:cover;flex-shrink:0;">`:``}
+      <span class="diff-icon" style="color:${type==='risen'?'var(--green)':type==='fallen'?'var(--red)':type==='new'?'var(--gold)':'var(--text3)'};">${icons[type]}</span>
+      <span class="diff-name">${name}</span>
+      ${from&&to ? `<span class="diff-from" style="color:${TIER_COLORS[from]||'var(--text3)'};">${from}</span><span class="diff-arrow">→</span><span class="diff-from" style="color:${TIER_COLORS[to]||'var(--text3)'};">${to}</span>` : to?`<span class="diff-from" style="color:${TIER_COLORS[to]||'var(--text3)'};">${to}</span>`:`<span class="diff-from">${from}</span>`}
+    </div>`;
+  };
+
+  const section = (title, color, items, type) => items.length ? `
+    <div style="margin-bottom:14px;">
+      <div style="font-size:9px;font-weight:700;font-family:var(--font-head);letter-spacing:1.2px;text-transform:uppercase;color:${color};margin-bottom:6px;">${title} (${items.length})</div>
+      ${items.map(i=>diffRow({...i,type})).join('')}
+    </div>` : '';
+
+  return `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);">
+      <span style="font-size:12px;font-weight:700;color:var(--text);">v${prevPatch.name}</span>
+      <span style="font-size:12px;color:var(--text3);">→</span>
+      <span style="font-size:12px;font-weight:700;color:var(--blue);">v${patch.name}</span>
+      <span style="margin-left:auto;font-size:10px;color:var(--text3);">${risen.length+fallen.length+newHeroes.length+dropped.length} changes</span>
+    </div>
+    <div class="compare-grid">
+      <div>
+        ${section('Risen', 'var(--green)', risen, 'risen')}
+        ${section('* New This Patch', 'var(--gold)', newHeroes, 'new')}
+        ${!risen.length&&!newHeroes.length?`<div style="color:var(--text3);font-size:11px;font-style:italic;">No risers or new heroes</div>`:''}
+      </div>
+      <div>
+        ${section('Fallen', 'var(--red)', fallen, 'fallen')}
+        ${section('✕ Dropped from List', 'var(--text3)', dropped, 'dropped')}
+        ${!fallen.length&&!dropped.length?`<div style="color:var(--text3);font-size:11px;font-style:italic;">No fallen or dropped heroes</div>`:''}
+      </div>
+    </div>
+    ${unchanged.length ? `
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+      <div style="font-size:9px;font-weight:700;font-family:var(--font-head);letter-spacing:1.2px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">UNCHANGED (${unchanged.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        ${unchanged.map(({name,tier})=>`<span style="font-size:9px;padding:2px 7px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text3);">${name} <span style="font-weight:700;color:${TIER_COLORS[tier]||'var(--text3)'};">${tier}</span></span>`).join('')}
+      </div>
+    </div>` : ''}
+  `;
+}
+
+// ══════════════════════════════════════════════════════════════
+// AUTO-POPULATE FROM LOG
+// ══════════════════════════════════════════════════════════════
+function autoPopulateStats(patchId) {
+  const patch = patches.find(p=>p.id===patchId); if(!patch) return;
+  const {games, stats} = deriveStatsForPatch(patch);
+  if (!games) { toast('No matches found in this date range — check the patch date settings'); return; }
+
+  // Auto-assign tiers based on presence + WR for heroes with no tier yet
+  let added = 0;
+  if (!patch.heroes) patch.heroes = {};
+
+  Object.entries(stats).forEach(([name, s]) => {
+    if ((s.picks+s.bans) < 2) return; // skip heroes with almost no data
+    if (patch.heroes[name]?.tier) return; // don't overwrite manually set tiers
+
+    // Simple auto-tier logic based on presence + WR
+    const presence = s.presence;
+    const wr = s.wr ?? 50;
+    let tier = 'C';
+    if      (presence >= 70 && wr >= 55) tier = 'S';
+    else if (presence >= 50 && wr >= 52) tier = 'S';
+    else if (presence >= 40 && wr >= 50) tier = 'A';
+    else if (presence >= 25)              tier = 'A';
+    else if (presence >= 10)              tier = 'B';
+    else                                   tier = 'C';
+
+    if (!patch.heroes[name]) patch.heroes[name] = {};
+    patch.heroes[name].tier = tier;
+    added++;
+  });
+
+  savePatches();
+  renderMain();
+  toast(`Auto-populated ${added} heroes from ${games} games`);
+}
+
+// ══════════════════════════════════════════════════════════════
+// EDIT HEROES MODAL (tier assignment)
+// ══════════════════════════════════════════════════════════════
+let editingPatchId = null;
+let editingTierFilter = 'All';
+let activeTierAssign = 'S';
+
+function openEditHeroes(patchId) {
+  editingPatchId = patchId;
+  editingTierFilter = 'All';
+  editingHeroSearch = '';
+  activeTierAssign = 'S';
+  renderEditModal();
+}
+
+function renderEditModal() {
+  const patch = patches.find(p=>p.id===editingPatchId); if(!patch) return;
+  document.getElementById('editHeroModal')?.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'editHeroModal';
+
+  const heroes = patch.heroes || {};
+
+  const heroCards = ALL_HEROES
+    .filter(h => editingTierFilter==='All' || heroLanes(h).includes(editingTierFilter))
+    .filter(h => !editingHeroSearch || h.name.toLowerCase().includes(editingHeroSearch.toLowerCase()))
+    .map(h => {
+      const tier = heroes[h.name]?.tier || null;
+      const selClass = tier ? `selected-${tier}` : '';
+      return `<div class="he-card ${selClass}" onclick="cycleHeroTier('${editingPatchId}','${h.name}')" title="${h.name} — click to cycle tier">
+        <img src="portraits/${h.id}.png" onerror="this.src=''" loading="lazy">
+        <div class="he-card-name">${h.name}</div>
+        ${tier ? `<div class="tier-pip pip-${tier}">${tier}</div>` : ''}
+      </div>`;
+    }).join('');
+
+  const tierCounts = {};
+  TIERS.forEach(t => { tierCounts[t] = Object.values(heroes).filter(h=>h.tier===t).length; });
+
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:760px;">
+      <div class="modal-header">
+        <div class="modal-title">Edit Tiers — v${patch.name}</div>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('editHeroModal').remove()">✕</button>
+      </div>
+      <div class="modal-body" style="padding:14px 16px;">
+        <!-- Tier summary -->
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+          ${TIERS.map(t=>`<div style="display:flex;align-items:center;gap:5px;padding:4px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;">
+            <span style="font-size:12px;font-weight:800;font-family:var(--font-head);color:${TIER_COLORS[t]};">${t}</span>
+            <span style="font-size:10px;color:var(--text3);">${tierCounts[t]||0}</span>
+          </div>`).join('')}
+          <div style="margin-left:auto;font-size:10px;color:var(--text3);align-self:center;">Click hero → cycles S→A→B→C→D→unrated</div>
+        </div>
+        <!-- Filters -->
+        <div style="display:flex;gap:5px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+          ${LANES.map(l=>`<button class="filter-badge${editingTierFilter===l?' active':''}" onclick="setEditTierFilter('${l}')">${l}</button>`).join('')}
+          <div class="search-bar" style="margin-bottom:0;padding:4px 10px;width:160px;margin-left:auto;">
+            
+            <input id="editHeroSearchInput" placeholder="Search…" value="${editingHeroSearch}" oninput="editingHeroSearch=this.value;renderEditModal()" style="font-size:11px;">
+          </div>
+        </div>
+        <!-- Hero grid -->
+        <div class="hero-edit-grid">${heroCards}</div>
+        <!-- Note editor for selected hero -->
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+          <div style="font-size:9px;font-weight:700;font-family:var(--font-head);letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:6px;">ADD NOTE TO HERO</div>
+          <div style="display:flex;gap:8px;">
+            <input class="form-input" id="noteHeroName" placeholder="Hero name (e.g. Zhuxin)" style="flex:1;">
+            <input class="form-input" id="noteHeroText" placeholder="e.g. Buffed passive, dominates early game" style="flex:2;">
+            <button class="btn btn-ghost btn-sm" onclick="saveHeroNote('${patch.id}')">Save Note</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="clearAllTiers('${patch.id}')">Clear All</button>
+        <button class="btn btn-accent" onclick="document.getElementById('editHeroModal').remove();renderMain()">✓ Done</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function setEditTierFilter(r) { editingTierFilter=r; renderEditModal(); }
+
+function cycleHeroTier(patchId, heroName) {
+  const patch = patches.find(p=>p.id===patchId); if(!patch) return;
+  if (!patch.heroes) patch.heroes={};
+  const curr = patch.heroes[heroName]?.tier || null;
+  const order = [...TIERS, null]; // S→A→B→C→D→null(unrated)
+  const nextIdx = (order.indexOf(curr)+1) % order.length;
+  const next = order[nextIdx];
+  if (next === null) { delete patch.heroes[heroName]; }
+  else {
+    if (!patch.heroes[heroName]) patch.heroes[heroName]={};
+    patch.heroes[heroName].tier = next;
+  }
+  savePatches();
+  renderEditModal();
+}
+
+function saveHeroNote(patchId) {
+  const patch = patches.find(p=>p.id===patchId); if(!patch) return;
+  const name = document.getElementById('noteHeroName')?.value?.trim();
+  const note = document.getElementById('noteHeroText')?.value?.trim();
+  if (!name) { toast('Enter hero name'); return; }
+  if (!patch.heroes) patch.heroes={};
+  if (!patch.heroes[name]) patch.heroes[name]={};
+  patch.heroes[name].note = note || '';
+  savePatches();
+  renderEditModal();
+  toast(`✓ Note saved for ${name}`);
+}
+
+function clearAllTiers(patchId) {
+  if (!confirm('Clear all tier ratings for this patch?')) return;
+  const patch = patches.find(p=>p.id===patchId); if(!patch) return;
+  patch.heroes = {};
+  savePatches();
+  renderEditModal();
+  toast('Tiers cleared');
+}
+
+// ══════════════════════════════════════════════════════════════
+// NEW / EDIT PATCH MODAL
+// ══════════════════════════════════════════════════════════════
+function openNewPatchModal() {
+  openPatchModal(null);
+}
+function openEditPatchModal(id) {
+  openPatchModal(id);
+}
+
+function openPatchModal(id) {
+  const patch = id ? patches.find(p=>p.id===id) : null;
+  const isNew = !patch;
+  document.getElementById('patchModal')?.remove();
+
+  // Suggest copying from latest patch
+  const latest = [...patches].sort((a,b)=>b.createdAt-a.createdAt)[0];
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'patchModal';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:460px;">
+      <div class="modal-header">
+        <div class="modal-title">${isNew ? '+ New Patch' : 'Patch Settings'}</div>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('patchModal').remove()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Patch Version *</label>
+            <input class="form-input" id="pm-name" placeholder="e.g. 1.9.44" value="${patch?.name||''}">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Date From</label>
+            <input class="form-input" id="pm-from" type="date" value="${patch?.dateFrom||''}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Date To</label>
+            <input class="form-input" id="pm-to" type="date" value="${patch?.dateTo||''}">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label">Patch Notes / Summary</label>
+          <textarea class="form-textarea" id="pm-note" placeholder="e.g. Zhuxin passive nerfed, Fredrinn tank ratio buffed…">${patch?.note||''}</textarea>
+        </div>
+        ${isNew && latest ? `
+        <div style="padding:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);margin-bottom:4px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:11px;color:var(--text2);">
+            <input type="checkbox" id="pm-copy" checked style="accent-color:var(--blue);">
+            Copy tier ratings from <b style="color:var(--text);margin-left:2px;">v${latest.name}</b> as starting point
+          </label>
+        </div>` : ''}
+      </div>
+      <div class="modal-footer">
+        ${!isNew ? `<button class="btn btn-danger" onclick="deletePatch('${id}')">Delete</button>` : ''}
+        <button class="btn btn-ghost" onclick="document.getElementById('patchModal').remove()">Cancel</button>
+        <button class="btn btn-accent" onclick="savePatch('${id||''}')">
+          ${isNew ? '+ Create Patch' : 'Save Changes'}
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function savePatch(existingId) {
+  const name = document.getElementById('pm-name')?.value?.trim();
+  if (!name) { toast('Enter patch version'); return; }
+
+  const dateFrom = document.getElementById('pm-from')?.value||'';
+  const dateTo   = document.getElementById('pm-to')?.value||'';
+  const note     = document.getElementById('pm-note')?.value||'';
+
+  if (existingId) {
+    // Edit existing
+    const patch = patches.find(p=>p.id===existingId);
+    if (patch) { patch.name=name; patch.dateFrom=dateFrom; patch.dateTo=dateTo; patch.note=note; }
+  } else {
+    // New patch
+    const copyCheck = document.getElementById('pm-copy');
+    const doCopy = copyCheck?.checked;
+    const latest = [...patches].sort((a,b)=>b.createdAt-a.createdAt)[0];
+    const baseHeroes = doCopy && latest ? JSON.parse(JSON.stringify(latest.heroes||{})) : {};
+
+    const newPatch = {
+      id: 'patch_'+Date.now(),
+      name, dateFrom, dateTo, note,
+      heroes: baseHeroes,
+      createdAt: Date.now(),
+    };
+    patches.push(newPatch);
+    activePatchId = newPatch.id;
+  }
+
+  savePatches();
+  document.getElementById('patchModal')?.remove();
+  renderSidebar();
+  renderMain();
+  toast(existingId ? '✓ Patch updated' : `✓ Patch v${name} created`);
+}
+
+function deletePatch(id) {
+  if (!confirm('Delete this patch?')) return;
+  patches = patches.filter(p=>p.id!==id);
+  if (activePatchId===id) activePatchId = patches.length ? patches[patches.length-1].id : null;
+  savePatches();
+  document.getElementById('patchModal')?.remove();
+  renderSidebar();
+  renderMain();
+  toast('Patch deleted');
+}
+
+// ══════════════════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════════════════
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+(async () => {
+  const ok = await WAuth.requireAuth();
+  if (!ok) return; // redirecting to auth.html
+})();
+WAuth.renderAuthChip('authChip');
+loadPatches();
+// Try loading patches from Supabase (fallback to localStorage)
+WDB.getPatches().then(patches => {
+  if (patches && patches.length > 0) {
+    // Merge Supabase patches with local ones
+    console.log('Loaded', patches.length, 'patches from Supabase');
+  }
+}).catch(() => {});
+// Auto-select latest patch on load
+if (patches.length) {
+  activePatchId = [...patches].sort((a,b)=>b.createdAt-a.createdAt)[0].id;
+}
+renderSidebar();
+renderMain();
+</script>
+
+</div><!-- /.page-body -->
+
+</body>
+</html>

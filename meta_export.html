@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meta Export — Warr.GG</title>
+<link rel="stylesheet" href="warr-styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+/* ── Page layout ──────────────────────────────────────────────── */
+.page-body { padding: 28px 32px 48px; max-width: 100%; }
+
+.page-heading { display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+.page-heading-title { font-size:18px; font-weight:800; font-family:var(--font-head); letter-spacing:.5px; color:var(--text); }
+.page-heading-sub { font-size:11px; font-weight:600; color:var(--text3); letter-spacing:1px; text-transform:uppercase; margin-left:2px; }
+
+/* ── Filter bar ───────────────────────────────────────────────── */
+.export-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius2);
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.export-bar-label { font-size:9px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:1.5px; flex-shrink:0; }
+.filter-badge {
+  padding: 3px 11px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-head);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  transition: all .12s;
+  letter-spacing: .2px;
+}
+.filter-badge:hover { color:var(--text2); border-color:var(--border3); }
+.filter-badge.active { background:var(--blue-dim); border-color:var(--blue-border); color:var(--blue); }
+.gen-btn {
+  margin-left: auto;
+  padding: 7px 18px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-head);
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  border-radius: var(--radius);
+  letter-spacing: .5px;
+  transition: opacity .2s, box-shadow .2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.gen-btn:hover { opacity:.88; box-shadow:0 0 16px var(--accent-glow); }
+.gen-btn:disabled { opacity:.4; cursor:default; box-shadow:none; }
+
+/* ── Legend bar ───────────────────────────────────────────────── */
+.legend-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 8px 14px;
+  margin-bottom: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text3);
+  font-family: var(--font-head);
+  letter-spacing: .3px;
+}
+.legend-tier { font-weight: 800; }
+.legend-sep { color: var(--border3); margin: 0 2px; }
+.legend-drag {
+  margin-left: auto;
+  font-size: 9px;
+  color: var(--text4);
+  letter-spacing: .5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* ── Horizontal scroll wrapper ────────────────────────────────── */
+.cards-scroll-wrap {
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-bottom: 18px;
+  cursor: grab;
+  user-select: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border3) transparent;
+}
+.cards-scroll-wrap.dragging { cursor: grabbing; }
+.cards-scroll-wrap::-webkit-scrollbar { height: 5px; }
+.cards-scroll-wrap::-webkit-scrollbar-track { background: transparent; }
+.cards-scroll-wrap::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 6px; }
+
+.cards-grid {
+  display: flex;
+  flex-direction: row;
+  gap: 18px;
+  width: max-content;
+  padding: 4px 2px 4px;
+}
+
+/* ── Per-lane section ─────────────────────────────────────────── */
+.lane-section { display:flex; flex-direction:column; gap:7px; }
+.lane-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text3);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 0 2px;
+}
+.lane-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.dl-btn {
+  padding: 3px 11px;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--neon-dim);
+  border: 1px solid var(--neon-border);
+  color: var(--neon);
+  cursor: pointer;
+  border-radius: 8px;
+  letter-spacing: .5px;
+  transition: all .15s;
+  margin-left: auto;
+}
+.dl-btn:hover { background: rgba(76,184,122,.22); }
+
+/* ── Preview wrapper — zoom 1000px card to 500px preview ──────── */
+.card-preview-wrap {
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.07);
+  display: inline-block;
+  line-height: 0;
+  box-shadow: 0 8px 40px rgba(0,0,0,.7);
+  flex-shrink: 0;
+  width: 500px;
+  height: 500px;
+}
+.card-preview-wrap .meta-card {
+  zoom: 0.5;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   META CARD — 1000×1000 px  (html2canvas scale:2 → 2000×2000 PNG)
+   Portraits: 52px display → 104px captured = crisp
+   ═══════════════════════════════════════════════════════════════ */
+.meta-card {
+  width: 1000px;
+  height: 1000px;
+  overflow: hidden;
+  position: relative;
+  background: #080810;
+  border-radius: 0;
+  flex-shrink: 0;
+  font-family: 'Inter', sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <a class="nav-brand" href="index.html">
+    <span class="nav-brand-name">Warr.GG</span>
+    <span class="nav-brand-sub">MLBB Intel</span>
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="draft_board.html">Draft</a>
+    <a class="nav-link" href="ai_battle.html">AI Battle</a>
+    <a class="nav-link" href="scout.html">Scout</a>
+    <a class="nav-link" href="stats.html">Analysis</a>
+    <a class="nav-link" href="patch_meta.html">Patch</a>
+    <a class="nav-link" href="profile.html">Profile</a>
+  </div>
+  <div class="nav-right">
+    <div class="theme-switcher" title="Switch theme">
+      <button class="theme-btn" data-t="dark" title="Dark">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+      </button>
+      <button class="theme-btn" data-t="light" title="Light">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      </button>
+      <button class="theme-btn" data-t="neon" title="Neon">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z"/></svg>
+      </button>
+    </div>
+  </div>
+  <button class="mobile-menu-btn" onclick="document.getElementById('mobileNav').classList.toggle('open')" aria-label="Menu">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+</nav>
+
+<!-- MOBILE NAV -->
+<div id="mobileNav" class="mobile-nav">
+  <a class="mobile-nav-link" href="draft_board.html">Draft Board</a>
+  <a class="mobile-nav-link" href="ai_battle.html">AI Battle</a>
+  <a class="mobile-nav-link" href="scout.html">Scout</a>
+  <a class="mobile-nav-link" href="stats.html">Analysis</a>
+  <a class="mobile-nav-link" href="patch_meta.html">Patch</a>
+  <a class="mobile-nav-link" href="profile.html">Profile</a>
+</div>
+
+<div class="page-body">
+
+  <!-- Page heading -->
+  <div class="page-heading">
+    <div>
+      <div class="page-heading-title">Meta Export</div>
+    </div>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="export-bar">
+    <span class="export-bar-label">Filter:</span>
+    <button class="filter-badge active" onclick="setFilter('all',this)">All Leagues</button>
+    <button class="filter-badge" onclick="setFilter('MPL PH',this)">MPL PH</button>
+    <button class="filter-badge" onclick="setFilter('MPL MY',this)">MPL MY</button>
+    <button class="filter-badge" onclick="setFilter('MPL ID',this)">MPL ID</button>
+    <button class="filter-badge" onclick="setFilter('MPL SG',this)">MPL SG</button>
+    <button class="filter-badge" onclick="setFilter('MSC',this)">MSC</button>
+    <button class="filter-badge" onclick="setFilter('M-Series',this)">M-Series</button>
+    <button class="filter-badge" onclick="setFilter('Scrims',this)">Scrims</button>
+    <button class="gen-btn" id="genBtn" onclick="generateAll()">▶ Generate All Cards</button>
+  </div>
+
+  <!-- Legend bar -->
+  <div class="legend-bar">
+    <span class="legend-tier" style="color:#F59E0B;">S</span> Top Tier
+    <span class="legend-sep">·</span>
+    <span class="legend-tier" style="color:#9CA3AF;">A</span> Strong
+    <span class="legend-sep">·</span>
+    <span class="legend-tier" style="color:#C89050;">B</span> Situational
+    <span class="legend-sep">|</span>
+    <span style="font-weight:700;color:var(--text2);">Presence%</span> Pick + Ban rate
+    <span class="legend-sep">·</span>
+    <span style="font-weight:700;color:var(--text2);">Win Rate%</span> Scout win rate
+    <span class="legend-sep">·</span>
+    <span style="color:#E09098;font-weight:700;">BAN</span> Must Ban
+    <span class="legend-drag">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
+      Click and drag to scroll
+    </span>
+  </div>
+
+  <!-- Horizontal scroll card grid -->
+  <div class="cards-scroll-wrap" id="cardsScrollWrap">
+    <div class="cards-grid" id="cardsGrid"></div>
+  </div>
+
+</div>
+
+<script>
+// ── Hero Data ───────────────────────────────────────────────────────────────
+const ALL_HEROES = [
+  {id:'tigreal',name:'Tigreal',role:'Tank',tier:'B',mp:'situational'},
+  {id:'akai',name:'Akai',role:'Tank',tier:'B',mp:'situational'},
+  {id:'franco',name:'Franco',role:'Tank',tier:'B',mp:'situational'},
+  {id:'minotaur',name:'Minotaur',role:'Tank',tier:'B',mp:'situational'},
+  {id:'lolita',name:'Lolita',role:'Tank',tier:'B',mp:'situational'},
+  {id:'johnson',name:'Johnson',role:'Tank',tier:'C',mp:'troll'},
+  {id:'atlas',name:'Atlas',role:'Tank',tier:'B',mp:'situational'},
+  {id:'khufra',name:'Khufra',role:'Tank',tier:'C',mp:'situational'},
+  {id:'esmeralda',name:'Esmeralda',role:'Tank/Mage',tier:'A',mp:'situational'},
+  {id:'uranus',name:'Uranus',role:'Tank',tier:'S',mp:'highpick'},
+  {id:'hylos',name:'Hylos',role:'Tank',tier:'A',mp:'situational'},
+  {id:'belerick',name:'Belerick',role:'Tank',tier:'B',mp:'off'},
+  {id:'grock',name:'Grock',role:'Tank',tier:'S',mp:'mustban'},
+  {id:'carmilla',name:'Carmilla',role:'Tank',tier:'A',mp:'situational'},
+  {id:'baxia',name:'Baxia',role:'Tank',tier:'A',mp:'situational'},
+  {id:'gloo',name:'Gloo',role:'Tank',tier:'B',mp:'situational'},
+  {id:'chip',name:'Chip',role:'Tank',tier:'A',mp:'situational'},
+  {id:'fredrinn',name:'Fredrinn',role:'Tank/Fighter',tier:'S',mp:'highpick'},
+  {id:'kalea',name:'Kalea',role:'Tank',tier:'S',mp:'mustban'},
+  {id:'edith',name:'Edith',role:'Tank/MM',tier:'B',mp:'situational'},
+  {id:'marcel',name:'Marcel',role:'Tank',tier:'C',mp:'off'},
+  {id:'barats',name:'Barats',role:'Fighter/Tank',tier:'B',mp:'situational'},
+  {id:'balmond',name:'Balmond',role:'Fighter',tier:'C',mp:'off'},
+  {id:'zilong',name:'Zilong',role:'Fighter',tier:'C',mp:'off'},
+  {id:'alucard',name:'Alucard',role:'Fighter',tier:'C',mp:'off'},
+  {id:'alpha',name:'Alpha',role:'Fighter',tier:'B',mp:'off'},
+  {id:'sun',name:'Sun',role:'Fighter',tier:'C',mp:'off'},
+  {id:'argus',name:'Argus',role:'Fighter',tier:'B',mp:'off'},
+  {id:'hilda',name:'Hilda',role:'Fighter',tier:'A',mp:'situational'},
+  {id:'ruby',name:'Ruby',role:'Fighter',tier:'A',mp:'situational'},
+  {id:'xborg',name:'X.Borg',role:'Fighter',tier:'B',mp:'off'},
+  {id:'aldous',name:'Aldous',role:'Fighter',tier:'B',mp:'off'},
+  {id:'chou',name:'Chou',role:'Fighter',tier:'S',mp:'highpick'},
+  {id:'badang',name:'Badang',role:'Fighter',tier:'A',mp:'situational'},
+  {id:'guinevere',name:'Guinevere',role:'Fighter',tier:'S',mp:'highpick'},
+  {id:'terizla',name:'Terizla',role:'Fighter',tier:'B',mp:'off'},
+  {id:'thamuz',name:'Thamuz',role:'Fighter',tier:'A',mp:'situational'},
+  {id:'masha',name:'Masha',role:'Fighter',tier:'B',mp:'off'},
+  {id:'khaleed',name:'Khaleed',role:'Fighter',tier:'S',mp:'highpick'},
+  {id:'paquito',name:'Paquito',role:'Fighter',tier:'A',mp:'situational'},
+  {id:'yuzhong',name:'Yu Zhong',role:'Fighter',tier:'S',mp:'highpick'},
+  {id:'dyrroth',name:'Dyrroth',role:'Fighter',tier:'B',mp:'off'},
+  {id:'jawhead',name:'Jawhead',role:'Fighter',tier:'A',mp:'situational'},
+  {id:'martis',name:'Martis',role:'Fighter',tier:'B',mp:'off'},
+  {id:'silvanna',name:'Silvanna',role:'Fighter',tier:'B',mp:'off'},
+  {id:'yin',name:'Yin',role:'Fighter',tier:'B',mp:'off'},
+  {id:'minsitthar',name:'Minsitthar',role:'Fighter',tier:'B',mp:'off'},
+  {id:'freya',name:'Freya',role:'Fighter',tier:'S',mp:'highpick'},
+  {id:'lapulapu',name:'Lapu-Lapu',role:'Fighter',tier:'A',mp:'situational'},
+  {id:'leomord',name:'Leomord',role:'Fighter',tier:'S',mp:'highpick'},
+  {id:'phoveus',name:'Phoveus',role:'Fighter',tier:'A',mp:'situational'},
+  {id:'arlott',name:'Arlott',role:'Fighter',tier:'S',mp:'highpick'},
+  {id:'cici',name:'Cici',role:'Fighter',tier:'S',mp:'highpick'},
+  {id:'sora',name:'Sora',role:'Fighter/Assassin',tier:'S',mp:'mustban'},
+  {id:'bane',name:'Bane',role:'Fighter',tier:'C',mp:'off'},
+  {id:'lukas',name:'Lukas',role:'Fighter',tier:'B',mp:'situational'},
+  {id:'gatotkaca',name:'Gatotkaca',role:'Tank/Fighter',tier:'S',mp:'highpick'},
+  {id:'roger',name:'Roger',role:'Fighter/MM',tier:'B',mp:'off'},
+  {id:'saber',name:'Saber',role:'Assassin',tier:'B',mp:'off'},
+  {id:'karina',name:'Karina',role:'Assassin',tier:'A',mp:'situational'},
+  {id:'fanny',name:'Fanny',role:'Assassin',tier:'S',mp:'mustban'},
+  {id:'hayabusa',name:'Hayabusa',role:'Assassin',tier:'A',mp:'situational'},
+  {id:'natalia',name:'Natalia',role:'Assassin',tier:'C',mp:'off'},
+  {id:'helcurt',name:'Helcurt',role:'Assassin',tier:'C',mp:'situational'},
+  {id:'lancelot',name:'Lancelot',role:'Assassin',tier:'A',mp:'situational'},
+  {id:'gusion',name:'Gusion',role:'Assassin',tier:'C',mp:'off'},
+  {id:'ling',name:'Ling',role:'Assassin',tier:'B',mp:'situational'},
+  {id:'selena',name:'Selena',role:'Assassin/Mage',tier:'A',mp:'situational'},
+  {id:'benedetta',name:'Benedetta',role:'Assassin',tier:'A',mp:'situational'},
+  {id:'aamon',name:'Aamon',role:'Assassin',tier:'B',mp:'situational'},
+  {id:'nolan',name:'Nolan',role:'Assassin',tier:'B',mp:'situational'},
+  {id:'yss',name:'Yi Sun-shin',role:'Assassin/MM',tier:'S',mp:'highpick'},
+  {id:'suyou',name:'Suyou',role:'Assassin',tier:'A',mp:'situational'},
+  {id:'joy',name:'Joy',role:'Assassin',tier:'S',mp:'highpick'},
+  {id:'julian',name:'Julian',role:'Fighter/Assassin',tier:'A',mp:'situational'},
+  {id:'hanzo',name:'Hanzo',role:'Assassin',tier:'B',mp:'off'},
+  {id:'nana',name:'Nana',role:'Mage/Support',tier:'A',mp:'situational'},
+  {id:'eudora',name:'Eudora',role:'Mage',tier:'B',mp:'off'},
+  {id:'aurora',name:'Aurora',role:'Mage',tier:'B',mp:'off'},
+  {id:'gord',name:'Gord',role:'Mage',tier:'B',mp:'off'},
+  {id:'cyclops',name:'Cyclops',role:'Mage',tier:'A',mp:'situational'},
+  {id:'alice',name:'Alice',role:'Mage/Tank',tier:'B',mp:'off'},
+  {id:'harley',name:'Harley',role:'Mage/Assassin',tier:'A',mp:'situational'},
+  {id:'odette',name:'Odette',role:'Mage',tier:'A',mp:'situational'},
+  {id:'vexana',name:'Vexana',role:'Mage',tier:'B',mp:'off'},
+  {id:'lunox',name:'Lunox',role:'Mage',tier:'A',mp:'situational'},
+  {id:'kagura',name:'Kagura',role:'Mage',tier:'B',mp:'situational'},
+  {id:'lylia',name:'Lylia',role:'Mage',tier:'A',mp:'situational'},
+  {id:'cecilion',name:'Cecilion',role:'Mage',tier:'A',mp:'situational'},
+  {id:'yve',name:'Yve',role:'Mage',tier:'S',mp:'mustban'},
+  {id:'valentina',name:'Valentina',role:'Mage',tier:'S',mp:'highpick'},
+  {id:'xavier',name:'Xavier',role:'Mage',tier:'A',mp:'situational'},
+  {id:'change',name:'Change',role:'Mage',tier:'B',mp:'off'},
+  {id:'pharsa',name:'Pharsa',role:'Mage',tier:'S',mp:'highpick'},
+  {id:'novaria',name:'Novaria',role:'Mage',tier:'A',mp:'situational'},
+  {id:'luoyi',name:'Luo Yi',role:'Mage',tier:'S',mp:'highpick'},
+  {id:'zhuxin',name:'Zhuxin',role:'Mage',tier:'A',mp:'situational'},
+  {id:'faramis',name:'Faramis',role:'Mage/Support',tier:'B',mp:'off'},
+  {id:'kadita',name:'Kadita',role:'Mage/Assassin',tier:'B',mp:'off'},
+  {id:'kimmy',name:'Kimmy',role:'Mage/MM',tier:'B',mp:'off'},
+  {id:'zhask',name:'Zhask',role:'Mage',tier:'B',mp:'off'},
+  {id:'vale',name:'Vale',role:'Mage',tier:'A',mp:'situational'},
+  {id:'valir',name:'Valir',role:'Mage',tier:'B',mp:'situational'},
+  {id:'harith',name:'Harith',role:'Mage',tier:'S',mp:'highpick'},
+  {id:'zetian',name:'Zetian',role:'Mage',tier:'S',mp:'mustpick'},
+  {id:'miya',name:'Miya',role:'MM',tier:'B',mp:'off'},
+  {id:'layla',name:'Layla',role:'MM',tier:'C',mp:'off'},
+  {id:'moskov',name:'Moskov',role:'MM',tier:'A',mp:'situational'},
+  {id:'clint',name:'Clint',role:'MM',tier:'B',mp:'off'},
+  {id:'bruno',name:'Bruno',role:'MM',tier:'A',mp:'situational'},
+  {id:'irithel',name:'Irithel',role:'MM',tier:'B',mp:'off'},
+  {id:'lesley',name:'Lesley',role:'MM/Assassin',tier:'A',mp:'situational'},
+  {id:'hanabi',name:'Hanabi',role:'MM',tier:'B',mp:'off'},
+  {id:'claude',name:'Claude',role:'MM',tier:'S',mp:'highpick'},
+  {id:'granger',name:'Granger',role:'MM',tier:'S',mp:'highpick'},
+  {id:'brody',name:'Brody',role:'MM',tier:'A',mp:'situational'},
+  {id:'karrie',name:'Karrie',role:'MM',tier:'A',mp:'situational'},
+  {id:'beatrix',name:'Beatrix',role:'MM',tier:'A',mp:'situational'},
+  {id:'melissa',name:'Melissa',role:'MM',tier:'A',mp:'situational'},
+  {id:'natan',name:'Natan',role:'MM',tier:'A',mp:'situational'},
+  {id:'wanwan',name:'Wanwan',role:'MM',tier:'B',mp:'situational'},
+  {id:'ixia',name:'Ixia',role:'MM',tier:'B',mp:'situational'},
+  {id:'obsidia',name:'Obsidia',role:'MM',tier:'A',mp:'situational'},
+  {id:'estes',name:'Estes',role:'Support',tier:'A',mp:'situational'},
+  {id:'angela',name:'Angela',role:'Support',tier:'B',mp:'situational'},
+  {id:'rafaela',name:'Rafaela',role:'Support',tier:'A',mp:'off'},
+  {id:'diggie',name:'Diggie',role:'Support',tier:'A',mp:'off'},
+  {id:'floryn',name:'Floryn',role:'Support',tier:'B',mp:'off'},
+  {id:'mathilda',name:'Mathilda',role:'Support',tier:'B',mp:'off'},
+  {id:'kaja',name:'Kaja',role:'Support/Fighter',tier:'A',mp:'situational'},
+  {id:'popol',name:'Popol & Kupa',role:'Support/MM',tier:'A',mp:'off'},
+  {id:'aulus_fighter',name:'Aulus',role:'Fighter',tier:'B',mp:'off'},
+];
+
+const HERO_LANES = {
+  'Claude':['Gold'],'Karrie':['Gold'],'Beatrix':['Gold'],'Wanwan':['Gold'],
+  'Granger':['Gold'],'Brody':['Gold'],'Miya':['Gold'],'Bruno':['Gold'],
+  'Clint':['Gold'],'Hanabi':['Gold'],'Irithel':['Gold'],'Layla':['Gold'],
+  'Lesley':['Gold'],'Melissa':['Gold'],'Moskov':['Gold'],'Natan':['Gold'],
+  'Ixia':['Gold'],'Obsidia':['Gold'],'Popol & Kupa':['Gold'],
+  'Roger':['Gold','Jungle'],
+  'Yi Sun-shin':['Jungle'],'Hayabusa':['Jungle'],'Lancelot':['Jungle'],
+  'Ling':['Jungle'],'Fanny':['Jungle'],'Nolan':['Jungle'],'Gusion':['Jungle'],
+  'Karina':['Jungle'],'Benedetta':['Jungle'],'Helcurt':['Jungle'],
+  'Joy':['Jungle'],'Aamon':['Jungle'],'Natalia':['Jungle'],'Saber':['Jungle'],
+  'Hanzo':['Jungle'],'Suyou':['Jungle'],'Fredrinn':['Jungle','EXP'],
+  'Phoveus':['EXP'],'Martis':['Jungle','EXP'],
+  'Aldous':['EXP','Jungle'],'Argus':['EXP','Jungle'],'Barats':['Jungle','EXP'],
+  'Bane':['EXP','Jungle'],
+  'Freya':['Gold'],
+  'Alice':['Mid','Roam'],
+  'Zhuxin':['Mid'],'Yve':['Mid'],'Pharsa':['Mid'],'Kagura':['Mid'],'Zetian':['Mid'],
+  'Valentina':['Mid'],'Xavier':['Mid'],'Novaria':['Mid'],'Lylia':['Mid'],
+  'Lunox':['Mid'],'Kadita':['Mid'],'Luo Yi':['Mid'],'Odette':['Mid'],
+  'Cecilion':['Mid'],'Vale':['Mid'],'Eudora':['Mid'],'Aurora':['Mid'],
+  'Gord':['Mid'],'Cyclops':['Mid'],'Alice':['Mid'],'Vexana':['Mid'],
+  'Zhask':['Mid'],'Nana':['Mid','Roam'],'Kimmy':['Mid'],'Change':['Mid'],
+  'Harith':['Gold'],'Harley':['Mid','Jungle'],'Selena':['Mid','Roam'],
+  'Valir':['Mid','Roam'],
+  'Faramis':['Roam','Mid'],
+  'Aulus':['EXP'],'Guinevere':['Jungle'],
+  'Yu Zhong':['EXP'],'Arlott':['EXP'],'Cici':['EXP'],'Gatotkaca':['EXP'],
+  'Esmeralda':['EXP'],'Dyrroth':['EXP'],'Terizla':['EXP'],'Thamuz':['EXP'],
+  'Khaleed':['EXP'],'Paquito':['EXP'],'Leomord':['Jungle'],'Silvanna':['EXP'],
+  'Badang':['EXP'],'Ruby':['EXP','Roam'],
+  'Hilda':['EXP','Roam'],'Masha':['EXP'],'X.Borg':['EXP'],
+  'Lapu-Lapu':['EXP'],'Yin':['EXP'],'Lukas':['EXP','Jungle'],'Sora':['EXP'],
+  'Julian':['Jungle','Mid'],
+  'Hylos':['Roam'],'Uranus':['EXP'],'Atlas':['Roam'],'Khufra':['Roam'],
+  'Gloo':['Roam'],'Chip':['Roam'],'Kalea':['Roam'],'Mathilda':['Roam'],
+  'Angela':['Roam'],'Floryn':['Roam'],'Franco':['Roam'],'Tigreal':['Roam'],
+  'Johnson':['Roam'],'Akai':['Roam'],'Minotaur':['Roam'],'Lolita':['Roam'],
+  'Grock':['Roam'],'Belerick':['Roam'],'Baxia':['Roam','Jungle'],'Carmilla':['Roam'],
+  'Kaja':['Roam'],'Diggie':['Roam'],'Estes':['Roam'],'Rafaela':['Roam'],
+  'Edith':['Roam'],
+  'Chou':['Roam','Gold'],'Minsitthar':['Roam','EXP'],
+  'Jawhead':['Roam'],
+};
+
+const LANE_CONFIG = {
+  Gold:   { color:'#F59E0B', gradient:'linear-gradient(135deg,#F59E0B,#D97706)', label:'GOLD LANE',   roleHint:'Marksman / Carry' },
+  EXP:    { color:'#F97316', gradient:'linear-gradient(135deg,#F97316,#EA580C)', label:'EXP LANE',    roleHint:'Fighter / Tank' },
+  Mid:    { color:'#A855F7', gradient:'linear-gradient(135deg,#A855F7,#7C3AED)', label:'MID LANE',    roleHint:'Mage / Assassin' },
+  Jungle: { color:'#22C55E', gradient:'linear-gradient(135deg,#22C55E,#16A34A)', label:'JUNGLE LANE', roleHint:'Assassin / Fighter' },
+  Roam:   { color:'#5EA0D8', gradient:'linear-gradient(135deg,#5EA0D8,#3B82F6)', label:'ROAM LANE',   roleHint:'Tank / Support' },
+};
+
+const ROLE_COLORS = {
+  Tank:'#3B82F6', Fighter:'#F97316', Mage:'#A855F7',
+  MM:'#F59E0B', Assassin:'#EF4444', Support:'#22C55E',
+};
+
+const TIER_MS = { S:9.5, A:8.0, B:6.5, C:5.0, D:3.5 };
+
+// Tier appearance
+const TIER_STYLE = {
+  S: { bg:'rgba(245,158,11,.2)',  color:'#F59E0B', border:'rgba(245,158,11,.35)' },
+  A: { bg:'rgba(156,163,175,.12)',color:'#9CA3AF', border:'rgba(156,163,175,.25)' },
+  B: { bg:'rgba(180,83,9,.12)',   color:'#C89050', border:'rgba(180,83,9,.25)' },
+  C: { bg:'rgba(75,85,99,.12)',   color:'#6B7280', border:'rgba(75,85,99,.2)' },
+};
+
+// ── State ───────────────────────────────────────────────────────────────────
+let currentFilter = 'all';
+let patchVersion  = null;
+let heroScoutStats = {};
+let scoutMatchCount = 0;
+
+// ── Init ────────────────────────────────────────────────────────────────────
+function init() {
+  loadMetaFromStorage();
+  loadScoutStats();
+  // Apply saved theme
+  try {
+    const t = localStorage.getItem('warr_theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+    document.querySelectorAll('.theme-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.t === t);
+    });
+  } catch(e) {}
+  // Theme switcher
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const t = btn.dataset.t;
+      document.documentElement.setAttribute('data-theme', t);
+      try { localStorage.setItem('warr_theme', t); } catch(e) {}
+      document.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.t === t));
+    });
+  });
+  initDragScroll();
+}
+
+function loadMetaFromStorage() {
+  try {
+    const saved = localStorage.getItem('mlbb_draft_data');
+    if (!saved) return;
+    const d = JSON.parse(saved);
+    if (d.patchVersion) patchVersion = d.patchVersion;
+    if (d.metaScores) {
+      ALL_HEROES.forEach(h => {
+        const s = d.metaScores[h.name];
+        if (s) { h.ms = Number(s.ms)||TIER_MS[h.tier]||6; h.tier = s.tier||h.tier; h.mp = s.mp||h.mp; }
+      });
+    }
+    if (d.tierList) {
+      ALL_HEROES.forEach(h => {
+        const t = d.tierList[h.name];
+        if (t) { h.tier = t.tier; h.ms = TIER_MS[t.tier] ?? h.ms; }
+      });
+    }
+  } catch(e) {}
+  ALL_HEROES.forEach(h => { if (!h.ms) h.ms = TIER_MS[h.tier] || 6; });
+}
+
+function loadScoutStats() {
+  try {
+    const raw = localStorage.getItem('warr_scout_data');
+    const db  = raw ? JSON.parse(raw) : null;
+    const raw2 = localStorage.getItem('warr_scout_db');
+    const db2  = raw2 ? JSON.parse(raw2) : null;
+    const source = db || db2;
+    if (!source || !source.matches) return;
+    const matches = currentFilter === 'all'
+      ? source.matches
+      : source.matches.filter(m => m.league === currentFilter);
+    scoutMatchCount = matches.length;
+    const heroData = {};
+    matches.forEach(m => {
+      // Picks
+      const sides = [
+        { picks: m.bluePicks||[], winner: m.winner === 'blue' },
+        { picks: m.redPicks||[], winner: m.winner === 'red' },
+      ];
+      sides.forEach(({ picks, winner }) => {
+        (picks||[]).forEach(p => {
+          const name = p.name || p;
+          if (!heroData[name]) heroData[name] = { picks:0, wins:0, bans:0 };
+          heroData[name].picks++;
+          if (winner) heroData[name].wins++;
+        });
+      });
+      // Bans
+      [...(m.blueBans||[]), ...(m.redBans||[])].forEach(b => {
+        const name = b.name || b;
+        if (!heroData[name]) heroData[name] = { picks:0, wins:0, bans:0 };
+        heroData[name].bans++;
+      });
+    });
+    heroScoutStats = {};
+    Object.entries(heroData).forEach(([name, d]) => {
+      const total = d.picks + d.bans;
+      if (total >= 1) { // track any hero with even 1 pick or ban
+        heroScoutStats[name] = {
+          picks:    d.picks,
+          wins:     d.wins,
+          bans:     d.bans,
+          winRate:  d.picks > 0 ? Math.round(d.wins / d.picks * 100) : null,
+          presence: Math.round(total / scoutMatchCount * 100),
+        };
+      }
+    });
+  } catch(e) { console.warn('Scout load error:', e); }
+}
+
+// ── Dynamic lane correction from localStorage scout data ─────────────────────
+// Mirrors the same logic used by scout.html's computeHeroRoles().
+// Runs on every generateAll() so cards always reflect observed lanes.
+function applyScoutLaneCorrections() {
+  try {
+    const raw = localStorage.getItem('warr_scout_data') || localStorage.getItem('warr_scout_db');
+    const db  = raw ? JSON.parse(raw) : null;
+    if (!db || !db.matches) return;
+
+    // Count how often each hero was observed in each lane
+    const laneCounts = {};
+    db.matches.forEach(m => {
+      [...(m.bluePicks||[]), ...(m.redPicks||[])].forEach(p => {
+        if (!p || !p.name || !p.lane) return;
+        if (!laneCounts[p.name]) laneCounts[p.name] = {};
+        laneCounts[p.name][p.lane] = (laneCounts[p.name][p.lane] || 0) + 1;
+      });
+    });
+
+    // Override HERO_LANES with the most-observed lane per hero (min 1 observation)
+    Object.entries(laneCounts).forEach(([hero, counts]) => {
+      const primaryLane = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+      if (!HERO_LANES[hero]) {
+        HERO_LANES[hero] = [primaryLane];
+      } else if (HERO_LANES[hero][0] !== primaryLane) {
+        HERO_LANES[hero] = [primaryLane, ...HERO_LANES[hero].filter(l => l !== primaryLane)];
+      }
+    });
+  } catch(e) { /* fail silently — static defaults still apply */ }
+}
+
+function getHeroLane(h) {
+  return (HERO_LANES[h.name] || ['Flex'])[0];
+}
+
+function getHeroScore(h) {
+  const base   = h.ms || TIER_MS[h.tier] || 6;
+  const wr     = heroScoutStats[h.name]?.winRate;
+  const wrBoost = wr !== undefined ? (wr >= 60 ? 1.0 : wr >= 55 ? 0.5 : wr >= 45 ? 0 : -0.3) : 0;
+  const mpBoost = h.mp === 'mustban' ? 0.8 : h.mp === 'highpick' ? 0.4 : h.mp === 'mustpick' ? 0.6 : 0;
+  return base + wrBoost + mpBoost;
+}
+
+function getTopForLane(lane) {
+  const pool = ALL_HEROES.filter(h => getHeroLane(h) === lane);
+  // When scout data exists, sort by presence% (pick+ban / total games) — the most
+  // effective competitive metric: high presence = hero must be dealt with every draft.
+  // Tie-break (and no-data fallback) by composite meta score.
+  if (scoutMatchCount > 0) {
+    return pool.sort((a, b) => {
+      const pa = heroScoutStats[a.name]?.presence ?? 0;
+      const pb = heroScoutStats[b.name]?.presence ?? 0;
+      if (pb !== pa) return pb - pa;
+      return getHeroScore(b) - getHeroScore(a);
+    }).slice(0, 12);
+  }
+  return pool.sort((a, b) => getHeroScore(b) - getHeroScore(a)).slice(0, 12);
+}
+
+function getRoleColor(role) {
+  for (const [k, v] of Object.entries(ROLE_COLORS)) {
+    if (role.includes(k)) return v;
+  }
+  return '#94A3B8';
+}
+
+function getShortRole(role) {
+  const map = { Fighter:'Fighter', Assassin:'Assn', Mage:'Mage', MM:'MM', Support:'Supp', Tank:'Tank' };
+  const parts = role.split('/');
+  return parts.slice(0,2).map(p => map[p.trim()] || p.trim()).join('/');
+}
+
+const PORTRAIT_ALIAS = {
+  'Yi Sun-shin': 'YSS',
+  'Popol & Kupa': 'Popol',
+  'Lapu-Lapu':   'LapuLapu',
+  'X.Borg':      'Xborg',
+  'Yu Zhong':    'YuZhong',
+  'Luo Yi':      'luoyi',
+};
+function imgSrc(name) {
+  return `portraits/${PORTRAIT_ALIAS[name] || name}.png`;
+}
+
+// ── Full role name map (no abbreviations) ───────────────────────────────────
+function fullRoleName(role) {
+  const first = (role || '').split('/')[0].trim();
+  const MAP = { MM:'Marksman', Support:'Support', Mage:'Mage', Tank:'Tank',
+                Fighter:'Fighter', Assassin:'Assassin' };
+  return MAP[first] || first;
+}
+
+// ── Card Rendering ──────────────────────────────────────────────────────────
+/*  META CARD — 1000×1000 px  (html2canvas scale:2 → 2000×2000 PNG)
+    Header    : 152 px
+    Accent    :   1 px
+    Col hdr   :  27 px
+    Rows×10   : 750 px  (75px each)
+    Footer    :  70 px
+    Total     : 1000 px ✓                                                    */
+function buildCard(lane) {
+  const cfg         = LANE_CONFIG[lane];
+  const heroes      = getTopForLane(lane).slice(0, 10);
+  const filterLabel = currentFilter === 'all' ? 'All Leagues' : currentFilter;
+  const patchLabel  = patchVersion ? `Patch ${patchVersion}` : 'Meta 2025';
+  const scoutLabel  = scoutMatchCount > 0
+    ? `Based on ${scoutMatchCount} matches`
+    : 'Sorted by tier score';
+
+  const RANK_C = [
+    '#F5C842','#C0C0C0','#CD7F32',
+    'rgba(240,240,248,.55)','rgba(240,240,248,.45)',
+    'rgba(240,240,248,.38)','rgba(240,240,248,.32)',
+    'rgba(240,240,248,.26)','rgba(240,240,248,.22)','rgba(240,240,248,.18)',
+  ];
+
+  const statCell = (val) =>
+    val !== undefined && val !== null
+      ? `<div style="font-size:15px;font-weight:700;color:rgba(240,240,248,.88);font-family:'Inter',sans-serif;letter-spacing:-.5px;line-height:1;">${val}%</div>`
+      : `<div style="font-size:13px;color:rgba(255,255,255,.18);font-family:'Inter',sans-serif;">—</div>`;
+
+  const heroRows = heroes.map((h, i) => {
+    const rank      = i + 1;
+    const rc        = RANK_C[i];
+    const stats     = heroScoutStats[h.name];
+    const wr        = stats?.winRate;
+    const pres      = stats?.presence;
+    const pickRate  = (stats && scoutMatchCount > 0) ? Math.round(stats.picks / scoutMatchCount * 100) : undefined;
+    const banRate   = (stats && scoutMatchCount > 0) ? Math.round(stats.bans  / scoutMatchCount * 100) : undefined;
+    const isMustban = h.mp === 'mustban';
+    const nameColor = isMustban ? '#E07878' : 'rgba(240,240,248,.95)';
+    const roleName  = fullRoleName(h.role);
+    const rowBg     = i % 2 === 0 ? 'rgba(255,255,255,.018)' : 'transparent';
+
+    return `<div style="display:flex;align-items:center;height:75px;padding:0 36px;background:${rowBg};border-bottom:1px solid rgba(255,255,255,.028);box-sizing:border-box;flex-shrink:0;">
+
+      <!-- Rank -->
+      <div style="width:34px;text-align:center;font-size:${rank<=3?'20':'15'}px;font-weight:900;color:${rc};font-family:'Inter',sans-serif;flex-shrink:0;margin-right:18px;line-height:1;letter-spacing:-1px;">${rank}</div>
+
+      <!-- Portrait -->
+      <img src="${imgSrc(h.name)}"
+           onerror="this.onerror=null;this.style.background='#1A1A28';"
+           alt="${h.name}"
+           style="width:52px;height:52px;border-radius:9px;object-fit:cover;flex-shrink:0;background:#0E0E1A;display:block;margin-right:16px;border:1px solid rgba(255,255,255,.07);">
+
+      <!-- Hero name + role -->
+      <div style="flex:1;min-width:0;margin-right:18px;">
+        <div style="font-size:17px;font-weight:700;color:${nameColor};font-family:'Inter',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.15;letter-spacing:-.3px;">${h.name}</div>
+        <div style="font-size:9px;font-weight:500;color:rgba(240,240,248,.25);font-family:'Inter',sans-serif;margin-top:3px;letter-spacing:1px;text-transform:uppercase;">${roleName}</div>
+      </div>
+
+      <!-- Stats -->
+      <div style="width:68px;text-align:right;flex-shrink:0;">${statCell(pres)}</div>
+      <div style="width:62px;text-align:right;flex-shrink:0;">${statCell(pickRate)}</div>
+      <div style="width:62px;text-align:right;flex-shrink:0;">${statCell(banRate)}</div>
+      <div style="width:62px;text-align:right;flex-shrink:0;">${statCell(wr)}</div>
+
+    </div>`;
+  }).join('');
+
+  return `<div class="meta-card" id="card-${lane}" style="background:#080810;">
+
+    <!-- ── Header (152px) ── -->
+    <div style="height:152px;flex-shrink:0;padding:26px 36px 0;display:flex;flex-direction:column;justify-content:center;background:linear-gradient(180deg,rgba(255,255,255,.036) 0%,transparent 100%);box-sizing:border-box;">
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;gap:7px;">
+          <div style="width:6px;height:6px;border-radius:50%;background:${cfg.color};box-shadow:0 0 9px ${cfg.color}99;flex-shrink:0;"></div>
+          <div style="font-size:8.5px;font-weight:700;color:rgba(240,240,248,.25);letter-spacing:2.5px;font-family:'Inter',sans-serif;text-transform:uppercase;">warr.gg · MLBB Intelligence</div>
+        </div>
+        <div style="display:flex;gap:5px;">
+          <div style="font-size:8px;font-weight:600;padding:3px 11px;border-radius:20px;background:rgba(255,255,255,.055);color:rgba(240,240,248,.4);border:1px solid rgba(255,255,255,.08);font-family:'Inter',sans-serif;letter-spacing:.3px;">${patchLabel}</div>
+          <div style="font-size:8px;font-weight:700;padding:3px 11px;border-radius:20px;background:${cfg.color}16;color:${cfg.color};border:1px solid ${cfg.color}38;font-family:'Inter',sans-serif;letter-spacing:.8px;text-transform:uppercase;">${filterLabel}</div>
+        </div>
+      </div>
+
+      <div style="line-height:1;margin-bottom:9px;">
+        <span style="font-size:40px;font-weight:900;color:rgba(240,240,248,.88);font-family:'Inter',sans-serif;letter-spacing:-1.5px;">TOP </span><span style="font-size:40px;font-weight:900;color:${cfg.color};font-family:'Inter',sans-serif;letter-spacing:-1.5px;">${lane.toUpperCase()}</span><span style="font-size:40px;font-weight:900;color:rgba(240,240,248,.88);font-family:'Inter',sans-serif;letter-spacing:-1.5px;"> PICKS</span>
+      </div>
+
+      <div style="font-size:9px;font-weight:500;color:rgba(240,240,248,.2);font-family:'Inter',sans-serif;letter-spacing:1.2px;text-transform:uppercase;">Ranked by Presence · ${scoutLabel}</div>
+    </div>
+
+    <!-- ── Accent line (1px) ── -->
+    <div style="height:1px;background:linear-gradient(90deg,${cfg.color}90 0%,${cfg.color}28 55%,transparent 100%);flex-shrink:0;"></div>
+
+    <!-- ── Column headers (27px) ── -->
+    <div style="display:flex;align-items:center;height:27px;padding:0 36px;flex-shrink:0;box-sizing:border-box;border-bottom:1px solid rgba(255,255,255,.04);">
+      <div style="flex:1;"></div>
+      <div style="width:68px;text-align:right;font-size:7px;font-weight:700;color:rgba(240,240,248,.2);font-family:'Inter',sans-serif;letter-spacing:1.2px;text-transform:uppercase;">Presence</div>
+      <div style="width:62px;text-align:right;font-size:7px;font-weight:700;color:rgba(240,240,248,.2);font-family:'Inter',sans-serif;letter-spacing:1.2px;text-transform:uppercase;">Pick</div>
+      <div style="width:62px;text-align:right;font-size:7px;font-weight:700;color:rgba(240,240,248,.2);font-family:'Inter',sans-serif;letter-spacing:1.2px;text-transform:uppercase;">Ban</div>
+      <div style="width:62px;text-align:right;font-size:7px;font-weight:700;color:rgba(240,240,248,.2);font-family:'Inter',sans-serif;letter-spacing:1.2px;text-transform:uppercase;">Win</div>
+    </div>
+
+    <!-- ── Hero rows (10 × 75px = 750px) ── -->
+    <div style="flex:1;overflow:hidden;">
+      ${heroRows}
+    </div>
+
+    <!-- ── Footer (70px) ── -->
+    <div style="height:70px;flex-shrink:0;border-top:1px solid rgba(255,255,255,.045);padding:0 36px;display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,.12);box-sizing:border-box;">
+      <div style="display:flex;flex-direction:column;gap:5px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="width:9px;height:9px;border-radius:2px;background:#E07878;flex-shrink:0;"></div>
+          <div style="font-size:8px;font-weight:700;color:rgba(240,240,248,.28);font-family:'Inter',sans-serif;letter-spacing:1.2px;text-transform:uppercase;">Must Ban</div>
+        </div>
+        <div style="font-size:7.5px;color:rgba(240,240,248,.12);font-family:'Inter',sans-serif;letter-spacing:.3px;">Rankings are based on scout data and will update as more games are analyzed.</div>
+      </div>
+      <div style="font-size:16px;font-weight:900;color:${cfg.color};font-family:'Inter',sans-serif;letter-spacing:1.5px;opacity:.8;">WARR.GG</div>
+    </div>
+
+  </div>`;
+}
+
+
+// ── Download ────────────────────────────────────────────────────────────────
+async function downloadCard(lane) {
+  const el = document.getElementById('card-' + lane);
+  if (!el) return;
+  const btn = document.querySelector(`[data-dl="${lane}"]`);
+  if (btn) { btn.textContent = '⏳ Exporting…'; btn.disabled = true; }
+  try {
+    // Clone card into an off-screen container with NO zoom/transform so
+    // html2canvas always captures the clean full-size 1000×1000px card.
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'position:fixed;top:-9999px;left:-9999px;z-index:-9999;pointer-events:none;';
+    const clone = el.cloneNode(true);
+    clone.removeAttribute('id');
+    clone.style.cssText = 'zoom:1 !important;transform:none !important;position:static;';
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+
+    // Wait for all portrait images in the clone to finish loading
+    const imgs = Array.from(clone.querySelectorAll('img'));
+    await Promise.all(imgs.map(img =>
+      img.complete ? Promise.resolve()
+        : new Promise(res => { img.onload = res; img.onerror = res; })
+    ));
+    // Extra paint delay
+    await new Promise(res => setTimeout(res, 200));
+
+    const canvas = await html2canvas(clone, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#080810',
+      width: 1000,
+      height: 1000,
+      logging: false,
+    });
+
+    document.body.removeChild(wrapper);
+
+    const link = document.createElement('a');
+    link.download = `warr_meta_${lane.toLowerCase()}_${currentFilter.replace(/\s/g,'_')}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } catch(e) {
+    alert('Export failed: ' + e.message);
+  }
+  if (btn) { btn.textContent = '⬇ Download PNG'; btn.disabled = false; }
+}
+
+// ── Generate All ────────────────────────────────────────────────────────────
+async function generateAll() {
+  const btn  = document.getElementById('genBtn');
+  btn.disabled = true; btn.textContent = '⏳ Generating…';
+  loadScoutStats();
+  applyScoutLaneCorrections(); // override static defaults with observed pick lanes
+  const grid = document.getElementById('cardsGrid');
+  grid.innerHTML = '';
+  const lanes = ['Gold','EXP','Mid','Jungle','Roam'];
+  for (const lane of lanes) {
+    const cfg = LANE_CONFIG[lane];
+    const section = document.createElement('div');
+    section.className = 'lane-section';
+    section.innerHTML = `
+      <div class="lane-heading">
+        <span class="lane-dot" style="background:${cfg.color};"></span>
+        ${cfg.label}
+        <button class="dl-btn" data-dl="${lane}" onclick="downloadCard('${lane}')">⬇ Download PNG</button>
+      </div>
+      <div class="card-preview-wrap">${buildCard(lane)}</div>`;
+    grid.appendChild(section);
+  }
+  btn.disabled = false; btn.textContent = '▶ Generate All Cards';
+}
+
+// ── Filter ──────────────────────────────────────────────────────────────────
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-badge').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── Drag-scroll ──────────────────────────────────────────────────────────────
+function initDragScroll() {
+  const wrap = document.getElementById('cardsScrollWrap');
+  if (!wrap) return;
+  let isDown = false, startX, scrollLeft;
+  wrap.addEventListener('mousedown', e => {
+    if (e.target.closest('button')) return;
+    isDown = true;
+    wrap.classList.add('dragging');
+    startX = e.pageX - wrap.offsetLeft;
+    scrollLeft = wrap.scrollLeft;
+    e.preventDefault();
+  });
+  wrap.addEventListener('mouseleave', () => { isDown = false; wrap.classList.remove('dragging'); });
+  wrap.addEventListener('mouseup',    () => { isDown = false; wrap.classList.remove('dragging'); });
+  wrap.addEventListener('mousemove', e => {
+    if (!isDown) return;
+    e.preventDefault();
+    wrap.scrollLeft = scrollLeft - (e.pageX - wrap.offsetLeft - startX) * 1.5;
+  });
+}
+
+init();
+</script>
+</body>
+</html>

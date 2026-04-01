@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Warr.GG — Deployment Guide</title>
+<style>
+:root {
+  --bg: #07070C;
+  --surface: #101018;
+  --surface2: #161620;
+  --surface3: #1E1E2A;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.11);
+  --accent: #A888CC;
+  --accent-dim: rgba(168,136,204,0.10);
+  --accent-border: rgba(168,136,204,0.28);
+  --blue: #5EA0D8;
+  --blue-dim: rgba(94,160,216,0.10);
+  --blue-border: rgba(94,160,216,0.28);
+  --green: #4CB87A;
+  --green-dim: rgba(76,184,122,0.10);
+  --green-border: rgba(76,184,122,0.28);
+  --gold: #C89050;
+  --gold-dim: rgba(200,144,80,0.10);
+  --red: #D87880;
+  --red-dim: rgba(216,120,128,0.10);
+  --red-border: rgba(216,120,128,0.28);
+  --text: #F0F0F8;
+  --text2: rgba(240,240,248,0.60);
+  --text3: rgba(240,240,248,0.36);
+  --text4: rgba(240,240,248,0.16);
+  --font: -apple-system, 'SF Pro Display', 'Inter', sans-serif;
+  --mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* AMBIENT */
+body::before {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 60% 55% at 10% 10%, rgba(168,136,204,0.08) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 45% at 90% 90%, rgba(94,160,216,0.07) 0%, transparent 65%);
+}
+
+/* LAYOUT */
+.page { display: flex; position: relative; z-index: 1; min-height: 100vh; }
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 32px 20px;
+  border-right: 1px solid var(--border);
+  background: rgba(10,10,16,0.60);
+  backdrop-filter: blur(20px);
+}
+.sidebar-brand {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.sidebar-brand span { color: var(--accent); }
+.sidebar-sub {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text4);
+  margin-bottom: 28px;
+}
+.sidebar-section {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text4);
+  margin: 20px 0 8px;
+}
+.sidebar-link {
+  display: block;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text3);
+  text-decoration: none;
+  transition: all .15s;
+  line-height: 1.4;
+  margin-bottom: 2px;
+}
+.sidebar-link:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+.sidebar-link.active { background: var(--accent-dim); color: var(--accent); }
+
+/* MAIN */
+.main {
+  flex: 1;
+  max-width: 800px;
+  padding: 52px 48px 80px;
+}
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .main { padding: 32px 24px 60px; max-width: 100%; }
+}
+
+/* HEADER */
+.doc-header {
+  margin-bottom: 48px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--border);
+}
+.doc-eyebrow {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.doc-title {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin-bottom: 12px;
+}
+.doc-desc {
+  font-size: 15px;
+  color: var(--text2);
+  line-height: 1.6;
+  max-width: 560px;
+}
+
+/* PARTS */
+.part {
+  margin-bottom: 56px;
+}
+.part-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.part-num {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.part-num.purple { background: var(--accent-dim); border: 1px solid var(--accent-border); color: var(--accent); }
+.part-num.blue   { background: var(--blue-dim);   border: 1px solid var(--blue-border);   color: var(--blue); }
+.part-num.green  { background: var(--green-dim);  border: 1px solid var(--green-border);  color: var(--green); }
+.part-num.gold   { background: var(--gold-dim);   border: 1px solid rgba(200,144,80,0.28); color: var(--gold); }
+.part-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.part-sub {
+  font-size: 12px;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+/* STEPS */
+.step {
+  background: rgba(16,16,24,0.60);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 22px;
+  margin-bottom: 12px;
+  position: relative;
+  overflow: hidden;
+}
+.step::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent);
+}
+.step-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3);
+  flex-shrink: 0;
+  margin-top: 1px;
+  font-family: var(--mono);
+}
+.step-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+}
+.step-body {
+  padding-left: 38px;
+}
+.step-body p {
+  font-size: 13px;
+  color: var(--text2);
+  margin-bottom: 10px;
+  line-height: 1.65;
+}
+.step-body p:last-child { margin-bottom: 0; }
+
+/* ORDERED LIST */
+.step-list {
+  list-style: none;
+  counter-reset: step-counter;
+  margin: 8px 0;
+}
+.step-list li {
+  counter-increment: step-counter;
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text2);
+  margin-bottom: 8px;
+  line-height: 1.55;
+}
+.step-list li::before {
+  content: counter(step-counter);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text3);
+  font-family: var(--mono);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* INLINE TAGS */
+.tag-bold { font-weight: 700; color: var(--text); }
+.tag-path {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  padding: 1px 7px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.tag-nav {
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  padding: 1px 7px;
+  color: var(--blue);
+  white-space: nowrap;
+}
+.arrow {
+  font-size: 10px;
+  color: var(--text4);
+  margin: 0 2px;
+}
+
+/* CODE BLOCK */
+.code-block {
+  background: rgba(10,10,16,0.80);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin: 10px 0;
+  position: relative;
+  overflow: hidden;
+}
+.code-block::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(168,136,204,0.18), transparent);
+}
+.code-lang {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text4);
+  margin-bottom: 10px;
+  font-family: var(--mono);
+}
+.code-block pre {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--text2);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.code-block pre .kw  { color: var(--accent); }
+.code-block pre .str { color: var(--green); }
+.code-block pre .cmt { color: var(--text4); font-style: italic; }
+.code-block pre .key { color: var(--blue); }
+
+/* COPY BTN */
+.code-copy {
+  position: absolute;
+  top: 10px; right: 12px;
+  background: var(--surface3);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--text3);
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font);
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: all .15s;
+  letter-spacing: 0.04em;
+}
+.code-copy:hover { color: var(--text); border-color: var(--border2); background: var(--surface2); }
+.code-copy.copied { color: var(--green); border-color: var(--green-border); }
+
+/* CALLOUT BOXES */
+.callout {
+  border-radius: 10px;
+  padding: 13px 16px;
+  margin: 12px 0;
+  font-size: 13px;
+  line-height: 1.6;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.callout-body { flex: 1; color: var(--text2); }
+.callout-body strong { color: var(--text); display: block; margin-bottom: 3px; font-size: 13px; }
+.callout.warning { background: rgba(200,144,80,0.08); border: 1px solid rgba(200,144,80,0.22); }
+.callout.info    { background: var(--blue-dim); border: 1px solid var(--blue-border); }
+.callout.success { background: var(--green-dim); border: 1px solid var(--green-border); }
+.callout.danger  { background: var(--red-dim); border: 1px solid var(--red-border); }
+
+/* TABLE */
+.ref-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 14px 0;
+}
+.ref-table th {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text4);
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border2);
+}
+.ref-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text2);
+  vertical-align: top;
+}
+.ref-table tr:last-child td { border-bottom: none; }
+.ref-table td:first-child { color: var(--text); font-weight: 600; }
+
+/* DIVIDER */
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border2), transparent);
+  margin: 40px 0;
+}
+
+/* TROUBLESHOOT */
+.trouble-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.trouble-q {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--red);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.trouble-q::before {
+  content: '?';
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--red-dim);
+  border: 1px solid var(--red-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.trouble-a {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.6;
+  padding-left: 28px;
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">WARR<span>.GG</span></div>
+    <div class="sidebar-sub">Deployment Guide</div>
+
+    <div class="sidebar-section">Setup</div>
+    <a class="sidebar-link" href="#part1">1 — Supabase</a>
+    <a class="sidebar-link" href="#step-1-1">&nbsp;&nbsp;Create project</a>
+    <a class="sidebar-link" href="#step-1-2">&nbsp;&nbsp;Get API keys</a>
+    <a class="sidebar-link" href="#step-1-3">&nbsp;&nbsp;Profiles table (SQL)</a>
+    <a class="sidebar-link" href="#step-1-4">&nbsp;&nbsp;Auth settings</a>
+
+    <div class="sidebar-section">Deploy</div>
+    <a class="sidebar-link" href="#part2">2 — Netlify</a>
+    <a class="sidebar-link" href="#step-2-1">&nbsp;&nbsp;Prepare files</a>
+    <a class="sidebar-link" href="#step-2-2">&nbsp;&nbsp;Drag &amp; drop</a>
+    <a class="sidebar-link" href="#step-2-3">&nbsp;&nbsp;Link Supabase URLs</a>
+
+    <div class="sidebar-section">Managing Users</div>
+    <a class="sidebar-link" href="#part3">3 — Invite &amp; Revoke</a>
+
+    <div class="sidebar-section">Reference</div>
+    <a class="sidebar-link" href="#part4">Quick Reference</a>
+    <a class="sidebar-link" href="#troubleshoot">Troubleshooting</a>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+
+    <div class="doc-header">
+      <div class="doc-eyebrow">Warr.GG · MLBB Draft Intelligence</div>
+      <div class="doc-title">Go-Live Setup Guide</div>
+      <div class="doc-desc">Everything you need to deploy Warr.GG with invite-only access, user profiles, and live hosting. Two services — Supabase (auth) and Netlify (hosting) — both free.</div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════
+         PART 1 — SUPABASE
+    ══════════════════════════════════════════════ -->
+    <div class="part" id="part1">
+      <div class="part-header">
+        <div class="part-num purple">1</div>
+        <div>
+          <div class="part-title">Supabase — Auth &amp; Database</div>
+          <div class="part-sub">Free · Takes about 10 minutes · supabase.com</div>
+        </div>
+      </div>
+
+      <!-- 1.1 -->
+      <div class="step" id="step-1-1">
+        <div class="step-header">
+          <div class="step-num">1</div>
+          <div class="step-title">Create a Supabase Project</div>
+        </div>
+        <div class="step-body">
+          <ol class="step-list">
+            <li>Go to <strong>supabase.com</strong> → Sign up for a free account</li>
+            <li>Click <span class="tag-nav">New Project</span> → Give it a name like <span class="tag-path">warr-gg</span> → Set a database password → Click <span class="tag-bold">Create</span></li>
+            <li>Wait about 2 minutes for the project to be ready</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- 1.2 -->
+      <div class="step" id="step-1-2">
+        <div class="step-header">
+          <div class="step-num">2</div>
+          <div class="step-title">Get Your Project URL &amp; Publishable Key — paste into warr-lib.js</div>
+        </div>
+        <div class="step-body">
+          <p style="margin-bottom:14px;font-size:13px;color:var(--text3);line-height:1.6;">You need two values from your Supabase dashboard. Here's exactly where to find each one:</p>
+
+          <div class="callout info" style="margin-bottom:16px;">
+            <div class="callout-icon">🔗</div>
+            <div class="callout-body">
+              <strong>Project URL</strong><br>
+              Go to <span class="tag-nav">Settings</span> <span class="arrow">→</span> <span class="tag-nav">General</span>. You'll see a <span class="tag-bold">Project ID</span> field — something like <span class="tag-path">nqqlmzdyyhbyvsbybdem</span>.<br>
+              Your URL is: <span class="tag-path">https://YOUR_PROJECT_ID.supabase.co</span><br>
+              Just swap in your actual Project ID.
+            </div>
+          </div>
+
+          <div class="callout info" style="margin-bottom:16px;">
+            <div class="callout-icon">🔑</div>
+            <div class="callout-body">
+              <strong>Publishable Key (this is the anon key)</strong><br>
+              Go to <span class="tag-nav">Settings</span> <span class="arrow">→</span> <span class="tag-nav">API Keys</span>. You'll see a section called <span class="tag-bold">Publishable key</span> with a value starting with <span class="tag-path">sb_publishable_...</span><br>
+              Click the copy icon next to it. That is your <span class="tag-bold">anon key</span> — Supabase just renamed it.
+            </div>
+          </div>
+
+          <ol class="step-list">
+            <li>Open <span class="tag-path">warr-engine/warr-lib.js</span> in any text editor</li>
+            <li>Find the <span class="tag-path">WARR_CONFIG</span> block near the top (around line 9)</li>
+            <li>Replace both placeholder values with your real ones:</li>
+          </ol>
+          <div class="code-block">
+            <div class="code-lang">warr-lib.js — lines 9–12</div>
+            <button class="code-copy" onclick="copyCode(this)">Copy</button>
+            <pre><span class="kw">const</span> WARR_CONFIG = {
+  supabaseUrl:     <span class="str">'https://YOUR_PROJECT_ID.supabase.co'</span>,  <span class="cmt">// ← from Settings → General → Project ID</span>
+  supabaseAnonKey: <span class="str">'sb_publishable_...'</span>,                   <span class="cmt">// ← from Settings → API Keys → Publishable key</span>
+};</pre>
+          </div>
+          <div class="callout warning">
+            <div class="callout-icon">⚠️</div>
+            <div class="callout-body">
+              <strong>Never use the Secret key here</strong>
+              In <span class="tag-nav">Settings → API Keys</span> there's also a <span class="tag-bold">Secret key</span> starting with <span class="tag-path">sb_secret_...</span> — do NOT put that in warr-lib.js. Only the Publishable key goes in the front-end code.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1.3 -->
+      <div class="step" id="step-1-3">
+        <div class="step-header">
+          <div class="step-num">3</div>
+          <div class="step-title">Create the Profiles Table — run this SQL once</div>
+        </div>
+        <div class="step-body">
+          <ol class="step-list">
+            <li>In your Supabase project, look at the <span class="tag-bold">left sidebar icons</span> — click the one that looks like a terminal/code icon labeled <span class="tag-nav">SQL Editor</span></li>
+            <li>Click <span class="tag-nav">+ New query</span> (top left of the editor)</li>
+            <li>Paste the entire block below into the editor</li>
+            <li>Click the green <span class="tag-bold">Run</span> button (or press <span class="tag-path">Ctrl+Enter</span>)</li>
+            <li>You should see <span class="tag-path">Success. No rows returned</span> at the bottom</li>
+          </ol>
+          <div class="code-block">
+            <div class="code-lang">SQL — Run once in Supabase SQL Editor</div>
+            <button class="code-copy" onclick="copyCode(this)">Copy</button>
+            <pre><span class="cmt">-- User profiles (your name is required, team name is optional)</span>
+<span class="kw">CREATE TABLE</span> public.profiles (
+  id            uuid <span class="kw">PRIMARY KEY REFERENCES</span> auth.users(id) <span class="kw">ON DELETE CASCADE</span>,
+  display_name  text <span class="kw">NOT NULL</span>,
+  team_name     text,
+  created_at    timestamptz <span class="kw">DEFAULT</span> now()
+);
+
+<span class="cmt">-- Lock it down: users can only see and edit their own profile</span>
+<span class="kw">ALTER TABLE</span> public.profiles <span class="kw">ENABLE ROW LEVEL SECURITY</span>;
+
+<span class="kw">CREATE POLICY</span> <span class="str">"Users can view their own profile"</span>
+  <span class="kw">ON</span> public.profiles <span class="kw">FOR SELECT</span>
+  <span class="kw">USING</span> (auth.uid() = id);
+
+<span class="kw">CREATE POLICY</span> <span class="str">"Users can insert their own profile"</span>
+  <span class="kw">ON</span> public.profiles <span class="kw">FOR INSERT</span>
+  <span class="kw">WITH CHECK</span> (auth.uid() = id);
+
+<span class="kw">CREATE POLICY</span> <span class="str">"Users can update their own profile"</span>
+  <span class="kw">ON</span> public.profiles <span class="kw">FOR UPDATE</span>
+  <span class="kw">USING</span> (auth.uid() = id);</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1.3b — shared matches + draft saves tables -->
+      <div class="step" id="step-1-3b">
+        <div class="step-header">
+          <div class="step-num">3b</div>
+          <div class="step-title">Create Scout Matches &amp; Draft Saves Tables — run this SQL too</div>
+        </div>
+        <div class="step-body">
+          <p>Still in the <span class="tag-nav">SQL Editor</span> — click <span class="tag-nav">+ New query</span> again to open a fresh tab, then paste and run this second block. It creates the two data tables that power shared match scouting and per-user draft saving.</p>
+          <div class="code-block">
+            <div class="code-lang">SQL — Run once in Supabase SQL Editor</div>
+            <button class="code-copy" onclick="copyCode(this)">Copy</button>
+            <pre><span class="cmt">-- ═══════════════════════════════════════════</span>
+<span class="cmt">-- SCOUT MATCHES — shared across all users</span>
+<span class="cmt">-- Anyone on the team can enter/see MPL data</span>
+<span class="cmt">-- ═══════════════════════════════════════════</span>
+<span class="kw">CREATE TABLE</span> public.scout_matches (
+  id          text <span class="kw">PRIMARY KEY</span>,
+  created_at  timestamptz <span class="kw">DEFAULT</span> now(),
+  updated_at  timestamptz <span class="kw">DEFAULT</span> now(),
+  created_by  uuid <span class="kw">REFERENCES</span> auth.users(id),
+  data        jsonb <span class="kw">NOT NULL</span>
+);
+
+<span class="kw">ALTER TABLE</span> public.scout_matches <span class="kw">ENABLE ROW LEVEL SECURITY</span>;
+
+<span class="kw">CREATE POLICY</span> <span class="str">"All users read matches"</span>
+  <span class="kw">ON</span> public.scout_matches <span class="kw">FOR SELECT</span>
+  <span class="kw">USING</span> (auth.role() = <span class="str">'authenticated'</span>);
+
+<span class="kw">CREATE POLICY</span> <span class="str">"All users insert matches"</span>
+  <span class="kw">ON</span> public.scout_matches <span class="kw">FOR INSERT</span>
+  <span class="kw">WITH CHECK</span> (auth.role() = <span class="str">'authenticated'</span>);
+
+<span class="kw">CREATE POLICY</span> <span class="str">"Creator updates match"</span>
+  <span class="kw">ON</span> public.scout_matches <span class="kw">FOR UPDATE</span>
+  <span class="kw">USING</span> (auth.uid() = created_by <span class="kw">OR</span> created_by <span class="kw">IS NULL</span>);
+
+<span class="kw">CREATE POLICY</span> <span class="str">"Creator deletes match"</span>
+  <span class="kw">ON</span> public.scout_matches <span class="kw">FOR DELETE</span>
+  <span class="kw">USING</span> (auth.uid() = created_by <span class="kw">OR</span> created_by <span class="kw">IS NULL</span>);
+
+
+<span class="cmt">-- ═══════════════════════════════════════════</span>
+<span class="cmt">-- DRAFT SAVES — private per user account</span>
+<span class="cmt">-- Each analyst's own saved Draft Board states</span>
+<span class="cmt">-- ═══════════════════════════════════════════</span>
+<span class="kw">CREATE TABLE</span> public.draft_saves (
+  id          uuid <span class="kw">PRIMARY KEY DEFAULT</span> gen_random_uuid(),
+  user_id     uuid <span class="kw">REFERENCES</span> auth.users(id) <span class="kw">NOT NULL</span>,
+  created_at  timestamptz <span class="kw">DEFAULT</span> now(),
+  name        text <span class="kw">NOT NULL DEFAULT</span> <span class="str">'Draft'</span>,
+  data        jsonb <span class="kw">NOT NULL</span>
+);
+
+<span class="kw">ALTER TABLE</span> public.draft_saves <span class="kw">ENABLE ROW LEVEL SECURITY</span>;
+
+<span class="kw">CREATE POLICY</span> <span class="str">"Own drafts only"</span>
+  <span class="kw">ON</span> public.draft_saves <span class="kw">FOR ALL</span>
+  <span class="kw">USING</span> (auth.uid() = user_id)
+  <span class="kw">WITH CHECK</span> (auth.uid() = user_id);</pre>
+          </div>
+          <div class="callout info">
+            <div class="callout-icon">📋</div>
+            <div class="callout-body">
+              <strong>What these tables do:</strong>
+              <span class="tag-path">scout_matches</span> — Scout entries (MPL, tournaments) are shared; every user on your team sees new matches immediately. <span class="tag-path">draft_saves</span> — each person's saved Draft Board states are private to their own account. AI Battle stays fully local (no cloud sync).
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1.4 -->
+      <div class="step" id="step-1-4">
+        <div class="step-header">
+          <div class="step-num">4</div>
+          <div class="step-title">Turn Off Public Sign-Ups (invite-only)</div>
+        </div>
+        <div class="step-body">
+          <ol class="step-list">
+            <li>In the left sidebar, click the person icon — <span class="tag-nav">Authentication</span></li>
+            <li>Click <span class="tag-nav">Providers</span> (or <span class="tag-nav">Sign In / Up</span> depending on your Supabase version)</li>
+            <li>Find <span class="tag-bold">Email</span> and expand it — look for <span class="tag-bold">Enable Email Signup</span> (or <span class="tag-bold">Allow new users to sign up</span>) and turn it <span class="tag-bold">OFF</span></li>
+            <li>Click <span class="tag-bold">Save</span> — now only users you personally invite can create accounts</li>
+          </ol>
+          <div class="callout success">
+            <div class="callout-icon">✅</div>
+            <div class="callout-body">
+              <strong>You're done with Supabase for now</strong>
+              You'll come back to set the site URL after deploying to Netlify (Step 3.2 below).
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /part1 -->
+
+    <div class="divider"></div>
+
+    <!-- ══════════════════════════════════════════════
+         PART 2 — NETLIFY
+    ══════════════════════════════════════════════ -->
+    <div class="part" id="part2">
+      <div class="part-header">
+        <div class="part-num blue">2</div>
+        <div>
+          <div class="part-title">Netlify — Deploy the Site</div>
+          <div class="part-sub">Free · Takes 5 minutes · netlify.com</div>
+        </div>
+      </div>
+
+      <!-- 2.1 -->
+      <div class="step" id="step-2-1">
+        <div class="step-header">
+          <div class="step-num">1</div>
+          <div class="step-title">Make sure warr-lib.js has your keys filled in</div>
+        </div>
+        <div class="step-body">
+          <p>Before uploading, double-check that <span class="tag-path">warr-lib.js</span> has real values — not <span class="tag-path">YOUR_PROJECT_ID</span> placeholders. If you skipped Step 1.2, go back and do that first.</p>
+        </div>
+      </div>
+
+      <!-- 2.2 -->
+      <div class="step" id="step-2-2">
+        <div class="step-header">
+          <div class="step-num">2</div>
+          <div class="step-title">Drag and Drop to Deploy</div>
+        </div>
+        <div class="step-body">
+          <ol class="step-list">
+            <li>Go to <strong>netlify.com</strong> → Sign up for a free account</li>
+            <li>On the dashboard you'll see a big dropzone: <span class="tag-bold">"Drag and drop your site folder here"</span></li>
+            <li>Drag your entire <span class="tag-path">warr-engine/</span> folder onto that dropzone</li>
+            <li>Netlify deploys it instantly and gives you a URL like <span class="tag-path">https://cool-name-abc123.netlify.app</span></li>
+            <li><strong>Copy that URL</strong> — you need it for the next step</li>
+          </ol>
+          <div class="callout info">
+            <div class="callout-icon">💡</div>
+            <div class="callout-body">
+              <strong>Want to update the site later?</strong>
+              Drag and drop the folder again, or connect a GitHub repo (Site Settings → Build &amp; Deploy → Link to Git) for automatic redeploys when you push changes.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2.3 -->
+      <div class="step" id="step-2-3">
+        <div class="step-header">
+          <div class="step-num">3</div>
+          <div class="step-title">Tell Supabase your live URL (prevents redirect errors)</div>
+        </div>
+        <div class="step-body">
+          <ol class="step-list">
+            <li>In Supabase, click <span class="tag-nav">Authentication</span> in the left sidebar</li>
+            <li>Click <span class="tag-nav">URL Configuration</span></li>
+            <li>Set <span class="tag-bold">Site URL</span> to your Netlify URL:<br><span class="tag-path">https://cool-name-abc123.netlify.app</span></li>
+            <li>Under <span class="tag-bold">Redirect URLs</span>, click <span class="tag-bold">Add URL</span> and add both:<br>
+              <span class="tag-path">https://cool-name-abc123.netlify.app</span><br>
+              <span class="tag-path">https://cool-name-abc123.netlify.app/auth.html</span>
+            </li>
+            <li>Click <span class="tag-bold">Save</span></li>
+          </ol>
+          <div class="callout success">
+            <div class="callout-icon">🎉</div>
+            <div class="callout-body">
+              <strong>Your site is live!</strong>
+              Visit your Netlify URL. You should be redirected to the sign-in page immediately. No one can get in without your invite.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /part2 -->
+
+    <div class="divider"></div>
+
+    <!-- ══════════════════════════════════════════════
+         PART 3 — MANAGING USERS
+    ══════════════════════════════════════════════ -->
+    <div class="part" id="part3">
+      <div class="part-header">
+        <div class="part-num green">3</div>
+        <div>
+          <div class="part-title">Inviting &amp; Managing Users</div>
+          <div class="part-sub">All done from the Supabase dashboard — no coding needed</div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">▶</div>
+          <div class="step-title">Give someone access</div>
+        </div>
+        <div class="step-body">
+          <ol class="step-list">
+            <li>Go to <span class="tag-nav">Authentication</span> <span class="arrow">→</span> <span class="tag-nav">Users</span> <span class="arrow">→</span> click <span class="tag-bold">Invite User</span></li>
+            <li>Enter their email address → click <span class="tag-bold">Send Invite</span></li>
+            <li>They receive an email — when they click the link, they land on your site's sign-in page</li>
+            <li>They fill in their <span class="tag-bold">name</span> (required) and <span class="tag-bold">team name</span> (optional), then set a password</li>
+            <li>After that they can sign in any time with email + password</li>
+          </ol>
+          <div class="callout warning">
+            <div class="callout-icon">⏱️</div>
+            <div class="callout-body">
+              <strong>Invite links expire after 24 hours</strong>
+              If someone doesn't click in time, just invite them again from the same Users screen.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">▶</div>
+          <div class="step-title">Revoke access</div>
+        </div>
+        <div class="step-body">
+          <ol class="step-list">
+            <li>Go to <span class="tag-nav">Authentication</span> <span class="arrow">→</span> <span class="tag-nav">Users</span></li>
+            <li>Find the person → click the three-dot menu → <span class="tag-bold">Delete User</span></li>
+            <li>They are immediately locked out — their next request to any page redirects to sign-in</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">▶</div>
+          <div class="step-title">Reset someone's password</div>
+        </div>
+        <div class="step-body">
+          <ol class="step-list">
+            <li>Go to <span class="tag-nav">Authentication</span> <span class="arrow">→</span> <span class="tag-nav">Users</span></li>
+            <li>Find the user → three-dot menu → <span class="tag-bold">Send Password Recovery</span></li>
+            <li>They receive an email to reset their password</li>
+          </ol>
+        </div>
+      </div>
+    </div><!-- /part3 -->
+
+    <div class="divider"></div>
+
+    <!-- ══════════════════════════════════════════════
+         PART 4 — QUICK REFERENCE
+    ══════════════════════════════════════════════ -->
+    <div class="part" id="part4">
+      <div class="part-header">
+        <div class="part-num gold">4</div>
+        <div>
+          <div class="part-title">Quick Reference</div>
+          <div class="part-sub">Everything in one table</div>
+        </div>
+      </div>
+
+      <table class="ref-table">
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Where to do it</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Get Project URL</td><td>Supabase <span class="arrow">→</span> Settings <span class="arrow">→</span> General <span class="arrow">→</span> copy <strong>Project ID</strong> → <span class="tag-path">https://PROJECT_ID.supabase.co</span></td></tr>
+          <tr><td>Get Publishable (anon) key</td><td>Supabase <span class="arrow">→</span> Settings <span class="arrow">→</span> API Keys <span class="arrow">→</span> <strong>Publishable key</strong> (<span class="tag-path">sb_publishable_...</span>)</td></tr>
+          <tr><td>Paste keys into the site</td><td><span class="tag-path">warr-lib.js</span> lines 9–12 — <span class="tag-path">WARR_CONFIG</span> block</td></tr>
+          <tr><td>Run the SQL tables</td><td>Supabase <span class="arrow">→</span> SQL Editor (left sidebar) <span class="arrow">→</span> + New query</td></tr>
+          <tr><td>Disable self-signup</td><td>Supabase <span class="arrow">→</span> Authentication <span class="arrow">→</span> Providers <span class="arrow">→</span> Email <span class="arrow">→</span> <strong>Enable Email Signup = OFF</strong></td></tr>
+          <tr><td>Deploy the site</td><td>netlify.com <span class="arrow">→</span> drag <span class="tag-path">warr-engine/</span> folder onto the dropzone</td></tr>
+          <tr><td>Set redirect URLs after deploy</td><td>Supabase <span class="arrow">→</span> Authentication <span class="arrow">→</span> URL Configuration</td></tr>
+          <tr><td>Invite a user</td><td>Supabase <span class="arrow">→</span> Authentication <span class="arrow">→</span> Users <span class="arrow">→</span> <strong>Invite user</strong> button</td></tr>
+          <tr><td>Revoke access</td><td>Supabase <span class="arrow">→</span> Authentication <span class="arrow">→</span> Users <span class="arrow">→</span> click user <span class="arrow">→</span> Delete user</td></tr>
+          <tr><td>Reset a password</td><td>Supabase <span class="arrow">→</span> Authentication <span class="arrow">→</span> Users <span class="arrow">→</span> click user <span class="arrow">→</span> Send recovery email</td></tr>
+          <tr><td>Change site URL / custom domain</td><td>Netlify <span class="arrow">→</span> Domain management, then update Supabase <span class="arrow">→</span> Authentication <span class="arrow">→</span> URL Configuration</td></tr>
+        </tbody>
+      </table>
+    </div><!-- /part4 -->
+
+    <div class="divider"></div>
+
+    <!-- ══════════════════════════════════════════════
+         TROUBLESHOOTING
+    ══════════════════════════════════════════════ -->
+    <div class="part" id="troubleshoot">
+      <div class="part-header">
+        <div class="part-num" style="background:var(--red-dim);border:1px solid var(--red-border);color:var(--red);">!</div>
+        <div>
+          <div class="part-title">Troubleshooting</div>
+          <div class="part-sub">Common issues and how to fix them</div>
+        </div>
+      </div>
+
+      <div class="trouble-item">
+        <div class="trouble-q">"Invalid login credentials"</div>
+        <div class="trouble-a">Wrong email or password. Go to Supabase → Authentication → Users → find the user → <strong>Send Password Recovery</strong> so they can reset it.</div>
+      </div>
+
+      <div class="trouble-item">
+        <div class="trouble-q">Invite link says "expired" or doesn't work</div>
+        <div class="trouble-a">Supabase invite links expire after 24 hours. Go to Authentication → Users → find the user (or delete them and re-invite) → <strong>Invite User</strong> again with the same email.</div>
+      </div>
+
+      <div class="trouble-item">
+        <div class="trouble-q">Site keeps redirecting to auth.html even when logged in</div>
+        <div class="trouble-a">Usually means the Supabase URL or Publishable key in <span class="tag-path">warr-lib.js</span> is wrong. Open the file, check <span class="tag-path">WARR_CONFIG</span> at the top — the URL should be <span class="tag-path">https://YOUR_PROJECT_ID.supabase.co</span> (from Settings → General) and the key should be the <strong>Publishable key</strong> starting with <span class="tag-path">sb_publishable_</span> (from Settings → API Keys). No extra spaces.</div>
+      </div>
+
+      <div class="trouble-item">
+        <div class="trouble-q">User gets to auth.html but "Complete Profile" form doesn't show</div>
+        <div class="trouble-a">The Supabase redirect URL isn't set correctly. Go to Supabase → <strong>Authentication</strong> → <strong>URL Configuration</strong> and make sure <strong>both</strong> your Netlify URL and <code>your-site.netlify.app/auth.html</code> are listed under Redirect URLs.</div>
+      </div>
+
+      <div class="trouble-item">
+        <div class="trouble-q">Blank page or "Failed to fetch" errors</div>
+        <div class="trouble-a">The Supabase project might be paused (free projects pause after 1 week of inactivity). Go to supabase.com, open your project, and click <strong>Restore project</strong>. Takes about 30 seconds.</div>
+      </div>
+
+      <div class="trouble-item">
+        <div class="trouble-q">Deployed site but pages show 404</div>
+        <div class="trouble-a">Make sure you dragged the <span class="tag-path">warr-engine/</span> folder itself, not a parent folder containing it. The file <span class="tag-path">index.html</span> must be at the root of the uploaded folder.</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+function copyCode(btn) {
+  const pre = btn.parentElement.querySelector('pre');
+  const text = pre.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// Sidebar active link on scroll
+const links = document.querySelectorAll('.sidebar-link[href^="#"]');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(l => l.classList.remove('active'));
+      const match = document.querySelector('.sidebar-link[href="#' + e.target.id + '"]');
+      if (match) match.classList.add('active');
+    }
+  });
+}, { threshold: 0.4 });
+document.querySelectorAll('[id]').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

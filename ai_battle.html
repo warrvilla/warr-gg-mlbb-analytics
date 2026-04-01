@@ -1,0 +1,2896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Battle — Warr.GG</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="warr-lib.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link rel="stylesheet" href="warr-styles.css">
+<style>
+:root {
+    --bg:#07070C; --bg2:#0B0B12; --surface:#101018; --surface2:#161620; --surface3:#1E1E2A; --surface4:#272734;
+    --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.07); --border3:rgba(255,255,255,0.11);
+    --accent:#A888CC; --accent-dim:rgba(168,136,204,0.09); --accent-glow:rgba(168,136,204,0.22); --accent-border:rgba(168,136,204,0.22);
+  --neon:#4CB87A; --neon-dim:rgba(76,184,122,0.09); --neon-glow:rgba(76,184,122,0.20); --neon-border:rgba(76,184,122,0.22);
+  --blue:#5EA0D8; --blue2:#3B82F6; --blue-dim:rgba(94,160,216,0.09); --blue-border:rgba(94,160,216,0.22); --blue-glow:rgba(94,160,216,0.18);
+  --red:#D87880; --red-dim:rgba(216,120,128,0.09); --red-border:rgba(216,120,128,0.22);
+  --gold:#C89050; --gold-dim:rgba(200,144,80,0.09); --gold-border:rgba(200,144,80,0.22);
+  --green:#34D399; --green-dim:rgba(52,209,122,.08); --green-border:rgba(52,209,122,.25);
+  --purple:#A78BFA; --purple-dim:rgba(139,92,246,.08); --purple-border:rgba(139,92,246,.28);
+  --ai:#C084FC; --ai-dim:rgba(192,132,252,0.12); --ai-border:rgba(192,132,252,0.30);
+  --cyan:#22D3EE; --orange:#F97316;
+  --text:#F0F0F8; --text2:rgba(240,240,248,0.54); --text3:rgba(240,240,248,0.28); --text4:rgba(240,240,248,0.12);
+  --ban-red:#D87880; --accent-main:#A888CC;
+  --font-head:-apple-system,'SF Pro Display','Inter',sans-serif; --font-body:'Inter',sans-serif; --font-mono:'JetBrains Mono',monospace;
+  --r:12px; --r2:18px; --r3:24px; --radius:8px; --radius2:12px; --radius3:16px;
+  --shadow:0 2px 16px rgba(0,0,0,.7); --shadow2:0 8px 40px rgba(0,0,0,.9);
+  --nav-h:52px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:14px;}
+body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;overflow-x:hidden;}
+
+/* TOPBAR */
+.topbar{background:rgba(8,11,16,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom: 0.5px solid rgba(255,255,255,0.07);padding:0 20px;display:flex;align-items:center;gap:12px;height:52px;position:sticky;top:0;z-index:100;}
+.logo,.topbar-logo{font-family:var(--font-head);font-weight:800;font-size:17px;color:var(--text);display:flex;align-items:center;gap:9px;text-decoration:none;letter-spacing:-.2px;flex-shrink:0;}
+.logo-mark{width:28px;height:28px;background:linear-gradient(135deg,var(--blue),#7c5df9);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;box-shadow:0 0 14px rgba(79,142,247,.4);}
+.logo-dot{display:none;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:6px;}
+.divider-v{width:1px;height:18px;background:var(--border2);margin:0 4px;flex-shrink:0;}
+.tab-btn{padding:5px 13px;font-size:11px;font-weight:600;font-family:var(--font-head);letter-spacing:.3px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;border-radius:6px;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
+.tab-btn:hover{border-color:var(--border3);color:var(--text2);}
+.tab-btn.active{border-color:var(--blue-border);background:var(--accent-dim);color:var(--accent);}
+.mem-chip{font-size:9px;padding:2px 8px;border-radius:10px;background:var(--ai-dim);border:1px solid var(--ai-border);color:var(--ai);font-weight:600;letter-spacing:.3px;}
+
+/* SETUP — Glass lobby aesthetic matching draft board */
+#setup {
+  min-height: calc(100vh - var(--nav-h));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px 80px;
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.setup-inner { width: 100%; max-width: 560px; position: relative; z-index: 1; }
+
+/* Ambient orbs */
+.setup-orb { position: absolute; border-radius: 50%; pointer-events: none; filter: blur(90px); z-index: 0; }
+.setup-orb-1 { width: 460px; height: 460px; background: radial-gradient(circle, rgba(168,85,247,0.22), transparent); top: -130px; left: -110px; animation: orb-float 14s ease-in-out infinite alternate; }
+.setup-orb-2 { width: 360px; height: 360px; background: radial-gradient(circle, rgba(94,160,216,0.15), transparent); bottom: 40px; right: -80px; animation: orb-float 19s ease-in-out infinite alternate-reverse; }
+.setup-orb-3 { width: 280px; height: 280px; background: radial-gradient(circle, rgba(192,132,252,0.13), transparent); top: 38%; left: 56%; animation: orb-float 12s ease-in-out infinite alternate; }
+@keyframes orb-float { 0%{transform:translate(0,0) scale(1)} 100%{transform:translate(24px,16px) scale(1.06)} }
+
+/* Eyebrow */
+.setup-eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 5px 14px; border-radius: 20px; background: rgba(255,255,255,0.06); border: 0.5px solid rgba(255,255,255,0.08); font-size: 11px; font-weight: 600; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 16px; }
+.setup-eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--neon); box-shadow: 0 0 8px var(--neon); animation: eyedot 2s ease-in-out infinite; }
+@keyframes eyedot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
+
+/* Title */
+.setup-title { font-family: -apple-system,'SF Pro Display','Inter',sans-serif; font-size: clamp(38px, 8vw, 60px); font-weight: 800; letter-spacing: -0.02em; color: var(--text); line-height: 1.05; margin-bottom: 8px; }
+.setup-title em { font-style: normal; background: linear-gradient(135deg, #FFFFFF 0%, #A888CC 45%, #5E5CE6 80%, #5EA0D8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.setup-sub { font-size: 14px; color: var(--text2); margin-bottom: 28px; line-height: 1.5; }
+
+/* Cards */
+.setup-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px 22px; margin-bottom: 12px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.card-title { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; }
+.card-hint { font-size: 10px; color: var(--text3); margin-bottom: 12px; margin-top: -8px; line-height: 1.55; }
+
+/* Grid */
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+/* Option cards */
+.opt-card { padding: 14px 10px; border: 1.5px solid var(--border2); border-radius: 12px; cursor: pointer; text-align: center; transition: all .2s; background: var(--surface2); }
+.opt-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,.3); }
+.opt-card.sel-blue   { border-color: var(--blue); background: var(--blue-dim); box-shadow: 0 0 18px rgba(94,160,216,.15); }
+.opt-card.sel-red    { border-color: var(--red);  background: var(--red-dim);  box-shadow: 0 0 18px rgba(216,120,128,.15); }
+.opt-card.sel-random { border-color: var(--purple-border); background: var(--purple-dim); box-shadow: 0 0 18px rgba(139,92,246,.12); }
+.opt-card.sel-gold   { border-color: var(--gold); background: var(--gold-dim); box-shadow: 0 0 18px rgba(200,144,80,.12); }
+.opt-icon { font-size: 22px; margin-bottom: 6px; line-height: 1; }
+.opt-name { font-size: 12px; font-weight: 700; color: var(--text); }
+.opt-desc { font-size: 9px; color: var(--text3); margin-top: 3px; line-height: 1.4; }
+
+/* Input */
+.name-in { background: var(--surface2); border: 1px solid var(--border2); border-radius: 10px; color: var(--text); font-family: var(--font-body); font-size: 14px; font-weight: 600; padding: 10px 14px; width: 100%; outline: none; transition: border-color .15s; }
+.name-in:focus { border-color: var(--ai); box-shadow: 0 0 0 2px rgba(192,132,252,.12); }
+
+/* Start button — soft purple gradient matching draft lobby */
+.start-btn { width: 100%; padding: 14px; font-family: -apple-system,'SF Pro Display','Inter',sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 0.15em; background: linear-gradient(135deg, #C4A4DE 0%, #9868C0 60%, #B090D4 100%); border: none; color: #fff; border-radius: 14px; cursor: pointer; transition: all 0.22s ease; box-shadow: 0 4px 20px rgba(152,104,192,0.28), inset 0 1px 0 rgba(255,255,255,0.18); margin-top: 6px; text-transform: uppercase; }
+.start-btn:hover { background: linear-gradient(135deg, #D0B4EC 0%, #AA78D0 60%, #C0A0E0 100%); box-shadow: 0 8px 32px rgba(152,104,192,0.40), inset 0 1px 0 rgba(255,255,255,0.22); transform: translateY(-2px); }
+
+/* BATTLE */
+#battle{display:none;}
+.bh{background:var(--surface);border-bottom:1px solid var(--border);padding:9px 20px;display:flex;align-items:center;gap:12px;}
+.bh-side{flex:1;display:flex;align-items:center;gap:7px;}
+.bh-side.r{flex-direction:row-reverse;}
+.bh-name{font-family:var(--font-head);font-size:15px;font-weight:700;letter-spacing:1px;}
+.bh-tag{font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:.8px;}
+.tag-you{background:var(--accent-dim);color:var(--accent);border:1px solid var(--blue-border);}
+.tag-ai{background:var(--ai-dim);color:var(--ai);border:1px solid var(--ai-border);}
+.bh-vs{font-family:var(--font-head);font-size:18px;color:var(--text3);flex-shrink:0;}
+.phase-bar{background:var(--surface);border-bottom:1px solid var(--border);padding:6px 20px;display:flex;align-items:center;justify-content:space-between;}
+.phase-lbl{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1.5px;}
+.turn-tag{font-size:10px;font-weight:700;padding:4px 12px;border-radius:10px;border:1px solid;}
+.turn-you{border-color:var(--blue-border);background:var(--accent-dim);color:var(--accent);animation:tpulse 1s infinite;}
+.turn-ai{border-color:var(--ai-border);background:var(--ai-dim);color:var(--ai);}
+.turn-done{border-color:var(--border2);background:transparent;color:var(--text3);}
+@keyframes tpulse{0%,100%{box-shadow:0 0 0 0 rgba(79,142,247,.4)}50%{box-shadow:0 0 0 4px transparent}}
+
+.seq-bar{background:var(--surface2);border-bottom:1px solid var(--border);padding:5px 14px;display:flex;align-items:center;gap:3px;overflow-x:auto;}
+.seq-bar::-webkit-scrollbar{height:2px;}.seq-bar::-webkit-scrollbar-thumb{background:var(--border2);}
+.seq-item{display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;}
+.seq-dot{width:27px;height:12px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:700;transition:all .2s;}
+.seq-dot.ban-blue,.seq-dot.ban-red{background:rgba(240,82,82,.15);border:1px solid rgba(240,82,82,.35);color:#ef4444;}
+.seq-dot.pick-blue{background:rgba(79,142,247,.15);border:1px solid rgba(79,142,247,.35);color:#60a5fa;}
+.seq-dot.pick-red{background:rgba(240,82,82,.12);border:1px solid rgba(240,82,82,.3);color:#f87171;}
+.seq-dot.current{animation:sdp .9s infinite;}
+.seq-dot.done{opacity:.28;}
+@keyframes sdp{0%,100%{opacity:1}50%{opacity:.45}}
+.seq-lbl{font-size:7px;color:var(--text3);}
+
+/* LAYOUT — matches Draft Board */
+.draft-layout{display:grid;grid-template-columns:300px 1fr 300px;width:100%;flex:1;min-height:0;}
+
+.team-panel{padding:14px 16px;overflow-y:auto;}
+.team-panel.blue-panel{border-right:1px solid var(--border);}
+.team-panel.red-panel{border-left:1px solid var(--border);}
+.team-header{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);}
+.team-stripe{width:3px;height:32px;border-radius:2px;flex-shrink:0;}
+.blue-stripe{background:var(--blue);}
+.red-stripe{background:var(--red);}
+.team-name-lbl{font-size:14px;font-weight:700;color:var(--text);}
+.side-tag{font-size:10px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:1px;margin-top:3px;}
+.panel-sec-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
+.panel-sec-label::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* Ban slots */
+.bans-row{display:flex;gap:4px;margin-bottom:14px;flex-wrap:nowrap;justify-content:flex-start;}
+.ban-slot{width:44px;height:56px;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;background:var(--surface2);position:relative;overflow:hidden;flex-direction:column;gap:2px;transition:all .15s;flex-shrink:0;}
+.ban-slot.filled{background:rgba(240,82,82,.08);border-color:rgba(240,82,82,.35);}
+.ban-slot.active-slot{border-color:var(--red);box-shadow:0 0 10px rgba(240,82,82,.3);animation:bpulse .9s infinite;}
+@keyframes bpulse{0%,100%{box-shadow:0 0 10px rgba(240,82,82,.3)}50%{box-shadow:0 0 3px rgba(240,82,82,.1)}}
+.ban-slot img{width:36px;height:36px;border-radius:10px;object-fit:cover;}
+.ban-x{position:absolute;inset:0;background:rgba(240,82,82,.3);display:flex;align-items:center;justify-content:center;font-size:16px;color:rgba(240,82,82,.9);pointer-events:none;}
+.ban-name{font-size:7px;color:#f87171;text-align:center;padding:0 2px;line-height:1.2;max-width:46px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ban-empty{font-size:9px;color:var(--text3);}
+
+/* Pick slots */
+.pick-slots{display:flex;flex-direction:column;gap:5px;}
+.pick-slot{display:flex;align-items:center;gap:10px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);min-height:58px;transition:all .15s;position:relative;overflow:hidden;}
+.pick-slot.active-slot-blue{border-color:var(--blue);box-shadow:0 0 10px rgba(79,142,247,.25);animation:ppulse .9s infinite;}
+.pick-slot.active-slot-red{border-color:var(--red);box-shadow:0 0 10px rgba(240,82,82,.25);animation:rpulse .9s infinite;}
+.pick-slot.filled{background:var(--surface3);border-color:var(--border2);}
+@keyframes ppulse{0%,100%{box-shadow:0 0 10px rgba(79,142,247,.25)}50%{box-shadow:none}}
+@keyframes rpulse{0%,100%{box-shadow:0 0 10px rgba(240,82,82,.25)}50%{box-shadow:none}}
+.slot-img{width:44px;height:44px;border-radius:10px;object-fit:cover;flex-shrink:0;border:1px solid var(--border);background:var(--surface);}
+.slot-placeholder{width:44px;height:44px;border-radius:10px;flex-shrink:0;border:1px dashed var(--border);display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:16px;}
+.slot-info{flex:1;min-width:0;}
+.slot-hname{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.slot-role{font-size:9px;color:var(--text2);margin-top:1px;}
+.slot-lane{font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;background:var(--surface);border:1px solid var(--border);color:var(--text3);display:inline-block;margin-top:3px;}
+.wr-bar{position:absolute;bottom:0;left:0;right:0;height:2px;border-radius:0 0 7px 7px;pointer-events:none;overflow:hidden;}
+.wr-bar-fill{height:100%;border-radius:0 0 7px 7px;transition:width .3s;}
+.wr-high .wr-bar-fill{background:linear-gradient(90deg,#4ade80,#22c55e);}
+.wr-mid .wr-bar-fill{background:linear-gradient(90deg,#facc15,#eab308);}
+.wr-low .wr-bar-fill{background:linear-gradient(90deg,#f87171,#ef4444);}
+.wr-label{position:absolute;bottom:5px;right:4px;font-size:7px;font-weight:800;font-family:var(--font-mono);opacity:.75;pointer-events:none;}
+.wr-high .wr-label{color:#4ade80;}.wr-mid .wr-label{color:#facc15;}.wr-low .wr-label{color:#f87171;}
+.slot-order{position:absolute;top:4px;right:8px;font-size:9px;color:var(--text3);font-weight:600;}
+.slot-tier{font-size:11px;font-weight:700;flex-shrink:0;}
+
+/* Pool */
+.pool-section{grid-column:2;display:flex;flex-direction:column;overflow:hidden;}
+.pool-header{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap;flex-shrink:0;position:sticky;top:0;z-index:10;}
+.pool-title{font-size:13px;font-weight:700;color:var(--text);}
+.hero-count{font-size:11px;color:var(--text3);font-weight:500;}
+.search-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-body);font-size:12px;padding:5px 11px;outline:none;width:160px;transition:border-color .15s;}
+.search-input:focus{border-color:var(--blue);}
+.filter-row{display:flex;gap:4px;flex-wrap:wrap;align-items:center;}
+.lane-btn{padding:3px 9px;border:1px solid var(--border2);border-radius:10px;background:transparent;font-size:10px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:3px;color:var(--text3);}
+.lane-btn:hover{border-color:var(--text2);color:var(--text);}
+.hero-grid{display:grid;grid-template-columns:repeat(auto-fill,76px);gap:5px;overflow-y:auto;padding:10px 12px;flex:1;justify-content:start;align-content:start;min-height:0;}
+.hero-grid.grouped{display:flex;flex-direction:column;gap:0;}
+.lane-section{width:100%;margin-bottom:4px;}
+.lane-section-header{display:flex;align-items:center;gap:8px;padding:8px 0 8px;}
+.lane-section-cards{display:flex;flex-wrap:wrap;gap:8px;padding-bottom:8px;}
+.hero-grid::-webkit-scrollbar{width:4px;}.hero-grid::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.hero-card{border:1px solid var(--border);border-radius:8px;padding:5px 4px 4px;cursor:pointer;transition:all .12s;text-align:center;background:var(--surface2);position:relative;user-select:none;overflow:hidden;width:76px;height:90px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;}
+.hero-card:hover:not(.banned):not(.picked):not(.lkd){border-color:var(--accent);background:var(--accent-dim);transform:translateY(-2px);box-shadow:0 4px 16px rgba(168,136,204,0.11);}
+.hero-card.banned{opacity:.2;cursor:not-allowed;filter:grayscale(1);}
+.hero-card.picked{opacity:.3;cursor:not-allowed;}
+.hero-card.lkd{opacity:.5;cursor:not-allowed;}
+.hero-img{width:58px;height:58px;margin:0 auto 3px;border-radius:6px;object-fit:cover;display:block;background:var(--surface);border:1px solid var(--border);flex-shrink:0;}
+.hero-cname{font-size:9px;font-weight:700;color:var(--text);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.hero-crole{font-size:7.5px;color:#94a3b8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tier-badge{position:absolute;top:4px;right:4px;font-size:8px;font-weight:700;padding:1px 4px;border-radius:8px;}
+.tier-S{background:var(--gold);color:#000;}.tier-A{background:#9ca3af;color:#000;}.tier-B{background:#b45309;color:#fff;}.tier-C{background:#374151;color:#9ca3af;}
+.meta-badge{position:absolute;top:3px;left:3px;font-size:6px;font-weight:700;padding:1px 3px;border-radius:2px;}
+.mb-ban{background:rgba(240,82,82,.85);color:#fff;}
+.mb-pick{background:rgba(79,142,247,.85);color:#fff;}
+.banned-overlay{position:absolute;inset:0;background:rgba(240,82,82,.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;color:rgba(240,82,82,.7);}
+
+/* Action bar */
+.action-bar{display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 16px;border-top:1px solid var(--border);background:var(--surface);flex-wrap:wrap;flex-shrink:0;}
+.btn{padding:7px 16px;font-family:var(--font-body);font-size:12px;font-weight:600;cursor:pointer;border-radius:6px;border:1px solid;transition:all .15s;}
+.btn:disabled{opacity:.3;cursor:not-allowed;}
+.btn-ghost{border-color:var(--border2);background:transparent;color:var(--text2);}
+.btn-ghost:hover:not(:disabled){border-color:var(--text2);color:var(--text);}
+.btn-reset{border-color:rgba(240,82,82,.4);background:transparent;color:var(--red);}
+.btn-reset:hover:not(:disabled){background:rgba(240,82,82,.1);}
+.btn-analyze{background:var(--purple);border-color:var(--purple);color:#fff;padding:8px 24px;font-size:13px;}
+.btn-analyze:hover:not(:disabled){background:#9333ea;box-shadow:0 0 16px rgba(168,85,247,.4);}
+.hint{font-size:10px;color:var(--text3);}
+
+/* AI THINKING */
+.aithink{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--ai-border);border-radius:10px;padding:11px 20px;display:none;align-items:center;gap:10px;z-index:400;box-shadow:0 8px 30px rgba(168,85,247,.2);backdrop-filter:blur(8px);}
+.aithink.show{display:flex;}
+.aispin{width:15px;height:15px;border:2px solid rgba(192,132,252,.2);border-top-color:var(--ai);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.aitxt{font-size:11px;color:var(--ai);font-weight:600;}
+.aisub{font-size:9px;color:var(--text3);}
+
+/* AI REVEAL */
+.aireveal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.8);background:var(--surface2);border:1px solid var(--ai-border);border-radius:13px;padding:22px 28px;text-align:center;z-index:500;display:none;min-width:240px;box-shadow:0 20px 60px rgba(168,85,247,.25);}
+.aireveal.show{display:block;animation:rpop .3s cubic-bezier(.34,1.56,.64,1) forwards;}
+@keyframes rpop{from{transform:translate(-50%,-50%) scale(.8);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+.arl{font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:9px;}
+.arimg{width:68px;height:68px;border-radius:9px;object-fit:cover;margin:0 auto 9px;display:block;border:2px solid var(--ai-border);box-shadow:0 0 18px rgba(192,132,252,.25);}
+.arname{font-family:var(--font-head);font-size:20px;font-weight:700;color:var(--text);letter-spacing:1px;}
+.arreason{font-size:9px;color:var(--text3);margin-top:3px;}
+.arconf{font-size:8px;font-weight:700;padding:2px 7px;border-radius:10px;margin-top:7px;display:inline-block;}
+.ch{background:rgba(52,209,122,.12);color:var(--green);border:1px solid rgba(52,209,122,.25);}
+.cm{background:rgba(244,165,52,.1);color:var(--gold);border:1px solid rgba(244,165,52,.25);}
+.cl{background:rgba(240,82,82,.1);color:var(--red);border:1px solid rgba(240,82,82,.25);}
+
+/* LOG BAR */
+.logbar{background:var(--surface);border-top:1px solid rgba(168,85,247,.2);padding:5px 14px;max-height:72px;overflow-y:auto;flex-shrink:0;}
+.logbar::-webkit-scrollbar{width:2px;}.logbar::-webkit-scrollbar-thumb{background:var(--border2);}
+.logrow{font-size:8.5px;color:var(--text3);padding:1px 0;display:flex;gap:5px;}
+.lhero{font-weight:700;color:var(--ai);}
+
+/* RESULT */
+#result{display:none;position:fixed;inset:0;background:rgba(15,17,22,.97);z-index:600;align-items:center;justify-content:center;pointer-events:none;}
+#result.show{display:flex;pointer-events:auto;}
+.rcard{background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:30px 38px;text-align:center;max-width:560px;width:94%;box-shadow:0 40px 80px rgba(0,0,0,.6);max-height:88vh;overflow-y:auto;}
+.rcard::-webkit-scrollbar{width:3px;}.rcard::-webkit-scrollbar-thumb{background:var(--border2);}
+.rverdict{font-family:var(--font-head);font-size:44px;font-weight:700;letter-spacing:3px;animation:wpop .5s ease;}
+.rsub{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:16px;}
+@keyframes wpop{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+.rstats{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:16px 0;}
+.rs{padding:9px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;}
+.rsv{font-size:20px;font-weight:700;}
+.rsl{font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:1px;}
+.rpicks{margin:12px 0;text-align:left;}
+.rpt{font-size:8px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px;}
+.rtag{display:inline-block;margin:2px;padding:2px 7px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;font-size:9px;color:var(--text);}
+.rasummary{margin:12px 0;padding:11px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:10px;line-height:1.75;color:var(--text);text-align:left;display:none;}
+.rbreakdown{margin:14px 0 4px;text-align:left;}
+.rbd-title{font-size:10px;font-weight:700;font-family:var(--font-head);letter-spacing:1px;color:var(--text3);text-transform:uppercase;margin-bottom:8px;}
+.rbd-row{display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--surface2);border-radius:6px;margin-bottom:4px;border-left:3px solid var(--ai);}
+.rbd-img{width:28px;height:28px;border-radius:5px;object-fit:cover;flex-shrink:0;}
+.rbd-info{flex:1;min-width:0;}
+.rbd-name{font-size:11px;font-weight:700;color:var(--text);}
+.rbd-reason{font-size:9px;color:var(--text3);margin-top:1px;}
+.rbd-conf{font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;flex-shrink:0;}
+.rbd-high{background:rgba(74,222,128,.15);color:#4ade80;} .rbd-medium{background:rgba(250,204,21,.12);color:#facc15;} .rbd-low{background:rgba(156,163,175,.12);color:#9ca3af;}
+.rbtns{display:flex;gap:7px;margin-top:16px;justify-content:center;flex-wrap:wrap;}
+.rbtn{padding:9px 20px;font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:1px;border-radius:8px;border:1px solid;cursor:pointer;transition:all .15s;}
+.rbp{border-color:var(--ai-border);background:var(--ai-dim);color:var(--ai);}
+.rbp:hover{background:rgba(192,132,252,.2);}
+.rbs{border-color:var(--border2);background:transparent;color:var(--text3);}
+.rbs:hover{border-color:var(--text2);color:var(--text2);}
+
+/* LOADING */
+.lo{display:none;position:fixed;inset:0;background:rgba(15,17,22,.92);z-index:800;align-items:center;justify-content:center;flex-direction:column;gap:13px;}
+.lo.show{display:flex;}
+.ls{width:42px;height:42px;border:2px solid var(--border2);border-top-color:var(--purple);border-radius:50%;animation:spin .8s linear infinite;}
+.lt{font-size:11px;font-weight:600;color:var(--text2);letter-spacing:2px;animation:ftxt 1.5s infinite;}
+@keyframes ftxt{0%,100%{opacity:1}50%{opacity:.4}}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-size:11px;font-weight:500;padding:7px 16px;border-radius:7px;transition:transform .25s;z-index:900;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.error{border-color:rgba(240,82,82,.5);color:var(--red);}
+
+/* DIFF BADGE */
+.dif{font-size:8px;font-weight:700;padding:1px 6px;border-radius:8px;}
+.dif-n{background:rgba(52,209,122,.12);color:var(--green);}
+.dif-h{background:rgba(244,165,52,.1);color:var(--gold);}
+.dif-g{background:rgba(240,82,82,.1);color:var(--red);}
+
+@media(max-width:800px){.layout{grid-template-columns:1fr 1fr;}.tcol.l{order:1;}.ccol{order:3;grid-column:1/-1;}.tcol.r{order:2;}}
+.scout-lb{padding:3px 10px;font-size:10px;font-weight:600;border:1px solid var(--border2);border-radius:10px;background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;}
+.scout-lb:hover{color:var(--text);border-color:var(--text2);}
+.scout-lb.active{background:var(--blue-dim);border-color:var(--blue-border);color:var(--blue);}
+
+/* ── MOBILE / TABLET RESPONSIVE ── */
+@media (max-width: 1100px) {
+  .draft-layout { grid-template-columns: 260px 1fr 260px; }
+}
+@media (max-width: 900px) {
+  .draft-layout { grid-template-columns: 1fr 1fr; min-height: auto; }
+  .team-panel.blue-panel { grid-column: 1; border-right: 1px solid var(--border); }
+  .team-panel.red-panel { grid-column: 2; border-left: 1px solid var(--border); }
+  .pool-section { grid-column: 1 / -1; }
+}
+@media (max-width: 768px) {
+  .hero-grid { grid-template-columns: repeat(auto-fill, 72px); gap: 4px; }
+  .hero-card { width: 72px; height: 88px; }
+  .hero-img { width: 54px; height: 54px; }
+}
+@media (max-width: 640px) {
+  /* Teams side-by-side, pool below */
+  .draft-layout { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; }
+  .team-panel.blue-panel { grid-column: 1; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .team-panel.red-panel  { grid-column: 2; border-left: none; border-bottom: 1px solid var(--border); }
+  .pool-section { grid-column: 1 / -1; }
+  .team-panel { padding: 8px 8px; }
+  .bans-row { gap: 3px; justify-content: center; }
+  .ban-slot { width: 34px; height: 42px; }
+  .ban-slot img { width: 26px; height: 26px; }
+  .pick-slot { min-height: 42px; padding: 4px 6px; gap: 5px; }
+  .slot-img { width: 32px; height: 32px; }
+  .slot-hname { font-size: 10px; }
+  .slot-role, .slot-lane, .slot-tier { font-size: 8px; }
+  .topbar { padding: 0 10px; gap: 4px; flex-wrap: nowrap; overflow-x: auto; }
+  .tab-btn { padding: 3px 7px; font-size: 10px; flex-shrink: 0; }
+  .setup-title { font-size: 24px; }
+  #setup { padding: 0 12px; margin: 20px auto; }
+  .grid3 { grid-template-columns: 1fr; }
+  .hero-grid { grid-template-columns: repeat(auto-fill, 70px); gap: 4px; padding: 8px 10px; }
+  .hero-card { width: 70px; height: 86px; padding: 4px 3px 4px; }
+  .hero-img { width: 52px; height: 52px; }
+  .hero-cname { font-size: 8.5px; }
+  .hero-crole { font-size: 7px; }
+  .bh { padding: 5px 12px; }
+  .bh-name { font-size: 12px; }
+  .bh-vs { font-size: 14px; }
+  .phase-bar { padding: 4px 12px; }
+  .phase-lbl { font-size: 9px; }
+  .seq-bar { padding: 3px 8px; }
+  .action-bar { padding: 8px 12px; }
+  #abFilterToggle { display: inline-flex !important; }
+  .filter-row.collapsed { display: none !important; }
+}
+@media (max-width: 420px) {
+  .hero-grid { grid-template-columns: repeat(auto-fill, 72px); gap: 4px; }
+  .hero-card { width: 72px; height: 97px; padding: 4px 3px 4px; }
+  .hero-img { width: 58px; height: 58px; }
+  .ban-slot { width: 30px; height: 36px; }
+  .ban-slot img { width: 22px; height: 22px; }
+  .pick-slot { min-height: 38px; padding: 3px 5px; gap: 4px; }
+  .slot-img { width: 28px; height: 28px; }
+  /* iOS: prevent auto-zoom on input focus */
+  input, select, textarea { font-size: 16px !important; }
+}
+@media (hover: none) {
+  .hero-card:active:not(.banned):not(.picked):not(.lkd) { border-color: var(--blue); background: var(--blue-dim); }
+  .opt-card:active { transform: translateY(-2px); }
+}
+/* Fix AI thinking toast on mobile */
+@media (max-width: 480px) {
+  .aithink { bottom: 70px; max-width: 90vw; font-size: 10px; }
+  .aireveal { width: 92vw; min-width: unset; }
+}
+@media (max-width: 480px) {
+  .topbar .tab-btn:not(.active) { display: none; }
+  .topbar .tab-btn.active, .topbar .mem-chip { display: inline-flex; }
+}
+
+/* ── FLEX PAGE LAYOUT FIX ── */
+.page-body { display: flex; flex-direction: column; margin-top: var(--nav-h); height: calc(100vh - var(--nav-h)); overflow: hidden; padding-top: 0; }
+/* #battle starts hidden via inline style; these flex properties apply when JS sets display:flex */
+#battle { flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+#setup { overflow-y: auto; flex: 1; display: flex; flex-direction: column; align-items: center; }
+.bh { flex-shrink: 0; }
+.phase-bar { flex-shrink: 0; }
+.seq-bar { flex-shrink: 0; }
+#enemyBanner { flex-shrink: 0; }
+.team-panel { min-height: 0; }
+
+/* ═══════════ APPLE LIQUID GLASS OVERRIDE ═══════════ */
+
+/* Ambient orbs for this page */
+body::after {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(ellipse 60% 50% at 10% 20%, rgba(168,136,204,0.11) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 45% at 90% 80%, rgba(94,160,216,0.09) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 35% at 55% 55%, rgba(120,120,200,0.04) 0%, transparent 55%);
+}
+
+/* Ensure all content sits above orbs */
+.topbar, .setup-screen, #battleScreen { position:relative; z-index:1; }
+
+/* ── TOPBAR ── */
+.topbar {
+  background: rgba(7,7,12,0.84) !important;
+  backdrop-filter: blur(40px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(140%) !important;
+  border-bottom: 0.5px solid rgba(255,255,255,0.07) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04), 0 4px 24px rgba(0,0,0,0.5) !important;
+}
+.logo, .topbar-logo {
+  font-family: -apple-system,'SF Pro Display','Inter',sans-serif !important;
+  font-weight: 700; letter-spacing: -0.02em !important;
+}
+.logo-mark {
+  background: linear-gradient(135deg, var(--accent), var(--blue)) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 14px rgba(168,136,204,0.24) !important;
+}
+
+/* ── TAB BUTTONS ── */
+.tab-btn {
+  border-radius: 9999px !important;
+  border: 0.5px solid rgba(255,255,255,0.09) !important;
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  background: rgba(255,255,255,0.07) !important;
+  color: var(--text3) !important;
+  transition: all 0.18s ease !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06) !important;
+}
+.tab-btn:hover { background: rgba(255,255,255,0.08) !important; color: var(--text2) !important; }
+.tab-btn.active {
+  background: rgba(168,136,204,0.09) !important;
+  border-color: rgba(168,136,204,0.22) !important;
+  color: var(--accent) !important;
+}
+
+/* ── MEM CHIP ── */
+.mem-chip {
+  border-radius: 9999px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  padding: 4px 12px !important;
+  background: rgba(76,184,122,0.08) !important;
+  border: 0.5px solid rgba(76,184,122,0.20) !important;
+  color: var(--neon) !important;
+}
+
+/* Setup screen styles handled by the SETUP section above */
+
+/* ── HERO GRID CARDS ── */
+.hero-card {
+  background: rgba(255,255,255,0.05) !important;
+  border: 0.5px solid rgba(255,255,255,0.06) !important;
+  border-radius: 14px !important;
+  transition: all 0.18s ease !important;
+}
+.hero-card:hover {
+  background: rgba(255,255,255,0.07) !important;
+  border-color: rgba(255,255,255,0.11) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+}
+.hero-card.picked-blue {
+  background: rgba(94,160,216,0.11) !important;
+  border-color: rgba(94,160,216,0.26) !important;
+  box-shadow: 0 0 16px rgba(94,160,216,0.16) !important;
+}
+.hero-card.picked-red {
+  background: rgba(216,120,128,0.12) !important;
+  border-color: rgba(216,120,128,0.26) !important;
+  box-shadow: 0 0 16px rgba(216,120,128,0.16) !important;
+}
+.hero-card.banned {
+  opacity: 0.28 !important;
+}
+.hero-img {
+  border-radius: 10px !important;
+}
+
+/* ── BATTLE PANELS ── */
+.blue-panel, .red-panel, .battle-col {
+  background: rgba(16,16,26,0.65) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-radius: 20px !important;
+  border: 0.5px solid rgba(255,255,255,0.06) !important;
+}
+.blue-panel { border-top: 2px solid rgba(94,160,216,0.26) !important; }
+.red-panel  { border-top: 2px solid rgba(216,120,128,0.26) !important; }
+
+/* ── PICK/BAN SLOTS ── */
+.pick-slot, .ban-slot {
+  border-radius: 12px !important;
+  border: 0.5px solid rgba(255,255,255,0.06) !important;
+}
+.pick-slot.active, .ban-slot.active {
+  border-color: rgba(168,136,204,0.28) !important;
+  box-shadow: 0 0 0 2px rgba(168,136,204,0.13) !important;
+}
+
+/* ── FILTER BUTTONS ── */
+.lane-btn, .filter-btn {
+  border-radius: 9999px !important;
+  border: 0.5px solid rgba(255,255,255,0.08) !important;
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+}
+.lane-btn.active, .filter-btn.active {
+  background: rgba(168,136,204,0.09) !important;
+  border-color: rgba(168,136,204,0.24) !important;
+  color: var(--accent) !important;
+}
+
+/* ── INPUTS ── */
+input[type=text], input[type=search], .search-input {
+  background: rgba(118,118,128,0.14) !important;
+  border: 0.5px solid rgba(255,255,255,0.07) !important;
+  border-radius: 12px !important;
+  color: var(--text) !important;
+}
+input:focus, .search-input:focus {
+  border-color: rgba(168,136,204,0.22) !important;
+  box-shadow: 0 0 0 3px rgba(168,136,204,0.08) !important;
+}
+
+/* ── SECTION LABELS ── */
+.section-lbl, .lane-section-header span {
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  letter-spacing: 0.04em !important;
+  font-weight: 600 !important;
+  font-size: 10px !important;
+}
+
+/* ── TOAST ── */
+.toast {
+  background: rgba(16,16,26,0.76) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 0.5px solid rgba(255,255,255,0.09) !important;
+  border-radius: 9999px !important;
+  font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  letter-spacing: -0.01em !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08) !important;
+}
+
+/* ── MODAL ── */
+.modal-overlay { background: rgba(0,0,0,0.70) !important; backdrop-filter: blur(20px) !important; }
+.modal, .setup-modal {
+  background: rgba(16,16,26,0.74) !important;
+  backdrop-filter: blur(40px) saturate(135%) !important;
+  border: 0.5px solid rgba(255,255,255,0.09) !important;
+  border-radius: 28px !important;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.07) !important;
+}
+
+/* ═══════════════════════════════════════════════════════ */
+</style>
+<script src="warr-theme.js"></script>
+</head>
+<body>
+<div class="lo" id="lo"><div class="ls"></div><div class="lt">ANALYZING DRAFT</div></div>
+<div class="toast" id="toast"></div>
+<div class="aithink" id="aithink"><div class="aispin"></div><div><div class="aitxt" id="aitxt">AI thinking...</div><div class="aisub" id="aisub">Evaluating options...</div></div></div>
+<div class="aireveal" id="aireveal"><div class="arl" id="arl">AI PICKS</div><img class="arimg" id="arimg" src="" alt=""><div class="arname" id="arname"></div><div class="arreason" id="arreason"></div><div class="arconf" id="arconf"></div></div>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <a class="nav-brand" href="index.html">
+    <span class="nav-brand-name">Warr.GG</span>
+    <span class="nav-brand-sub">MLBB Intel</span>
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="draft_board.html">Draft</a>
+    <a class="nav-link active" href="ai_battle.html">AI Battle</a>
+    <a class="nav-link" href="scout.html">Scout</a>
+    <a class="nav-link" href="stats.html">Analysis</a>
+    <a class="nav-link" href="patch_meta.html">Patch</a>
+    <a class="nav-link" href="profile.html">Profile</a>
+  </div>
+  <div class="nav-right">
+  <div class="theme-switcher" title="Switch theme">
+    <button class="theme-btn" data-t="dark" title="Dark">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+    </button>
+    <button class="theme-btn" data-t="light" title="Light">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+    </button>
+    <button class="theme-btn" data-t="neon" title="Neon">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z"/></svg>
+    </button>
+  </div>
+    <div id="authChip"></div>
+  </div>
+  <button class="mobile-menu-btn" onclick="document.getElementById('mobileNav').classList.toggle('open')" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+<div class="mobile-nav" id="mobileNav">
+  <a class="mobile-nav-link" href="draft_board.html">Draft</a>
+  <a class="mobile-nav-link active" href="ai_battle.html">AI Battle</a>
+  <a class="mobile-nav-link" href="scout.html">Scout</a>
+  <a class="mobile-nav-link" href="stats.html">Analysis</a>
+  <a class="mobile-nav-link" href="patch_meta.html">Patch</a>
+  <a class="mobile-nav-link" href="profile.html">Profile</a>
+</div>
+
+<div class="page-body">
+
+<!-- SETUP SCREEN — Glass lobby style -->
+<div id="setup">
+  <!-- Ambient orbs -->
+  <div class="setup-orb setup-orb-1"></div>
+  <div class="setup-orb setup-orb-2"></div>
+  <div class="setup-orb setup-orb-3"></div>
+
+  <div class="setup-inner">
+
+    <!-- Eyebrow + Title -->
+    <div class="setup-eyebrow">
+      <div class="setup-eyebrow-dot"></div>
+      AI Draft Simulator
+    </div>
+    <h1 class="setup-title">AI <em>Battle</em></h1>
+    <p class="setup-sub">Draft 1v1 against Warr.GG's AI — powered by real esports scout data.</p>
+
+    <!-- Your Name -->
+    <div class="setup-card">
+      <div class="card-title">Your Name</div>
+      <div class="card-hint">Choose a team or type your own — shows up in the battle header.</div>
+      <!-- WTeamPicker replaces native select -->
+      <select id="nameIn" style="display:none"><option value="">You (Custom)</option></select>
+    </div>
+
+    <!-- Choose Side -->
+    <div class="setup-card">
+      <div class="card-title">Choose Your Side</div>
+      <div class="grid3">
+        <div class="opt-card sel-blue" id="sc-blue" onclick="setSide('blue')">
+          <div class="opt-name">Blue Side</div>
+          <div class="opt-desc">First to pick — draft first</div>
+        </div>
+        <div class="opt-card" id="sc-red" onclick="setSide('red')">
+          <div class="opt-name">Red Side</div>
+          <div class="opt-desc">Last pick — counter advantage</div>
+        </div>
+        <div class="opt-card" id="sc-random" onclick="setSide('random')">
+          <div class="opt-name">Random</div>
+          <div class="opt-desc">Let fate decide your side</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data Source -->
+    <div class="setup-card">
+      <div class="card-title">Data Source</div>
+      <div class="card-hint">The AI uses hero stats and pick rates from these matches to make decisions.</div>
+      <div id="scoutLBContainer" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+      <!-- Season filter row — visible only when a specific league is selected -->
+      <div id="scoutSeasonRowAB" style="display:none;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+        <span style="font-size:9px;color:var(--text3);font-weight:700;letter-spacing:.1em;text-transform:uppercase;flex-shrink:0;">Season</span>
+        <div id="scoutSeasonBtnsAB" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+      </div>
+      <div id="scoutStatusAB" style="margin-top:8px;font-size:10px;color:var(--text3);"></div>
+    </div>
+
+    <!-- AI Difficulty -->
+    <div class="setup-card">
+      <div class="card-title">AI Difficulty</div>
+      <div class="grid3">
+        <div class="opt-card" id="dc-normal" onclick="setDiff('normal')">
+          <div class="opt-name">Normal</div>
+          <div class="opt-desc">Rule-based scoring</div>
+        </div>
+        <div class="opt-card sel-gold" id="dc-hard" onclick="setDiff('hard')">
+          <div class="opt-name">Hard</div>
+          <div class="opt-desc">Full Warr.GG AI reasoning</div>
+        </div>
+        <div class="opt-card" id="dc-gm" onclick="setDiff('gm')">
+          <div class="opt-name">Grandmaster</div>
+          <div class="opt-desc">AI + counter-strategy + memory</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Opponent -->
+    <div class="setup-card" style="position:relative;z-index:2;">
+      <div class="card-title">AI Opponent</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0;">
+        <div class="opt-card sel-gold" id="mode-generic" onclick="setAIMode('generic')" style="text-align:left;">
+          <div class="opt-name">Generic AI</div>
+          <div class="opt-desc">Picks optimally to beat you with the best available heroes</div>
+        </div>
+        <div class="opt-card" id="mode-enemy" onclick="setAIMode('enemy')" style="text-align:left;">
+          <div class="opt-name">Enemy Team</div>
+          <div class="opt-desc">Mimics a real scouted team's actual draft tendencies</div>
+        </div>
+      </div>
+      <div id="enemyTeamPanel" style="display:none;margin-top:14px;">
+        <!-- League filter pills -->
+        <div id="enemyLeagueFilters" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;"></div>
+        <!-- Team list — click to select -->
+        <div id="enemyTeamCards" style="display:flex;flex-direction:column;gap:5px;max-height:220px;overflow-y:auto;padding-right:2px;"></div>
+        <!-- Selected team profile -->
+        <div id="enemyProfileCard" style="display:none;margin-top:10px;background:var(--surface2);border:1px solid rgba(216,120,128,.3);border-radius:10px;padding:12px;"></div>
+      </div>
+    </div>
+
+    <!-- Rounds (Best-of) -->
+    <div class="setup-card">
+      <div class="card-title">Rounds</div>
+      <div class="card-hint">Practice a single draft or run a full best-of series.</div>
+      <div class="grid3">
+        <div class="opt-card sel-blue" id="ro-1" onclick="setRounds(1)">
+          <div class="opt-name">BO1</div>
+          <div class="opt-desc">Quick single match</div>
+        </div>
+        <div class="opt-card" id="ro-3" onclick="setRounds(3)">
+          <div class="opt-name">BO3</div>
+          <div class="opt-desc">Best of 3 series</div>
+        </div>
+        <div class="opt-card" id="ro-5" onclick="setRounds(5)">
+          <div class="opt-name">BO5</div>
+          <div class="opt-desc">Full playoff run</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- API Key — admin only -->
+    <div class="setup-card" id="apiKeyCard" style="display:none;">
+      <div class="card-title">API Key <span style="font-weight:400;color:var(--text3);text-transform:none;letter-spacing:0;">— admin only</span></div>
+      <div id="apiKeyStatus" style="margin-bottom:8px;font-size:10px;color:var(--text3);">Checking…</div>
+      <div style="font-size:9px;color:var(--text3);">Set a global key in <a href="admin.html" style="color:var(--blue);">Admin Panel</a> to enable AI for all users.</div>
+    </div>
+
+    <button class="start-btn" onclick="startBattle()">Start AI Battle →</button>
+
+  </div>
+</div>
+
+<!-- BATTLE SCREEN -->
+<div id="battle">
+  <div class="bh">
+    <div class="bh-side" id="bhL"><span class="bh-name" id="bhPName" style="color:var(--blue);">YOU</span><span class="bh-tag tag-you">HUMAN</span></div>
+    <div class="bh-vs">VS</div>
+    <div class="bh-side r"><span class="bh-name" id="bhAIName" style="color:var(--ai);">WARR.GG AI</span><span class="bh-tag tag-ai" id="bhAITag">AI</span></div>
+  </div>
+  <div id="enemyBanner" style="display:none;background:rgba(240,82,82,.08);border-bottom:1px solid rgba(240,82,82,.2);padding:5px 16px;font-size:10px;color:var(--red);font-weight:600;text-align:center;"></div>
+  <div class="phase-bar">
+    <div class="phase-lbl" id="phaseLbl">Ban Phase I</div>
+    <div class="turn-tag turn-you" id="turnTag">YOUR TURN — BAN</div>
+    <div style="display:flex;gap:8px;align-items:center;"><span class="dif" id="difBadge"></span><span style="font-size:9px;color:var(--text3);" id="stepCtr">Step 1/20</span></div>
+  </div>
+  <div class="seq-bar" id="seqBar"></div>
+  <div class="draft-layout">
+    <!-- BLUE PANEL -->
+    <div class="team-panel blue-panel" id="leftCol">
+      <div class="team-header">
+        <div class="team-stripe blue-stripe"></div>
+        <div>
+          <div class="team-name-lbl" id="blueLabel" style="color:var(--blue);">YOU</div>
+          <div class="side-tag">Blue Side</div>
+        </div>
+      </div>
+      <div class="panel-sec-label">Bans</div>
+      <div class="bans-row" id="bBans"></div>
+      <div class="panel-sec-label">Picks</div>
+      <div class="pick-slots" id="bPicks"></div>
+    </div>
+
+    <!-- POOL CENTER -->
+    <div class="pool-section">
+      <div class="pool-header" style="flex-direction:column;align-items:stretch;gap:5px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <input class="search-input" id="srch" placeholder="Search hero..." style="flex:1;min-width:120px;"/>
+          <span class="hero-count" id="cntLbl" style="font-size:10px;"></span>
+          <button class="settings-gear-btn" id="abFilterToggle" onclick="document.getElementById('laneFiltersAB').classList.toggle('collapsed')" style="display:none;padding:4px 10px;font-size:10px;">Filters ▾</button>
+        </div>
+        <div class="filter-row" id="laneFiltersAB"></div>
+      </div>
+      <div class="hero-grid" id="hgrid"></div>
+      <div class="action-bar" style="gap:10px;">
+        <button class="btn btn-ghost" onclick="undoPick()" style="font-size:11px;">← Undo</button>
+        <button class="btn btn-reset" onclick="resetBattle()" style="font-size:11px;">Reset</button>
+        <div class="hint" id="hintTxt" style="flex:1;text-align:center;">Select a hero to ban</div>
+        <span id="tokenDisplay" style="font-size:11px;color:#7ecfff;white-space:nowrap;"></span>
+        <button class="btn btn-analyze" id="anaBtn" onclick="runAnalysis()" disabled style="padding:10px 28px;font-size:14px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">ANALYZE</button>
+      </div>
+    </div>
+
+    <!-- RED PANEL -->
+    <div class="team-panel red-panel" id="rightCol">
+      <div class="team-header">
+        <div class="team-stripe red-stripe"></div>
+        <div>
+          <div class="team-name-lbl" id="redLabel" style="color:var(--ai);">Warr.GG AI</div>
+          <div class="side-tag">Red Side</div>
+        </div>
+      </div>
+      <div class="panel-sec-label">Bans</div>
+      <div class="bans-row" id="rBans"></div>
+      <div class="panel-sec-label">Picks</div>
+      <div class="pick-slots" id="rPicks"></div>
+    </div>
+  </div>
+  <div class="logbar"><div style="font-size:7.5px;font-weight:700;color:var(--ai);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:2px;">AI LOG</div><div id="logEntries"></div></div>
+</div>
+
+<!-- RESULT -->
+<div id="result" onclick="event.stopPropagation()">
+  <div class="rcard">
+    <div class="rverdict" id="rverdict"></div>
+    <div class="rsub" id="rsub"></div>
+    <div class="rstats">
+      <div class="rs"><div class="rsv" id="rspct" style="color:var(--blue);">—</div><div class="rsl">Your Win Prob</div></div>
+      <div class="rs"><div class="rsv" id="raipct" style="color:var(--ai);">—</div><div class="rsl">AI Win Prob</div></div>
+    </div>
+    <div class="rpicks"><div class="rpt" id="rptYou">Your Picks</div><div id="rpYou"></div></div>
+    <div class="rpicks"><div class="rpt">Warr.GG AI Picks</div><div id="rpAI"></div></div>
+    <div class="rasummary" id="rasummary"></div>
+    <div class="rbreakdown" id="rbreakdown"></div>
+    <div class="rbtns">
+      <button class="rbtn rbp" onclick="this.textContent='Analyzing…';this.disabled=true;runAnalysis().finally(()=>{this.textContent='Full Analysis';this.disabled=false;})">Full Analysis</button>
+      <button class="rbtn rbs" onclick="captureResult()" title="Save as PNG">📸 Screenshot</button>
+      <button class="rbtn rbs" onclick="rematch()">↺ Rematch</button>
+      <button class="rbtn rbs" onclick="goSetup()">Setup</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+// ═══════ API HELPER ═══════
+async function callClaude(body){
+  // Use admin-set global key (shared for all users); no per-user key allowed
+  const key = (typeof WDB !== 'undefined' && WDB.getAdminApiKeySync)
+    ? WDB.getAdminApiKeySync()
+    : localStorage.getItem('warr_api_key') || '';
+  if(!key) throw new Error('NO_API_KEY');
+  const resp=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key':key,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true',
+    },
+    body:JSON.stringify(body),
+  });
+  if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error?.message||'HTTP '+resp.status);}
+  return resp.json();
+}
+async function updateApiKeyCard(){
+  const card=document.getElementById('apiKeyCard');
+  if(!card) return;
+  const isAdmin = typeof WAdmin!=='undefined' && WAdmin.isAdmin && WAdmin.isAdmin();
+  // Only show card to admin
+  card.style.display = isAdmin ? 'block' : 'none';
+  if(!isAdmin) return;
+  const key = (typeof WDB!=='undefined' && WDB.getAdminApiKey) ? await WDB.getAdminApiKey() : '';
+  const status = document.getElementById('apiKeyStatus');
+  if(status){
+    if(key){
+      status.textContent = '✓ Admin key active — AI enabled for all users';
+      status.style.color = '#22c55e';
+    } else {
+      status.textContent = '✗ No key set — using rule-based AI fallback';
+      status.style.color = '#ef4444';
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  HERO DATA
+// ═══════════════════════════════════════════════════════
+const ALL_H=[
+  // TANK (20)
+  {id:'tigreal',name:'Tigreal',role:'Tank',color:'#8899bb',tier:'C',mp:'off'},
+  {id:'akai',name:'Akai',role:'Tank',color:'#ff9900',tier:'C',mp:'off'},
+  {id:'franco',name:'Franco',role:'Tank',color:'#cc4400',tier:'C',mp:'off'},
+  {id:'minotaur',name:'Minotaur',role:'Tank',color:'#886644',tier:'C',mp:'off'},
+  {id:'lolita',name:'Lolita',role:'Tank',color:'#ff88aa',tier:'C',mp:'off'},
+  {id:'johnson',name:'Johnson',role:'Tank',color:'#ffaa00',tier:'C',mp:'off'},
+  {id:'atlas',name:'Atlas',role:'Tank',color:'#4488ff',tier:'C',mp:'off'},
+  {id:'khufra',name:'Khufra',role:'Tank',color:'#ffcc88',tier:'C',mp:'off'},
+  {id:'esmeralda',name:'Esmeralda',role:'Tank/Mage',color:'#66ccff',tier:'C',mp:'off'},
+  {id:'uranus',name:'Uranus',role:'Tank',color:'#44ccff',tier:'C',mp:'off'},
+  {id:'hylos',name:'Hylos',role:'Tank',color:'#88aacc',tier:'C',mp:'off'},
+  {id:'belerick',name:'Belerick',role:'Tank',color:'#44aa44',tier:'C',mp:'off'},
+  {id:'grock',name:'Grock',role:'Tank',color:'#997755',tier:'C',mp:'off'},
+  {id:'carmilla',name:'Carmilla',role:'Tank',color:'#cc44aa',tier:'C',mp:'off'},
+  {id:'baxia',name:'Baxia',role:'Tank',color:'#cc8800',tier:'C',mp:'off'},
+  {id:'gloo',name:'Gloo',role:'Tank',color:'#00cc88',tier:'C',mp:'off'},
+  {id:'chip',name:'Chip',role:'Tank',color:'#00ccaa',tier:'C',mp:'off'},
+  {id:'fredrinn',name:'Fredrinn',role:'Tank/Fighter',color:'#4466cc',tier:'C',mp:'off'},
+  {id:'kalea',name:'Kalea',role:'Tank',color:'#ff6600',tier:'C',mp:'off'},
+  {id:'edith',name:'Edith',role:'Tank/MM',color:'#aa88ff',tier:'C',mp:'off'},
+  {id:'marcel',name:'Marcel',role:'Tank',color:'#5599ff',tier:'C',mp:'off'},
+  // FIGHTER (30)
+  {id:'barats',name:'Barats',role:'Fighter/Tank',color:'#88cc44',tier:'C',mp:'off'},
+  {id:'balmond',name:'Balmond',role:'Fighter',color:'#882222',tier:'C',mp:'off'},
+  {id:'zilong',name:'Zilong',role:'Fighter',color:'#ff6622',tier:'C',mp:'off'},
+  {id:'alucard',name:'Alucard',role:'Fighter',color:'#880000',tier:'C',mp:'off'},
+  {id:'alpha',name:'Alpha',role:'Fighter',color:'#4488cc',tier:'C',mp:'off'},
+  {id:'sun',name:'Sun',role:'Fighter',color:'#ffaa00',tier:'C',mp:'off'},
+  {id:'argus',name:'Argus',role:'Fighter',color:'#8844bb',tier:'C',mp:'off'},
+  {id:'hilda',name:'Hilda',role:'Fighter',color:'#aa6633',tier:'C',mp:'off'},
+  {id:'ruby',name:'Ruby',role:'Fighter',color:'#ff4477',tier:'C',mp:'off'},
+  {id:'xborg',name:'X.Borg',role:'Fighter',color:'#ff8800',tier:'C',mp:'off'},
+  {id:'aldous',name:'Aldous',role:'Fighter',color:'#bbaa22',tier:'C',mp:'off'},
+  {id:'chou',name:'Chou',role:'Fighter',color:'#ff8833',tier:'C',mp:'off'},
+  {id:'badang',name:'Badang',role:'Fighter',color:'#cc8800',tier:'C',mp:'off'},
+  {id:'guinevere',name:'Guinevere',role:'Fighter',color:'#ff88cc',tier:'C',mp:'off'},
+  {id:'terizla',name:'Terizla',role:'Fighter',color:'#884400',tier:'C',mp:'off'},
+  {id:'thamuz',name:'Thamuz',role:'Fighter',color:'#ff6622',tier:'C',mp:'off'},
+  {id:'masha',name:'Masha',role:'Fighter',color:'#ff4444',tier:'C',mp:'off'},
+  {id:'khaleed',name:'Khaleed',role:'Fighter',color:'#cc9933',tier:'C',mp:'off'},
+  {id:'paquito',name:'Paquito',role:'Fighter',color:'#ffaa33',tier:'C',mp:'off'},
+  {id:'yuzhong',name:'Yu Zhong',role:'Fighter',color:'#cc4422',tier:'C',mp:'off'},
+  {id:'dyrroth',name:'Dyrroth',role:'Fighter',color:'#cc2222',tier:'C',mp:'off'},
+  {id:'jawhead',name:'Jawhead',role:'Fighter',color:'#66aaff',tier:'C',mp:'off'},
+  {id:'martis',name:'Martis',role:'Fighter',color:'#cc4400',tier:'C',mp:'off'},
+  {id:'silvanna',name:'Silvanna',role:'Fighter',color:'#aa44ff',tier:'C',mp:'off'},
+  {id:'yin',name:'Yin',role:'Fighter',color:'#ffaa00',tier:'C',mp:'off'},
+  {id:'minsitthar',name:'Minsitthar',role:'Fighter',color:'#cc9900',tier:'C',mp:'off'},
+  {id:'aulus',name:'Aulus',role:'Fighter',color:'#885544',tier:'C',mp:'off'},
+  {id:'freya',name:'Freya',role:'Fighter',color:'#ffddaa',tier:'C',mp:'off'},
+  {id:'lapulapu',name:'Lapu-Lapu',role:'Fighter',color:'#ffcc88',tier:'C',mp:'off'},
+  {id:'leomord',name:'Leomord',role:'Fighter',color:'#884422',tier:'C',mp:'off'},
+  {id:'phoveus',name:'Phoveus',role:'Fighter',color:'#cc00ff',tier:'C',mp:'off'},
+  {id:'arlott',name:'Arlott',role:'Fighter',color:'#cc3333',tier:'C',mp:'off'},
+  {id:'cici',name:'Cici',role:'Fighter',color:'#ff88ff',tier:'C',mp:'off'},
+  {id:'sora',name:'Sora',role:'Fighter/Assassin',color:'#ff55cc',tier:'C',mp:'off'},
+  {id:'bane',name:'Bane',role:'Fighter',color:'#005588',tier:'C',mp:'off'},
+  {id:'lukas',name:'Lukas',role:'Fighter',color:'#ff4400',tier:'C',mp:'off'},
+  {id:'gatotkaca',name:'Gatotkaca',role:'Tank/Fighter',color:'#cc9922',tier:'C',mp:'off'},
+  {id:'roger',name:'Roger',role:'Fighter/MM',color:'#448833',tier:'C',mp:'off'},
+  // ASSASSIN (20)
+  {id:'saber',name:'Saber',role:'Assassin',color:'#aaaaaa',tier:'C',mp:'off'},
+  {id:'karina',name:'Karina',role:'Assassin',color:'#cc44ff',tier:'C',mp:'off'},
+  {id:'fanny',name:'Fanny',role:'Assassin',color:'#88ccff',tier:'C',mp:'off'},
+  {id:'hayabusa',name:'Hayabusa',role:'Assassin',color:'#ff3333',tier:'C',mp:'off'},
+  {id:'natalia',name:'Natalia',role:'Assassin',color:'#aa2244',tier:'C',mp:'off'},
+  {id:'helcurt',name:'Helcurt',role:'Assassin',color:'#223344',tier:'C',mp:'off'},
+  {id:'lancelot',name:'Lancelot',role:'Assassin',color:'#aaaaff',tier:'C',mp:'off'},
+  {id:'gusion',name:'Gusion',role:'Assassin',color:'#ff88ff',tier:'C',mp:'off'},
+  {id:'ling',name:'Ling',role:'Assassin',color:'#44ffcc',tier:'C',mp:'off'},
+  {id:'selena',name:'Selena',role:'Assassin/Mage',color:'#cc22ee',tier:'C',mp:'off'},
+  {id:'benedetta',name:'Benedetta',role:'Assassin',color:'#cc88ff',tier:'C',mp:'off'},
+  {id:'aamon',name:'Aamon',role:'Assassin',color:'#88aacc',tier:'C',mp:'off'},
+  {id:'nolan',name:'Nolan',role:'Assassin',color:'#00ffdd',tier:'C',mp:'off'},
+  {id:'yss',name:'Yi Sun-shin',role:'Assassin/MM',color:'#3388ff',tier:'C',mp:'off'},
+  {id:'suyou',name:'Suyou',role:'Assassin',color:'#00aaff',tier:'C',mp:'off'},
+  {id:'joy',name:'Joy',role:'Assassin',color:'#ff44aa',tier:'C',mp:'off'},
+  {id:'julian',name:'Julian',role:'Fighter/Assassin',color:'#ff8844',tier:'C',mp:'off'},
+  {id:'hanzo',name:'Hanzo',role:'Assassin',color:'#334455',tier:'C',mp:'off'},
+  // MAGE (25)
+  {id:'nana',name:'Nana',role:'Mage/Support',color:'#ff88aa',tier:'C',mp:'off'},
+  {id:'eudora',name:'Eudora',role:'Mage',color:'#ffdd44',tier:'C',mp:'off'},
+  {id:'aurora',name:'Aurora',role:'Mage',color:'#88ddff',tier:'C',mp:'off'},
+  {id:'gord',name:'Gord',role:'Mage',color:'#4466bb',tier:'C',mp:'off'},
+  {id:'cyclops',name:'Cyclops',role:'Mage',color:'#0088ff',tier:'C',mp:'off'},
+  {id:'alice',name:'Alice',role:'Mage/Tank',color:'#ff4466',tier:'C',mp:'off'},
+  {id:'harley',name:'Harley',role:'Mage/Assassin',color:'#ff4400',tier:'C',mp:'off'},
+  {id:'odette',name:'Odette',role:'Mage',color:'#aaddff',tier:'C',mp:'off'},
+  {id:'vexana',name:'Vexana',role:'Mage',color:'#8833aa',tier:'C',mp:'off'},
+  {id:'lunox',name:'Lunox',role:'Mage',color:'#cc44ff',tier:'C',mp:'off'},
+  {id:'kagura',name:'Kagura',role:'Mage',color:'#ffaacc',tier:'C',mp:'off'},
+  {id:'lylia',name:'Lylia',role:'Mage',color:'#88ff88',tier:'C',mp:'off'},
+  {id:'cecilion',name:'Cecilion',role:'Mage',color:'#cc44aa',tier:'C',mp:'off'},
+  {id:'yve',name:'Yve',role:'Mage',color:'#00ddcc',tier:'C',mp:'off'},
+  {id:'valentina',name:'Valentina',role:'Mage',color:'#ff66cc',tier:'C',mp:'off'},
+  {id:'xavier',name:'Xavier',role:'Mage',color:'#88aaff',tier:'C',mp:'off'},
+  {id:'change',name:"Change",role:'Mage',color:'#eeeeff',tier:'C',mp:'off'},
+  {id:'pharsa',name:'Pharsa',role:'Mage',color:'#cc66ff',tier:'C',mp:'off'},
+  {id:'novaria',name:'Novaria',role:'Mage',color:'#aaccff',tier:'C',mp:'off'},
+  {id:'luoyi',name:'Luo Yi',role:'Mage',color:'#ff8800',tier:'C',mp:'off'},
+  {id:'zhuxin',name:'Zhuxin',role:'Mage',color:'#ffaaff',tier:'C',mp:'off'},
+  {id:'faramis',name:'Faramis',role:'Mage/Support',color:'#cc00cc',tier:'C',mp:'off'},
+  {id:'kadita',name:'Kadita',role:'Mage/Assassin',color:'#0044aa',tier:'C',mp:'off'},
+  {id:'kimmy',name:'Kimmy',role:'Mage/MM',color:'#00aaff',tier:'C',mp:'off'},
+  {id:'zhask',name:'Zhask',role:'Mage',color:'#9933cc',tier:'C',mp:'off'},
+  {id:'vale',name:'Vale',role:'Mage',color:'#88ccff',tier:'C',mp:'off'},
+  {id:'valir',name:'Valir',role:'Mage',color:'#ff6622',tier:'C',mp:'off'},
+  {id:'harith',name:'Harith',role:'Mage',color:'#ffcc00',tier:'C',mp:'off'},
+  {id:'zetian',name:'Zetian',role:'Mage',color:'#ff88aa',tier:'C',mp:'off'},
+  // MARKSMAN (18)
+  {id:'miya',name:'Miya',role:'MM',color:'#88ccff',tier:'C',mp:'off'},
+  {id:'layla',name:'Layla',role:'MM',color:'#ff88cc',tier:'C',mp:'off'},
+  {id:'moskov',name:'Moskov',role:'MM',color:'#88aacc',tier:'C',mp:'off'},
+  {id:'clint',name:'Clint',role:'MM',color:'#cc9944',tier:'C',mp:'off'},
+  {id:'bruno',name:'Bruno',role:'MM',color:'#4488ff',tier:'C',mp:'off'},
+  {id:'irithel',name:'Irithel',role:'MM',color:'#cc8866',tier:'C',mp:'off'},
+  {id:'lesley',name:'Lesley',role:'MM/Assassin',color:'#ffcc44',tier:'C',mp:'off'},
+  {id:'hanabi',name:'Hanabi',role:'MM',color:'#ffaacc',tier:'C',mp:'off'},
+  {id:'claude',name:'Claude',role:'MM',color:'#6688ff',tier:'C',mp:'off'},
+  {id:'granger',name:'Granger',role:'MM',color:'#ff6b35',tier:'C',mp:'off'},
+  {id:'brody',name:'Brody',role:'MM',color:'#cc6633',tier:'C',mp:'off'},
+  {id:'karrie',name:'Karrie',role:'MM',color:'#aaddff',tier:'C',mp:'off'},
+  {id:'beatrix',name:'Beatrix',role:'MM',color:'#ffcc00',tier:'C',mp:'off'},
+  {id:'melissa',name:'Melissa',role:'MM',color:'#ff9999',tier:'C',mp:'off'},
+  {id:'natan',name:'Natan',role:'MM',color:'#aa88ff',tier:'C',mp:'off'},
+  {id:'wanwan',name:'Wanwan',role:'MM',color:'#ff4488',tier:'C',mp:'off'},
+  {id:'ixia',name:'Ixia',role:'MM',color:'#ff88ff',tier:'C',mp:'off'},
+  {id:'obsidia',name:'Obsidia',role:'MM',color:'#8833cc',tier:'C',mp:'off'},
+  // SUPPORT (9)
+  {id:'estes',name:'Estes',role:'Support',color:'#aaffaa',tier:'C',mp:'off'},
+  {id:'angela',name:'Angela',role:'Support',color:'#ffaacc',tier:'C',mp:'off'},
+  {id:'rafaela',name:'Rafaela',role:'Support',color:'#ffffff',tier:'C',mp:'off'},
+  {id:'diggie',name:'Diggie',role:'Support',color:'#ffff44',tier:'C',mp:'off'},
+  {id:'floryn',name:'Floryn',role:'Support',color:'#88ff88',tier:'C',mp:'off'},
+  {id:'mathilda',name:'Mathilda',role:'Support',color:'#aaffcc',tier:'C',mp:'off'},
+  {id:'kaja',name:'Kaja',role:'Support/Fighter',color:'#ffaa44',tier:'C',mp:'off'},
+  {id:'popol',name:'Popol & Kupa',role:'Support/MM',color:'#aaaaff',tier:'C',mp:'off'},
+];
+const HEROES=ALL_H.filter((h,i,a)=>a.findIndex(x=>x.id===h.id)===i);
+
+const LANES_MAP={
+  'Claude':'Gold','Karrie':'Gold','Beatrix':'Gold','Wanwan':'Gold','Granger':'Gold','Brody':'Gold','Miya':'Gold','Bruno':'Gold','Clint':'Gold','Hanabi':'Gold','Irithel':'Gold','Layla':'Gold','Lesley':'Gold','Melissa':'Gold','Moskov':'Gold','Natan':'Gold','Ixia':'Gold','Roger':'Gold','Popol & Kupa':'Roam',
+  'Yi Sun-shin':'Jungle','Hayabusa':'Jungle','Lancelot':'Jungle','Ling':'Jungle','Fanny':'Jungle','Nolan':'Jungle','Gusion':'Jungle','Karina':'Jungle','Benedetta':'Jungle','Helcurt':'Jungle','Joy':'Jungle','Aamon':'Jungle','Natalia':'Jungle','Saber':'Jungle','Hanzo':'Jungle','Suyou':'Jungle','Fredrinn':'Jungle','Martis':'Jungle','Aldous':'Jungle','Argus':'Jungle','Barats':'Jungle',
+  'Zhuxin':'Mid','Yve':'Mid','Pharsa':'Mid','Kagura':'Mid','Valentina':'Mid','Xavier':'Mid','Novaria':'Mid','Lylia':'Mid','Lunox':'Mid','Kadita':'Mid','Luo Yi':'Mid','Odette':'Mid','Cecilion':'Mid','Vale':'Mid','Valir':'Mid','Harith':'Gold','Harley':'Jungle','Eudora':'Mid','Aurora':'Mid','Gord':'Mid','Cyclops':'Mid','Alice':'Mid','Vexana':'Mid','Zhask':'Mid','Nana':'Mid','Selena':'Mid',
+  'Yu Zhong':'EXP','Arlott':'EXP','Cici':'EXP','Gatotkaca':'Roam','Esmeralda':'EXP','Dyrroth':'EXP','Terizla':'EXP','Thamuz':'EXP','Khaleed':'Roam','Paquito':'EXP','Leomord':'Jungle','Silvanna':'EXP','Badang':'Roam','Ruby':'EXP','Guinevere':'Jungle','Hilda':'Roam','Masha':'EXP','X.Borg':'EXP','Lapu-Lapu':'EXP','Sun':'EXP','Balmond':'EXP','Zilong':'EXP','Alucard':'EXP','Alpha':'Jungle','Freya':'Gold','Yin':'EXP','Julian':'Jungle','Lukas':'EXP','Sora':'EXP','Bane':'EXP','Jawhead':'EXP','Aulus':'EXP','Phoveus':'EXP',
+  'Hylos':'Roam','Uranus':'EXP','Atlas':'Roam','Khufra':'Roam','Gloo':'Roam','Chip':'Roam','Kalea':'Roam','Mathilda':'Roam','Angela':'Roam','Floryn':'Roam','Franco':'Roam','Tigreal':'Roam','Johnson':'Roam','Akai':'Roam','Minotaur':'Roam','Lolita':'Roam','Grock':'Roam','Belerick':'Roam','Baxia':'Roam','Carmilla':'Roam','Kaja':'Roam','Diggie':'Roam','Estes':'Roam','Rafaela':'Roam','Faramis':'Roam','Edith':'Roam','Marcel':'Roam',
+  'Chou':'Roam','Kimmy':'Mid','Obsidia':'Gold','Minsitthar':'Roam','Change':'Mid',
+};
+const DRAFT_ORDER=[
+  {type:'ban',team:'blue',label:'B1'},{type:'ban',team:'red',label:'B2'},
+  {type:'ban',team:'blue',label:'B3'},{type:'ban',team:'red',label:'B4'},
+  {type:'ban',team:'blue',label:'B5'},{type:'ban',team:'red',label:'B6'},
+  {type:'pick',team:'blue',label:'P1'},{type:'pick',team:'red',label:'P2'},
+  {type:'pick',team:'red',label:'P3'},{type:'pick',team:'blue',label:'P4'},
+  {type:'pick',team:'blue',label:'P5'},{type:'pick',team:'red',label:'P6'},
+  {type:'ban',team:'red',label:'B7'},{type:'ban',team:'blue',label:'B8'},
+  {type:'ban',team:'red',label:'B9'},{type:'ban',team:'blue',label:'B10'},
+  {type:'pick',team:'red',label:'P7'},{type:'pick',team:'blue',label:'P8'},
+  {type:'pick',team:'blue',label:'P9'},{type:'pick',team:'red',label:'P10'},
+];
+
+// ═══════ SHARED MEMORY & SHEET DATA ═══════
+const MK='mlbb_ai_draft_memory';
+let TIER_LIST={}, META_SCORES={}, PV=null;
+try{
+  const sv=localStorage.getItem('mlbb_draft_data');
+  if(sv){
+    const dd=JSON.parse(sv);
+    const ts={S:9.5,A:8,B:6.5,C:5,D:3.5},tp={S:'highpick',A:'highpick',B:'situational',C:'situational',D:'off'};
+    if(dd.tierList){
+      TIER_LIST=dd.tierList;
+      HEROES.forEach(h=>{
+        const t=TIER_LIST[h.name];
+        if(t){h.tier=t.tier;h.ms=ts[t.tier]||h.ms||5;if(h.mp!=='mustban')h.mp=tp[t.tier]||h.mp;if(t.lane)LANES_MAP[h.name]=t.lane;}
+      });
+    }
+    if(dd.metaScores){
+      META_SCORES=dd.metaScores;
+      HEROES.forEach(h=>{
+        const s=META_SCORES[h.name];
+        if(s){h.ms=Number(s.ms)||h.ms||5;h.pr=Number(s.pr)||0;h.br=Number(s.br)||0;if(s.mp&&h.mp!=='mustban')h.mp=s.mp;if(!TIER_LIST[h.name]&&s.tier){h.tier=s.tier;if(h.mp!=='mustban')h.mp=tp[s.tier]||h.mp;}}
+      });
+    }
+    if(dd.metaLanes){Object.entries(dd.metaLanes).forEach(([n,l])=>{if(l)LANES_MAP[n]=l;});}
+    if(dd.patchVersion) PV=dd.patchVersion;
+  }
+}catch(e){}
+
+// ── DYNAMIC TIERS FROM SCOUT DATA ──
+// Override hardcoded tiers with actual scouted presence/WR data
+// Priority: Scout data > Excel import > hardcoded default
+let _scoutTierCache = null;
+(function applyDynamicTiers() {
+  if (typeof WDB === 'undefined' || !WDB.computeDynamicTiers) return;
+  const dt = WDB.computeDynamicTiers(2);
+  if (!dt) return;
+  _scoutTierCache = dt;
+  const tp = {S:'highpick', A:'highpick', B:'situational', C:'situational', D:'off'};
+  HEROES.forEach(h => {
+    const d = dt[h.name];
+    if (!d) return;
+    // Always apply scout data — overrides Excel import too
+    h.tier = d.tier;
+    if (h.mp !== 'mustban') h.mp = d.mp || tp[d.tier] || h.mp;
+  });
+  console.log('[AI Battle] Scout tiers applied:', Object.keys(dt).length, 'heroes');
+})();
+
+
+// ── SCOUT DATA ──────────────────────────────────────────
+const SCOUT_KEY_AB = 'warr_scout_data';
+let scoutLeagueAB = 'all';
+let _scoutSeasonAB = 'all'; // 'all' or a specific season name like 'Season 15'
+
+function loadScoutAB() {
+  try{
+    const r=localStorage.getItem(SCOUT_KEY_AB);
+    const db=r?JSON.parse(r):{matches:[],teams:{}};
+    // Strip AI Battle practice games — only use real MPL/Scrim scout data
+    db.matches=(db.matches||[]).filter(m=>m.league!=='AI Battle');
+    return db;
+  }catch(e){return{matches:[],teams:{}};}
+}
+
+function getScoutProfileAB(teamName) {
+  if(!teamName) return null;
+  const db=loadScoutAB();
+  const t=db.teams[teamName];
+  if(!t||!t.gamesPlayed) return null;
+  if(scoutLeagueAB!=='all' || _scoutSeasonAB!=='all'){
+    const lm=(db.matches||[]).filter(m=>
+      (scoutLeagueAB==='all'||m.league===scoutLeagueAB) &&
+      (_scoutSeasonAB==='all'||m.season===_scoutSeasonAB) &&
+      (m.blueTeam===teamName||m.redTeam===teamName));
+    if(!lm.length) return null;
+    const wins=lm.filter(m=>(m.winner==='blue'&&m.blueTeam===teamName)||(m.winner==='red'&&m.redTeam===teamName)).length;
+    const pc={},bc={};
+    lm.forEach(m=>{ const ib=m.blueTeam===teamName; (ib?m.bluePicks:m.redPicks||[]).forEach(p=>{pc[p.name]=(pc[p.name]||0)+1;}); (ib?m.blueBans:m.redBans||[]).forEach(b=>{bc[b]=(bc[b]||0)+1;}); });
+    return { name:teamName, g:lm.length, wr:Math.round(wins/lm.length*100),
+      picks:Object.entries(pc).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([n,c])=>n+'(x'+c+')').join(', '),
+      bans: Object.entries(bc).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([n,c])=>n+'(x'+c+')').join(', '),
+      wc:t.winCondition||'', notes:t.coachNotes||'' };
+  }
+  return { name:teamName, g:t.gamesPlayed||0, wr:t.winRate||0,
+    picks:(t.topPicks||[]).slice(0,5).map(p=>p.name+'(x'+p.count+')').join(', '),
+    bans: (t.topBans||[]).slice(0,5).map(b=>b.name+'(x'+b.count+')').join(', '),
+    wc:t.winCondition||'', notes:t.coachNotes||'' };
+}
+
+function buildScoutAB(teamName) {
+  const p=getScoutProfileAB(teamName);
+  if(!p||p.g<1) return '';
+  const lg=[scoutLeagueAB!=='all'?scoutLeagueAB:'', _scoutSeasonAB!=='all'?_scoutSeasonAB:''].filter(Boolean).map(x=>` [${x}]`).join('');
+  let s=`SCOUT${lg} — ${p.name}: ${p.g}g ${p.wr}%WR`;
+  if(p.picks) s+=` | TopPicks: ${p.picks}`;
+  if(p.bans)  s+=` | TopBans: ${p.bans}`;
+  if(p.wc)    s+=` | WinCon: ${p.wc}`;
+  if(p.notes) s+=` | Intel: ${p.notes.slice(0,150)}`;
+  const combos=getHumanComboThreats().filter(cb=>cb.source!=='battle'||cb.count>=3).slice(0,3);
+  if(combos.length) s+=` | WinCombos: ${combos.map(cb=>cb.a+'+'+cb.b+'('+Math.round(cb.wr*100)+'%WR,'+cb.count+'g)').join(', ')}`;
+  return s;
+}
+
+/**
+ * Full deep scout context for a team — reads ALL raw match data.
+ * Used by claudeAI prompt to give the model the richest possible intel.
+ */
+function buildDeepScoutContext(teamName, label='OPPONENT SCOUT INTEL'){
+  if(!teamName) return '';
+  const db=loadScoutAB();
+  const t=db.teams?.[teamName];
+  const allMatches=(db.matches||[]).filter(m=>m.blueTeam===teamName||m.redTeam===teamName);
+  if(!allMatches.length) return '';
+
+  // Filter by active league + season if set
+  const filtered=allMatches.filter(m=>
+    (scoutLeagueAB==='all'||m.league===scoutLeagueAB) &&
+    (_scoutSeasonAB==='all'||m.season===_scoutSeasonAB));
+  const matches=filtered.length?filtered:allMatches; // fallback to all if filter gives nothing
+  if(!matches.length) return '';
+
+  const lines=[];
+  const leagueNote=[scoutLeagueAB!=='all'?scoutLeagueAB:'', _scoutSeasonAB!=='all'?_scoutSeasonAB:''].filter(Boolean).map(s=>` [${s}]`).join('');
+  const wins=matches.filter(m=>(m.winner==='blue'&&m.blueTeam===teamName)||(m.winner==='red'&&m.redTeam===teamName)).length;
+  const wr=Math.round(wins/matches.length*100);
+
+  // Side WR
+  const bm=matches.filter(m=>m.blueTeam===teamName);
+  const rm=matches.filter(m=>m.redTeam===teamName);
+  const bwr=bm.length?Math.round(bm.filter(m=>m.winner==='blue').length/bm.length*100):null;
+  const rwr=rm.length?Math.round(rm.filter(m=>m.winner==='red').length/rm.length*100):null;
+  const sideStr=[bwr!==null?`Blue ${bwr}%(${bm.length}g)`:null, rwr!==null?`Red ${rwr}%(${rm.length}g)`:null].filter(Boolean).join(', ');
+
+  lines.push(`━━ ${label}${leagueNote}: ${teamName} ━━`);
+  lines.push(`Record: ${wins}W-${matches.length-wins}L (${wr}%WR) | ${sideStr}`);
+
+  // Per-league breakdown (MPL, Scrims, etc.)
+  const leagues=[...new Set(allMatches.map(m=>m.league).filter(Boolean))];
+  if(leagues.length>1){
+    const lgBreak=leagues.map(lg=>{
+      const lgm=allMatches.filter(m=>m.league===lg);
+      const lgw=lgm.filter(m=>(m.winner==='blue'&&m.blueTeam===teamName)||(m.winner==='red'&&m.redTeam===teamName)).length;
+      return`${lg}:${lgw}-${lgm.length-lgw}`;
+    }).join(', ');
+    lines.push(`By league: ${lgBreak}`);
+  }
+
+  // Scrim-specific data if available
+  const scrims=allMatches.filter(m=>m.league==='Scrims'||m.stage==='Scrim');
+  if(scrims.length){
+    const sw=scrims.filter(m=>(m.winner==='blue'&&m.blueTeam===teamName)||(m.winner==='red'&&m.redTeam===teamName)).length;
+    lines.push(`Scrim form: ${sw}W-${scrims.length-sw}L (${Math.round(sw/scrims.length*100)}%WR, ${scrims.length} games)`);
+  }
+
+  // Recent form (last 5 matches)
+  const recent=[...matches].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5);
+  const recentForm=recent.map(m=>{
+    const won=(m.winner==='blue'&&m.blueTeam===teamName)||(m.winner==='red'&&m.redTeam===teamName);
+    return(won?'W':'L')+'('+[m.blueTeam,m.redTeam].filter(n=>n!==teamName)[0]+')';
+  }).join(' ');
+  if(recentForm) lines.push(`Recent form (newest first): ${recentForm}`);
+
+  // Hero pick stats with actual win rates from raw matches
+  const heroStats={};
+  matches.forEach(m=>{
+    const isBlue=m.blueTeam===teamName;
+    const won=(m.winner==='blue')===isBlue;
+    const picks=(isBlue?m.bluePicks:m.redPicks)||[];
+    const bans=(isBlue?m.blueBans:m.redBans)||[];
+    picks.forEach(p=>{
+      const n=p.name||p;if(!n)return;
+      if(!heroStats[n])heroStats[n]={picks:0,wins:0,bans:0,lane:p.lane||''};
+      heroStats[n].picks++;if(won)heroStats[n].wins++;
+    });
+    bans.forEach(b=>{
+      const n=b.name||b;if(!n)return;
+      if(!heroStats[n])heroStats[n]={picks:0,wins:0,bans:0,lane:''};
+      heroStats[n].bans++;
+    });
+  });
+
+  // Top picks sorted by frequency with WR
+  const topPicks=Object.entries(heroStats)
+    .filter(([,s])=>s.picks>0)
+    .sort((a,b)=>b[1].picks-a[1].picks)
+    .slice(0,8)
+    .map(([n,s])=>{
+      const wr=s.picks>0?Math.round(s.wins/s.picks*100):0;
+      const lane=s.lane?`(${s.lane})`:'';
+      return`${n}${lane} ${s.picks}g ${wr}%WR`;
+    });
+  if(topPicks.length) lines.push(`Pick pool: ${topPicks.join(' | ')}`);
+
+  // Top bans
+  const topBans=Object.entries(heroStats)
+    .filter(([,s])=>s.bans>0)
+    .sort((a,b)=>b[1].bans-a[1].bans)
+    .slice(0,6)
+    .map(([n,s])=>`${n}(x${s.bans})`);
+  if(topBans.length) lines.push(`Ban targets: ${topBans.join(', ')}`);
+
+  // Win combos — pairs of heroes they pick together and win with
+  const comboPairs={};
+  matches.forEach(m=>{
+    const isBlue=m.blueTeam===teamName;
+    const won=(m.winner==='blue')===isBlue;
+    const picks=((isBlue?m.bluePicks:m.redPicks)||[]).map(p=>p.name||p).filter(Boolean);
+    for(let i=0;i<picks.length;i++){for(let j=i+1;j<picks.length;j++){
+      const key=[picks[i],picks[j]].sort().join('+');
+      if(!comboPairs[key])comboPairs[key]={count:0,wins:0};
+      comboPairs[key].count++;if(won)comboPairs[key].wins++;
+    }}
+  });
+  const winCombos=Object.entries(comboPairs)
+    .filter(([,v])=>v.count>=2&&v.wins/v.count>=0.55)
+    .sort((a,b)=>(b[1].wins/b[1].count)-(a[1].wins/a[1].count))
+    .slice(0,4)
+    .map(([k,v])=>`${k}(${Math.round(v.wins/v.count*100)}%WR,${v.count}g)`);
+  if(winCombos.length) lines.push(`Win combos: ${winCombos.join(' | ')}`);
+
+  // Win condition + coach notes
+  if(t?.winCondition) lines.push(`Win condition: ${t.winCondition}`);
+  if(t?.coachNotes) lines.push(`Coach intel: ${t.coachNotes.slice(0,200)}`);
+
+  // Side preference note
+  if(bwr!==null&&rwr!==null&&Math.abs(bwr-rwr)>=15){
+    lines.push(`Side note: ${bwr>rwr?'Strongly prefers BLUE side':'Strongly prefers RED side'} (${Math.abs(bwr-rwr)}% gap)`);
+  }
+
+  return lines.join('\n');
+}
+
+function setScoutLB(l) {
+  scoutLeagueAB = l;
+  _scoutSeasonAB = 'all'; // reset season when switching league
+  _renderScoutLBs();
+  _renderSeasonRowAB();
+  _updateScoutStatusAB();
+}
+
+function _updateScoutStatusAB() {
+  const db = loadScoutAB();
+  const count = (db.matches||[]).filter(m =>
+    (scoutLeagueAB === 'all' || m.league === scoutLeagueAB) &&
+    (_scoutSeasonAB === 'all' || m.season === _scoutSeasonAB)
+  ).length;
+  const el = document.getElementById('scoutStatusAB');
+  if (el) el.textContent = count > 0 ? `✓ ${count} game${count>1?'s':''} available` : 'No games for this filter yet';
+}
+
+function _renderSeasonRowAB() {
+  const row  = document.getElementById('scoutSeasonRowAB');
+  const btns = document.getElementById('scoutSeasonBtnsAB');
+  if (!row || !btns) return;
+  if (scoutLeagueAB === 'all' || typeof WTeams === 'undefined' || !WTeams.getSeasons) {
+    row.style.display = 'none';
+    return;
+  }
+  const seasons = WTeams.getSeasons(scoutLeagueAB);
+  if (!seasons.length) { row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+  btns.innerHTML =
+    `<button class="scout-lb${_scoutSeasonAB==='all'?' active':''}" onclick="setScoutSeasonAB('all')">All Seasons</button>` +
+    seasons.map(s =>
+      `<button class="scout-lb${_scoutSeasonAB===s?' active':''}" onclick="setScoutSeasonAB('${s.replace(/'/g,"\\'")}')">${s}</button>`
+    ).join('');
+}
+
+function setScoutSeasonAB(season) {
+  _scoutSeasonAB = season;
+  _renderSeasonRowAB();
+  _updateScoutStatusAB();
+}
+function loadMem(){try{const r=localStorage.getItem(MK);return r?JSON.parse(r):{}}catch(e){return{}}}
+function saveMem(m){try{localStorage.setItem(MK,JSON.stringify(m))}catch(e){}}
+function recordOutcome(picks,bans,won,isHuman=false,oppPicks=[]){
+  const m=loadMem();
+  picks.forEach(h=>{
+    if(!m[h.name])m[h.name]={seen:0,wins:0,losses:0,pc:0,bc:0,lanes:{},humanPc:0,humanWins:0,coPicks:{},vsRecord:{}};
+    const d=m[h.name];
+    d.seen++;d.pc=(d.pc||0)+1;won?d.wins++:d.losses++;
+    // Track human vs AI separately
+    if(isHuman){d.humanPc=(d.humanPc||0)+1;won?d.humanWins=(d.humanWins||0)+1:null;}
+    // Track lane win rates
+    const ln=laneAssignmentsAB[h.id]||lane(h);
+    if(ln&&ln!=='Flex'){if(!d.lanes)d.lanes={};if(!d.lanes[ln])d.lanes[ln]={wins:0,losses:0};won?d.lanes[ln].wins++:d.lanes[ln].losses++;}
+    // Track co-picks (heroes picked together with this hero)
+    picks.filter(p=>p.id!==h.id).forEach(co=>{
+      if(!d.coPicks)d.coPicks={};
+      if(!d.coPicks[co.name])d.coPicks[co.name]={count:0,wins:0};
+      d.coPicks[co.name].count++;if(won)d.coPicks[co.name].wins++;
+    });
+    // Track vs record (how this hero does against specific opponents)
+    oppPicks.forEach(op=>{
+      if(!d.vsRecord)d.vsRecord={};
+      if(!d.vsRecord[op.name])d.vsRecord[op.name]={count:0,wins:0};
+      d.vsRecord[op.name].count++;if(won)d.vsRecord[op.name].wins++;
+    });
+  });
+  bans.forEach(h=>{if(!m[h.name])m[h.name]={seen:0,wins:0,losses:0,pc:0,bc:0,lanes:{},humanPc:0,humanWins:0,coPicks:{},vsRecord:{}};m[h.name].bc=(m[h.name].bc||0)+1;});
+  saveMem(m);
+}
+
+// ═══════ HERO SCOUT STATS (WR bars on hero cards) ═══════
+let heroScoutStatsAB = {}; // { heroName: { picks, wins, winRate } }
+function computeHeroScoutStatsAB(matches) {
+  const stats = {};
+  matches.forEach(m => {
+    [{ picks: m.bluePicks||[], won: m.winner==='blue' }, { picks: m.redPicks||[], won: m.winner==='red' }].forEach(({ picks, won }) => {
+      picks.forEach(p => {
+        const name = p.name || p; if(!name) return;
+        if(!stats[name]) stats[name] = { picks:0, wins:0 };
+        stats[name].picks++; if(won) stats[name].wins++;
+      });
+    });
+  });
+  Object.entries(stats).forEach(([n,s]) => {
+    if(s.picks >= 3) s.winRate = Math.round(s.wins/s.picks*100);
+    else delete stats[n];
+  });
+  return stats;
+}
+
+// ═══════ LANE HELPERS ═══════
+const LANE_COLORS_AB = { Gold:'#f59e0b', Mid:'#a855f7', Roam:'#22c55e', Jungle:'#ef4444', EXP:'#38bdf8', Flex:'#94a3b8' };
+const LANE_ICONS_AB  = { Gold:'GLD', Mid:'MID', Roam:'RMG', Jungle:'JGL', EXP:'EXP', Flex:'FLX' };
+
+function getHeroLanesAB(h) {
+  if (LANES_MAP[h.name]) return [LANES_MAP[h.name]];
+  const r = h.role;
+  if (r.includes('Support')) return ['Roam'];
+  if (r === 'MM' || r.startsWith('MM/')) return ['Gold'];
+  if (r.includes('Assassin') && !r.includes('Fighter')) return ['Jungle'];
+  if (r.includes('Mage') && !r.includes('Support')) return ['Mid'];
+  if (r.includes('Tank') && !r.includes('Fighter')) return ['Roam'];
+  if (r.includes('Fighter')) return ['EXP'];
+  return ['Flex'];
+}
+
+// ═══════ SESSION STATE ═══════
+let pName='You',pSide='blue',aiSide='red',diff='hard';
+let ST={step:0,bb:[],rb:[],bp:[],rp:[],hist:[]};
+let af='All',alane='All',sq='',aiThink=false,done=false,laneAssignmentsAB={};
+let heroFilterModeAB = 'lane'; // 'lane' | 'role'
+let _side='blue',_diff='hard';
+let aiMode='generic',enemyTeamName='',enemyProfile=null;
+
+// ═══════ SETUP ═══════
+let numRounds=1;
+function setSide(s){['blue','red','random'].forEach(x=>{document.getElementById('sc-'+x).className='opt-card';});document.getElementById('sc-'+s).className='opt-card sel-'+s;_side=s;}
+function setDiff(d){['normal','hard','gm'].forEach(x=>{document.getElementById('dc-'+x).className='opt-card';});document.getElementById('dc-'+d).className='opt-card sel-gold';_diff=d;}
+function setRounds(n){numRounds=n;[1,3,5].forEach(x=>{const el=document.getElementById('ro-'+x);if(el)el.className='opt-card'+(x===n?' sel-blue':'');});}
+setSide('blue');setDiff('hard');setRounds(1);
+// Show API key status + token display on load
+document.addEventListener('DOMContentLoaded',async()=>{
+  // Pre-warm API key cache from Supabase so sync version works immediately
+  if(typeof WDB!=='undefined'&&WDB.getAdminApiKey) await WDB.getAdminApiKey();
+  updateApiKeyCard();
+  updateTokenDisplay();
+  _initABPicker();
+});
+
+// ═══════ TEAM PICKER (Your Team) ═══════
+let _abPicker = null;
+function _getABExtraTeams() {
+  try {
+    const db = loadScoutAB();
+    const names = Object.keys(db.teams || {});
+    if (typeof WTeams !== 'undefined') return [...new Set(names.map(n => WTeams.normalize(n)))];
+    return [...new Set(names)];
+  } catch(e) { return []; }
+}
+// Static non-regional leagues always shown in Scout Data Source
+const _AB_STATIC_LBS = ['MSC','M-Series','Scrims'];
+
+function _renderScoutLBs() {
+  const container = document.getElementById('scoutLBContainer');
+  if (!container) return;
+  const regional = (typeof WTeams !== 'undefined') ? Object.keys(WTeams.LEAGUES) : [];
+  const all = [...new Set([...regional, ..._AB_STATIC_LBS])];
+  container.innerHTML =
+    `<button class="scout-lb${scoutLeagueAB==='all'?' active':''}" onclick="setScoutLB('all')">All Leagues</button>` +
+    all.map(l =>
+      `<button class="scout-lb${scoutLeagueAB===l?' active':''}" onclick="setScoutLB('${l}')">${l==='Scrims'?'Scrims Only':l}</button>`
+    ).join('');
+}
+
+function _initABPicker() {
+  const sel = document.getElementById('nameIn');
+  if (!sel || typeof WTeamPicker === 'undefined') return;
+  _abPicker = WTeamPicker.create(sel, {
+    placeholder: 'You (Custom)',
+    extraTeams: _getABExtraTeams(),
+    onSelect: null,
+  });
+  _renderScoutLBs();
+  _renderSeasonRowAB();
+  _updateScoutStatusAB();
+}
+function _refreshABPicker() {
+  if (!_abPicker) { _initABPicker(); return; }
+  _abPicker.refresh(_getABExtraTeams());
+  _renderScoutLBs();
+  _renderSeasonRowAB();
+}
+// Legacy alias kept so any stray references don't crash
+function updateABTeamDropdown() { _refreshABPicker(); }
+
+// ═══════ ENEMY TEAM MODE ═══════
+
+function setAIMode(m){
+  aiMode=m;
+  document.getElementById('mode-generic').className='opt-card'+(m==='generic'?' sel-gold':'');
+  document.getElementById('mode-enemy').className='opt-card'+(m==='enemy'?' sel-gold':'');
+  document.getElementById('mode-enemy').style.borderColor=m==='enemy'?'var(--red)':'';
+  document.getElementById('enemyTeamPanel').style.display=m==='enemy'?'block':'none';
+  if(m==='enemy'){_enemyLeague='all';_renderEnemyLeagueFilters();renderEnemyTeamCards();}
+}
+function getAllScoutedTeams(){
+  try{const db=loadScoutAB();return Object.values(db.teams||{}).filter(t=>t.gamesPlayed>=1).sort((a,b)=>(b.gamesPlayed||0)-(a.gamesPlayed||0));}catch(e){return[];}
+}
+
+// Which leagues a team has actually played in (derived from matches)
+function _teamLeagues(teamName, db){
+  return [...new Set((db.matches||[]).filter(m=>m.blueTeam===teamName||m.redTeam===teamName).map(m=>m.league).filter(Boolean))];
+}
+
+let _enemyLeague='all';
+
+function _renderEnemyLeagueFilters(){
+  const row=document.getElementById('enemyLeagueFilters');if(!row)return;
+  const db=loadScoutAB();
+  // Collect all leagues that appear in scouted matches
+  const leagues=[...new Set((db.matches||[]).map(m=>m.league).filter(Boolean))].sort();
+  if(!leagues.length){row.style.display='none';return;}
+  row.style.display='flex';
+  row.innerHTML=
+    `<button class="scout-lb${_enemyLeague==='all'?' active':''}" onclick="_setEnemyLeague('all')">All</button>`+
+    leagues.map(l=>`<button class="scout-lb${_enemyLeague===l?' active':''}" onclick="_setEnemyLeague('${l}')">${l}</button>`).join('');
+}
+
+function _setEnemyLeague(l){
+  _enemyLeague=l;
+  _renderEnemyLeagueFilters();
+  renderEnemyTeamCards();
+}
+
+function renderEnemyTeamCards(){
+  const wrap=document.getElementById('enemyTeamCards');if(!wrap)return;
+  const db=loadScoutAB();
+  let teams=getAllScoutedTeams();
+  // Filter by selected league
+  if(_enemyLeague!=='all'){
+    teams=teams.filter(t=>_teamLeagues(t.name,db).includes(_enemyLeague));
+  }
+  if(!teams.length){
+    const msg=_enemyLeague!=='all'?`No teams found in "${_enemyLeague}".`:'No scouted teams yet — add matches in the Scout tab first.';
+    wrap.innerHTML=`<div style="font-size:11px;color:var(--text3);padding:8px 0;">${msg}</div>`;
+    return;
+  }
+  wrap.innerHTML=teams.slice(0,40).map(t=>{
+    const wr=t.winRate||0;
+    const wrc=wr>=55?'#4ade80':wr>=45?'#facc15':'#f87171';
+    const isSelected=(typeof enemyTeamName!=='undefined')&&enemyTeamName===t.name;
+    const safeName=t.name.replace(/'/g,"\\'");
+    const picks=(t.topPicks||[]).slice(0,3).map(p=>p.name).join(', ')||'—';
+    const tLeagues=_teamLeagues(t.name,db);
+    const leaguePills=tLeagues.slice(0,2).map(l=>`<span style="font-size:7px;font-weight:700;padding:1px 5px;border-radius:6px;background:var(--surface);border:1px solid var(--border2);color:var(--text3);">${l}</span>`).join('');
+    return`<div onclick="selectEnemy('${safeName}')" style="cursor:pointer;padding:10px 12px;border-radius:10px;border:1px solid ${isSelected?'rgba(216,120,128,.7)':'var(--border2)'};background:${isSelected?'rgba(216,120,128,.10)':'var(--surface2)'};display:flex;align-items:center;gap:10px;transition:border-color .15s;" onmouseover="this.style.borderColor='rgba(216,120,128,.4)'" onmouseout="this.style.borderColor='${isSelected?'rgba(216,120,128,.7)':'var(--border2)'}'">
+      <div style="width:30px;height:30px;border-radius:50%;background:rgba(216,120,128,.12);border:1px solid rgba(216,120,128,.3);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--red);flex-shrink:0;">${(t.name||'?')[0].toUpperCase()}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:13px;font-weight:700;">${t.name}</span>${leaguePills}${isSelected?'<span style="font-size:9px;color:var(--red);font-weight:700;margin-left:2px;">✓</span>':''}</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:2px;">${t.gamesPlayed||0}g · <span style="color:${wrc};font-weight:700;">${wr}%WR</span> · ${picks}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function selectEnemy(name){
+  enemyTeamName=name;
+  renderEnemyTeamCards();
+  buildEnemyProfileCache(name);
+  renderEnemyProfileCard(name);
+}
+function buildEnemyProfileCache(name){
+  try{
+    const db=loadScoutAB();
+    const t=db.teams?.[name];
+    if(!t){enemyProfile=null;return;}
+    const matches=(db.matches||[]).filter(m=>m.blueTeam===name||m.redTeam===name);
+    const bm=matches.filter(m=>m.blueTeam===name);
+    const rm=matches.filter(m=>m.redTeam===name);
+    const bwr=bm.length?Math.round(bm.filter(m=>m.winner==='blue').length/bm.length*100):0;
+    const rwr=rm.length?Math.round(rm.filter(m=>m.winner==='red').length/rm.length*100):0;
+    // Core picks per side (appear in ≥50% of their games on that side)
+    function corePicks(sideMatches,isBlue){
+      const freq={};
+      sideMatches.forEach(m=>{((isBlue?m.bluePicks:m.redPicks)||[]).map(p=>p.name||p).filter(Boolean).forEach(n=>{freq[n]=(freq[n]||0)+1;});});
+      const thr=Math.max(2,Math.ceil(sideMatches.length*0.5));
+      return Object.entries(freq).filter(([,c])=>c>=thr).sort((a,b)=>b[1]-a[1]).map(([n])=>n);
+    }
+    enemyProfile={
+      name,t,matches,blueWR:bwr,redWR:rwr,
+      topPicks:(t.topPicks||[]).map(p=>p.name),
+      topBans:(t.topBans||[]).map(b=>b.name),
+      winCondition:t.winCondition||'',
+      coachNotes:t.coachNotes||'',
+      blueSideCore:corePicks(bm,true),
+      redSideCore:corePicks(rm,false),
+    };
+  }catch(e){enemyProfile=null;}
+}
+function renderEnemyProfileCard(name){
+  const card=document.getElementById('enemyProfileCard');
+  if(!enemyProfile){card.style.display='block';card.innerHTML=`<div style="color:var(--red);font-size:11px;">No data for "${name}" — check Scout tab spelling.</div>`;return;}
+  const ep=enemyProfile;
+  const wrc=ep.t.winRate>=55?'var(--green)':ep.t.winRate>=45?'var(--gold)':'var(--red)';
+  card.style.display='block';
+  card.innerHTML=`
+    <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px;">${name}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;">
+      <div style="text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px;"><div style="font-size:15px;font-weight:700;color:${wrc};">${ep.t.winRate||0}%</div><div style="font-size:8px;color:var(--text3);">Overall</div></div>
+      <div style="text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px;"><div style="font-size:15px;font-weight:700;color:var(--blue);">${ep.blueWR}%</div><div style="font-size:8px;color:var(--text3);">Blue Side</div></div>
+      <div style="text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px;"><div style="font-size:15px;font-weight:700;color:var(--red);">${ep.redWR}%</div><div style="font-size:8px;color:var(--text3);">Red Side</div></div>
+    </div>
+    <div style="font-size:9px;color:var(--text3);margin-bottom:3px;"><b style="color:var(--text);">Top Picks:</b> ${ep.topPicks.slice(0,5).join(', ')||'—'}</div>
+    <div style="font-size:9px;color:var(--text3);margin-bottom:3px;"><b style="color:var(--text);">Top Bans:</b> ${ep.topBans.slice(0,4).join(', ')||'—'}</div>
+    ${ep.winCondition?`<div style="font-size:9px;color:var(--text3);margin-bottom:3px;"><b style="color:var(--text);">Win Condition:</b> ${ep.winCondition}</div>`:''}
+    ${ep.coachNotes?`<div style="font-size:9px;color:var(--text3);"><b style="color:var(--text);">Intel:</b> ${ep.coachNotes.slice(0,100)}${ep.coachNotes.length>100?'…':''}</div>`:''}
+    <div style="margin-top:7px;padding:5px 8px;background:rgba(240,82,82,.07);border:1px solid rgba(240,82,82,.2);border-radius:10px;font-size:9px;color:var(--text2);">AI will draft AS ${name}</strong> mimicking their patterns</div>`;
+}
+function buildEnemyPromptCtx(step){
+  if(!enemyProfile)return'';
+  const ep=enemyProfile;
+  const side=step.team;
+  const coreForSide=side==='blue'?ep.blueSideCore:ep.redSideCore;
+  const allCore=[...new Set([...coreForSide,...ep.topPicks.slice(0,5)])];
+  return[
+    `You are drafting AS "${ep.name}" — a real scouted opponent team. DO NOT try to win optimally. DRAFT LIKE THEY WOULD.`,
+    `Win Condition: ${ep.winCondition||'Unknown'} | WR: ${ep.t.winRate||0}% | Blue: ${ep.blueWR}% | Red: ${ep.redWR}%`,
+    `Their comfort/priority picks: ${allCore.join(', ')||'none logged'}`,
+    `Their ${side} side core: ${coreForSide.join(', ')||'see top picks'}`,
+    `Their typical bans: ${ep.topBans.slice(0,4).join(', ')||'none logged'}`,
+    ep.coachNotes?`Scout intel: ${ep.coachNotes.slice(0,150)}`:'',
+    `RULES: (1) Bans: open with their known ban targets. (2) Picks: prioritize their comfort heroes first even if not meta-optimal. (3) If their signature heroes are gone, pick nearest role/style. (4) Stay true to their archetype — do NOT switch to generic optimal drafting.`,
+  ].filter(Boolean).join('\n');
+}
+
+let _seriesWins={p:0,ai:0};let _currentRound=1;
+function startBattle(){
+  pName=document.getElementById('nameIn').value.trim()||'You';
+  pSide=_side==='random'?(Math.random()<.5?'blue':'red'):_side;
+  aiSide=pSide==='blue'?'red':'blue';
+  diff=_diff;
+  if(aiMode==='enemy'&&!enemyProfile){toast('Select a scouted enemy team first','error');return;}
+  _seriesWins={p:0,ai:0};_currentRound=1;
+  document.getElementById('setup').style.display='none';
+  document.getElementById('battle').style.display='flex';
+  document.getElementById('result').classList.remove('show');
+  initBattle();
+}
+function goSetup(){document.getElementById('result').classList.remove('show');document.getElementById('battle').style.display='none';document.getElementById('setup').style.display='block';}
+function rematch(){_seriesWins={p:0,ai:0};_currentRound=1;document.getElementById('result').classList.remove('show');initBattle();}
+function nextRound(){_currentRound++;document.getElementById('result').classList.remove('show');if(_side==='random'){pSide=Math.random()<.5?'blue':'red';aiSide=pSide==='blue'?'red':'blue';}initBattle();}
+
+// ═══════ INIT ═══════
+function initBattle(){
+  ST={step:0,bb:[],rb:[],bp:[],rp:[],hist:[]};
+  aiThink=false;done=false;af='All';alane='All';sq='';laneAssignmentsAB={};
+  document.getElementById('srch').value='';
+  document.getElementById('anaBtn').disabled=true;
+  document.getElementById('logEntries').innerHTML='';
+  document.getElementById('rasummary').style.display='none';
+  const ib=pSide==='blue';
+  const isEnemy=aiMode==='enemy'&&enemyProfile;
+  const aiName=isEnemy?enemyProfile.name:'Warr.GG AI';
+  const aiColor=isEnemy?'var(--red)':'var(--ai)';
+  document.getElementById('blueLabel').textContent=ib?pName:aiName;
+  document.getElementById('blueLabel').style.color=ib?'var(--blue)':aiColor;
+  document.getElementById('redLabel').textContent=ib?aiName:pName;
+  document.getElementById('redLabel').style.color=ib?aiColor:'var(--red)';
+  document.getElementById('bhPName').textContent=pName;
+  document.getElementById('bhAIName').textContent=aiName;
+  document.getElementById('bhAIName').style.color=aiColor;
+  document.getElementById('bhAITag').textContent=isEnemy?'ENEMY':'AI';
+  document.getElementById('bhAITag').style.cssText=isEnemy?'background:rgba(240,82,82,.12);color:var(--red);border:1px solid rgba(240,82,82,.3);':'';
+  const banner=document.getElementById('enemyBanner');
+  if(isEnemy){banner.style.display='block';banner.textContent=`Simulating ${enemyProfile.name} · ${enemyProfile.t.gamesPlayed}g scouted · WR ${enemyProfile.t.winRate||0}% · ${enemyProfile.winCondition||'Studying their patterns'}`;}
+  else banner.style.display='none';
+  const dmap={normal:'Normal',hard:'Hard',gm:'Grandmaster'};
+  const dcls={normal:'dif dif-n',hard:'dif dif-h',gm:'dif dif-g'};
+  const db=document.getElementById('difBadge');db.textContent=dmap[diff];db.className=dcls[diff];
+  updateMemChip();renderAll();updateTurn();
+  setTimeout(()=>triggerAI(),600);
+}
+
+// ═══════ HELPERS ═══════
+function rc(r){const m={'MM':'#f59e0b','Mage':'#a855f7','Tank':'#3b82f6','Fighter':'#f97316','Assassin':'#ef4444','Support':'#22c55e'};for(const k of Object.keys(m))if(r.includes(k))return m[k];return'#94a3b8';}
+function tc(t){return{S:'#f59e0b',A:'#9ca3af',B:'#b45309',C:'#4b5563'}[t]||'#4b5563';}
+function lane(h){if(TIER_LIST[h.name]?.lane)return TIER_LIST[h.name].lane;return LANES_MAP[h.name]||'Flex';}
+function needs(picks){const cl=picks.map(p=>lane(p)).filter(l=>l!=='Flex');return{cl,needed:['Gold','Jungle','Mid','EXP','Roam'].filter(l=>!cl.includes(l))};}
+function iu(h){return`./portraits/${h.id}.png`;}
+function iun(h){const n=(h.name||'').replace(/ /g,'_').replace(/[^a-zA-Z0-9_.]/g,'');return`./portraits/${n}.png`;}
+function fb(h){const c=encodeURIComponent(h.color||'#3b82f6'),t=encodeURIComponent((h.name||'?').substring(0,2).toUpperCase());return`data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128'><circle cx='64' cy='64' r='64' fill='%231e2028'/><circle cx='64' cy='64' r='62' fill='none' stroke='${c}' stroke-width='3'/><text x='64' y='76' text-anchor='middle' fill='${c}' font-size='36' font-weight='700' font-family='Arial'>${t}</text></svg>`;}
+function toast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast show ${type}`;setTimeout(()=>t.className='toast',2500);}
+function updateTokenDisplay(){
+  if(typeof WDB==='undefined'||!WDB.getTokensRemaining)return;
+  const rem=WDB.getTokensRemaining();
+  const sub=WDB.getSubscription();
+  const plan=WDB.PLANS[sub.plan]||WDB.PLANS.free;
+  const el=document.getElementById('tokenDisplay');
+  const lim=plan.draftsPerDay>=999?'∞':plan.draftsPerDay;
+  const planLabel=plan.label||'Free';
+  if(el){
+    el.textContent=plan.draftsPerDay>=999?`⚡ ∞ drafts (${planLabel})`:`⚡ ${rem}/${lim} drafts today`;
+    el.title=`Plan: ${planLabel} · ${plan.draftsPerDay>=999?'Unlimited':rem+' remaining'} · Resets 24hrs after first draft`;
+    el.style.color=rem<=1&&plan.draftsPerDay<999?'#ff6b6b':rem<=2&&plan.draftsPerDay<999?'#ffaa44':'#7ecfff';
+  }
+}
+function isMyTurn(){return DRAFT_ORDER[ST.step]?.team===pSide;}
+function updateMemChip(){const m=loadMem();const c=Object.keys(m).length;const el=document.getElementById('memChip');if(el)el.textContent=c>0?`AI Memory: ${c} heroes`:'AI Memory: empty';}
+
+// ═══════ RENDER ═══════
+function renderAll(){renderSeq();renderSlots();renderPool();}
+function renderSeq(){
+  document.getElementById('seqBar').innerHTML=DRAFT_ORDER.map((s,i)=>`<div class="seq-item"><div class="seq-dot ${s.type}-${s.team} ${i===ST.step?'current':i<ST.step?'done':''}">${s.label}</div><div class="seq-lbl">${s.team[0].toUpperCase()}</div></div>`).join('');
+  const p=document.getElementById('phaseLbl');
+  if(ST.step>=20)p.textContent='Complete';
+  else if(ST.step<6)p.textContent='Ban Phase I';
+  else if(ST.step<14)p.textContent='Pick Phase I';
+  else if(ST.step<18)p.textContent='Ban Phase II';
+  else p.textContent='Pick Phase II';
+  document.getElementById('stepCtr').textContent=`Step ${Math.min(ST.step+1,20)}/20`;
+}
+function bsl(h,active){
+  if(h){const u=iu(h);return`<div class="ban-slot filled" title="${h.name}"><img src="${u}" alt="${h.name}" onerror="if(this.dataset.t){this.src='${fb(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${iun(h)}';}"><div class="ban-name">${h.name}</div><div class="ban-x">✕</div></div>`;}
+  return`<div class="ban-slot${active?' active-slot':''}"><span class="ban-empty">✕</span></div>`;
+}
+function cycleLaneAB(heroId,event){
+  event.stopPropagation();
+  const order=['Gold','Jungle','Mid','EXP','Roam','Flex'];
+  const h=HEROES.find(x=>x.id===heroId)||{};
+  const cur=laneAssignmentsAB[heroId]||lane(h);
+  const idx=order.indexOf(cur);
+  laneAssignmentsAB[heroId]=order[(idx+1)%order.length];
+  renderSlots();
+}
+function psl(h,active,side,lbl){
+  const ac=side==='blue'?'active-slot-blue':'active-slot-red';
+  if(h){
+    const u=iu(h);
+    const ln=laneAssignmentsAB[h.id]||lane(h);
+    const lc=LANE_COLORS_AB[ln]||'#94a3b8';
+    const icon=LANE_ICONS_AB[ln]||'◈';
+    const isNaturalFlex=!LANES_MAP[h.name]&&!(TIER_LIST[h.name]?.lane);
+    const isAssigned=!!laneAssignmentsAB[h.id];
+    const laneStyle=isNaturalFlex&&!isAssigned
+      ?`border-style:dashed;border-color:${lc};color:${lc};cursor:pointer;`
+      :`border-color:${lc}44;color:${lc};cursor:pointer;`;
+    return`<div class="pick-slot filled"><div class="slot-order">${lbl}</div><img src="${u}" alt="${h.name}" class="slot-img" onerror="if(this.dataset.t){this.src='${fb(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${iun(h)}';}"><div class="slot-info"><div class="slot-hname">${h.name}</div><div class="slot-role" style="color:${rc(h.role)}">${h.role}</div><span class="slot-lane" style="${laneStyle}" onclick="cycleLaneAB('${h.id}',event)" title="Click to change lane">${ln}${isNaturalFlex&&!isAssigned?' ↕':''}</span></div><div class="slot-tier" style="color:${tc(h.tier)}">${h.tier}</div></div>`;
+  }
+  return`<div class="pick-slot${active?' '+ac:''}"><div class="slot-order">${lbl}</div><div class="slot-placeholder">+</div><div class="slot-info"><div style="font-size:9px;color:var(--text3);">Empty</div></div></div>`;
+}
+function renderSlots(){
+  const bpo=DRAFT_ORDER.filter(s=>s.type==='pick'&&s.team==='blue').map(s=>s.label);
+  const rpo=DRAFT_ORDER.filter(s=>s.type==='pick'&&s.team==='red').map(s=>s.label);
+  const cur=DRAFT_ORDER[ST.step];
+  document.getElementById('bBans').innerHTML=[0,1,2,3,4].map(i=>bsl(ST.bb[i],cur?.type==='ban'&&cur?.team==='blue'&&ST.bb.length===i)).join('');
+  document.getElementById('rBans').innerHTML=[0,1,2,3,4].map(i=>bsl(ST.rb[i],cur?.type==='ban'&&cur?.team==='red'&&ST.rb.length===i)).join('');
+  document.getElementById('bPicks').innerHTML=[0,1,2,3,4].map(i=>psl(ST.bp[i],cur?.type==='pick'&&cur?.team==='blue'&&ST.bp.length===i,'blue',bpo[i]||'P'+(i+1))).join('');
+  document.getElementById('rPicks').innerHTML=[0,1,2,3,4].map(i=>psl(ST.rp[i],cur?.type==='pick'&&cur?.team==='red'&&ST.rp.length===i,'red',rpo[i]||'P'+(i+1))).join('');
+}
+function renderPool(){
+  const banned=[...ST.bb,...ST.rb].map(h=>h.id);
+  const picked=[...ST.bp,...ST.rp].map(h=>h.id);
+
+  // Lane / Role toggle filter
+  const AB_ROLES=['All','MM','Mage','Support','Tank','Assassin','Fighter'];
+  const AB_ROLE_COLS={MM:'#C89050',Mage:'#A888CC',Support:'#4CB87A',Tank:'#5EA0D8',Assassin:'#D87880',Fighter:'#C89050'};
+  const isLaneModeAB = heroFilterModeAB !== 'role';
+  const filterOptsAB = isLaneModeAB ? ['All','Gold','Jungle','Mid','EXP','Roam'] : AB_ROLES;
+
+  document.getElementById('laneFiltersAB').innerHTML =
+    `<button class="lane-btn" style="font-size:9px;padding:3px 9px;background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.11);color:var(--text2);" onclick="heroFilterModeAB=heroFilterModeAB==='lane'?'role':'lane';alane='All';renderPool()">⇄ ${isLaneModeAB?'By Lane':'By Role'}</button>` +
+    filterOptsAB.map(l=>{
+      if(l==='All'){const isA=alane==='All';return `<button class="lane-btn" style="${isA?'border-color:var(--blue);background:var(--accent-dim);color:var(--accent);':''}" onclick="alane='All';renderPool()">All</button>`;}
+      const col = isLaneModeAB ? (LANE_COLORS_AB[l]||'#94a3b8') : (AB_ROLE_COLS[l]||'#94a3b8');
+      const isA=alane===l;
+      return `<button class="lane-btn" style="${isA?`border-color:${col}88;background:${col}18;color:${col};`:`color:${col}99;`}" onclick="alane='${l}';renderPool()">${l}</button>`;
+    }).join('');
+
+  // Filter heroes
+  let vis=HEROES.filter(h=>{
+    if(alane!=='All'){
+      if(isLaneModeAB){const hl=getHeroLanesAB(h);if(!hl.includes(alane))return false;}
+      else{if(h.role.split('/')[0]!==alane)return false;}
+    }
+    if(sq&&!h.name.toLowerCase().includes(sq.toLowerCase()))return false;
+    return true;
+  });
+
+  document.getElementById('cntLbl').textContent=vis.length+' / '+HEROES.length;
+  const locked=aiThink||!isMyTurn()||done;
+
+  // ── Hero pool check ──
+  const _abPool = (typeof WDB !== 'undefined' && WDB.getHeroPool) ? new Set(WDB.getHeroPool()) : new Set();
+
+  function heroCard(h){
+    const ban=banned.includes(h.id),pick=picked.includes(h.id),used=ban||pick;
+    let cls='hero-card';if(ban)cls+=' banned';if(pick)cls+=' picked';if(locked&&!used)cls+=' lkd';
+    const u=iu(h);
+    const hls=getHeroLanesAB(h);
+    const primary=hls[0]||'Flex';
+    // Show filtered lane label when a specific lane is active
+    const displayLaneAB=(isLaneModeAB && alane!=='All') ? alane : primary;
+    const pc=LANE_COLORS_AB[displayLaneAB]||'#94a3b8';
+    const inPool = _abPool.has(h.name);
+    const _abWR = heroScoutStatsAB[h.name];
+    const _wrBar = _abWR ? (()=>{ const wr=_abWR.winRate; const cls=wr>=55?'wr-high':wr>=45?'wr-mid':'wr-low'; return`<div class="wr-bar ${cls}" title="WR ${wr}% · ${_abWR.picks}g"><div class="wr-bar-fill" style="width:${Math.min(100,wr)}%"></div></div><div class="wr-label ${cls}">${wr}%</div>`; })() : '';
+    return`<div class="${cls}" data-id="${h.id}" ${used||locked?'data-locked="1"':''} onclick="if(!this.dataset.locked)pick(this.dataset.id)" title="${h.name} · ${h.role} · ${displayLaneAB} · ${h.tier}${inPool?' · ★ Your Pool':''}">
+      <img src="${u}" class="hero-img" alt="${h.name}" onerror="if(this.dataset.t){this.src='${fb(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${iun(h)}';}">
+      <div class="hero-cname">${h.name}</div><div class="hero-crole" style="color:${LANE_COLORS_AB[displayLaneAB]||'#94a3b8'}">${isLaneModeAB?displayLaneAB:h.role.split('/')[0]}</div>
+      <div class="tier-badge tier-${h.tier}">${h.tier}</div>
+      ${h.mp==='mustban'?'<div class="meta-badge mb-ban">BAN</div>':h.mp==='highpick'?'<div class="meta-badge mb-pick">HOT</div>':''}
+      ${inPool?'<div style="position:absolute;top:3px;left:4px;font-size:9px;color:#f5c842;line-height:1;" title="In your hero pool">★</div>':''}
+      ${ban?'<div class="banned-overlay">✕</div>':pick?'<div class="banned-overlay" style="background:rgba(79,142,247,.15);color:rgba(79,142,247,.7);">✓</div>':''}
+      ${_wrBar}
+    </div>`;
+  }
+
+  const grid=document.getElementById('hgrid');
+  if(alane==='All'){
+    grid.classList.add('grouped');
+    const laneOrder=['Gold','Jungle','Mid','EXP','Roam','Flex'];
+    let html='';
+    laneOrder.forEach(ln=>{
+      const group=vis.filter(h=>{const hl=getHeroLanesAB(h);return ln==='Flex'?hl.every(l=>l==='Flex'):hl.includes(ln);}).sort((a,b)=>a.name.localeCompare(b.name));
+      if(!group.length)return;
+      const col=LANE_COLORS_AB[ln]||'#94a3b8';
+      html+=`<div class="lane-section">
+        <div class="lane-section-header">
+          <span style="font-size:9px;font-weight:800;font-family:var(--font-head);letter-spacing:1.5px;color:${col};">${ln.toUpperCase()}</span>
+          <div style="flex:1;height:1px;background:${col}33;margin:0 8px;"></div>
+          <span style="font-size:9px;font-weight:600;color:${col}88;">${group.length}</span>
+        </div>
+        <div class="lane-section-cards">${group.map(heroCard).join('')}</div>
+      </div>`;
+    });
+    grid.innerHTML=html;
+  } else {
+    grid.classList.remove('grouped');
+    grid.innerHTML=vis.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(heroCard).join('');
+  }
+}
+function setF(r){af=r;alane='All';renderPool();}
+function setLaneAB(l){alane=l;af='All';renderPool();}
+document.getElementById('srch').addEventListener('input',e=>{sq=e.target.value;renderPool();});
+
+function updateTurn(){
+  const el=document.getElementById('turnTag'),h=document.getElementById('hintTxt');
+  const cur=DRAFT_ORDER[ST.step];
+  if(!cur||done){el.textContent='DRAFT COMPLETE';el.className='turn-tag turn-done';h.textContent='Click Analyze for full breakdown';return;}
+  const isp=cur.team===pSide;
+  const act=cur.type.toUpperCase();
+  if(isp){el.textContent=`YOUR TURN — ${act}`;el.className='turn-tag turn-you';h.textContent=cur.type==='ban'?'Click a hero to ban':'Click a hero to pick';}
+  else{el.textContent=`AI TURN — ${act}`;el.className='turn-tag turn-ai';h.textContent='AI deciding...';}
+}
+
+// ═══════ PICK LOGIC ═══════
+function pick(id){
+  if(done||aiThink)return;
+  if(!isMyTurn()){toast('Not your turn','error');return;}
+  const h=HEROES.find(x=>x.id===id);if(!h)return;
+  const used=[...ST.bb,...ST.rb,...ST.bp,...ST.rp].map(x=>x.id);
+  if(used.includes(id)){toast('Already used','error');return;}
+  commit(h);setTimeout(()=>triggerAI(),300);
+}
+
+function commit(h){
+  const s=DRAFT_ORDER[ST.step];
+  ST.hist.push({step:ST.step,hero:h,type:s.type,team:s.team});
+  if(s.type==='ban'){s.team==='blue'?ST.bb.push(h):ST.rb.push(h);}
+  else{s.team==='blue'?ST.bp.push(h):ST.rp.push(h);}
+  ST.step++;
+  document.getElementById('anaBtn').disabled=(ST.bp.length+ST.rp.length)<6;
+  renderAll();updateTurn();
+  if(ST.step>=20)onComplete();
+}
+
+function undoPick(){
+  if(!ST.hist.length||aiThink)return;
+  let cnt=0;
+  while(ST.hist.length&&cnt<2){
+    const l=ST.hist.pop();ST.step=l.step;
+    if(l.type==='ban'){l.team==='blue'?ST.bb.pop():ST.rb.pop();}
+    else{l.team==='blue'?ST.bp.pop():ST.rp.pop();}
+    cnt++;if(cnt===1&&DRAFT_ORDER[l.step]?.team===pSide)break;
+  }
+  done=false;document.getElementById('anaBtn').disabled=(ST.bp.length+ST.rp.length)<6;
+  document.getElementById('result').classList.remove('show');
+  renderAll();updateTurn();toast('Undone');
+}
+
+function resetBattle(){if(confirm('Reset draft?'))initBattle();}
+
+function onComplete(){
+  done=true;document.getElementById('anaBtn').disabled=false;renderPool();showResult();}
+
+// ═══════ AI ENGINE ═══════
+function triggerAI(){
+  if(done||aiThink||ST.step>=20)return;
+  if(DRAFT_ORDER[ST.step]?.team===aiSide)setTimeout(()=>aiTurn(),200);
+}
+
+async function aiTurn(){
+  if(done||aiThink||ST.step>=20)return;
+  const s=DRAFT_ORDER[ST.step];if(s.team!==aiSide)return;
+  aiThink=true;showThink(true,s);renderPool();
+  try{
+    const hasKey=typeof WDB!=='undefined'&&WDB.getAdminApiKeySync?!!WDB.getAdminApiKeySync():!!localStorage.getItem('warr_api_key');
+    const hero=(!hasKey||diff==='normal')?localAI(s):await claudeAI(s);
+    await new Promise(r=>setTimeout(r,350));
+    showThink(false);
+    if(hero){showReveal(hero,s);await new Promise(r=>setTimeout(r,1100));hideReveal();commit(hero);addLog(hero,s);}
+    aiThink=false;renderPool();setTimeout(()=>triggerAI(),200);
+  }catch(e){
+    console.error(e);showThink(false);
+    const f=localAI(s);if(f){commit(f);addLog(f,s,true);}
+    aiThink=false;renderPool();setTimeout(()=>triggerAI(),200);
+  }
+}
+
+
+
+// ═══════ TENDENCY ENGINE ═══════
+function getHumanTendencies(){
+  const m=loadMem();
+  // Start with AI battle memory — tracks human picks + outcomes directly
+  const merged={};
+  Object.entries(m).forEach(([name,d])=>{
+    if((d.humanPc||0)<1)return;
+    const wr=d.humanPc>0?(d.humanWins||0)/d.humanPc:0.5;
+    merged[name]={name,wr,count:d.humanPc,wins:d.humanWins||0,score:d.humanPc*wr,source:'battle'};
+  });
+
+  // Merge scout data — pName must match a team name in warr_scout_data
+  try{
+    const db=loadScoutAB();
+    const t=db.teams?.[pName];
+    if(t&&t.gamesPlayed>0){
+      // Team win rate as proxy (scout doesn't track per-hero win rates)
+      const teamWR=(t.winRate||50)/100;
+      // topPicks: [{name, count}] — frequency only, no per-hero WR
+      (t.topPicks||[]).forEach(p=>{
+        if(!p.name)return;
+        if(merged[p.name]){
+          // Already in battle memory — boost count, blend WR
+          merged[p.name].count+=p.count;
+          merged[p.name].score+=p.count*teamWR;
+          merged[p.name].source='battle+scout';
+        } else {
+          merged[p.name]={name:p.name,wr:teamWR,count:p.count,wins:Math.round(p.count*teamWR),score:p.count*teamWR,source:'scout'};
+        }
+      });
+      // Also scan raw match history for per-match win tracking (more accurate)
+      const humanMatches=(db.matches||[]).filter(mx=>mx.blueTeam===pName||mx.redTeam===pName);
+      humanMatches.forEach(mx=>{
+        const isBlue=mx.blueTeam===pName;
+        const won=(mx.winner==='blue')===isBlue;
+        // picks are {name, lane} objects
+        const myPicks=(isBlue?mx.bluePicks:mx.redPicks)||[];
+        myPicks.forEach(p=>{
+          const name=p.name;if(!name)return;
+          if(merged[name]){
+            // Raw match data is more precise — update win rate from actual outcomes
+            merged[name].wins+=(won?1:0);
+            // count already added from topPicks — don't double-count
+            merged[name].wr=merged[name].wins/merged[name].count;
+            merged[name].score=merged[name].count*merged[name].wr;
+            merged[name].source='battle+scout';
+          } else {
+            merged[name]={name,wr:won?1:0,count:1,wins:won?1:0,score:won?0.8:0.2,source:'scout'};
+          }
+        });
+      });
+    }
+  }catch(e){console.warn('Scout load error',e);}
+
+  return Object.values(merged).sort((a,b)=>b.score-a.score);
+}
+
+function getLearnedCounters(heroName){
+  // From vs records: heroes that beat heroName most
+  const m=loadMem();
+  const learned=[];
+  Object.entries(m).forEach(([name,d])=>{
+    if(!d.vsRecord||!d.vsRecord[heroName])return;
+    const vr=d.vsRecord[heroName];
+    if(vr.count>=2){
+      const wr=vr.wins/vr.count;
+      if(wr>=0.6)learned.push({name,wr,count:vr.count});
+    }
+  });
+  return learned.sort((a,b)=>b.wr-a.wr);
+}
+
+function getHumanComboThreats(){
+  const m=loadMem();
+  const rawCombos={};
+
+  // Source 1: battle memory co-picks (tracks human games specifically)
+  Object.entries(m).forEach(([name,d])=>{
+    if(!d.coPicks||!(d.humanPc>=2))return;
+    Object.entries(d.coPicks).forEach(([co,v])=>{
+      if(v.count<2)return;
+      const key=[name,co].sort().join('+');
+      if(!rawCombos[key])rawCombos[key]={a:[name,co].sort()[0],b:[name,co].sort()[1],wins:0,count:0};
+      rawCombos[key].wins+=v.wins;rawCombos[key].count+=v.count;
+    });
+  });
+
+  // Source 2: scout raw matches — scan every human game for co-pick pairs
+  // picks are {name, lane} objects; bans are plain strings
+  try{
+    const db=loadScoutAB();
+    const humanMatches=(db.matches||[]).filter(mx=>mx.blueTeam===pName||mx.redTeam===pName);
+    humanMatches.forEach(mx=>{
+      const isBlue=mx.blueTeam===pName;
+      const won=(mx.winner==='blue')===isBlue;
+      const myPicks=((isBlue?mx.bluePicks:mx.redPicks)||[]).map(p=>p.name).filter(Boolean);
+      for(let i=0;i<myPicks.length;i++){
+        for(let j=i+1;j<myPicks.length;j++){
+          const pair=[myPicks[i],myPicks[j]].sort();
+          const key=pair.join('+');
+          if(!rawCombos[key])rawCombos[key]={a:pair[0],b:pair[1],wins:0,count:0};
+          rawCombos[key].count++;
+          if(won)rawCombos[key].wins++;
+        }
+      }
+    });
+  }catch(e){console.warn('Scout combo error',e);}
+
+  return Object.values(rawCombos)
+    .filter(cb=>cb.count>=2&&cb.wins/cb.count>=0.55)
+    .map(cb=>({...cb,wr:cb.wins/cb.count}))
+    .sort((a,b)=>b.count-a.count)
+    .slice(0,6);
+}
+
+function fullCounterList(heroName){
+  // 100% scout-derived counters — no hardcoded data
+  const learned=getLearnedCounters(heroName).map(x=>({name:x.name,source:'scout',wr:x.wr,count:x.count}));
+  return learned;
+}
+
+// ═══════ SCOUT-DERIVED COUNTER HELPERS ═══════
+// getScoutCounterNames(heroName) → string[] of heroes that counter heroName (scout data)
+function getScoutCounterNames(heroName){
+  return getLearnedCounters(heroName).map(x=>x.name);
+}
+
+// Returns whether heroA counters heroB based on scout win rate data
+function scoutCounters(heroAName, heroBName){
+  const lc = getLearnedCounters(heroBName);
+  return lc.some(x=>x.name===heroAName);
+}
+
+// Returns how many of oppPicks this hero counters (scout-derived)
+function counterScore(h, oppPicks){
+  const countered=oppPicks.filter(op=>scoutCounters(h.name, op.name)).length;
+  const vuln=oppPicks.filter(op=>scoutCounters(op.name, h.name)).length;
+  return countered*25 - vuln*15;
+}
+
+// Returns true if h is countered by any of oppPicks (scout-derived)
+function isCounteredBy(h, oppPicks){
+  return oppPicks.some(op=>scoutCounters(op.name, h.name));
+}
+
+// ── Team composition helpers ──
+function getHeroRole(heroName) {
+  const h = HEROES.find(x => x.name === heroName);
+  return h ? (h.role||'').split('/')[0].trim() : '';
+}
+function getTeamComp(picks) {
+  const comp = { Tank:0, Fighter:0, Mage:0, Marksman:0, Support:0, Assassin:0 };
+  picks.forEach(h => {
+    const r = getHeroRole(h.name);
+    if (r in comp) comp[r]++;
+  });
+  return comp;
+}
+function compScoreAdjust(h, myPicks) {
+  const comp = getTeamComp(myPicks);
+  const role = getHeroRole(h.name);
+  const hasFrontline = comp.Tank > 0 || comp.Fighter > 0;
+  const roleCount = comp[role] || 0;
+
+  // Penalise stacking same role (3rd+ of same role)
+  const stackPenalty = roleCount >= 2 ? -25 : 0;
+  // Bonus for being the FIRST tank/fighter if team has none yet
+  const frontlineBonus = !hasFrontline && (role === 'Tank' || role === 'Fighter') ? 20 : 0;
+  // Softer bonus for second fighter/tank to add bruiser layer
+  const bruiserBonus = hasFrontline && comp.Tank + comp.Fighter < 2 && (role === 'Tank' || role === 'Fighter') ? 8 : 0;
+
+  return stackPenalty + frontlineBonus + bruiserBonus;
+}
+
+function localAI(step){
+  const usedIds=[...ST.bb,...ST.rb,...ST.bp,...ST.rp].map(h=>h.id);
+  const avail=HEROES.filter(h=>!usedIds.includes(h.id));
+  const myP=step.team==='blue'?ST.bp:ST.rp;
+  const oppP=step.team==='blue'?ST.rp:ST.bp;
+  const {needed:myNeeded,cl:myCovered}=needs(myP);
+  const {needed:oppNeeded}=needs(oppP);
+  const epSide=step.team; // AI is always the enemy side
+
+  // Difficulty-scaled randomness (lower = more deterministic)
+  const randRange={normal:48,hard:20,gm:6}[diff]??22;
+
+  // Enemy profile identity (team selected by user)
+  const ep=(aiMode==='enemy'&&enemyProfile)?enemyProfile:null;
+  const epCore=ep?[...new Set([...(epSide==='blue'?ep.blueSideCore||[]:ep.redSideCore||[]),...(ep.topPicks||[]).slice(0,6)])]:[];
+  const epBans=ep?(ep.topBans||[]).slice(0,6):[];
+  const epName=ep?(ep.name||ep.team||''):'';
+
+
+  // Load tendency data once
+  const humanFavs=getHumanTendencies(); // heroes human picks most + wins with
+  const humanCombos=getHumanComboThreats(); // combos human uses that win
+  const humanFavIds=new Set(humanFavs.slice(0,8).map(f=>HEROES.find(h=>h.name===f.name)?.id).filter(Boolean));
+
+  if(step.type==='ban'){
+    const scored=avail.map(h=>{
+      const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
+      const ts={S:100,A:75,B:50,C:25}[t]||20;
+      const isMustBan=h.mp==='mustban';
+      const isHighPick=h.mp==='highpick';
+      if(!isMustBan&&!isHighPick&&['C','D'].includes(t))return null;
+      const ln=lane(h);
+
+      // TEAM IDENTITY: ban this team's signature bans
+      const teamBan=epBans.includes(h.name)?140:0;
+
+      // DENY: human's comfort/tendency picks — highest priority after must-bans
+      const favEntry=humanFavs.find(f=>f.name===h.name);
+      const denyFav=favEntry?(favEntry.score*18):0;
+
+      // DENY: break human combos — if this hero is part of a winning combo the human uses
+      const breakCombo=humanCombos.some(cb=>cb.a===h.name||cb.b===h.name)?30:0;
+
+      // COUNTER-BAN: ban heroes that counter our existing picks (scout-derived)
+      const ctrsUs=myP.length>0&&myP.some(p=>scoutCounters(h.name,p.name))?35:0;
+
+      // DENY LANE: ban strong heroes in lanes opp still needs
+      const deniesLane=ln!=='Flex'&&oppNeeded.includes(ln)?22:0;
+
+      // DON'T WASTE BAN: opp already PICKED this lane — banning another hero there is useless
+      // Exception: Flex heroes (e.g. Sora: Gold/EXP) stay dangerous even if one of their lanes is filled
+      // Exception: team signature bans always go through
+      const laneFilledByOpp=ln!=='Flex'&&!oppNeeded.includes(ln);
+      const oppLaneFilled=laneFilledByOpp&&teamBan===0?-40:0;
+
+      // DON'T WASTE BAN: player (our opponent) already filled this lane with a pick
+      // e.g. player picked a jungler → banning Guinevere (also jungle) is low value
+      // myNeeded = lanes WE (AI) still need; oppNeeded = lanes PLAYER still needs
+      // If the player no longer needs this lane, they can't use this hero — deprioritize
+      const laneFilledByPlayer=ln!=='Flex'&&!oppNeeded.includes(ln); // same as laneFilledByOpp (oppP = player picks)
+      // Mustban bonus: full +60 normally
+      // → drops to +5 if PLAYER already has their lane filled (can't pick this hero anyway)
+      // → drops to +10 if WE already have our own lane filled (banning it helps less)
+      const myLaneFilled=ln!=='Flex'&&!myNeeded.includes(ln);
+      const mustbanBonus=isMustBan?(laneFilledByPlayer?5:myLaneFilled?15:60):0;
+
+      // DON'T BAN own needs — strong penalty so AI never wastes a ban on a lane it still needs
+      // Exception: team signature bans always execute (teamBan > 0), mustbans always execute
+      const dontBanOwn=myNeeded.includes(ln)&&ln!=='Flex'&&!isMustBan&&teamBan===0?-220:0;
+
+      return{hero:h,score:ts+mustbanBonus+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+deniesLane+oppLaneFilled+dontBanOwn+Math.random()*randRange};
+    }).filter(Boolean).sort((a,b)=>b.score-a.score);
+
+    const h=scored[0]?.hero||avail.find(h=>h.mp==='mustban')||avail.find(h=>['S'].includes(_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier))||avail[0];
+    const ln=lane(h);
+    const isFav=humanFavs.slice(0,5).some(f=>f.name===h.name);
+    const ctrsUs=myP.some(p=>scoutCounters(h.name,p.name));
+    const isCombo=humanCombos.some(cb=>cb.a===h.name||cb.b===h.name);
+    const isTeamBan=epBans.includes(h.name);
+    h._r=h.mp==='mustban'?'Must-ban priority'
+      :isTeamBan?`${epName||'Team'} signature ban`
+      :isFav?`Deny human's comfort pick (${Math.round((humanFavs.find(f=>f.name===h.name)?.wr||0.5)*100)}%WR)`
+      :isCombo?'Breaks human win combo'
+      :ctrsUs?`Counters our ${myP.find(p=>scoutCounters(h.name,p.name))?.name}`
+      :oppNeeded.includes(ln)?`Denies opponent ${ln} lane`
+      :'Top tier threat';
+    h._c='high';return h;
+  }
+
+  // PICK: tier + fill lane + counter-pick + avoid being countered + use learned counters
+  // When ep data is thin, widen pool to B-tier so we don't always see same 5 picks
+  const hasTeamData=epCore.length>=3;
+  const scored=avail.filter(h=>{
+    const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
+    return h.mp!=='off'||['S','A','B'].includes(t)||(hasTeamData&&epCore.includes(h.name));
+  }).map(h=>{
+    const ln=lane(h);
+    const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
+    const ts={S:100,A:78,B:55,C:30}[t]||30;
+    const fillsNeeded=ln!=='Flex'&&myNeeded.includes(ln)?42:0;
+    // Hard penalty for duplicate lanes — effectively blocks picking the same lane twice
+    // teamPick bonus max is 130, tier max is 100 → need >230 to override; set to -260 so it NEVER happens
+    const laneCount=myP.filter(p=>lane(p)===ln).length;
+    const alreadyCovered=ln!=='Flex'&&laneCount>0?(-260-(laneCount*80)):0;
+    // TEAM IDENTITY: prioritise team's signature picks
+    const epIdx=epCore.indexOf(h.name);
+    const teamPick=epIdx>=0?Math.max(0,130-epIdx*15):0;
+    // Counter-pick: use full counter list (hardcoded + learned)
+    const countersOpp=oppP.filter(op=>fullCounterList(op.name).some(x=>x.name===h.name)).length*25;
+    // Avoid being countered by opponent picks
+    const vuln=oppP.filter(op=>fullCounterList(h.name).some(x=>x.name===op.name)).length*-18;
+    // Bonus if this hero has a high win rate vs human's comfort heroes
+    const beatsHumanFavs=humanFavs.slice(0,5).filter(f=>{
+      const lc=getLearnedCounters(f.name);
+      return lc.some(x=>x.name===h.name);
+    }).length*15;
+    const metaBonus=h.mp==='highpick'?12:h.mp==='mustban'?6:0;
+    const compAdj=compScoreAdjust(h,myP);
+    // Small variety nudge: B-tier picks get a random bonus on Normal to keep drafts fresh
+    const varietyNudge=(diff==='normal'&&['B','A'].includes(_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier))?Math.random()*18:0;
+    return{hero:h,score:ts+fillsNeeded+alreadyCovered+teamPick+countersOpp+vuln+beatsHumanFavs+metaBonus+compAdj+varietyNudge+Math.random()*randRange};
+  }).sort((a,b)=>b.score-a.score);
+
+  const h=scored[0]?.hero||avail[0];
+  const ln=lane(h);
+  const countered=oppP.filter(op=>fullCounterList(op.name).some(x=>x.name===h.name));
+  const learnedFor=countered.filter(op=>getLearnedCounters(op.name).some(x=>x.name===h.name));
+  const comp=getTeamComp(myP);
+  const hasFrontline=comp.Tank>0||comp.Fighter>0;
+  const role=getHeroRole(h.name);
+  const needsFrontline=!hasFrontline&&(role==='Tank'||role==='Fighter');
+  const isTeamPick=epCore.includes(h.name);
+  h._r=isTeamPick?`${epName||'Team'} signature pick`
+    :countered.length?`Counters ${countered.slice(0,2).map(x=>x.name).join('+')}${learnedFor.length?' (learned)':''}`
+    :needsFrontline?`Frontline anchor — team needs Tank/Fighter`
+    :myNeeded.includes(ln)?`Fills ${ln} lane`
+    :`Best available (${_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier}-tier)`;
+  h._c=isTeamPick?'high':countered.length?'high':needsFrontline?'high':'medium';return h;
+}
+
+
+function buildMeta(){
+  const lines=[];
+  if(PV)lines.push(`[PATCH: ${PV}]`);
+  const te=Object.entries(TIER_LIST);
+  if(te.length){
+    const bt={};te.forEach(([n,i])=>{if(!bt[i.tier])bt[i.tier]=[];bt[i.tier].push(n);});
+    lines.push('TIER LIST:');
+    ['S','A','B','C','D'].forEach(t=>{if(bt[t]?.length)lines.push(`  ${t}: ${bt[t].join(', ')}`);});
+  }
+  const ms=Object.entries(META_SCORES);
+  if(ms.length){
+    const highPR=ms.filter(([,s])=>s.pr>=55).sort((a,b)=>b[1].pr-a[1].pr).slice(0,8);
+    const highBR=ms.filter(([,s])=>s.br>=55).sort((a,b)=>b[1].br-a[1].br).slice(0,8);
+    if(highPR.length)lines.push('HIGH PICK RATE: '+highPR.map(([n,s])=>`${n}(${s.pr}%,${LANES_MAP[n]||'Flex'})`).join(', '));
+    if(highBR.length)lines.push('HIGH BAN RATE: '+highBR.map(([n,s])=>`${n}(${s.br}%)`).join(', '));
+  }
+  const mb=HEROES.filter(h=>h.mp==='mustban').map(h=>h.name);
+  const hp=HEROES.filter(h=>h.mp==='highpick'&&!mb.includes(h.name)).map(h=>h.name);
+  if(mb.length)lines.push(`MUST BAN: ${mb.join(', ')}`);
+  if(hp.length)lines.push(`HIGH PICK: ${hp.join(', ')}`);
+  const mem=loadMem();
+  const me=Object.entries(mem).filter(([,d])=>d.seen>=2).sort((a,b)=>b[1].seen-a[1].seen).slice(0,12);
+  if(me.length){lines.push('LEARNED:');me.forEach(([name,d])=>{const wr=d.wins+d.losses>0?Math.round(d.wins/(d.wins+d.losses)*100):50;lines.push(`  ${name}(${LANES_MAP[name]||'Flex'}): ${d.seen}x,${wr}%WR`);});}
+  if(!lines.length)lines.push('No sheet data loaded — using base hero data.');
+  return lines.join('\n');
+}
+
+async function claudeAI(step){
+  const usedIds=[...ST.bb,...ST.rb,...ST.bp,...ST.rp].map(h=>h.id);
+  const avail=HEROES.filter(h=>!usedIds.includes(h.id));
+  const myP=step.team==='blue'?ST.bp:ST.rp;
+  const oppP=step.team==='blue'?ST.rp:ST.bp;
+  const myB=step.team==='blue'?ST.bb:ST.rb;
+  const oppB=step.team==='blue'?ST.rb:ST.bb;
+  const {needed}=needs(myP);
+  const {needed:oppNeeded}=needs(oppP);
+  const mem=loadMem();
+  const topA=avail.filter(h=>h.mp!=='off'||['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier)).slice(0,42).map(h=>{
+    const d=mem[h.name];const wr=d&&d.wins+d.losses>0?`,WR:${Math.round(d.wins/(d.wins+d.losses)*100)}%`:'';
+    return`${h.name}(${lane(h)},${_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier}${wr})`;
+  }).join(', ');
+  const humanFavsGM=getHumanTendencies().slice(0,5);
+  const humanCombosGM=getHumanComboThreats().slice(0,3);
+  const tendencyStr=humanFavsGM.length?`Human comfort picks: ${humanFavsGM.map(f=>f.name+'('+Math.round(f.wr*100)+'%WR,'+f.count+'g)').join(', ')}`:''
+  const comboStr=humanCombosGM.length?`Human win combos: ${humanCombosGM.map(c=>c.a+'+'+c.b+'('+Math.round(c.wr*100)+'%WR)').join(', ')}`:''
+  const gmEx=diff==='gm'?`\nGRANDMASTER: ${tendencyStr}${comboStr?'. '+comboStr:''} Exploit human tendencies — deny comfort picks, break combos, think 2-3 picks ahead. Opponent lane gaps: [${oppNeeded.join('/')||'none'}].`:'';
+  const humanTeam=pName||'Human';
+  // Deep scout context — reads ALL raw match data, not just summaries
+  const humanScoutCtx=buildDeepScoutContext(humanTeam,'YOUR OPPONENT SCOUT INTEL');
+  const aiScout=humanScoutCtx||buildScoutAB(humanTeam); // fallback to summary if no raw data
+  // Counter context for prompt
+  const myCounterTargets=oppP.map(op=>{
+    const ctrs=avail.filter(h=>scoutCounters(h.name,op.name)&&!usedIds.includes(h.id));
+    return ctrs.length?`${op.name}→countered by [${ctrs.slice(0,3).map(h=>h.name).join(',')}]`:'';
+  }).filter(Boolean).join('; ');
+  const theyCounter=myP.map(mp=>{
+    const ctrs=oppP.filter(op=>scoutCounters(op.name,mp.name));
+    return ctrs.length?`${mp.name} is countered by their ${ctrs.map(h=>h.name).join('+')}`:''
+  }).filter(Boolean).join('; ');
+
+  // Build lane-aware available list — show ALL available meta heroes with their lane + scout presence
+  const oppFilledLanes=new Set(['Gold','Jungle','Mid','EXP','Roam'].filter(l=>!oppNeeded.includes(l)));
+  const myFilledLanes=new Set(['Gold','Jungle','Mid','EXP','Roam'].filter(l=>!needed.includes(l)));
+  const topAFull=avail.filter(h=>h.mp!=='off'||['S','A','B'].includes(_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier)).slice(0,55).map(h=>{
+    const d=mem[h.name];const wr=d&&d.wins+d.losses>0?`,${Math.round(d.wins/(d.wins+d.losses)*100)}%WR`:'';
+    const ln=lane(h);const tier=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
+    const sc=_scoutTierCache?.[h.name];
+    const presence=sc?.presence!=null?`,${Math.round(sc.presence*100)}%pres`:'';
+    const mustTag=h.mp==='mustban'?'[MUSTBAN]':h.mp==='highpick'?'[HP]':'';
+    return`${h.name}(${ln},${tier}${presence}${wr})${mustTag}`;
+  }).join(', ');
+
+  // Scout presence summary for top meta heroes (for AI to understand what's dominant this patch/data)
+  const scoutPresenceSummary=_scoutTierCache
+    ?Object.entries(_scoutTierCache).filter(([,d])=>d.presence>=0.2).sort((a,b)=>b[1].presence-a[1].presence).slice(0,10)
+      .map(([n,d])=>`${n}(${Math.round(d.presence*100)}%,${d.tier})`).join(', ')
+    :'';
+
+  // Detect draft phase: phase1 = steps 0-5 (bans), phase2 picks = steps 6-11, phase2 bans = steps 12-15, phase3 picks = 16-19
+  const draftPhase=ST.step<=5?'Phase 1 Bans':ST.step<=11?'Phase 1 Picks':ST.step<=15?'Phase 2 Bans':'Phase 2 Picks';
+  // Infer likely opponent composition direction from their early picks
+  const oppComp=oppP.length?`Opponent comp direction: ${oppP.map(h=>h.name+'('+lane(h)+')').join('+')} — infer their win condition`:'Opponent: no picks yet';
+  // Determine if we have a frontline / need utility
+  const myRoles=myP.map(h=>getHeroRole?.(h.name)||h.role||'');
+  const hasTank=myRoles.some(r=>r==='Tank');
+  const hasFighter=myRoles.some(r=>r==='Fighter');
+  const hasSupport=myRoles.some(r=>r==='Support');
+  const compNeeds=[...(!hasTank&&!hasFighter?['need frontline/engage']:[]),
+    ...(!hasSupport&&myP.length>=2?['consider support/utility']:[])].join(', ');
+
+  let prompt=`You are the world's best MPL MLBB head coach and draft strategist. You have coached championship-winning teams and understand every facet of competitive MLBB drafting at the highest level. You control the ${step.team.toUpperCase()} side. Your goal is to WIN this draft through superior strategy.
+
+CURRENT META:
+${buildMeta()}${scoutPresenceSummary?'\nMOST PICKED (scout data): '+scoutPresenceSummary:''}
+
+${aiScout||'(No scout data found for this team name)'}
+
+DRAFT PHASE: ${draftPhase} (step ${ST.step+1}/20)
+
+YOUR TEAM (${step.team} side):
+  Picks: ${myP.map(h=>h.name+'('+lane(h)+')').join(', ')||'none yet'}
+  Bans:  ${myB.map(h=>h.name).join(', ')||'none'}
+  Lanes still needed: ${needed.join(', ')||'✅ ALL LANES FILLED'}
+  Comp notes: ${compNeeds||'composition balanced'}
+
+OPPONENT (${step.team==='blue'?'red':'blue'} side):
+  Picks: ${oppP.map(h=>h.name+'('+lane(h)+')').join(', ')||'none yet'}
+  Bans:  ${oppB.map(h=>h.name).join(', ')||'none'}
+  Lanes still needed: ${oppNeeded.join(', ')||'✅ ALL LANES FILLED'}
+  Lanes ALREADY LOCKED: ${[...oppFilledLanes].join(', ')||'none yet'}
+  ${oppComp}
+
+${myCounterTargets?'🎯 Counter opportunities (heroes that beat their picks): '+myCounterTargets:''}
+${theyCounter?'⚠️ Threats to your picks: '+theyCounter:''}
+
+AVAILABLE HEROES: ${topAFull}
+${gmEx}
+
+${step.type==='ban'?
+`━━ BAN DECISION ━━
+As an MPL-level coach, think about your ban goal FIRST:
+- Are you protecting a win condition you plan to draft?
+- Are you denying the opponent a signature/comfort pick?
+- Are you removing a counter to your existing picks?
+
+PRIORITY ORDER:
+1. [MUSTBAN] heroes — ban immediately, UNLESS that hero's lane is already locked by opponent AND hero is single-lane (then skip — it's a wasted ban slot).
+2. Opponent comfort picks / heroes they've shown tendency toward.
+3. Heroes that hard-counter your existing picks [${myP.map(h=>h.name).join(', ')||'none yet'}].
+4. S/A-tier heroes in lanes the opponent STILL NEEDS [${oppNeeded.join(', ')||'none — all filled'}].
+
+⛔ FORBIDDEN BANS (these are wasted ban slots — never do this):
+- Do NOT ban any hero whose lane is ALREADY LOCKED by opponent: [${[...oppFilledLanes].join(', ')||'none locked yet'}]
+  → If opponent already has a Jungler, banning another Jungler is completely wasted.
+- Do NOT ban heroes that would fill YOUR still-needed lanes [${needed.join(', ')||'none'}] unless they are [MUSTBAN].`
+:
+`━━ PICK DECISION ━━
+As an MPL-level coach, think about your composition goal:
+- What is YOUR win condition? (early fight / late siege / protect-the-carry / pick-off)
+- Does this pick complete a synergy or enable a combo?
+- Does this pick deny the opponent a counter?
+
+PRIORITY ORDER:
+1. Fill your needed lanes [${needed.join(', ')||'all filled — pick the strongest available'}] with the BEST hero available for that role.
+2. Counter-pick opponent heroes where the matchup is clearly favorable.
+3. Pick heroes with strong synergy with your existing comp [${myP.map(h=>h.name).join('+')||'none yet'}].
+4. Avoid heroes that are hard-countered by opponent's picks.
+
+⛔ FORBIDDEN PICKS (coaching mistakes — never do this):
+- Do NOT pick a second hero for a lane YOU ALREADY HAVE: [${[...myFilledLanes].join(', ')||'none filled yet'}]
+- Do NOT pick a hero that is strongly countered by what the opponent already has.`}
+
+You must ONLY pick from the Available Heroes list above. Use the exact hero name as listed.
+Respond with JSON only (no explanation outside JSON):
+{"hero":"ExactHeroNameFromList","reason":"<18 words max — state the strategic reason>","confidence":"high|medium|low"}`;
+
+  // ── enemy mode prompt override ──
+  if(aiMode==='enemy'&&enemyProfile){
+    const ep=enemyProfile;
+    const epCtx=buildEnemyPromptCtx(step);
+    // Deep scout context for the enemy team — all raw match data
+    const epDeepScout=buildDeepScoutContext(ep.name,'FULL SCOUT INTEL FOR THIS TEAM');
+    const usedIds2=[...ST.bb,...ST.rb,...ST.bp,...ST.rp].map(h=>h.id);
+    const epAvail=ep.topPicks.filter(n=>{const hh=HEROES.find(h=>h.name===n);return hh&&!usedIds2.includes(hh.id);}).slice(0,6);
+    const epBanAvail=ep.topBans.filter(n=>{const hh=HEROES.find(h=>h.name===n);return hh&&!usedIds2.includes(hh.id);}).slice(0,4);
+    prompt=`${epCtx}
+${epDeepScout?'\n'+epDeepScout:''}
+
+DRAFT PHASE: ${draftPhase} (step ${ST.step+1}/20)
+
+DRAFT STATE — You are drafting AS ${ep.name} (${step.team} side):
+  Your picks:    ${myP.map(h=>h.name+'('+lane(h)+')').join(', ')||'none yet'}
+  Your bans:     ${myB.map(h=>h.name).join(', ')||'none'}
+  Lanes needed:  ${needed.join(', ')||'all filled'}
+
+OPPONENT (${step.team==='blue'?'red':'blue'} side — ${pName}):
+  Their picks:   ${oppP.map(h=>h.name+'('+lane(h)+')').join(', ')||'none yet'}
+  Their bans:    ${oppB.map(h=>h.name).join(', ')||'none'}
+  Lanes locked:  ${[...oppFilledLanes].join(', ')||'none yet'}
+
+${ep.name} signature heroes still available: [${epAvail.join(', ')||'ALL GONE — adapt'}]
+${ep.name} known ban targets still available: [${epBanAvail.join(', ')||'all banned'}]
+Available pool: ${topAFull}
+
+${step.type==='ban'
+  ?`BAN as ${ep.name}:
+  1. Open with their KNOWN BAN TARGETS [${epBanAvail.slice(0,3).join(', ')||'all gone'}] — this is their established ban pattern.
+  2. If signature bans are gone, ban heroes that counter ${ep.name}'s win condition: "${ep.winCondition||'their core style'}".
+  3. Protect their signature picks from being countered.
+  ⛔ Never ban a hero whose lane opponent already filled: [${[...oppFilledLanes].join(', ')||'none'}]`
+  :`PICK as ${ep.name}:
+  1. Prioritise their SIGNATURE PICKS [${epAvail.join(', ')||'all gone — adapt to nearest role/style'}].
+  2. If signature picks are gone, pick the nearest equivalent hero that fits their win condition: "${ep.winCondition||'their core style'}".
+  3. Stay true to their archetype — do NOT switch to generic optimal drafting.
+  ⛔ Do NOT pick a second hero for a lane already filled: [${[...myFilledLanes].join(', ')||'none'}]`}
+
+JSON only: {"hero":"ExactHeroNameFromList","reason":"<15 words>","confidence":"high|medium|low"}`;
+  }
+
+  try{
+    const d=await callClaude({model:'claude-sonnet-4-6',max_tokens:300,messages:[{role:'user',content:prompt}]});
+    const raw=(d.content||[]).map(x=>x.text||'').join('');
+    const m=raw.match(/\{[\s\S]*?\}/);if(!m)return localAI(step);
+    let p;try{p=JSON.parse(m[0]);}catch(e){return localAI(step);}
+    const h=HEROES.find(hh=>hh.name.toLowerCase()===(p.hero||'').toLowerCase());
+    if(!h||usedIds.includes(h.id))return localAI(step);
+    h._r=p.reason||'';h._c=p.confidence||'medium';return h;
+  }catch(e){
+    return localAI(step); // silent fallback — no key or API error
+  }
+}
+
+// ═══════ UI FEEDBACK ═══════
+function showThink(show,step){
+  const bar=document.getElementById('aithink');
+  if(show){
+    document.getElementById('aitxt').textContent=`AI thinking — ${step?step.type.toUpperCase():''}...`;
+    document.getElementById('aisub').textContent=diff==='gm'?'Running counter-strategy...':'Evaluating meta, synergy, counters...';
+    bar.classList.add('show');
+  }else bar.classList.remove('show');
+}
+function showReveal(h,step){
+  const c=step.type==='ban'?'#ef4444':'var(--ai)';
+  document.getElementById('arl').textContent=step.type==='ban'?'AI BANS':'AI PICKS';
+  document.getElementById('arl').style.color=c;
+  const img=document.getElementById('arimg');img.src=iu(h);img.onerror=()=>{img.src=fb(h);img.onerror=null;};img.style.borderColor=c;
+  document.getElementById('arname').textContent=h.name;
+  document.getElementById('arreason').textContent=h._r||'';
+  const conf=h._c||'medium';
+  const cl={high:'arconf ch',medium:'arconf cm',low:'arconf cl'};
+  const lbl={high:'High Confidence',medium:'Medium',low:'Low'};
+  const ce=document.getElementById('arconf');ce.textContent=lbl[conf];ce.className=cl[conf];
+  document.getElementById('aireveal').classList.add('show');
+}
+function hideReveal(){document.getElementById('aireveal').classList.remove('show');}
+function addLog(h,step,fb_=false){
+  const el=document.getElementById('logEntries');
+  const icon=step.type==='ban'?'—':'→';
+  const row=document.createElement('div');row.className='logrow';
+  row.innerHTML=`<span>${icon}</span><span class="lhero">${h.name}</span><span style="color:var(--text3);">(${lane(h)}·${h.tier})</span><span>— ${h._r||'Best pick'}${fb_?' [fb]':''}</span>`;
+  el.insertBefore(row,el.firstChild);
+}
+
+
+// ═══════ SAVE MATCH TO SCOUT ═══════
+function saveMatchToScout(pp, aip, pBans, aiBans, playerWon){
+  try{
+    const db=loadScoutAB();
+    const isBlue=pSide==='blue';
+    const blueTeam=isBlue?pName:'AI ('+diff+')';
+    const redTeam=isBlue?'AI ('+diff+')':pName;
+    const winner=playerWon?pSide:aiSide;
+
+    // Build picks with lane assignments — scout format: [{name, lane}]
+    const toPickArr=picks=>picks.map(h=>({name:h.name,lane:laneAssignmentsAB[h.id]||lane(h)}));
+    const bluePicks=isBlue?toPickArr(pp):toPickArr(aip);
+    const redPicks=isBlue?toPickArr(aip):toPickArr(pp);
+    const blueBans=(isBlue?pBans:aiBans).map(h=>h.name);
+    const redBans=(isBlue?aiBans:pBans).map(h=>h.name);
+
+    const match={
+      id:'battle_'+Date.now(),
+      league:'AI Battle',
+      season:'',
+      stage:diff==='normal'?'Normal':diff==='hard'?'Hard':'Grandmaster',
+      week:'',
+      seriesFormat:'Single Game',
+      gameNum:1,
+      date:new Date().toISOString().split('T')[0],
+      blueTeam, redTeam, winner,
+      bluePicks, redPicks, blueBans, redBans,
+      vodLink:'',
+      notes:`AI Battle — ${diff} difficulty. Draft score: ${pName} ${playerWon?'won':'lost'}.`
+    };
+
+    db.matches.unshift(match); // newest first
+    // Rebuild team stats (same logic scout uses)
+    if(!db.teams)db.teams={};
+    [blueTeam,redTeam].forEach(n=>{
+      if(!db.teams[n])db.teams[n]={name:n,notes:'',winCondition:'',coachNotes:''};
+    });
+    // Recalculate topPicks/topBans/winRate for affected teams
+    [blueTeam,redTeam].forEach(n=>{
+      const t=db.teams[n];
+      const tm=db.matches.filter(m=>m.blueTeam===n||m.redTeam===n);
+      t.gamesPlayed=tm.length;
+      t.wins=tm.filter(m=>(m.winner==='blue'&&m.blueTeam===n)||(m.winner==='red'&&m.redTeam===n)).length;
+      t.losses=t.gamesPlayed-t.wins;
+      t.winRate=t.gamesPlayed>0?Math.round(t.wins/t.gamesPlayed*100):0;
+      const bg=tm.filter(m=>m.blueTeam===n),rg=tm.filter(m=>m.redTeam===n);
+      t.blueWins=bg.filter(m=>m.winner==='blue').length;t.blueSideGames=bg.length;
+      t.redWins=rg.filter(m=>m.winner==='red').length;t.redSideGames=rg.length;
+      const pc={},bc={};
+      tm.forEach(m=>{
+        const ib=m.blueTeam===n;
+        (ib?m.bluePicks:m.redPicks||[]).forEach(p=>{pc[p.name]=(pc[p.name]||0)+1;});
+        (ib?m.blueBans:m.redBans||[]).forEach(b=>{bc[b]=(bc[b]||0)+1;});
+      });
+      t.topPicks=Object.entries(pc).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([n,c])=>({name:n,count:c}));
+      t.topBans=Object.entries(bc).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([n,c])=>({name:n,count:c}));
+    });
+
+    localStorage.setItem(SCOUT_KEY_AB, JSON.stringify(db));
+    // Sync to Supabase so scout page keeps it after cloud reload
+    if(typeof WDB!=='undefined'&&WDB.saveMatch){
+      WDB.saveMatch(match).catch(e=>console.warn('[AI Battle] Supabase sync failed:',e.message));
+    }
+    // Also save to personal battle log (warr_battle_log) linked to profile
+    try{
+      const BL_KEY='warr_battle_log';
+      const bl=JSON.parse(localStorage.getItem(BL_KEY)||'[]');
+      const user=typeof WAuth!=='undefined'&&WAuth.getUser?WAuth.getUser():null;
+      bl.unshift({
+        id:match.id,date:match.date,
+        playerTeam:isBlue?blueTeam:redTeam,
+        aiTeam:isBlue?redTeam:blueTeam,
+        playerSide:pSide,playerWon,difficulty:diff,
+        playerPicks:(isBlue?bluePicks:redPicks).map(p=>p.name),
+        aiPicks:(isBlue?redPicks:bluePicks).map(p=>p.name),
+        playerBans:(isBlue?blueBans:redBans),
+        userId:user?.id||null,userEmail:user?.email||null
+      });
+      // Keep last 50 battles
+      localStorage.setItem(BL_KEY,JSON.stringify(bl.slice(0,50)));
+    }catch(ex){}
+    return true;
+  }catch(e){console.error('saveMatchToScout error',e);return false;}
+}
+
+// ═══════ RESULT ═══════
+function showResult(){
+  const rs=document.getElementById('result');rs.classList.add('show');
+  const pp=pSide==='blue'?ST.bp:ST.rp;const aip=aiSide==='blue'?ST.bp:ST.rp;
+  // Show percentages as pending until analysis runs
+  document.getElementById('rspct').textContent='?%';
+  document.getElementById('raipct').textContent='?%';
+  document.getElementById('rverdict').textContent='Run Analysis to see winner';
+  document.getElementById('rverdict').style.color='var(--text2)';
+  document.getElementById('rsub').textContent='Click Analyze Draft below for full breakdown';
+  document.getElementById('rptYou').textContent=pName+"'s Picks ("+pSide+" side)";
+  // Show picks with portraits, not just text
+  const pickRow=picks=>picks.map(h=>{
+    const u=iu(h);
+    return`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+      <img src="${u}" onerror="this.src='${fb(h)}'" style="width:44px;height:44px;border-radius:6px;object-fit:cover;border:1px solid var(--border2);">
+      <span style="font-size:8px;color:var(--text2);text-align:center;max-width:44px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.name}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('rpYou').innerHTML=`<div style="display:flex;gap:6px;flex-wrap:wrap;">${pickRow(pp)}</div>`;
+  document.getElementById('rpAI').innerHTML=`<div style="display:flex;gap:6px;flex-wrap:wrap;">${pickRow(aip)}</div>`;
+  // Build AI pick breakdown panel
+  const bdEl = document.getElementById('rbreakdown');
+  if (bdEl && aip.length) {
+    const rows = aip.map(h => {
+      const conf = h._c || 'medium';
+      const u = iu(h);
+      return `<div class="rbd-row">
+        <img class="rbd-img" src="${u}" onerror="this.src='${fb(h)}'" alt="${h.name}">
+        <div class="rbd-info">
+          <div class="rbd-name">${h.name} <span style="font-size:9px;color:var(--text3);font-weight:400;">· ${lane(h)}</span></div>
+          <div class="rbd-reason">${h._r || 'Best available'}</div>
+        </div>
+        <span class="rbd-conf rbd-${conf}">${conf.charAt(0).toUpperCase()+conf.slice(1)}</span>
+      </div>`;
+    }).join('');
+    bdEl.innerHTML = `<div class="rbd-title">AI Draft Reasoning</div>${rows}`;
+  }
+
+  // Compute outcome from local analysis for immediate memory recording
+  // (will be overwritten with accurate result when runAnalysis completes)
+  const localResult=localAnalysis(
+    pSide==='blue'?pp:aip, pSide==='red'?pp:aip,
+    pSide==='blue'?ST.bb:ST.rb, pSide==='red'?ST.bb:ST.rb,
+    pName,'AI'
+  );
+  const pw=localResult.winner===pSide;
+  // Series tracking
+  if(pw)_seriesWins.p++;else _seriesWins.ai++;
+  const neededToWin=Math.ceil(numRounds/2);
+  const seriesDone=_seriesWins.p>=neededToWin||_seriesWins.ai>=neededToWin||_currentRound>=numRounds;
+  // Show series score in subtitle if BO3/BO5
+  if(numRounds>1){
+    const label=numRounds===3?'BO3':'BO5';
+    const sub=`${label} Series · Round ${_currentRound} of ${numRounds} · ${pName} ${_seriesWins.p} – ${_seriesWins.ai} AI`;
+    document.getElementById('rsub').textContent=sub;
+    // Update buttons row
+    const rbtns=document.getElementById('rbtns');
+    if(rbtns){
+      const nextBtn=rbtns.querySelector('.rbtn-next');
+      if(!nextBtn&&!seriesDone){
+        const nb=document.createElement('button');nb.className='rbtn rbp rbtn-next';nb.textContent='Next Round →';nb.onclick=nextRound;
+        rbtns.insertBefore(nb,rbtns.firstChild);
+      } else if(nextBtn&&seriesDone){nextBtn.remove();}
+    }
+  }
+  // Record learning — track human picks with isHuman=true and pass opponent picks
+  recordOutcome(aip,aiSide==='blue'?ST.bb:ST.rb,!pw,false,pp);
+  recordOutcome(pp,pSide==='blue'?ST.bb:ST.rb,pw,true,aip);
+  updateMemChip();
+  // Save to scout match history
+  const pBans=pSide==='blue'?ST.bb:ST.rb;
+  const aiBans=aiSide==='blue'?ST.bb:ST.rb;
+  const saved=saveMatchToScout(pp,aip,pBans,aiBans,pw);
+  if(saved)toast('Match saved to Scout history');
+}
+
+async function captureResult() {
+  const el = document.getElementById('result');
+  if (!el) return;
+  toast('Capturing…');
+  try {
+    const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#07070C', useCORS: true, allowTaint: true });
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = `ai-battle-${new Date().toISOString().slice(0,10)}.png`;
+    link.click();
+    toast('Saved as PNG ✓');
+  } catch(e) { toast('Screenshot failed', 'error'); }
+}
+
+// ═══════ FULL ANALYSIS ═══════
+function localAnalysis(bp,rp,bb,rb,bt,rt){
+  const tierScore={S:10,A:8,B:6,C:4,D:2};
+  const scoreTeam=picks=>picks.reduce((s,h)=>{
+    const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier||'C';
+    return s+(Number(h.ms)||tierScore[t]||5)+(h.mp==='mustban'?2:h.mp==='highpick'?1:0);
+  },0)/Math.max(picks.length,1);
+
+  // Count net counter advantage: how many of team A's heroes counter team B's heroes
+  const netCounters=(a,b)=>a.reduce((s,h)=>s+b.filter(op=>scoutCounters(h.name,op.name)||fullCounterList(op.name).some(x=>x.name===h.name)).length,0)
+                          -a.reduce((s,h)=>s+b.filter(op=>scoutCounters(op.name,h.name)||fullCounterList(h.name).some(x=>x.name===op.name)).length,0);
+
+  // Lane coverage score: unique non-Flex lanes covered out of 5
+  const laneCov=picks=>[...new Set(picks.map(h=>laneAssignmentsAB[h.id]||lane(h)).filter(l=>l!=='Flex'))].length;
+
+  // Role diversity: penalise missing Tank/Support, reward balanced comps
+  const roleBonus=picks=>{
+    const roles=picks.map(h=>h.role||'');
+    let b=0;
+    if(roles.some(r=>r.includes('Tank')))b+=1;
+    if(roles.some(r=>r.includes('Support')))b+=0.5;
+    if(roles.some(r=>r.includes('MM')||r.includes('Mage')))b+=0.5;
+    return b;
+  };
+
+  const bs=scoreTeam(bp), rs=scoreTeam(rp), tot=bs+rs||1;
+  const bCtr=netCounters(bp,rp), rCtr=netCounters(rp,bp);
+  const bCov=laneCov(bp), rCov=laneCov(rp);
+  const bRole=roleBonus(bp), rRole=roleBonus(rp);
+
+  // Base: tier advantage; Counter: ±2% per net counter; Coverage: ±1.5% per lane; Role: ±1%
+  let bWRf=38+(bs/tot)*24+(bCtr-rCtr)*2+(bCov-rCov)*1.5+(bRole-rRole)*1;
+  // Red side slight advantage in MLBB (last pick in phase 2)
+  bWRf-=1.5;
+  const bWR=Math.round(Math.min(72,Math.max(28,bWRf)));
+  const rWR=100-bWR;
+  const archetype=picks=>{
+    const r=picks.map(h=>h.role||'');
+    if(r.some(x=>x.includes('MM'))&&r.some(x=>x.includes('Support'))&&r.some(x=>x.includes('Tank')))return'Protect the Carry';
+    if(picks.filter(h=>(h.role||'').includes('Assassin')).length>=2)return'Dive & Burst';
+    if(r.some(x=>x.includes('Tank'))&&r.some(x=>x.includes('Fighter'))&&!r.some(x=>x.includes('MM')))return'Brawl Teamfight';
+    if(r.some(x=>x.includes('Mage'))&&r.some(x=>x.includes('Tank'))&&r.some(x=>x.includes('Support')))return'Poke & Control';
+    if(picks.filter(h=>['Fighter','Tank'].some(x=>(h.role||'').includes(x))).length>=3)return'Frontline Heavy';
+    return'Flexible Mixed';
+  };
+  const lanesOf=picks=>['EXP','Gold','Mid','Jungle','Roam'].map(l=>{
+    return{lane:l,hero:picks.find(h=>(laneAssignmentsAB[h.id]||lane(h))===l)||picks.find(h=>(laneAssignmentsAB[h.id]||lane(h))==='Flex')};
+  });
+  const laneStr=ls=>{
+    const keys=['exp','gold','mid','jungle','roam'],lanes=['EXP','Gold','Mid','Jungle','Roam'],obj={};
+    keys.forEach((k,i)=>{const h=ls.find(l=>l.lane===lanes[i])?.hero;obj[k]=h?`${h.name} (${(h.role||'').split('/')[0]}) — ${({S:'Strong',A:'Good',B:'Decent',C:'Weak'}[_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier]||'Decent')} tier`:`No clear ${lanes[i]} laner`;});
+    return obj;
+  };
+  const strengths=picks=>{
+    const s=[],r=picks.map(h=>h.role||'');
+    const hi=picks.filter(h=>['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));
+    if(hi.length>=2)s.push(`${hi.slice(0,3).map(h=>h.name).join(', ')} are high-tier picks — strong meta power`);
+    const mb=picks.filter(h=>h.mp==='mustban');
+    if(mb.length)s.push(`Secured ${mb.map(h=>h.name).join(' + ')} — must-ban priority heroes`);
+    if(r.some(x=>x.includes('Tank')||x.includes('Fighter'))&&r.some(x=>x.includes('Mage')||x.includes('MM')))s.push('Good engage-damage balance — can initiate and follow up');
+    const cov=[...new Set(picks.map(h=>laneAssignmentsAB[h.id]||lane(h)).filter(l=>l!=='Flex'))];
+    if(cov.length>=4)s.push(`${cov.length}/5 lane coverage — no glaring weaknesses`);
+    if(s.length<3){const extras=[`${picks.filter(h=>h.mp==='highpick').map(h=>h.name).join('+')||picks[0]?.name} gives strong lane priority`,`${picks.map(h=>h.name).slice(0,2).join(' and ')} create pick threat in mid-game`];extras.forEach(e=>{if(s.length<3)s.push(e);});}
+    return s.slice(0,3);
+  };
+  const weaknesses=picks=>{
+    const w=[],r=picks.map(h=>h.role||'');
+    if(!r.some(x=>x.includes('Tank')))w.push('No dedicated tank — vulnerable to burst dives');
+    if(!r.some(x=>x.includes('Support')))w.push('No support — limited peel and sustain in teamfights');
+    if(!r.some(x=>x.includes('MM'))&&!r.some(x=>x.includes('Mage')))w.push('Low sustained damage — struggles in extended fights');
+    const cov=picks.map(h=>laneAssignmentsAB[h.id]||lane(h));
+    ['Gold','Roam','Jungle'].forEach(l=>{if(!cov.includes(l))w.push(`No clear ${l} laner — lane gap`);});
+    const low=picks.filter(h=>['C','D'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));
+    if(low.length>=2)w.push(`${low.map(h=>h.name).join(', ')} are below meta — reliability risk`);
+    if(w.length<2){const nm=picks.filter(h=>h.mp!=='mustban'&&!['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));if(nm.length)w.push(`${nm[0].name} is below peak meta — needs to outplay to win lane`);else w.push(`Protect ${picks[0]?.name} — losing this carry makes the comp toothless`);}if(w.length<2)w.push('Engage timing critical — never force without all 5 in position');
+    return w.slice(0,2);
+  };
+  const keys=picks=>{
+    const jg=picks.find(h=>(laneAssignmentsAB[h.id]||lane(h))==='Jungle');
+    const mm=picks.find(h=>(h.role||'').includes('MM'));
+    const tk=picks.find(h=>(h.role||'').includes('Tank'));
+    const mage=picks.find(h=>(h.role||'').includes('Mage'));
+    const high=picks.filter(h=>['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));
+    const k1=jg?`${jg.name} controls first Turtle at 2:00 — win that fight to secure early gold lead and vision`:`Rotate to contest Turtle at 2:00 — first spawn sets the tempo for the entire early game`;
+    const k2=mm?`${mm.name} must reach full build before Lord — avoid risky trades until 2 core items`:(mage?`${mage.name} rotates mid after clearing wave — don't overstay, poke then reset`:`${high[0]?.name||picks[0]?.name} carries the late game — deny farm from opponent's carry`);
+    const k3=tk?`${tk.name} initiates only when all 5 are in position — no solo dives into collapsed enemies`:`No dedicated tank — win through poke and picks, avoid straight 5v5 brawls`;
+    return[k1,k2,k3];
+  };
+  const mvpH=[...bp,...rp].filter(h=>['S'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier)||h.mp==='mustban').sort((a,b)=>(Number(b.ms)||8)-(Number(a.ms)||8))[0]||bp[0];
+  const bLanes=lanesOf(bp),rLanes=lanesOf(rp);
+  const winner=bWR>=rWR?'blue':'red';
+  const wPct=Math.max(bWR,rWR),lPct=100-wPct;
+  const wTeam=winner==='blue'?bt:rt,lTeam=winner==='blue'?rt:bt;
+  const wPicks=winner==='blue'?bp:rp;
+  const wHighTier=wPicks.filter(h=>['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));
+  const lPicks=winner==='blue'?rp:bp;
+  const lHighTier=lPicks.filter(h=>['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));
+  const wMustBan=wPicks.filter(h=>h.mp==='mustban');
+  const keyWinner=wHighTier[0]||wPicks[0];const keyLoser=lHighTier[0]||lPicks[0];
+  const verdict=`${wTeam} wins the draft ${wPct}-${lPct}%. ${wMustBan.length?wMustBan.map(h=>h.name).join('+')+' secured as must-ban priority — massive advantage. ':''}${keyWinner?.name} is the game-changer; ${keyLoser?.name} must be shutdown before ${wTeam} snowballs.`;
+  const banText=`Blue targeted ${bb.slice(0,2).map(h=>h.name).join('+')||'threats'}, Red banned ${rb.slice(0,2).map(h=>h.name).join('+')||'threats'}. ${bb.length+rb.length<8?'Priority heroes remain open — exploit in draft.':'Bans well-targeted across both sides.'}`;
+  return{blueWinrate:bWR,redWinrate:rWR,winner,
+    blueCompArchetype:archetype(bp),redCompArchetype:archetype(rp),
+    blueLaning:laneStr(bLanes),redLaning:laneStr(rLanes),
+    blueStrengths:strengths(bp),blueWeaknesses:weaknesses(bp),
+    redStrengths:strengths(rp),redWeaknesses:weaknesses(rp),
+    blueKeysToVictory:keys(bp),redKeysToVictory:keys(rp),
+    blueComposition:(()=>{const jg=bp.find(h=>(laneAssignmentsAB[h.id]||lane(h))==='Jungle');const carry=bp.find(h=>(h.role||'').includes('MM'))||bp.find(h=>['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));const wc=bWR>50?`Win: ${carry?.name||bp[0]?.name} must be protected to 2 items then fight for Lord`:`Win: Scale through ${jg?.name||'jungler'} vision control, avoid even trades early`;return`${archetype(bp)} — ${bp.map(h=>h.name).join(', ')}. ${wc}.`;})(),
+    redComposition:(()=>{const jg=rp.find(h=>(laneAssignmentsAB[h.id]||lane(h))==='Jungle');const carry=rp.find(h=>(h.role||'').includes('MM'))||rp.find(h=>['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));const wc=rWR>50?`Win: ${carry?.name||rp[0]?.name} must be protected to 2 items then fight for Lord`:`Win: Scale through ${jg?.name||'jungler'} vision control, avoid even trades early`;return`${archetype(rp)} — ${rp.map(h=>h.name).join(', ')}. ${wc}.`;})(),
+    keyMatchup:(()=>{const bKey=bp.find(h=>h.mp==='mustban')||bp.find(h=>h.tier==='S')||bp[0];const rKey=rp.find(h=>h.mp==='mustban')||rp.find(h=>h.tier==='S')||rp[0];const rel=scoutCounters(rKey?.name,bKey?.name)?`${rKey?.name} counters ${bKey?.name} — red has matchup advantage`:scoutCounters(bKey?.name,rKey?.name)?`${bKey?.name} counters ${rKey?.name} — blue has matchup advantage`:`${bKey?.name} vs ${rKey?.name} — whichever wins lane sets the pace`;return rel;})(),
+    criticalTiming:'Turtle spawns at 2:00 (respawns 2 min after kill); transforms into Lord at 9:00 (respawns 3 min after kill)',
+    banAnalysis:banText,draftVerdict:verdict,
+    mvpHero:mvpH?.name||'—',
+    mvpReason:`${mvpH?.mp==='mustban'?'Must-ban priority that went unpicked':'Highest meta-impact hero in this draft'} — demands resources and respect`
+  };
+}
+
+async function runAnalysis(){
+  if(ST.bp.length<3||ST.rp.length<3){toast('Need more picks','error');return;}
+  // Token gate
+  if(typeof WDB!=='undefined'&&WDB.canAnalyze){
+    if(!WDB.canAnalyze()){
+      const sub=WDB.getSubscription();
+      const plan=WDB.PLANS[sub.plan]||WDB.PLANS.free;
+      const lim=plan.draftsPerDay>=999?'unlimited':plan.draftsPerDay+'/day';
+      toast(`No drafts left today (${plan.label} plan: ${lim}). Contact admin to upgrade.`,'error');
+      return;
+    }
+    await WDB.consumeToken();
+    updateTokenDisplay();
+  }
+  const resultEl=document.getElementById('result');
+  const wasShowing=resultEl.classList.contains('show');
+  if(wasShowing) resultEl.classList.remove('show');
+  document.getElementById('lo').classList.add('show');
+  const bt=pSide==='blue'?pName:'Claude AI', rt=pSide==='red'?pName:'Claude AI';
+
+  // Build local analysis immediately as guaranteed fallback
+  const local=localAnalysis(ST.bp,ST.rp,ST.bb,ST.rb,bt,rt);
+
+  try{
+    const bB=ST.bb.map(h=>h.name).join(',')||'None', rB=ST.rb.map(h=>h.name).join(',')||'None';
+    const bP=ST.bp.map(h=>`${h.name}(${h.role},T${_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier||'?'},${laneAssignmentsAB[h.id]||lane(h)})`).join(',');
+    const rP=ST.rp.map(h=>`${h.name}(${h.role},T${_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier||'?'},${laneAssignmentsAB[h.id]||lane(h)})`).join(',');
+    const allUsed=[...ST.bb,...ST.rb,...ST.bp,...ST.rp].map(h=>h.id);
+    const mb=HEROES.filter(h=>h.mp==='mustban'&&!allUsed.includes(h.id)).map(h=>h.name).slice(0,5);
+    const hp=HEROES.filter(h=>h.mp==='highpick'&&!allUsed.includes(h.id)).map(h=>h.name).slice(0,6);
+    const meta=[PV?`Patch:${PV}`:'',mb.length?`MustBan:${mb.join(',')}` :'',hp.length?`HighPick:${hp.join(',')}` :''].filter(Boolean).join(' | ')||'Base data';
+    // Hero pool context
+    const _pool = (typeof WDB!=='undefined'&&WDB.getHeroPool) ? WDB.getHeroPool() : [];
+    const poolInDraft = _pool.filter(n=>[...ST.bp,...ST.rp].some(h=>h.name===n));
+    const poolAvail = _pool.filter(n=>[...ST.bp,...ST.rp,...ST.bb,...ST.rb].every(h=>h.name!==n)).slice(0,8);
+    const poolCtx = _pool.length>0
+      ? `\nPlayer hero pool: [${_pool.join(', ')}]${poolInDraft.length?`\nPool heroes drafted: [${poolInDraft.join(', ')}]`:''}${poolAvail.length?`\nPool heroes not used: [${poolAvail.join(', ')}]`:''}`
+      : '';
+    const prompt=`You are an elite MLBB competitive draft analyst with MPL-level expertise. Analyze this draft in extreme depth — reference actual hero names in EVERY field, never generic statements.
+
+${meta}${poolCtx}
+BLUE SIDE (${bt}): bans=[${bB}] picks=[${bP}]
+RED SIDE (${rt}): bans=[${rB}] picks=[${rP}]
+
+MLBB OBJECTIVE TIMINGS (mandatory — use these exactly):
+- Turtle: spawns 2:00, respawns 2 min after kill, becomes Lord at 9:00
+- Lord: spawns 9:00, respawns 3 min after kill
+- Crab (Lithowanderer): spawns 1:00 mid lane
+
+Rules (violation = bad analysis):
+- Every strength/weakness MUST name a specific hero from this draft
+- laning entries must describe the exact hero matchup and power spike timing
+- jungleStrategy: name jungler, path, first gank, Turtle contest at 2:00
+- teamfightSetup: describe the CC chain, who initiates, carry positioning — name all heroes
+- counterplay: how each team specifically counters the other's win condition by name
+- draftVerdict: 3-4 sentences naming the heroes that decide this draft and exactly why
+- NEVER write Turtle spawn time as anything other than 2:00
+
+JSON only (no markdown):
+{"blueWinrate":<0-100>,"redWinrate":<0-100>,"winner":"blue|red","blueCompArchetype":"<e.g. Protect Hypercarry>","redCompArchetype":"<archetype>","blueStrengths":["<name hero + specific strength — 20w>","<name hero — 20w>","<name hero — 20w>"],"blueWeaknesses":["<named hero vulnerability — 20w>","<named — 20w>"],"redStrengths":["<name hero + specific — 20w>","<name hero — 20w>","<name hero — 20w>"],"redWeaknesses":["<named — 20w>","<named — 20w>"],"blueKeysToVictory":["<hero + specific objective action — 25w>","<hero + action — 25w>","<hero + macro — 25w>"],"redKeysToVictory":["<same depth>","<same depth>","<same depth>"],"blueTeamfight":"<full teamfight setup: initiator, CC chain order, carry positioning, follow-up — name all heroes — 40w>","redTeamfight":"<same for red — 40w>","blueObjectivePriority":"<which objectives this comp takes best and why — name heroes — 20w>","redObjectivePriority":"<same for red — 20w>","blueLordControl":"<how blue contests/secures Lord: engage tool, vision, timing — name heroes — 20w>","redLordControl":"<same for red — 20w>","blueTurtleControl":"<how blue secures early Turtles: who dives, who peels, power spike — name heroes — 20w>","redTurtleControl":"<same for red — 20w>","blueCounterplay":"<how blue counters red's win condition — name heroes — 20w>","redCounterplay":"<how red counters blue — 20w>","blueComposition":"<full comp: type, win condition, power spike timing, role breakdown — name heroes — 50w>","redComposition":"<same for red — 50w>","keyMatchup":"<Hero A vs Hero B — why this 1v1 decides the game — 25w>","criticalTiming":"<exact minute and what must happen — name heroes — 20w>","draftVerdict":"<3-4 sentences naming the heroes that win/lose this draft and why — 60w>","mvpHero":"<hero name>","mvpReason":"<why this hero decides the game — name synergy or counter — 20w>"}`;
+    const d=await callClaude({model:'claude-sonnet-4-6',max_tokens:1400,messages:[{role:'user',content:prompt}]});
+    const raw=(d.content||[]).map(x=>x.text||'').join('');
+    const mj=raw.match(/\{[\s\S]*\}/);
+    if(!mj) throw new Error('no json');
+    renderAnalysis(JSON.parse(mj[0]),bt,rt);
+  }catch(e){
+    console.error('Analysis error:',e);
+    renderAnalysis(local,bt,rt);
+  }finally{
+    document.getElementById('lo').classList.remove('show');
+  }
+}
+function renderAnalysis(a,bt,rt){
+  document.getElementById('rspct').textContent=a.blueWinrate+'%';
+  document.getElementById('raipct').textContent=a.redWinrate+'%';
+  const pw=(pSide==='blue'&&a.winner==='blue')||(pSide==='red'&&a.winner==='red');
+  document.getElementById('rverdict').textContent=pw?'YOU WIN THE DRAFT':'AI WINS THE DRAFT';
+  document.getElementById('rverdict').style.color=pw?'var(--blue)':'var(--ai)';
+  document.getElementById('rsub').textContent='';
+  const col=a.winner==='blue'?'var(--blue)':'var(--red)';
+  const li=arr=>(arr||[]).map(s=>`<li style="padding:2px 0;font-size:10px;line-height:1.55;">${s}</li>`).join('');
+  const deepRow=(lbl,txt,c)=>txt?`<div style="margin-bottom:5px;"><span style="font-size:8px;font-weight:700;letter-spacing:1px;color:${c};">${lbl}: </span><span style="font-size:10px;line-height:1.55;color:var(--text2);">${txt}</span></div>`:'';
+  const ra=document.getElementById('rasummary');ra.style.display='block';
+  ra.innerHTML=`<div style="font-weight:700;color:${col};margin-bottom:8px;font-size:11px;line-height:1.6;">${a.draftVerdict||''}</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;">
+    <div>
+      <div style="font-size:8px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">${bt} — ${a.blueCompArchetype||''}</div>
+      <ul style="list-style:none;padding:0;margin:0 0 4px;">${li(a.blueStrengths)}</ul>
+      <div style="font-size:8px;color:var(--red);font-weight:700;margin:5px 0 2px;">Weaknesses</div>
+      <ul style="list-style:none;padding:0;margin:0 0 4px;color:var(--text2);">${li(a.blueWeaknesses)}</ul>
+      ${a.blueKeysToVictory?.length?`<div style="font-size:8px;color:var(--gold);font-weight:700;margin:5px 0 2px;">Keys to Victory</div><ul style="list-style:none;padding:0;margin:0;">${li(a.blueKeysToVictory)}</ul>`:''}
+    </div>
+    <div>
+      <div style="font-size:8px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">${rt} — ${a.redCompArchetype||''}</div>
+      <ul style="list-style:none;padding:0;margin:0 0 4px;">${li(a.redStrengths)}</ul>
+      <div style="font-size:8px;color:var(--red);font-weight:700;margin:5px 0 2px;">Weaknesses</div>
+      <ul style="list-style:none;padding:0;margin:0 0 4px;color:var(--text2);">${li(a.redWeaknesses)}</ul>
+      ${a.redKeysToVictory?.length?`<div style="font-size:8px;color:var(--gold);font-weight:700;margin:5px 0 2px;">Keys to Victory</div><ul style="list-style:none;padding:0;margin:0;">${li(a.redKeysToVictory)}</ul>`:''}
+    </div>
+  </div>
+  ${(a.blueTeamfight||a.blueObjectivePriority||a.blueCounterplay||a.blueLordControl)?`
+  <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+    <div>
+      <div style="font-size:8px;font-weight:700;color:#22d3ee;letter-spacing:1px;margin-bottom:4px;">BLUE DEEP BREAKDOWN</div>
+      ${deepRow('TEAMFIGHT',a.blueTeamfight,'#22d3ee')}
+      ${deepRow('OBJECTIVES',a.blueObjectivePriority,'#a855f7')}
+      ${deepRow('LORD',a.blueLordControl,'#f59e0b')}
+      ${deepRow('TURTLE',a.blueTurtleControl,'#34d399')}
+      ${deepRow('COUNTERPLAY',a.blueCounterplay,'#f97316')}
+    </div>
+    <div>
+      <div style="font-size:8px;font-weight:700;color:#f87171;letter-spacing:1px;margin-bottom:4px;">RED DEEP BREAKDOWN</div>
+      ${deepRow('TEAMFIGHT',a.redTeamfight,'#22d3ee')}
+      ${deepRow('OBJECTIVES',a.redObjectivePriority,'#a855f7')}
+      ${deepRow('LORD',a.redLordControl,'#f59e0b')}
+      ${deepRow('TURTLE',a.redTurtleControl,'#34d399')}
+      ${deepRow('COUNTERPLAY',a.redCounterplay,'#f97316')}
+    </div>
+  </div>`:''}
+  <div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border);font-size:9px;color:var(--text2);">
+    <strong style="color:var(--gold);">Key Matchup:</strong> ${a.keyMatchup||'—'}<br>
+    <strong style="color:var(--gold);">Timing:</strong> ${a.criticalTiming||'—'}<br>
+    <strong style="color:var(--purple);">MVP:</strong> ${a.mvpHero||'—'} — ${a.mvpReason||''}
+  </div>`;
+  document.getElementById('result').classList.add('show');
+  // Scroll rcard to show the analysis
+  setTimeout(()=>{
+    const ra=document.getElementById('rasummary');
+    ra?.scrollIntoView({behavior:'smooth',block:'nearest'});
+    const card=document.querySelector('.rcard');
+    if(card) card.scrollTop=card.scrollHeight;
+  },50);
+}
+
+updateMemChip();
+(async () => {
+  const IS_DEV = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'file:';
+  const ok = IS_DEV ? true : await WAuth.requireAuth();
+  if (!ok) return;
+  // Reset daily draft counter if 24hrs have elapsed (rolling window)
+  if (typeof WDB !== 'undefined' && WDB.initDailyReset) {
+    await WDB.initDailyReset();
+    updateTokenDisplay(); // refresh display after potential reset
+  }
+  // Load scout matches: patch LANES_MAP + compute hero WR stats for cards
+  try {
+    const scoutMatches = await WDB.loadMatches();
+    const scoutRoles = await WDB.computeHeroRoles(1);
+    Object.entries(scoutRoles).forEach(([hero, primaryLane]) => { LANES_MAP[hero] = primaryLane; });
+    heroScoutStatsAB = computeHeroScoutStatsAB(scoutMatches);
+    renderPool(); // redraw hero cards with WR badges
+    _refreshABPicker(); // re-populate team picker with scout team names
+    // Also refresh enemy team list + league filters if panel is visible
+    if(document.getElementById('enemyTeamPanel')?.style.display!=='none'){_renderEnemyLeagueFilters();renderEnemyTeamCards();}
+  } catch(e) { /* fail silently — defaults still apply */ }
+})();
+WAuth.renderAuthChip('authChip');
+</script>
+
+</div><!-- /.page-body -->
+
+
+</body>
+</html>
