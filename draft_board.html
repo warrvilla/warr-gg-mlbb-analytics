@@ -4172,104 +4172,105 @@ let teDragId = null;
 
 function openTierEditor() {
   if (document.getElementById('tierEditorOverlay')) return;
+
+  // Inject styles once into <head> so they're always active
+  if (!document.getElementById('teStyles')) {
+    const st = document.createElement('style');
+    st.id = 'teStyles';
+    st.textContent = `
+      #teOverlay{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);z-index:200;display:flex;}
+      #tePanel{display:flex;flex-direction:column;width:100%;height:100%;background:var(--surface);}
+      #teTopbar{display:flex;align-items:center;gap:12px;padding:12px 18px;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0;}
+      #teBody{display:flex;flex:1;overflow:hidden;}
+      #teLeft{width:320px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--border);}
+      #teFilters{padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:7px;}
+      #teHeroList{overflow-y:auto;flex:1;padding:8px;}
+      .te-hrow{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);cursor:grab;margin-bottom:5px;transition:background .1s,border-color .1s;user-select:none;}
+      .te-hrow:hover{background:var(--surface3);border-color:var(--border2);}
+      .te-hrow.dragging{opacity:.35;cursor:grabbing;}
+      .te-hrow img{width:38px;height:38px;border-radius:10px;object-fit:cover;flex-shrink:0;}
+      .te-hinfo{flex:1;min-width:0;}
+      .te-hname{font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .te-hrole{font-size:8px;color:var(--text3);margin-top:1px;}
+      .te-hlanes{display:flex;gap:2px;margin-top:3px;flex-wrap:wrap;}
+      .te-hlane-tag{font-size:7px;padding:1px 4px;border-radius:2px;font-weight:600;}
+      .te-tiers{display:flex;flex-direction:column;align-items:center;gap:3px;}
+      .te-tier-cur{font-family:-apple-system,Inter,sans-serif;font-size:16px;font-weight:900;line-height:1;min-width:18px;text-align:center;}
+      .te-tier-btns{display:flex;gap:2px;}
+      .te-tb{padding:2px 4px;font-size:8px;font-weight:800;border-radius:8px;cursor:pointer;border:1px solid;transition:all .1s;min-width:20px;text-align:center;}
+      #teRight{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;}
+      .te-zone{border:2px dashed;border-radius:10px;padding:10px 12px;transition:all .15s;}
+      .te-zone.drag-over{transform:scale(1.01);}
+      .te-zone-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+      .te-zone-icon{font-size:18px;}
+      .te-zone-title{font-family:-apple-system,Inter,sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;}
+      .te-zone-count{font-size:9px;opacity:.7;margin-left:2px;}
+      .te-zone-clear{margin-left:auto;font-size:8px;padding:2px 8px;border-radius:10px;cursor:pointer;background:transparent;border:1px solid;opacity:.5;}
+      .te-zone-clear:hover{opacity:1;}
+      .te-chips{display:flex;flex-wrap:wrap;gap:6px;min-height:48px;align-content:flex-start;}
+      .te-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 8px 4px 5px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);transition:border-color .1s;}
+      .te-chip:hover{border-color:var(--border2);}
+      .te-chip img{width:24px;height:24px;border-radius:8px;object-fit:cover;}
+      .te-chip-name{font-size:10px;font-weight:600;color:var(--text);max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+      .te-chip-tier{font-family:-apple-system,Inter,sans-serif;font-size:9px;font-weight:900;}
+      .te-chip-x{background:transparent;border:none;color:var(--text3);font-size:12px;cursor:pointer;padding:0;line-height:1;margin-left:1px;}
+      .te-chip-x:hover{color:#ef4444;}
+      .te-drop-hint{font-size:10px;color:var(--text3);opacity:.5;padding:10px 0;}
+      @keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}
+      #tePanel{animation:slideInRight .18s ease;}
+      .te-rf{padding:3px 10px;font-size:9px;font-weight:600;border:1px solid var(--border2);border-radius:10px;background:transparent;color:var(--text3);cursor:pointer;transition:all .12s;}
+      .te-rf.te-active{border-color:var(--blue)!important;color:var(--blue)!important;background:var(--blue-dim)!important;}
+    `;
+    document.head.appendChild(st);
+  }
+
+  // Build role filter buttons
+  const roleButtons = ['All','Tank','Fighter','Assassin','Mage','MM','Support'].map(r =>
+    `<button class="te-rf${r==='All'?' te-active':''}" onclick="teRoleFilter='${r}';renderTierEditor();document.querySelectorAll('.te-rf').forEach(b=>b.classList.remove('te-active'));this.classList.add('te-active')">${r}</button>`
+  ).join('');
+
+  // Build lane zones
+  const laneZones = ['Gold','Jungle','Mid','EXP','Roam'].map(lane => {
+    const lc = LANE_COLORS[lane] || '#94a3b8';
+    return `<div class="te-zone" data-lane="${lane}" style="border-color:${lc}44;background:${lc}07;"
+      ondragover="event.preventDefault();this.classList.add('drag-over');this.style.borderColor='${lc}';this.style.background='${lc}1a';"
+      ondragleave="this.classList.remove('drag-over');this.style.borderColor='${lc}44';this.style.background='${lc}07';"
+      ondrop="teDrop(event,'${lane}')">
+      <div class="te-zone-header">
+        <span class="te-zone-icon">${lane}</span>
+        <span class="te-zone-title" style="color:${lc};">${lane.toUpperCase()}</span>
+        <span class="te-zone-count" data-lane="${lane}" style="color:${lc};"></span>
+        <button class="te-zone-clear" onclick="teClearLane('${lane}')" style="color:${lc};border-color:${lc};">clear</button>
+      </div>
+      <div class="te-chips" data-lane="${lane}"></div>
+    </div>`;
+  }).join('');
+
   const ov = document.createElement('div');
   ov.id = 'tierEditorOverlay';
   ov.style.cssText = 'position:fixed;inset:0;z-index:200;display:flex;';
-
   ov.innerHTML = `
-  <style>
-    #teOverlay{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);z-index:200;display:flex;}
-    #tePanel{display:flex;flex-direction:column;width:100%;height:100%;background:var(--surface);}
-    #teTopbar{display:flex;align-items:center;gap:12px;padding:12px 18px;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0;}
-    #teBody{display:flex;flex:1;overflow:hidden;}
-    /* Left */
-    #teLeft{width:320px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--border);}
-    #teFilters{padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:7px;}
-    #teHeroList{overflow-y:auto;flex:1;padding:8px;}
-    .te-hrow{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;border:1px solid var(--border);background:var(--surface2);cursor:grab;margin-bottom:5px;transition:background .1s,border-color .1s;user-select:none;}
-    .te-hrow:hover{background:var(--surface3);border-color:var(--border2);}
-    .te-hrow.dragging{opacity:.35;cursor:grabbing;}
-    .te-hrow img{width:38px;height:38px;border-radius:10px;object-fit:cover;flex-shrink:0;}
-    .te-hinfo{flex:1;min-width:0;}
-    .te-hname{font-size:11px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .te-hrole{font-size:8px;color:var(--text3);margin-top:1px;}
-    .te-hlanes{display:flex;gap:2px;margin-top:3px;flex-wrap:wrap;}
-    .te-hlane-tag{font-size:7px;padding:1px 4px;border-radius:2px;font-weight:600;}
-    .te-tiers{display:flex;flex-direction:column;align-items:center;gap:3px;}
-    .te-tier-cur{font-family:-apple-system,Inter,sans-serif;font-size:16px;font-weight:900;line-height:1;min-width:18px;text-align:center;}
-    .te-tier-btns{display:flex;gap:2px;}
-    .te-tb{padding:2px 4px;font-size:8px;font-weight:800;border-radius:8px;cursor:pointer;border:1px solid;transition:all .1s;min-width:20px;text-align:center;}
-    /* Right */
-    #teRight{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;}
-    .te-zone{border:2px dashed;border-radius:10px;padding:10px 12px;transition:all .15s;}
-    .te-zone.drag-over{transform:scale(1.01);}
-    .te-zone-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-    .te-zone-icon{font-size:18px;}
-    .te-zone-title{font-family:-apple-system,Inter,sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;}
-    .te-zone-count{font-size:9px;opacity:.7;margin-left:2px;}
-    .te-zone-clear{margin-left:auto;font-size:8px;padding:2px 8px;border-radius:10px;cursor:pointer;background:transparent;border:1px solid;opacity:.5;}
-    .te-zone-clear:hover{opacity:1;}
-    .te-chips{display:flex;flex-wrap:wrap;gap:6px;min-height:48px;align-content:flex-start;}
-    .te-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 8px 4px 5px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);transition:border-color .1s;}
-    .te-chip:hover{border-color:var(--border2);}
-    .te-chip img{width:24px;height:24px;border-radius:8px;object-fit:cover;}
-    .te-chip-name{font-size:10px;font-weight:600;color:var(--text);max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-    .te-chip-tier{font-family:-apple-system,Inter,sans-serif;font-size:9px;font-weight:900;}
-    .te-chip-x{background:transparent;border:none;color:var(--text3);font-size:12px;cursor:pointer;padding:0;line-height:1;margin-left:1px;}
-    .te-chip-x:hover{color:#ef4444;}
-    .te-drop-hint{font-size:10px;color:var(--text3);opacity:.5;padding:10px 0;}
-    @keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}
-    #tePanel{animation:slideInRight .18s ease;}
-    .te-rf{padding:3px 10px;font-size:9px;font-weight:600;border:1px solid var(--border2);border-radius:10px;background:transparent;color:var(--text3);cursor:pointer;transition:all .12s;}
-    .te-rf.te-active{border-color:var(--blue)!important;color:var(--blue)!important;background:var(--blue-dim)!important;}
-  </style>
   <div id="teOverlay">
   <div id="tePanel">
-
-    <!-- Topbar -->
     <div id="teTopbar">
-      <span style="font-family:Rajdhani,sans-serif;font-size:17px;font-weight:700;color:var(--text);">Tier & Lane Editor</span>
+      <span style="font-family:Rajdhani,sans-serif;font-size:17px;font-weight:700;color:var(--text);">Tier &amp; Lane Editor</span>
       <span style="font-size:10px;color:var(--text3);">Set tier with S/A/B/C/D · drag hero portrait to a lane zone</span>
       <div style="flex:1;"></div>
       <button onclick="saveTierEditorToSheet()" style="padding:5px 14px;font-size:10px;font-weight:600;border:1px solid rgba(34,197,94,.4);background:rgba(34,197,94,.07);color:#22c55e;border-radius:10px;cursor:pointer;">Save to Sheet</button>
       <button onclick="document.getElementById('tierEditorOverlay').remove()" style="background:transparent;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1;">✕</button>
     </div>
-
     <div id="teBody">
-      <!-- LEFT: Hero pool -->
       <div id="teLeft">
         <div id="teFilters">
           <input id="teSearch" placeholder="Search hero..." oninput="teSearch=this.value;renderTierEditor()"
             style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;padding:6px 11px;outline:none;width:100%;box-sizing:border-box;">
-          <div style="display:flex;gap:4px;flex-wrap:wrap;">
-            ${['All','Tank','Fighter','Assassin','Mage','MM','Support'].map(r=>
-              `<button class="te-rf${r==='All'?' te-active':''}" onclick="teRoleFilter='${r}';renderTierEditor();document.querySelectorAll('.te-rf').forEach(b=>b.classList.remove('te-active'));this.classList.add('te-active')">${r}</button>`
-            ).join('')}
-          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">${roleButtons}</div>
         </div>
         <div id="teHeroList"></div>
       </div>
-
-      <!-- RIGHT: Lane zones -->
       <div id="teRight">
-        <div style="font-size:9px;color:var(--text3);letter-spacing:1px;padding-bottom:4px;">DRAG HEROES → LANES &nbsp;·&nbsp; one hero can be in multiple lanes &nbsp;·&nbsp; unassigned = Flex</div>
-        ${['Gold','Jungle','Mid','EXP','Roam'].map(lane => {
-          const lc = LANE_COLORS[lane]||'#94a3b8';
-          return `<div class="te-zone" data-lane="${lane}" style="border-color:${lc}44;background:${lc}07;"
-            ondragover="event.preventDefault();this.classList.add('drag-over');this.style.borderColor='${lc}';this.style.background='${lc}1a';"
-            ondragleave="this.classList.remove('drag-over');this.style.borderColor='${lc}44';this.style.background='${lc}07';"
-            ondrop="teDrop(event,'${lane}')">
-            <div class="te-zone-header">
-              <span class="te-zone-icon">${lane}</span>
-              <span class="te-zone-title" style="color:${lc};">${lane.toUpperCase()}</span>
-              <span class="te-zone-count" data-lane="${lane}" style="color:${lc};"></span>
-              <button class="te-zone-clear" onclick="teClearLane('${lane}')" style="color:${lc};border-color:${lc};">clear</button>
-            </div>
-            <div class="te-chips" data-lane="${lane}"></div>
-          </div>`;
-        }).join('')}
-
-        <!-- Flex zone -->
+        <div style="font-size:9px;color:var(--text3);letter-spacing:1px;padding-bottom:4px;">DRAG HEROES → LANES · one hero can be in multiple lanes · unassigned = Flex</div>
+        ${laneZones}
         <div class="te-zone" style="border-color:var(--border);background:rgba(255,255,255,.02);">
           <div class="te-zone-header">
             <span class="te-zone-icon">◈</span>
