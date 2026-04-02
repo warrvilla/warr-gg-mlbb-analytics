@@ -78,33 +78,11 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
 .sb-btn-export:hover { background: rgba(34,197,94,.18); }
 
 /* ── DRAFT SEQUENCE ── */
-<<<<<<< HEAD
 .seq-bar { display: none; }
 .seq-item, .seq-dot, .seq-label { display: none; }
 
 /* ── PHASE BANNER ── */
 .phase-row { display: none; }
-=======
-.seq-bar { background: var(--surface2); border-bottom: 1px solid var(--border); padding: 8px 16px; display: flex; align-items: center; gap: 3px; overflow-x: auto; }
-.seq-bar::-webkit-scrollbar { height: 2px; } .seq-bar::-webkit-scrollbar-thumb { background: var(--border2); }
-.seq-item { display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; }
-.seq-dot { width: 30px; height: 14px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; letter-spacing: .5px; transition: all .2s; }
-.seq-dot.ban-blue, .seq-dot.ban-red { background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.4); color: #ef4444; }
-.seq-dot.pick-blue { background: rgba(59,130,246,.15); border: 1px solid rgba(59,130,246,.4); color: #60a5fa; }
-.seq-dot.pick-red { background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.35); color: #f87171; }
-.seq-dot.current { animation: sdpulse 1s infinite; }
-.seq-dot.done { opacity: .3; }
-@keyframes sdpulse { 0%,100%{opacity:1} 50%{opacity:.5} }
-.seq-label { font-size: 8px; color: var(--text3); font-weight: 500; }
-
-/* ── PHASE BANNER ── */
-.phase-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 16px; background: var(--surface2); border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 8px; }
-.phase-label { font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; }
-.turn-tag { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 10px; border: 1px solid; }
-.turn-tag.blue { border-color: var(--blue-border); background: var(--blue-dim); color: var(--blue); }
-.turn-tag.red { border-color: var(--red-border); background: var(--red-dim); color: var(--red); }
-.legend { display: flex; gap: 10px; }
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
 .legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text3); }
 .legend-dot { width: 7px; height: 7px; border-radius: 2px; }
 
@@ -134,15 +112,10 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
 .bans-row { display: flex; gap: 4px; margin-bottom: 14px; flex-wrap: nowrap; justify-content: flex-start; }
 .ban-slot { width: 44px; height: 56px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: center; background: var(--surface2); position: relative; overflow: hidden; flex-direction: column; gap: 2px; transition: all .15s; flex-shrink: 0; }
 .ban-slot.filled { background: rgba(239,68,68,.08); border-color: rgba(239,68,68,.35); }
-<<<<<<< HEAD
 .ban-slot.active-slot { border-color: rgba(239,68,68,.8); background: rgba(239,68,68,.06); animation: bpulse 1.4s ease-in-out infinite; }
 .blue-panel .ban-slot.active-slot { border-color: rgba(94,160,216,.8); background: rgba(94,160,216,.06); animation: bpulse-blue 1.4s ease-in-out infinite; }
 @keyframes bpulse      { 0%,100%{box-shadow:0 0 0 1px rgba(239,68,68,.35),0 0 18px rgba(239,68,68,.28),inset 0 0 12px rgba(239,68,68,.05)} 50%{box-shadow:0 0 0 2px rgba(239,68,68,.55),0 0 32px rgba(239,68,68,.45),inset 0 0 20px rgba(239,68,68,.10)} }
 @keyframes bpulse-blue { 0%,100%{box-shadow:0 0 0 1px rgba(94,160,216,.35),0 0 18px rgba(94,160,216,.28),inset 0 0 12px rgba(94,160,216,.05)} 50%{box-shadow:0 0 0 2px rgba(94,160,216,.55),0 0 32px rgba(94,160,216,.45),inset 0 0 20px rgba(94,160,216,.10)} }
-=======
-.ban-slot.active-slot { border-color: var(--red); box-shadow: 0 0 10px rgba(239,68,68,.3); animation: bpulse .9s infinite; }
-@keyframes bpulse { 0%,100%{box-shadow:0 0 10px rgba(239,68,68,.3)} 50%{box-shadow:0 0 3px rgba(239,68,68,.1)} }
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
 .ban-slot img { width: 36px; height: 36px; border-radius: 10px; object-fit: cover; }
 .ban-x { position:absolute; inset:0; background:rgba(239,68,68,.3); display:flex; align-items:center; justify-content:center; font-size:16px; color:rgba(239,68,68,.9); pointer-events:none; }
 .ban-name { font-size: 7px; color: #f87171; text-align: center; padding: 0 2px; line-height: 1.2; max-width: 46px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -151,7 +124,6 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
 /* Pick slots */
 .pick-slots { display: flex; flex-direction: column; gap: 6px; }
 .pick-slot { display: flex; align-items: center; gap: 11px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface2); min-height: 64px; transition: all .15s; position: relative; overflow: hidden; }
-<<<<<<< HEAD
 .pick-slot.filled { background: var(--surface3); border-color: var(--border2); }
 .pick-slot.active-slot { border-color: rgba(94,160,216,.80); background: rgba(94,160,216,.06); animation: ppulse-blue 1.4s ease-in-out infinite; }
 .red-panel .pick-slot.active-slot { border-color: rgba(216,120,128,.80); background: rgba(216,120,128,.06); animation: ppulse-red 1.4s ease-in-out infinite; }
@@ -175,14 +147,6 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
   50%  { transform: scale(1.0);  opacity: 0.9; }
   100% { transform: scale(0.7);  opacity: 0.3; }
 }
-=======
-.pick-slot.active-slot { border-color: var(--blue); box-shadow: 0 0 14px rgba(59,130,246,.22); animation: ppulse .9s infinite; }
-.pick-slot.filled { background: var(--surface3); border-color: var(--border2); }
-.red-panel .pick-slot.active-slot { border-color: var(--red); box-shadow: 0 0 14px rgba(239,68,68,.22); }
-@keyframes ppulse { 0%,100%{box-shadow:0 0 14px rgba(59,130,246,.22)} 50%{box-shadow:none} }
-.slot-img { width: 50px; height: 50px; border-radius: 6px; object-fit: cover; flex-shrink: 0; border: 1px solid var(--border); background: var(--surface); }
-.slot-placeholder { width: 50px; height: 50px; border-radius: 6px; flex-shrink: 0; border: 1px dashed var(--border); display: flex; align-items: center; justify-content: center; color: var(--text3); font-size: 18px; }
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
 .slot-info { flex: 1; min-width: 0; }
 .slot-hname { font-size: 12px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .slot-role { font-size: 9px; color: var(--text2); margin-top: 2px; }
@@ -201,7 +165,6 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
 .role-btn { padding: 3px 9px; border: 1px solid var(--border2); border-radius: 10px; background: transparent; color: var(--text3); font-size: 10px; font-weight: 600; cursor: pointer; transition: all .15s; }
 .role-btn:hover { border-color: var(--text2); color: var(--text); }
 .role-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
-<<<<<<< HEAD
 .hero-grid { display: grid; grid-template-columns: repeat(auto-fill, 76px); gap: 5px; overflow-y: auto; padding: 10px 12px; flex: 1; align-content: start; min-height: 0; }
 .hero-grid.grouped { display: flex; flex-direction: column; gap: 0; }
 .lane-section { width: 100%; margin-bottom: 4px; }
@@ -209,30 +172,15 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
 .lane-section-cards { display: flex; flex-wrap: wrap; gap: 5px; padding-bottom: 6px; }
 .hero-grid::-webkit-scrollbar { width: 4px; } .hero-grid::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 .hero-card { border: 1px solid var(--border); border-radius: 8px; padding: 5px 4px 4px; cursor: pointer; transition: all .12s; text-align: center; background: var(--surface2); position: relative; user-select: none; overflow: hidden; width: 76px; height: 90px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
-=======
-.hero-grid { display: grid; grid-template-columns: repeat(auto-fill, 130px); gap: 8px; overflow-y: auto; padding: 14px 16px; flex: 1; align-content: start; min-height: 0; }
-.hero-grid.grouped { display: flex; flex-direction: column; gap: 0; }
-.lane-section { width: 100%; margin-bottom: 4px; }
-.lane-section-header { display: flex; align-items: center; gap: 8px; padding: 8px 0 8px; }
-.lane-section-cards { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 8px; }
-.hero-grid::-webkit-scrollbar { width: 4px; } .hero-grid::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
-.hero-card { border: 1px solid var(--border); border-radius: 8px; padding: 7px 6px 6px; cursor: pointer; transition: all .12s; text-align: center; background: var(--surface2); position: relative; user-select: none; overflow: hidden; width: 130px; height: 152px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
 .hero-card:hover:not(.banned):not(.picked) { border-color: var(--accent); background: var(--accent-dim); transform: translateY(-2px); box-shadow: 0 4px 16px rgba(168,136,204,0.11); }
 @media (hover: none) {
   .hero-card:active:not(.banned):not(.picked):not(.lkd) { border-color: var(--accent); background: var(--accent-dim); }
 }
 .hero-card.banned { opacity: .2; cursor: not-allowed; filter: grayscale(1); }
 .hero-card.picked { opacity: .3; cursor: not-allowed; }
-<<<<<<< HEAD
 .hero-img { width: 58px; height: 58px; margin: 0 auto 3px; border-radius: 6px; object-fit: cover; display: block; background: var(--surface); border: 1px solid var(--border); flex-shrink: 0; }
 .hero-cname { font-size: 9px; font-weight: 700; color: var(--text); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .hero-crole { font-size: 7.5px; color: #94a3b8; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-=======
-.hero-img { width: 106px; height: 106px; margin: 0 auto 4px; border-radius: 7px; object-fit: cover; display: block; background: var(--surface); border: 1px solid var(--border); flex-shrink: 0; }
-.hero-cname { font-size: 11px; font-weight: 700; color: var(--text); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hero-crole { font-size: 9px; color: #94a3b8; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
 .tier-badge { position: absolute; top: 4px; right: 4px; font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 8px; }
 .tier-S { background: var(--gold); color: #000; } .tier-A { background: #9ca3af; color: #000; } .tier-B { background: #b45309; color: #fff; } .tier-C { background: #374151; color: #9ca3af; }
 .wr-bar { position:absolute;bottom:0;left:0;right:0;height:2px;border-radius:0 0 7px 7px;pointer-events:none;overflow:hidden; }
@@ -329,15 +277,9 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
   .pool-section { grid-column: 1 / -1; grid-row: 2; }
 }
 @media (max-width: 768px) {
-<<<<<<< HEAD
   .hero-grid { grid-template-columns: repeat(auto-fill, 72px); gap: 5px; }
   .hero-card { width: 72px; height: 88px; }
   .hero-img { width: 54px; height: 54px; }
-=======
-  .hero-grid { grid-template-columns: repeat(auto-fill, 110px); }
-  .hero-card { width: 110px; height: 134px; }
-  .hero-img { width: 88px; height: 88px; }
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
 }
 @media (max-width: 640px) {
   /* Keep teams side-by-side — stack only the pool below */
@@ -362,15 +304,9 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
   .series-actions { flex-wrap: wrap; gap: 4px; }
   .topbar { padding: 0 10px; gap: 4px; }
   .tab-btn { padding: 3px 7px; font-size: 10px; }
-<<<<<<< HEAD
   .hero-grid { grid-template-columns: repeat(auto-fill, 68px); gap: 4px; padding: 8px 10px; }
   .hero-card { width: 68px; height: 84px; padding: 4px 3px; }
   .hero-img { width: 52px; height: 52px; }
-=======
-  .hero-grid { grid-template-columns: repeat(auto-fill, 80px); gap: 5px; padding: 10px 12px; }
-  .hero-card { width: 80px; height: 106px; padding: 5px 4px 5px; }
-  .hero-img { width: 64px; height: 64px; }
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
   .hero-cname { font-size: 10px; }
   .hero-crole { font-size: 8px; }
   .pool-header { padding: 8px 10px; }
@@ -383,15 +319,9 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
 }
 @media (max-width: 420px) {
   .topbar-logo { font-size: 13px; }
-<<<<<<< HEAD
   .hero-grid { grid-template-columns: repeat(auto-fill, 62px); gap: 4px; }
   .hero-card { width: 62px; height: 78px; padding: 4px 3px; }
   .hero-img { width: 48px; height: 48px; }
-=======
-  .hero-grid { grid-template-columns: repeat(auto-fill, 72px); gap: 4px; }
-  .hero-card { width: 72px; height: 97px; padding: 4px 3px 4px; }
-  .hero-img { width: 58px; height: 58px; }
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
   .ban-slot { width: 32px; height: 38px; }
   .ban-slot img { width: 24px; height: 24px; }
   /* iOS: prevent auto-zoom on input focus */
@@ -882,7 +812,6 @@ select {
 }
 
 /* ═══════════════════════════════════════════════════════ */
-<<<<<<< HEAD
 
 /* ══════════════════════════════════════════════════════════
    DRAFT LOBBY — matches home page aesthetic
@@ -1140,114 +1069,6 @@ select {
   .lobby-title { font-size: clamp(30px, 9vw, 44px); }
   .lobby-fmt-btn { min-width: 60px; }
 }
-=======
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
-</style>
-<script src="warr-theme.js"></script>
-</head>
-<body>
-<div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"></div><div class="loading-text">ANALYZING DRAFT</div></div>
-<div class="toast" id="toast"></div>
-
-<<<<<<< HEAD
-<!-- ══════════════════════════════════════════════════════════
-     DRAFT LOBBY — shown before the draft starts
-     ══════════════════════════════════════════════════════════ -->
-<div id="draftLobby">
-  <!-- Ambient orbs (same as home page) -->
-  <div class="lobby-orb lobby-orb-1"></div>
-  <div class="lobby-orb lobby-orb-2"></div>
-  <div class="lobby-orb lobby-orb-3"></div>
-
-  <div class="lobby-inner">
-
-    <!-- Eyebrow + Title -->
-    <div class="lobby-eyebrow">
-      <div class="lobby-eyebrow-dot"></div>
-      MLBB Esports Intelligence
-    </div>
-    <h1 class="lobby-title"><em>Configure</em> Draft</h1>
-    <p class="lobby-subtitle">Set up your session before you start drafting.</p>
-
-    <!-- Match Format -->
-    <div class="lobby-card">
-      <div class="lobby-card-label">Match Format</div>
-      <div class="lobby-format-row" id="lobbyFormatPills">
-        <button class="lobby-fmt-btn active" data-format="1" onclick="lobbySetFormat(1)">
-          Single<span class="lobby-fmt-sub">1 game</span>
-        </button>
-        <button class="lobby-fmt-btn" data-format="3" onclick="lobbySetFormat(3)">
-          BO3<span class="lobby-fmt-sub">Best of 3</span>
-        </button>
-        <button class="lobby-fmt-btn" data-format="5" onclick="lobbySetFormat(5)">
-          BO5<span class="lobby-fmt-sub">Best of 5</span>
-        </button>
-        <button class="lobby-fmt-btn" data-format="7" onclick="lobbySetFormat(7)">
-          BO7<span class="lobby-fmt-sub">Best of 7</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Team Names -->
-    <div class="lobby-card">
-      <div class="lobby-card-label">Teams</div>
-      <div class="lobby-teams-row">
-        <div class="lobby-team-field">
-          <div class="lobby-team-label blue"><span class="dot"></span>Blue Side</div>
-          <input class="lobby-team-input blue-focus" id="lobbyBlueInput" type="text"
-            placeholder="Team name…" autocomplete="off" maxlength="40">
-        </div>
-        <div class="lobby-vs">VS</div>
-        <div class="lobby-team-field">
-          <div class="lobby-team-label red"><span class="dot"></span>Red Side</div>
-          <input class="lobby-team-input red-focus" id="lobbyRedInput" type="text"
-            placeholder="Team name…" autocomplete="off" maxlength="40">
-        </div>
-      </div>
-    </div>
-
-    <!-- Your Side -->
-    <div class="lobby-card">
-      <div class="lobby-card-label">You Are Playing As</div>
-      <div class="lobby-side-row">
-        <div class="lobby-side-card" id="lobbySideBlue" onclick="lobbySetSide('blue')">
-          <div class="lobby-side-icon">🔵</div>
-          <div class="lobby-side-name">Blue Side</div>
-          <div class="lobby-side-desc">First pick advantage</div>
-        </div>
-        <div class="lobby-side-card" id="lobbySideRed" onclick="lobbySetSide('red')">
-          <div class="lobby-side-icon">🔴</div>
-          <div class="lobby-side-name">Red Side</div>
-          <div class="lobby-side-desc">Counter-pick advantage</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Scout Source -->
-    <div class="lobby-card">
-      <div class="lobby-card-label">Scout Data Source</div>
-      <div class="lobby-scout-row" id="lobbyScoutBtns">
-        <button class="lobby-scout-btn active" data-scout="all"      onclick="lobbySetScout('all')">All</button>
-        <button class="lobby-scout-btn"        data-scout="MPL PH"   onclick="lobbySetScout('MPL PH')">MPL PH</button>
-        <button class="lobby-scout-btn"        data-scout="MPL ID"   onclick="lobbySetScout('MPL ID')">MPL ID</button>
-        <button class="lobby-scout-btn"        data-scout="MPL MY"   onclick="lobbySetScout('MPL MY')">MPL MY</button>
-        <button class="lobby-scout-btn"        data-scout="MPL KH"   onclick="lobbySetScout('MPL KH')">MPL KH</button>
-        <button class="lobby-scout-btn"        data-scout="MSC"      onclick="lobbySetScout('MSC')">MSC</button>
-        <button class="lobby-scout-btn"        data-scout="M-Series" onclick="lobbySetScout('M-Series')">M-Series</button>
-        <button class="lobby-scout-btn"        data-scout="Scrims"   onclick="lobbySetScout('Scrims')">Scrims</button>
-      </div>
-    </div>
-
-    <!-- Start button -->
-    <button class="lobby-start-btn" id="lobbyStartBtn" onclick="lobbyStartDraft()">
-      Start Draft →
-    </button>
-
-  </div>
-</div>
-
-=======
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
 <!-- TOP NAV -->
 <nav class="topnav">
   <a class="nav-brand" href="index.html">
@@ -1291,7 +1112,6 @@ select {
 
 <div class="page-body">
 
-<<<<<<< HEAD
 <!-- MATCH INFO BAR (shown after lobby) — battle-header style -->
 <div id="matchInfoBar">
   <!-- Left: Blue team -->
@@ -1323,100 +1143,6 @@ select {
   <button class="mib-reset-btn" onclick="lobbyReset()">⚙ Setup</button>
 </div>
 
-=======
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
-<!-- COMPACT DRAFT BAR -->
-<div class="settings-toggle" id="dataBar">
-  <div class="settings-toggle-left">
-    <div class="tab-chips" style="display:flex;gap:3px;">
-      <button class="mode-btn active" id="tabDraft" onclick="switchTab('draft')">Sim</button>
-      <button class="mode-btn" id="tabHistory" onclick="switchTab('history')">History</button>
-    </div>
-    <div style="width:1px;height:14px;background:rgba(255,255,255,.08);flex-shrink:0;"></div>
-    <div class="mode-btns">
-      <button class="mode-btn active" id="modeBtn1" onclick="setSeries(1)">Single</button>
-      <button class="mode-btn" id="modeBtn3" onclick="setSeries(3)">BO3</button>
-      <button class="mode-btn" id="modeBtn5" onclick="setSeries(5)">BO5</button>
-      <button class="mode-btn" id="modeBtn7" onclick="setSeries(7)">BO7</button>
-    </div>
-    <div class="series-score" id="seriesScore">
-      <span class="score-blue" id="sbBlue">Blue 0</span>
-      <span class="score-sep">—</span>
-      <span class="score-red" id="sbRed">0 Red</span>
-      <span class="game-label" id="sbGameLabel">Game 1</span>
-    </div>
-    <div class="match-chips" id="matchChips"></div>
-  </div>
-  <div class="settings-toggle-right">
-    <button class="sb-btn sb-btn-next" id="nextGameBtn" onclick="proceedNextGame()" style="display:none;">Next →</button>
-    <button class="settings-gear-btn" id="settingsToggleBtn" onclick="toggleSettingsPanel()">⚙ Options</button>
-  </div>
-</div>
-
-<!-- SETTINGS PANEL (collapsible) -->
-<div class="settings-panel" id="settingsPanel">
-  <div class="settings-row">
-    <span class="settings-label">Side</span>
-    <button class="side-opt active-none" id="sideNone" onclick="setOurSide(null)">–</button>
-    <button class="side-opt" id="sideBlue" onclick="setOurSide('blue')">Blue</button>
-    <button class="side-opt" id="sideRed" onclick="setOurSide('red')">Red</button>
-    <div style="width:1px;height:14px;background:rgba(255,255,255,.08);margin:0 4px;flex-shrink:0;"></div>
-    <button class="sb-btn" id="aiBattleBtn" onclick="toggleAIBattle()" style="border-color:rgba(139,92,246,.35);background:rgba(139,92,246,.07);color:#A888CC;" title="AI will auto-draft against you">AI Draft</button>
-    <div id="aiSideSelector" style="display:none;align-items:center;gap:4px;padding:3px 8px;background:rgba(139,92,246,.07);border:1px solid rgba(139,92,246,.28);border-radius:10px;">
-      <span style="font-size:9px;color:rgba(255,255,255,.4);font-weight:600;letter-spacing:.1em;text-transform:uppercase;">AI Side</span>
-      <button class="side-opt" id="aiSideBlue" onclick="setAISide('blue')">Blue</button>
-      <button class="side-opt active-red" id="aiSideRed" onclick="setAISide('red')">Red</button>
-      <button onclick="clearAIMemory()" title="Clear AI memory" style="padding:2px 8px;background:transparent;border:1px solid var(--red-border);border-radius:8px;color:var(--red);font-size:9px;cursor:pointer;font-weight:600;letter-spacing:.05em;">Clear</button>
-    </div>
-  </div>
-  <div class="settings-row" id="scoutLeagueBar">
-    <span class="settings-label">Scout</span>
-    <button class="mode-btn active" id="slAll" onclick="setScoutLeague('all')">All</button>
-    <button class="mode-btn" id="slPH" onclick="setScoutLeague('MPL PH')">MPL PH</button>
-    <button class="mode-btn" id="slMY" onclick="setScoutLeague('MPL MY')">MPL MY</button>
-    <button class="mode-btn" id="slID" onclick="setScoutLeague('MPL ID')">MPL ID</button>
-    <button class="mode-btn" id="slSG" onclick="setScoutLeague('MPL SG')">MPL SG</button>
-    <button class="mode-btn" id="slMSC" onclick="setScoutLeague('MSC')">MSC</button>
-    <button class="mode-btn" id="slMS" onclick="setScoutLeague('M-Series')">M-Series</button>
-    <button class="mode-btn" id="slScrims" onclick="setScoutLeague('Scrims')">Scrims</button>
-    <div style="margin-left:auto;display:flex;gap:5px;align-items:center;">
-      <span class="db-chip empty" id="dbPatch" style="font-size:9px;color:var(--text4);letter-spacing:.05em;"></span>
-    </div>
-  </div>
-  <div class="settings-row">
-    <button class="sb-btn sb-btn-predict" onclick="openPrediction()">Predict</button>
-    <button class="sb-btn sb-btn-newgame" onclick="cancelCurrentGame()">Reset</button>
-    <button class="sb-btn sb-btn-export" onclick="exportMatchData()">Export</button>
-    <button class="sb-btn" id="saveDraftBtn" onclick="saveDraftToCloud()" style="border-color:rgba(76,184,122,.35);background:rgba(76,184,122,.07);color:var(--neon);" title="Save draft">💾 Save</button>
-    <button class="sb-btn" id="myDraftsBtn" onclick="showDraftsModal()" style="border-color:rgba(94,160,216,.35);background:rgba(94,160,216,.07);color:var(--blue);" title="Load draft">📁 Drafts</button>
-    <span id="dbTokenDisplay" style="font-size:10px;color:#7ecfff;margin-left:4px;cursor:pointer;" onclick="location.href='profile.html'" title="AI tokens remaining — click to upgrade"></span>
-    <div style="margin-left:auto;display:flex;gap:5px;align-items:center;">
-      <input type="file" id="dataSheetInput" accept=".xlsx" style="display:none;" onchange="loadDataSheet(event)">
-      <button class="db-btn" onclick="loadFromSupabase()" style="font-size:9px;letter-spacing:.08em;">Sync</button>
-      <button class="db-btn" onclick="captureDraft()" style="font-size:9px;letter-spacing:.08em;" title="Save draft as PNG">📸</button>
-    </div>
-  </div>
-</div>
-
-<!-- DRAFT SEQUENCE -->
-<div class="seq-bar" id="seqBar"></div>
-
-<<<<<<< HEAD
-<!-- PHASE ROW — hidden, elements kept for JS compatibility -->
-<div style="display:none;">
-  <div id="phaseLabel"></div>
-  <div id="turnTag"></div>
-=======
-<!-- PHASE ROW -->
-<div class="phase-row">
-  <div class="phase-label" id="phaseLabel">Ban Phase I</div>
-  <div class="turn-tag blue" id="turnTag">Blue Team Turn</div>
-  <div class="legend">
-    <div class="legend-item"><div class="legend-dot" style="background:#ef4444;"></div>Must Ban</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#3b82f6;"></div>High Pick</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;"></div>S-Tier</div>
-  </div>
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
 </div>
 
 <!-- DRAFT PANELS -->
@@ -1448,7 +1174,6 @@ select {
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <div class="pool-title">Hero Pool</div>
         <span class="hero-count" id="heroCountLabel"></span>
-<<<<<<< HEAD
         <!-- Live turn indicator -->
         <span id="poolTurnTag" style="display:none;font-size:10px;font-weight:600;padding:2px 9px;border-radius:var(--pill);border:0.5px solid;"></span>
         <input class="search-input" id="heroSearch" placeholder="Search hero..." style="margin-left:auto;"/>
@@ -1467,15 +1192,6 @@ select {
     <div class="predict-panel" id="predictionPanel" style="display:none;margin:0 8px 4px;"></div>
     <!-- Old action-bar hidden; buttons moved to match info bar -->
     <div class="action-bar" style="display:none;">
-=======
-        <input class="search-input" id="heroSearch" placeholder="Search hero..." style="margin-left:auto;"/>
-      </div>
-      <div class="filter-row" id="laneFilters"></div>
-    </div>
-    <div class="hero-grid" id="heroGrid"></div>
-    <div class="predict-panel" id="predictionPanel" style="display:none;margin:0 8px 4px;"></div>
-    <div class="action-bar" style="border-top:1px solid var(--border);">
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
       <button class="btn btn-reset" onclick="cancelCurrentGame()">✕ New Game</button>
       <button class="btn btn-ghost" onclick="undoLast()">← Undo</button>
       <button class="btn btn-declare" id="declareBtn" onclick="openDeclareModal()">Declare Winner</button>
@@ -1966,11 +1682,7 @@ function updateSeriesScore(){
 function cancelCurrentGame(silent){
   state={currentStep:0,blueBans:[],redBans:[],bluePicks:[],redPicks:[],history:[]};
   laneAssignments={};
-<<<<<<< HEAD
   ['analyzeBtn','analyzeBtn2'].forEach(id=>{const _b=document.getElementById(id);if(_b)_b.disabled=true;});
-=======
-  document.getElementById('analyzeBtn').disabled=true;
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
   document.getElementById('analysisSection').style.display='none';
   document.getElementById('declareBtn').style.display='none';
   document.getElementById('predictionPanel').style.display='none';
@@ -2123,11 +1835,7 @@ function exportMatchData(){
 }
 
 // ── Render ─────────────────────────────────────────────────────────────
-<<<<<<< HEAD
 function renderAll(){renderSlots();renderPool();}
-=======
-function renderAll(){renderSeq();renderSlots();renderPool();}
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
 
 function renderSeq(){
   document.getElementById('seqBar').innerHTML=DRAFT_ORDER.map((s,i)=>`<div class="seq-item"><div class="seq-dot ${s.type}-${s.team} ${i===state.currentStep?'current':i<state.currentStep?'done':''}">${s.label}</div><div class="seq-label">${s.team[0].toUpperCase()}</div></div>`).join('');
@@ -2141,7 +1849,6 @@ function renderSeq(){
 
 function updateTurn(){
   const el=document.getElementById('turnTag');
-<<<<<<< HEAD
   const pt=document.getElementById('poolTurnTag');
   const{bt,rt}=sideNames();
   const cur=DRAFT_ORDER[state.currentStep];
@@ -2168,14 +1875,6 @@ function updateTurn(){
       pt.style.color='var(--red)';pt.style.borderColor='var(--red-border)';pt.style.background='var(--red-dim)';
     }
   }
-=======
-  const{bt,rt}=sideNames();
-  const cur=DRAFT_ORDER[state.currentStep];
-  if(!cur){el.textContent='Draft Complete';el.className='turn-tag';return;}
-  const name=cur.team==='blue'?bt:rt;
-  el.textContent=name+' — '+cur.type.charAt(0).toUpperCase()+cur.type.slice(1);
-  el.className='turn-tag '+cur.team;
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
 }
 
 function bSlot(h,active){
@@ -2195,7 +1894,6 @@ function pSlot(h,active,lbl){
       : `border-color:${laneCol}44;color:${laneCol};cursor:pointer;`;
     const laneTitle=isNaturalFlex&&!isAssigned?'Flex hero — click to assign lane':'Click to change lane';
     const laneIcon=LANE_ICONS[ln]||'◈';
-<<<<<<< HEAD
     const _ss=heroScoutStats[h.name];const _wrHtml=_ss&&_ss.winRate!=null?(()=>{const wr=_ss.winRate;const cls=wr>=55?'wr-high':wr>=45?'wr-mid':'wr-low';return`<div class="wr-bar ${cls}" title="WR ${wr}% · ${_ss.picks}g"><div class="wr-bar-fill" style="width:${Math.min(100,wr)}%"></div></div><span class="wr-label ${cls}">${wr}%</span>`;})():'';
     return`<div class="pick-slot filled"><div class="slot-order">${lbl}</div><img src="${u}" alt="${h.name}" class="slot-img" onerror="if(this.dataset.t){this.src='${fbImg(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${imgUrlName(h)}';}"><div class="slot-info"><div class="slot-hname">${h.name}</div><div class="slot-role" style="color:${rc(h.role)}">${h.role}</div><span class="slot-lane" style="${laneStyle}" onclick="cycleLane('${h.id}',event)" title="${laneTitle}">${ln}${isNaturalFlex&&!isAssigned?' ↕':''}</span></div><div class="slot-tier" style="color:${tc(h.tier)}">${h.tier}</div>${_wrHtml}</div>`;
   }
@@ -2203,11 +1901,6 @@ function pSlot(h,active,lbl){
     ? `<div class="slot-placeholder" style="border:none;background:transparent;"><div class="slot-picking-ring"></div></div>`
     : `<div class="slot-placeholder"></div>`;
   return`<div class="pick-slot${active?' active-slot':''}"><div class="slot-order">${lbl}</div>${placeholder}<div class="slot-info"><div style="font-size:10px;color:var(--text3);">${active?'Picking...':'Empty'}</div></div></div>`;
-=======
-    return`<div class="pick-slot filled"><div class="slot-order">${lbl}</div><img src="${u}" alt="${h.name}" class="slot-img" onerror="if(this.dataset.t){this.src='${fbImg(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${imgUrlName(h)}';}"><div class="slot-info"><div class="slot-hname">${h.name}</div><div class="slot-role" style="color:${rc(h.role)}">${h.role}</div><span class="slot-lane" style="${laneStyle}" onclick="cycleLane('${h.id}',event)" title="${laneTitle}">${ln}${isNaturalFlex&&!isAssigned?' ↕':''}</span></div><div class="slot-tier" style="color:${tc(h.tier)}">${h.tier}</div></div>`;
-  }
-  return`<div class="pick-slot${active?' active-slot':''}"><div class="slot-order">${lbl}</div><div class="slot-placeholder">+</div><div class="slot-info"><div style="font-size:10px;color:var(--text3);">Empty</div></div></div>`;
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
 }
 
 function renderSlots(){
@@ -2218,7 +1911,6 @@ function renderSlots(){
   document.getElementById('redBanSlots').innerHTML=[0,1,2,3,4].map(i=>bSlot(state.redBans[i],cur?.type==='ban'&&cur?.team==='red'&&state.redBans.length===i)).join('');
   document.getElementById('bluePickSlots').innerHTML=[0,1,2,3,4].map(i=>pSlot(state.bluePicks[i],cur?.type==='pick'&&cur?.team==='blue'&&state.bluePicks.length===i,bpo[i]||'P'+(i+1))).join('');
   document.getElementById('redPickSlots').innerHTML=[0,1,2,3,4].map(i=>pSlot(state.redPicks[i],cur?.type==='pick'&&cur?.team==='red'&&state.redPicks.length===i,rpo[i]||'P'+(i+1))).join('');
-<<<<<<< HEAD
   // Panel-level glow — highlight which side is active
   const bp=document.getElementById('bluePanel');
   const rp=document.getElementById('redPanel');
@@ -2228,133 +1920,10 @@ function renderSlots(){
     rp.classList.toggle('panel-active-red',  !!cur && cur.team==='red');
     rp.classList.toggle('panel-active-blue', false);
   }
-=======
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
-}
-
-function setFilter(r){ activeFilter=r; activeLane='All'; renderPool(); }
-function setLaneFilter(lane){ activeLane=lane; activeFilter='All'; renderPool(); }
-function setViewMode(m){ viewMode=m; renderPool(); } // kept for compat
-
-const LANE_COLORS = { Gold:'#f59e0b', Mid:'#a855f7', Roam:'#22c55e', Jungle:'#ef4444', EXP:'#38bdf8', Flex:'#94a3b8' };
-const LANE_ICONS  = { Gold:'GLD', Mid:'MID', Roam:'RMG', Jungle:'JGL', EXP:'EXP', Flex:'FLX' };
-
-function renderPool(){
-  const banned=[...state.blueBans,...state.redBans].map(h=>h.id);
-  const picked=[...state.bluePicks,...state.redPicks].map(h=>h.id);
-
-  // Lane / Role toggle filter
-  const DB_ROLES=['All','MM','Mage','Support','Tank','Assassin','Fighter'];
-  const DB_ROLE_COLS={MM:'#C89050',Mage:'#A888CC',Support:'#4CB87A',Tank:'#5EA0D8',Assassin:'#D87880',Fighter:'#C89050'};
-  const isLaneMode = heroFilterMode !== 'role';
-  const filterOptions = isLaneMode ? ['All','Gold','Jungle','Mid','EXP','Roam'] : DB_ROLES;
-
-  document.getElementById('laneFilters').innerHTML =
-    `<button class="lane-btn" style="font-size:9px;padding:3px 9px;background:rgba(255,255,255,0.06);border-color:rgba(255,255,255,0.11);color:var(--text2);" onclick="heroFilterMode=heroFilterMode==='lane'?'role':'lane';activeLane='All';renderPool()">⇄ ${isLaneMode?'By Lane':'By Role'}</button>` +
-    filterOptions.map(l=>{
-      if(l==='All'){
-        const isA=activeLane==='All';
-        return `<button class="lane-btn${isA?' active':''}" onclick="activeLane='All';renderPool()" style="${isA?'border-color:var(--blue);background:var(--accent-dim);color:var(--accent);':''}">All</button>`;
-      }
-      const col = isLaneMode ? (LANE_COLORS[l]||'#94a3b8') : (DB_ROLE_COLS[l]||'#94a3b8');
-      const isA=activeLane===l;
-      return `<button class="lane-btn${isA?' active':''}" onclick="activeLane='${l}';renderPool()" style="${isA?`border-color:${col}88;background:${col}18;color:${col};`:`color:${col}99;`}">${l}</button>`;
-    }).join('');
-
-  // Filter heroes
-  let vis=FINAL_HEROES.filter(h=>{
-    if(activeLane!=='All'){
-      if(isLaneMode){
-        const hLanes=getHeroLanes(h);
-        if(!hLanes.includes(activeLane))return false;
-      } else {
-        if(h.role.split('/')[0]!==activeLane)return false;
-      }
-    }
-    if(searchQuery&&!h.name.toLowerCase().includes(searchQuery.toLowerCase()))return false;
-    return true;
-  });
-
-  document.getElementById('heroCountLabel').textContent=vis.length+' / '+FINAL_HEROES.length;
-
-  // ── Hero pool (lazy-loaded once per render pass) ──
-  const _dbPool = (typeof WDB !== 'undefined' && WDB.getHeroPool) ? new Set(WDB.getHeroPool()) : new Set();
-
-  function heroCard(h){
-    const isBan=banned.includes(h.id),isPick=picked.includes(h.id),isUsed=isBan||isPick;
-    let cls='hero-card';if(isBan)cls+=' banned';if(isPick)cls+=' picked';
-    const u=imgUrl(h);
-    const lane=getHeroLane(h);
-    // When filtering by a specific lane, show that lane — not the hero's primary lane
-    const displayLane=(isLaneMode && activeLane!=='All') ? activeLane : lane;
-    const laneCol=LANE_COLORS[displayLane]||'#94a3b8';
-    const inPool = _dbPool.has(h.name);
-    return`<div class="${cls}" ${isUsed?'':'onclick="selectHero(\''+h.id+'\')"'} title="${h.name} · ${h.role} · ${displayLane}${inPool?' · ★ Your Pool':''}" style="${isUsed?'pointer-events:none;':''}">
-      <img src="${u}" class="hero-img" alt="${h.name}" onerror="if(this.dataset.t){this.src='${fbImg(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${imgUrlName(h)}'}">
-      <div class="hero-cname">${h.name}</div>
-      <div class="hero-crole" style="color:${LANE_COLORS[displayLane]||'#94a3b8'}">${isLaneMode?displayLane:h.role.split('/')[0]}</div>
-      <div class="tier-badge tier-${h.tier}">${h.tier}</div>
-      ${h.mp==='mustban'?'<div class="meta-badge mb-ban">BAN</div>':h.mp==='highpick'?'<div class="meta-badge mb-pick">HOT</div>':''}
-      ${heroScoutStats[h.name]!=null?(()=>{const s=heroScoutStats[h.name];const wr=s.winRate;const cls=wr>=55?'wr-high':wr>=45?'wr-mid':'wr-low';return`<div class="wr-bar ${cls}" title="WR ${wr}% · ${s.picks}g"><div class="wr-bar-fill" style="width:${Math.min(100,wr)}%"></div></div><div class="wr-label ${cls}">${wr}%</div>`;})():''}
-      ${inPool?'<div style="position:absolute;top:3px;left:4px;font-size:9px;color:#f5c842;line-height:1;" title="In your hero pool">★</div>':''}
-      ${isBan?'<div class="banned-overlay">✕</div>':isPick?'<div class="banned-overlay" style="background:rgba(59,130,246,.15);color:rgba(59,130,246,.7);">✓</div>':''}
-    </div>`;
-  }
-
-  const grid = document.getElementById('heroGrid');
-
-  if(activeLane==='All'){
-    // Group by lane — each section is its own flex-wrapped row (avoids CSS grid auto-placement bug)
-    grid.classList.add('grouped');
-    const laneOrder=['Gold','Jungle','Mid','EXP','Roam','Flex'];
-    let html='';
-    laneOrder.forEach(lane=>{
-      const group=vis.filter(h=>getHeroLanes(h).includes(lane)||(lane==='Flex'&&getHeroLanes(h).every(l=>l==='Flex')));
-      if(!group.length)return;
-      const col=LANE_COLORS[lane]||'#94a3b8';
-      html+=`<div class="lane-section">
-        <div class="lane-section-header">
-          <span style="font-size:9px;font-weight:800;font-family:var(--font-head);letter-spacing:1.5px;color:${col};">${lane.toUpperCase()}</span>
-          <div style="flex:1;height:1px;background:${col}33;margin:0 8px;"></div>
-          <span style="font-size:9px;font-weight:600;color:${col}88;">${group.length}</span>
-        </div>
-        <div class="lane-section-cards">${group.map(heroCard).join('')}</div>
-      </div>`;
-    });
-    grid.innerHTML=html;
-  } else {
-    // Single lane selected — standard auto-fill grid
-    grid.classList.remove('grouped');
-    grid.innerHTML=vis.map(heroCard).join('');
-  }
-}
-
-function selectHeroBase(id){
-  if(state.currentStep>=DRAFT_ORDER.length){toast('Draft complete','error');return;}
-  const h=FINAL_HEROES.find(x=>x.id===id);if(!h)return;
-  const used=[...state.blueBans,...state.redBans,...state.bluePicks,...state.redPicks].map(x=>x.id);
-  if(used.includes(id)){toast('Already used','error');return;}
-  const step=DRAFT_ORDER[state.currentStep];
-  state.history.push({step:state.currentStep,hero:h,type:step.type,team:step.team});
-  if(step.type==='ban'){step.team==='blue'?state.blueBans.push(h):state.redBans.push(h);}
-  else{step.team==='blue'?state.bluePicks.push(h):state.redPicks.push(h);}
-  state.currentStep++;
-<<<<<<< HEAD
-  ['analyzeBtn','analyzeBtn2'].forEach(id=>{const _b=document.getElementById(id);if(_b)_b.disabled=!(state.bluePicks.length>=3&&state.redPicks.length>=3);});
-  renderAll();updateTurn();
-  if(state.currentStep>=DRAFT_ORDER.length){
-    toast('Draft complete — Analyze or declare winner!');
-    ['analyzeBtn','analyzeBtn2'].forEach(id=>{const _b=document.getElementById(id);if(_b)_b.disabled=false;});
-=======
-  document.getElementById('analyzeBtn').disabled=!(state.bluePicks.length>=3&&state.redPicks.length>=3);
-  renderAll();updateTurn();
-  if(state.currentStep>=DRAFT_ORDER.length){
-    toast('Draft complete — Analyze or declare winner!');
-    document.getElementById('analyzeBtn').disabled=false;
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
+  if(series.mode>1){
     if(!series.finished) document.getElementById('declareBtn').style.display='inline-flex';
+    updateSeriesScore();
   }
-  if(series.mode>1)updateSeriesScore();
 }
 
 function undoLast(){
@@ -2375,11 +1944,7 @@ function undoLast(){
       else{h.team==='blue'?state.bluePicks.pop():state.redPicks.pop();}
     }
     aiThinking=false;
-<<<<<<< HEAD
     ['analyzeBtn','analyzeBtn2'].forEach(id=>{const _b=document.getElementById(id);if(_b)_b.disabled=!(state.bluePicks.length>=3&&state.redPicks.length>=3);});
-=======
-    document.getElementById('analyzeBtn').disabled=!(state.bluePicks.length>=3&&state.redPicks.length>=3);
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
     document.getElementById('analysisSection').style.display='none';
     document.getElementById('declareBtn').style.display='none';
     renderAll();updateTurn();toast('Undo done');
@@ -2389,11 +1954,7 @@ function undoLast(){
   state.currentStep=last.step;
   if(last.type==='ban'){last.team==='blue'?state.blueBans.pop():state.redBans.pop();}
   else{last.team==='blue'?state.bluePicks.pop():state.redPicks.pop();}
-<<<<<<< HEAD
   ['analyzeBtn','analyzeBtn2'].forEach(id=>{const _b=document.getElementById(id);if(_b)_b.disabled=!(state.bluePicks.length>=3&&state.redPicks.length>=3);});
-=======
-  document.getElementById('analyzeBtn').disabled=!(state.bluePicks.length>=3&&state.redPicks.length>=3);
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
   document.getElementById('analysisSection').style.display='none';
   document.getElementById('declareBtn').style.display='none';
   renderAll();updateTurn();toast('Undo done');
@@ -4592,6 +4153,8 @@ const TIER_COLORS = {S:'#f59e0b',A:'#a3e635',B:'#60a5fa',C:'#94a3b8',D:'#6b7280'
 const TIER_MS     = {S:9.5,A:8.0,B:6.5,C:5.0,D:3.5};
 const TIER_MP     = {S:'highpick',A:'highpick',B:'situational',C:'situational',D:'off'};
 const LANE_OPTS   = ['Gold','Jungle','Mid','EXP','Roam','Flex'];
+const LANE_COLORS = { Gold:'#f59e0b', Jungle:'#ef4444', Mid:'#a855f7', EXP:'#38bdf8', Roam:'#22c55e', Flex:'#94a3b8' };
+const LANE_ICONS  = { Gold:'⚔', Jungle:'⬢', Mid:'✦', EXP:'⬡', Roam:'◎', Flex:'◈' };
 
 let teSearch = '';
 let teRoleFilter = 'All';
@@ -5203,14 +4766,9 @@ function computeHeroScoutStats(matches) {
 }
 
 // Init Supabase auth chip + apply scout role corrections to HERO_LANES
-<<<<<<< HEAD
 const IS_DEV = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'file:';
 (async () => {
   const ok = IS_DEV ? true : await WAuth.requireAuth();
-=======
-(async () => {
-  const ok = await WAuth.requireAuth();
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
   if (typeof WDB !== 'undefined' && WDB.initDailyReset) {
     await WDB.initDailyReset();
     updateDBTokenDisplay(); // refresh after reset so count is accurate
@@ -5236,7 +4794,6 @@ const IS_DEV = location.hostname === 'localhost' || location.hostname === '127.0
 })();
 WAuth.renderAuthChip('authChip');
 
-<<<<<<< HEAD
 // ══════════════════════════════════════════════════════════
 // DRAFT LOBBY
 // ══════════════════════════════════════════════════════════
@@ -5341,8 +4898,6 @@ WAuth.renderAuthChip('authChip');
   });
 })();
 
-=======
->>>>>>> db85032bd420b0db5180cf60b0eea5fcb6645c28
 init();
 _initTeamPickers(); // replace native selects with custom pickers after DOM ready
 updateApiKeyStatus();
