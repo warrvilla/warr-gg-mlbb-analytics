@@ -4176,6 +4176,31 @@ function openTierEditor() {
   ov.id = 'tierEditorOverlay';
   ov.style.cssText = 'position:fixed;inset:0;z-index:200;display:flex;';
 
+  // Pre-build HTML fragments using string concatenation to avoid nested backticks
+  const _roleButtonsHtml = ['All','Tank','Fighter','Assassin','Mage','MM','Support'].map(function(r) {
+    return '<button class="te-rf' + (r==='All' ? ' te-active' : '') + '"'
+      + ' onclick="teRoleFilter=\'' + r + '\';renderTierEditor();'
+      + 'document.querySelectorAll(\'.te-rf\').forEach(function(b){b.classList.remove(\'te-active\')});'
+      + 'this.classList.add(\'te-active\')">' + r + '</button>';
+  }).join('');
+
+  const _laneZonesHtml = ['Gold','Jungle','Mid','EXP','Roam'].map(function(lane) {
+    const lc = LANE_COLORS[lane] || '#94a3b8';
+    return '<div class="te-zone" data-lane="' + lane + '"'
+      + ' style="border-color:' + lc + '44;background:' + lc + '07;"'
+      + ' ondragover="event.preventDefault();this.classList.add(\'drag-over\');this.style.borderColor=\'' + lc + '\';this.style.background=\'' + lc + '1a\';"'
+      + ' ondragleave="this.classList.remove(\'drag-over\');this.style.borderColor=\'' + lc + '44\';this.style.background=\'' + lc + '07\';"'
+      + ' ondrop="teDrop(event,\'' + lane + '\')">'
+      + '<div class="te-zone-header">'
+      + '<span class="te-zone-icon">' + lane + '</span>'
+      + '<span class="te-zone-title" style="color:' + lc + ';">' + lane.toUpperCase() + '</span>'
+      + '<span class="te-zone-count" data-lane="' + lane + '" style="color:' + lc + ';"></span>'
+      + '<button class="te-zone-clear" onclick="teClearLane(\'' + lane + '\')" style="color:' + lc + ';border-color:' + lc + ';">clear</button>'
+      + '</div>'
+      + '<div class="te-chips" data-lane="' + lane + '"></div>'
+      + '</div>';
+  }).join('');
+
   ov.innerHTML = `
   <style>
     #teOverlay{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);z-index:200;display:flex;}
@@ -4241,11 +4266,7 @@ function openTierEditor() {
         <div id="teFilters">
           <input id="teSearch" placeholder="Search hero..." oninput="teSearch=this.value;renderTierEditor()"
             style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;padding:6px 11px;outline:none;width:100%;box-sizing:border-box;">
-          <div style="display:flex;gap:4px;flex-wrap:wrap;">
-            ${['All','Tank','Fighter','Assassin','Mage','MM','Support'].map(r=>
-              `<button class="te-rf${r==='All'?' te-active':''}" onclick="teRoleFilter='${r}';renderTierEditor();document.querySelectorAll('.te-rf').forEach(b=>b.classList.remove('te-active'));this.classList.add('te-active')">${r}</button>`
-            ).join('')}
-          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">${_roleButtonsHtml}</div>
         </div>
         <div id="teHeroList"></div>
       </div>
@@ -4253,21 +4274,7 @@ function openTierEditor() {
       <!-- RIGHT: Lane zones -->
       <div id="teRight">
         <div style="font-size:9px;color:var(--text3);letter-spacing:1px;padding-bottom:4px;">DRAG HEROES &#8594; LANES &nbsp;&middot;&nbsp; one hero can be in multiple lanes &nbsp;&middot;&nbsp; unassigned = Flex</div>
-        ${['Gold','Jungle','Mid','EXP','Roam'].map(lane => {
-          const lc = LANE_COLORS[lane]||'#94a3b8';
-          return `<div class="te-zone" data-lane="${lane}" style="border-color:${lc}44;background:${lc}07;"
-            ondragover="event.preventDefault();this.classList.add('drag-over');this.style.borderColor='${lc}';this.style.background='${lc}1a';"
-            ondragleave="this.classList.remove('drag-over');this.style.borderColor='${lc}44';this.style.background='${lc}07';"
-            ondrop="teDrop(event,'${lane}')">
-            <div class="te-zone-header">
-              <span class="te-zone-icon">${lane}</span>
-              <span class="te-zone-title" style="color:${lc};">${lane.toUpperCase()}</span>
-              <span class="te-zone-count" data-lane="${lane}" style="color:${lc};"></span>
-              <button class="te-zone-clear" onclick="teClearLane('${lane}')" style="color:${lc};border-color:${lc};">clear</button>
-            </div>
-            <div class="te-chips" data-lane="${lane}"></div>
-          </div>`;
-        }).join('')}
+        ${_laneZonesHtml}
 
         <!-- Flex zone -->
         <div class="te-zone" style="border-color:var(--border);background:rgba(255,255,255,.02);">
