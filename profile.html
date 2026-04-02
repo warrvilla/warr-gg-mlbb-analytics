@@ -385,8 +385,8 @@ body { background: var(--bg); min-height: 100vh; }
         <input type="text" id="displayNameInput" class="field-input" placeholder="Your gaming tag or full name">
       </div>
       <div class="field-group">
-        <div class="field-label">Email <span style="color:var(--text4);font-size:11px;">(cannot be changed)</span></div>
-        <div id="emailDisplay" style="padding:10px 14px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text3);font-size:13px;">—</div>
+        <div class="field-label">Email <span style="color:var(--text4);font-size:11px;">(from your account)</span></div>
+        <input type="email" id="emailInput" class="field-input" placeholder="your@email.com" readonly style="opacity:.6;cursor:default;">
       </div>
       <div class="field-group">
         <div class="field-label">Team Affiliation</div>
@@ -448,19 +448,16 @@ body { background: var(--bg); min-height: 100vh; }
         To fast-track approval, reach out via <strong>Discord</strong> or the Warr.GG admin panel.
       </div>
 
-      <div style="margin-top:20px;display:flex;gap:10px;align-items:center;">
-        <button class="save-btn" id="saveBtn" onclick="saveProfile()">Save Changes</button>
-        <button id="cancelTeamBtn" onclick="cancelTeamAffiliation()" style="display:none;padding:10px 18px;border-radius:12px;background:transparent;border:1px solid var(--red-border);color:var(--red);font-size:13px;cursor:pointer;font-weight:600;">
-          Remove Team
-        </button>
+      <div style="margin-top:20px;">
+        <button class="save-btn" id="saveBtn" onclick="saveProfile()">Save Profile</button>
       </div>
     </div>
 
     <!-- TOKEN & SUBSCRIPTION PANEL -->
     <div class="tokens-panel">
       <div class="tokens-header">
-        <span class="tokens-title">Daily AI Drafts</span>
-        <span class="tokens-reset" id="tokenResetLabel">Resets at midnight</span>
+        <span class="tokens-title">AI Analysis Tokens</span>
+        <span class="tokens-reset" id="tokenResetLabel">Resets monthly</span>
       </div>
       <div class="tokens-bar-wrap">
         <div class="tokens-bar-track">
@@ -468,7 +465,7 @@ body { background: var(--bg); min-height: 100vh; }
         </div>
         <div class="tokens-count">
           <strong id="tokensRemLabel">—</strong>
-          <span id="tokensTotalLabel"> / — drafts remaining today</span>
+          <span id="tokensTotalLabel"> / — tokens remaining this month</span>
         </div>
       </div>
     </div>
@@ -476,41 +473,41 @@ body { background: var(--bg); min-height: 100vh; }
     <!-- PLAN CARDS -->
     <div class="section-label" style="margin-bottom:14px;">Subscription Plans</div>
     <div class="plans-grid">
-      <div class="plan-card" id="planCard-free">
+      <div class="plan-card" id="planCard-free" onclick="selectPlanPreview('free')">
         <div class="plan-name" style="color:var(--text2);">Free</div>
         <div class="plan-price" style="color:var(--text);">$0<span>/mo</span></div>
         <ul class="plan-features">
-          <li>5 AI drafts / day</li>
+          <li>10 AI analyses / month</li>
           <li>Local AI draft engine</li>
           <li>Scout data (unlimited)</li>
           <li>Draft board</li>
         </ul>
-        <button class="plan-cta" id="planCta-free" onclick="event.stopPropagation()">Current Plan</button>
+        <button class="plan-cta" onclick="event.stopPropagation()">Current Plan</button>
       </div>
 
-      <div class="plan-card" id="planCard-pro">
+      <div class="plan-card" id="planCard-pro" onclick="selectPlanPreview('pro')">
         <div class="plan-popular">Popular</div>
         <div class="plan-name" style="color:var(--purple);">Pro</div>
         <div class="plan-price" style="color:var(--purple);">$9.99<span>/mo</span></div>
         <ul class="plan-features">
-          <li>50 AI drafts / day</li>
-          <li>Claude-powered draft coach</li>
+          <li>50 AI analyses / month</li>
+          <li>GPT-powered draft coach</li>
           <li>Advanced scout patterns</li>
           <li>Priority support</li>
         </ul>
-        <button class="plan-cta" id="planCta-pro" onclick="event.stopPropagation();requestPlanUpgrade('pro')">Request Pro Access</button>
+        <button class="plan-cta" onclick="event.stopPropagation();upgradePlan('pro')">Upgrade to Pro</button>
       </div>
 
-      <div class="plan-card" id="planCard-team">
+      <div class="plan-card" id="planCard-team" onclick="selectPlanPreview('team')">
         <div class="plan-name" style="color:var(--gold);">Team</div>
         <div class="plan-price" style="color:var(--gold);">$29.99<span>/mo</span></div>
         <ul class="plan-features">
-          <li>Unlimited AI drafts / day</li>
+          <li>200 AI analyses / month</li>
           <li>Team roster management</li>
           <li>MPL scout integration</li>
           <li>Coaching export tools</li>
         </ul>
-        <button class="plan-cta" id="planCta-team" onclick="event.stopPropagation();requestPlanUpgrade('team')">Request Team Access</button>
+        <button class="plan-cta" onclick="event.stopPropagation();upgradePlan('team')">Upgrade to Team</button>
       </div>
     </div>
 
@@ -541,15 +538,15 @@ body { background: var(--bg); min-height: 100vh; }
       <a href="admin.html" class="admin-go-btn">Open Admin Panel →</a>
     </div>
 
-    <!-- SIGN OUT + ACCOUNT -->
+    <!-- SIGN OUT + DANGER ZONE -->
     <div class="profile-card" style="margin-top:20px;">
       <div class="section-label">Account</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
-        <button onclick="openChangePassword()" style="padding:9px 16px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:12px;cursor:pointer;">
-          Change Password
-        </button>
         <button onclick="exportProfileData()" style="padding:9px 16px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:12px;cursor:pointer;">
           Export My Data
+        </button>
+        <button onclick="confirmClearTokens()" style="padding:9px 16px;border-radius:10px;background:var(--surface3);border:1px solid var(--red-border);color:var(--red);font-size:12px;cursor:pointer;">
+          Reset Token Counter
         </button>
         <button onclick="signOut()" style="padding:9px 16px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text3);font-size:12px;cursor:pointer;margin-left:auto;">
           Sign Out
@@ -586,15 +583,12 @@ const MPL_TEAMS = [
 // ── Cached Supabase profile ──
 let _sbProfile = null;
 
-// ── localStorage helpers — keyed per user ID so accounts don't bleed into each other ──
-function _profileKey() {
-  const uid = (typeof WAuth !== 'undefined' && WAuth.getUser) ? WAuth.getUser()?.id : null;
-  return uid ? `warr_user_profile_${uid}` : 'warr_user_profile';
-}
+// ── localStorage helpers (avatar + fallback) ──
+const PROFILE_KEY = 'warr_user_profile';
 function localGet() {
-  try { return JSON.parse(localStorage.getItem(_profileKey()) || '{}'); } catch(e) { return {}; }
+  try { return JSON.parse(localStorage.getItem(PROFILE_KEY) || '{}'); } catch(e) { return {}; }
 }
-function localSet(data) { localStorage.setItem(_profileKey(), JSON.stringify(data)); }
+function localSet(data) { localStorage.setItem(PROFILE_KEY, JSON.stringify(data)); }
 
 // ── Sync status indicator ──
 function setSyncStatus(state, label) {
@@ -655,41 +649,17 @@ function handleTeamSelect() {
   const customInput = document.getElementById('customTeamInput');
   const approvalBox = document.getElementById('mplApprovalBox');
   const adminNote   = document.getElementById('adminNote');
-  const cancelBtn   = document.getElementById('cancelTeamBtn');
 
   if (val === '__custom__') {
     customInput.style.display = 'block';
     approvalBox.style.display = 'none';
-    adminNote.style.display   = 'none';
+    adminNote.style.display = 'none';
   } else {
     customInput.style.display = 'none';
     const isMPL = MPL_TEAMS.includes(val);
     approvalBox.style.display = isMPL && val ? 'block' : 'none';
     adminNote.style.display   = isMPL && val ? 'block' : 'none';
   }
-  // Show "Remove Team" button only when a team is selected
-  if (cancelBtn) cancelBtn.style.display = val ? 'block' : 'none';
-}
-
-async function cancelTeamAffiliation() {
-  if (!confirm('Remove your team affiliation?')) return;
-  document.getElementById('teamSelect').value = '';
-  document.getElementById('customTeamInput').style.display = 'none';
-  document.getElementById('mplApprovalBox').style.display  = 'none';
-  document.getElementById('adminNote').style.display       = 'none';
-  document.getElementById('cancelTeamBtn').style.display   = 'none';
-  // Save immediately
-  const name = (document.getElementById('displayNameInput').value || '').trim();
-  if (!name) { toast('Enter a display name first', 'error'); return; }
-  const lp = localGet(); lp.team = ''; lp.teamStatus = 'none'; localSet(lp);
-  if (typeof WAuth !== 'undefined' && WAuth.saveProfile) {
-    try {
-      await WAuth.saveProfile({ team_name: null, team_status: 'none' });
-      _sbProfile = WAuth.getProfile();
-      toast('Team affiliation removed ✓', 'success');
-    } catch(e) { toast('Removed locally (sync failed)', 'error'); }
-  }
-  renderProfile();
 }
 
 // ── Save profile (Supabase + localStorage fallback) ──
@@ -753,9 +723,7 @@ function renderProfile() {
   const sp = _sbProfile || {};
 
   const displayName = sp.display_name || lp.displayName || '';
-  // Email comes from auth (not profiles table) — always use WAuth.getUser()
-  const authUser    = (typeof WAuth !== 'undefined' && WAuth.getUser) ? WAuth.getUser() : null;
-  const email       = authUser?.email || sp.email || lp.email || '';
+  const email       = sp.email || lp.email || '';
   const teamName    = sp.team_name || lp.team || '';
   const teamStatus  = sp.team_status || lp.teamStatus || 'none';
   const plan        = sp.plan || (localGet().plan) ||
@@ -768,8 +736,8 @@ function renderProfile() {
   // Name & email
   document.getElementById('displayNameLabel').textContent = displayName || 'Your Name';
   document.getElementById('emailLabel').textContent = email || '—';
-  document.getElementById('emailDisplay').textContent = email || '—';
   document.getElementById('displayNameInput').value = displayName;
+  document.getElementById('emailInput').value = email;
 
   // Plan badge
   const planBadge = document.getElementById('planBadge');
@@ -813,75 +781,37 @@ function renderProfile() {
       document.getElementById('mplApprovalBox').style.display = 'block';
       document.getElementById('adminNote').style.display = 'block';
     }
-    // Show Remove Team button since a team is selected
-    const cb = document.getElementById('cancelTeamBtn');
-    if (cb) cb.style.display = 'block';
   } else {
     teamChip.textContent = 'No team selected';
     teamChip.className = 'profile-team-chip none';
-    const cb = document.getElementById('cancelTeamBtn');
-    if (cb) cb.style.display = 'none';
   }
 
-  // Tokens — plan comes from Supabase profile (admin-set)
+  // Tokens
   const sub = (typeof WDB !== 'undefined' && WDB.getSubscription) ? WDB.getSubscription() : { plan, tokensUsed: 0 };
-  renderTokens(sub, sub.plan || plan);
+  // Sync plan from Supabase into local sub if different
+  if (sp.plan && sub.plan !== sp.plan) {
+    sub.plan = sp.plan;
+    if (typeof WDB !== 'undefined' && WDB.saveSubscription) WDB.saveSubscription(sub);
+  }
+  renderTokens(sub, plan);
 }
 
 function renderTokens(sub, plan) {
   if (typeof WDB === 'undefined' || !WDB.PLANS) return;
   const planData = WDB.PLANS[plan] || WDB.PLANS.free;
-  const total = planData.draftsPerDay;
-  const rem   = (typeof WDB.getTokensRemaining === 'function') ? WDB.getTokensRemaining() : total;
-  const pct   = total >= 999 ? 100 : Math.max(0, Math.min(100, (rem / total) * 100));
+  const rem   = (typeof WDB.getTokensRemaining === 'function') ? WDB.getTokensRemaining() : planData.tokensPerMonth;
+  const total = planData.tokensPerMonth;
+  const pct   = Math.max(0, Math.min(100, (rem / total) * 100));
 
-  document.getElementById('tokensRemLabel').textContent = total >= 999 ? '∞' : rem;
-  document.getElementById('tokensTotalLabel').textContent =
-    total >= 999 ? ' unlimited drafts' : ` / ${total} drafts remaining today`;
+  document.getElementById('tokensRemLabel').textContent = rem;
+  document.getElementById('tokensTotalLabel').textContent = ` / ${total} tokens remaining this month`;
   document.getElementById('tokenBar').style.width = pct + '%';
 
-  // Show actual reset time (24hr rolling window from last reset)
-  const resetLabel = document.getElementById('tokenResetLabel');
-  if (resetLabel) {
-    if (total >= 999) {
-      resetLabel.textContent = 'Unlimited — no reset needed';
-    } else if (sub.resetDate) {
-      const resetAt = new Date(sub.resetDate).getTime() + 24 * 60 * 60 * 1000;
-      const msLeft  = resetAt - Date.now();
-      if (msLeft <= 0) {
-        resetLabel.textContent = 'Resets now (reload page)';
-      } else {
-        const hLeft = Math.floor(msLeft / 3600000);
-        const mLeft = Math.floor((msLeft % 3600000) / 60000);
-        resetLabel.textContent = `Resets in ${hLeft}h ${mLeft}m`;
-      }
-    } else {
-      resetLabel.textContent = 'Resets 24hrs after first draft';
-    }
+  if (sub && sub.resetDate) {
+    const rd = new Date(sub.resetDate);
+    document.getElementById('tokenResetLabel').textContent =
+      `Resets ${rd.toLocaleDateString('en', { month: 'short', day: 'numeric' })}`;
   }
-
-  // Highlight active plan card
-  ['free','pro','team'].forEach(pl => {
-    const card = document.getElementById('planCard-' + pl);
-    if (!card) return;
-    card.classList.toggle('active', pl === plan && plan === 'free');
-    card.classList.toggle('active-team', pl === plan && plan === 'team');
-    if (pl === 'pro') card.style.borderColor = pl === plan ? 'var(--purple)' : '';
-  });
-
-  // Update CTA buttons to reflect current plan
-  ['free','pro','team'].forEach(pl => {
-    const btn = document.getElementById('planCta-' + pl);
-    if (!btn) return;
-    if (pl === plan) {
-      btn.textContent = 'Current Plan';
-      btn.onclick = e => { e && e.stopPropagation(); };
-    } else {
-      const labels = { free: 'Downgrade to Free', pro: 'Request Pro Access', team: 'Request Team Access' };
-      btn.textContent = labels[pl] || 'Request Access';
-      btn.onclick = e => { e && e.stopPropagation(); requestPlanUpgrade(pl); };
-    }
-  });
 }
 
 // ── Generate default avatar from initials ──
@@ -899,52 +829,39 @@ function generateDefaultAvatar(name) {
   return canvas.toDataURL();
 }
 
-// ── Plan upgrade request (admin must approve — user cannot self-upgrade) ──
-function requestPlanUpgrade(plan) {
-  const planData = WDB.PLANS[plan] || {};
-  const modal = document.getElementById('upgradeContactModal');
-  if (modal) {
-    document.getElementById('upgradeContactPlan').textContent = planData.label || plan;
-    modal.style.display = 'flex';
+// ── Plan preview / upgrade ──
+function selectPlanPreview(plan) {
+  ['free','pro','team'].forEach(pl => {
+    const card = document.getElementById('planCard-' + pl);
+    if (!card) return;
+    const sub = (typeof WDB !== 'undefined' && WDB.getSubscription) ? WDB.getSubscription() : { plan: 'free' };
+    const currentPlan = sub.plan || 'free';
+    card.style.transform = (pl === plan && pl !== currentPlan) ? 'translateY(-4px)' : '';
+  });
+}
+
+function upgradePlan(plan) {
+  if (typeof WDB === 'undefined' || !WDB.getSubscription) { toast('WDB not loaded', 'error'); return; }
+  const sub = WDB.getSubscription();
+  const current = sub.plan || 'free';
+  if (current === plan) { toast('Already on this plan', 'error'); return; }
+
+  const planData = WDB.PLANS[plan];
+  const msg = planData.price === 0
+    ? `Switch to ${planData.label} plan?`
+    : `Upgrade to ${planData.label} for $${planData.price}/month?`;
+
+  if (!confirm(msg + '\n\n(Contact admin or subscribe via payment link to activate.)')) return;
+
+  // For Free downgrade, allow directly; for paid plans, note admin must approve
+  if (plan === 'free') {
+    sub.plan = 'free';
+    sub.tokensUsed = 0;
+    WDB.saveSubscription(sub);
+    renderProfile();
+    toast('Switched to Free plan', 'success');
   } else {
-    alert(`To get ${planData.label||plan} access, contact Warr Villapando:\n\nInstagram: @warrvilla\nhttps://www.instagram.com/warrvilla/\n\nFacebook:\nhttps://www.facebook.com/warrvillapando`);
-  }
-}
-function closeUpgradeModal() {
-  const modal = document.getElementById('upgradeContactModal');
-  if (modal) modal.style.display = 'none';
-}
-
-// ── Change Password ──
-function openChangePassword() {
-  document.getElementById('cpNewPw').value = '';
-  document.getElementById('cpConfirmPw').value = '';
-  document.getElementById('cpMsg').style.display = 'none';
-  document.getElementById('changePwModal').style.display = 'flex';
-}
-function closeChangePassword() {
-  document.getElementById('changePwModal').style.display = 'none';
-}
-async function submitChangePassword() {
-  const pw  = document.getElementById('cpNewPw').value;
-  const cpw = document.getElementById('cpConfirmPw').value;
-  const msg = document.getElementById('cpMsg');
-  const btn = document.getElementById('cpSaveBtn');
-
-  msg.style.display = 'none';
-  if (pw.length < 8) { msg.textContent = 'Password must be at least 8 characters.'; msg.style.display = 'block'; return; }
-  if (pw !== cpw)    { msg.textContent = "Passwords don't match."; msg.style.display = 'block'; return; }
-
-  btn.disabled = true; btn.textContent = 'Updating…';
-  const { error } = await WAuth._sb().auth.updateUser({ password: pw });
-  btn.disabled = false; btn.textContent = 'Update Password';
-
-  if (error) {
-    msg.textContent = error.message || 'Failed to update password.';
-    msg.style.display = 'block';
-  } else {
-    closeChangePassword();
-    toast('Password updated ✓', 'success');
+    toast(`To upgrade to ${planData.label}, please contact admin or use the payment link.`, 'error');
   }
 }
 
@@ -966,6 +883,17 @@ function exportProfileData() {
   toast('Data exported ✓', 'success');
 }
 
+// ── Reset token counter ──
+function confirmClearTokens() {
+  if (!confirm('Reset your token counter to 0? This cannot be undone.')) return;
+  if (typeof WDB !== 'undefined' && WDB.getSubscription && WDB.saveSubscription) {
+    const sub = WDB.getSubscription();
+    sub.tokensUsed = 0;
+    WDB.saveSubscription(sub);
+  }
+  renderProfile();
+  toast('Token counter reset ✓', 'success');
+}
 
 // ── Sign out ──
 async function signOut() {
@@ -1068,8 +996,6 @@ async function init() {
       await WAuth.init();
       user = WAuth.getUser();
       _sbProfile = WAuth.getProfile();
-      // Reset daily draft counter if it's a new day
-      if (typeof WDB !== 'undefined' && WDB.initDailyReset) await WDB.initDailyReset();
     } catch(e) {
       console.warn('WAuth init failed:', e);
     }
@@ -1114,66 +1040,5 @@ async function init() {
 
 init();
 </script>
-
-<!-- UPGRADE CONTACT MODAL -->
-<div id="upgradeContactModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:var(--surface2);border:1px solid var(--glass-border2);border-radius:20px;padding:32px 28px;max-width:360px;width:90%;text-align:center;">
-    <div style="font-size:28px;margin-bottom:10px;">🔓</div>
-    <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;">
-      Request <span id="upgradeContactPlan">Pro</span> Access
-    </div>
-    <p style="font-size:13px;color:var(--text3);margin:0 0 20px;line-height:1.6;">
-      Plans are granted by the admin. Reach out to <strong style="color:var(--text);">Warr Villapando</strong> to get access:
-    </p>
-    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
-      <a href="https://www.instagram.com/warrvilla/" target="_blank"
-        style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045);color:#fff;font-weight:700;font-size:13px;text-decoration:none;justify-content:center;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
-        @warrvilla on Instagram
-      </a>
-      <a href="https://www.facebook.com/warrvillapando" target="_blank"
-        style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;background:#1877f2;color:#fff;font-weight:700;font-size:13px;text-decoration:none;justify-content:center;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
-        Warr Villapando on Facebook
-      </a>
-    </div>
-    <button onclick="closeUpgradeModal()"
-      style="padding:10px 28px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:13px;cursor:pointer;font-weight:600;">
-      Close
-    </button>
-  </div>
-</div>
-
-<!-- CHANGE PASSWORD MODAL -->
-<div id="changePwModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:var(--surface2);border:1px solid var(--glass-border2);border-radius:20px;padding:28px 24px;max-width:340px;width:90%;">
-    <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;">Change Password</div>
-    <p style="font-size:12px;color:var(--text3);margin:0 0 20px;">Enter a new password for your account.</p>
-    <div style="display:flex;flex-direction:column;gap:12px;">
-      <div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;">New Password</div>
-        <input id="cpNewPw" type="password" placeholder="Min. 8 characters"
-          style="width:100%;padding:10px 14px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text);font-size:13px;outline:none;">
-      </div>
-      <div>
-        <div style="font-size:11px;color:var(--text3);margin-bottom:5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;">Confirm Password</div>
-        <input id="cpConfirmPw" type="password" placeholder="Repeat new password"
-          style="width:100%;padding:10px 14px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text);font-size:13px;outline:none;">
-      </div>
-      <div id="cpMsg" style="font-size:12px;color:var(--red);display:none;"></div>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:20px;">
-      <button onclick="closeChangePassword()"
-        style="flex:1;padding:10px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:13px;cursor:pointer;font-weight:600;">
-        Cancel
-      </button>
-      <button id="cpSaveBtn" onclick="submitChangePassword()"
-        style="flex:2;padding:10px;border-radius:10px;background:var(--accent);border:none;color:#fff;font-size:13px;cursor:pointer;font-weight:700;">
-        Update Password
-      </button>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>

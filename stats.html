@@ -195,11 +195,9 @@ body::after {
   border: 0.5px solid rgba(255,255,255,0.07) !important;
   border-radius: 22px !important;
   box-shadow: 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07) !important;
-  overflow: visible !important;
+  overflow: hidden !important;
   position: relative !important;
 }
-/* Keep header corners clipped inside the card */
-.card-hdr { border-radius: 22px 22px 0 0 !important; overflow: hidden; }
 .card::before {
   content: '';
   position: absolute; top: 0; left: 8%; right: 8%;
@@ -520,22 +518,18 @@ select:focus, input:focus {
       <div id="leagueFilterPills" style="margin-left:auto;display:flex;gap:5px;flex-wrap:wrap;"></div>
     </div>
     <div class="card-body">
-      <!-- Side selector -->
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-        <span style="font-size:11px;font-weight:700;color:var(--text2);">We are playing:</span>
-        <button id="sideBlueBtn" onclick="setOurSide('blue')" style="padding:4px 14px;font-size:11px;font-weight:700;border-radius:20px;border:1.5px solid var(--blue);background:var(--blue);color:#fff;cursor:pointer;transition:all .15s;">Blue Side</button>
-        <button id="sideRedBtn" onclick="setOurSide('red')" style="padding:4px 14px;font-size:11px;font-weight:700;border-radius:20px;border:1.5px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;">Red Side</button>
-      </div>
       <div class="setup-grid">
         <div>
-          <div class="form-label" id="ourSideLabel" style="color:var(--blue);">Blue Side (Us)</div>
-          <!-- WTeamPicker replaces native select -->
-          <select id="blueTeamSel" style="display:none"><option value="">— Select our team —</option></select>
+          <div class="form-label" style="color:var(--blue);">Blue Side (Us)</div>
+          <select id="blueTeamSel" style="width:100%;" onchange="onTeamChange()">
+            <option value="">— Select our team —</option>
+          </select>
         </div>
         <div>
-          <div class="form-label" id="enemySideLabel" style="color:var(--red);">Red Side (Enemy)</div>
-          <!-- WTeamPicker replaces native select -->
-          <select id="redTeamSel" style="display:none"><option value="">— Select enemy team —</option></select>
+          <div class="form-label" style="color:var(--red);">Red Side (Enemy)</div>
+          <select id="redTeamSel" style="width:100%;" onchange="onTeamChange()">
+            <option value="">— Select enemy team —</option>
+          </select>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;">
           <button class="btn btn-accent" onclick="generateReport()" id="generateBtn" disabled>Generate</button>
@@ -568,39 +562,6 @@ const MEM_KEY   = 'mlbb_ai_draft_memory';
 let DB = {matches:[], teams:{}};
 let patchSuggestions = {};
 let _reportLeagueFilter = 'all';
-let _ourSide = 'blue'; // which side WE are playing — affects AI report perspective
-let _stBluePicker = null, _stRedPicker = null; // WTeamPicker instances
-
-function setOurSide(side) {
-  _ourSide = side;
-  const blueBtn = document.getElementById('sideBlueBtn');
-  const redBtn  = document.getElementById('sideRedBtn');
-  const ourLbl  = document.getElementById('ourSideLabel');
-  const enemyLbl = document.getElementById('enemySideLabel');
-  if (side === 'blue') {
-    blueBtn.style.background = 'var(--blue)';
-    blueBtn.style.borderColor = 'var(--blue)';
-    blueBtn.style.color = '#fff';
-    redBtn.style.background = 'transparent';
-    redBtn.style.borderColor = 'var(--border2)';
-    redBtn.style.color = 'var(--text2)';
-    ourLbl.textContent = 'Blue Side (Us)';
-    ourLbl.style.color = 'var(--blue)';
-    enemyLbl.textContent = 'Red Side (Enemy)';
-    enemyLbl.style.color = 'var(--red)';
-  } else {
-    redBtn.style.background = 'var(--red)';
-    redBtn.style.borderColor = 'var(--red)';
-    redBtn.style.color = '#fff';
-    blueBtn.style.background = 'transparent';
-    blueBtn.style.borderColor = 'var(--border2)';
-    blueBtn.style.color = 'var(--text2)';
-    ourLbl.textContent = 'Red Side (Us)';
-    ourLbl.style.color = 'var(--red)';
-    enemyLbl.textContent = 'Blue Side (Enemy)';
-    enemyLbl.style.color = 'var(--blue)';
-  }
-}
 
 // Hero name → portrait id mapping for names that don't survive simple normalization
 const HERO_NAME_TO_ID = {
@@ -662,20 +623,10 @@ async function updateKeyStatus() {
 }
 
 // ══════ LOAD DATA ══════
-// Exclude AI Battle practice matches — analysis should only use real scout data
-const EXCLUDED_LEAGUES = ['AI Battle'];
-
-function isScoutMatch(m) {
-  return !EXCLUDED_LEAGUES.includes(m.league);
-}
-
 function loadDB() {
   try {
     const r = localStorage.getItem(SCOUT_KEY);
-    const db = r ? JSON.parse(r) : {matches:[], teams:{}};
-    // Strip AI Battle matches from localStorage too
-    db.matches = (db.matches || []).filter(isScoutMatch);
-    return db;
+    return r ? JSON.parse(r) : {matches:[], teams:{}};
   } catch(e) { return {matches:[], teams:{}}; }
 }
 
@@ -683,10 +634,8 @@ async function loadDBFromSupabase() {
   // Always load localStorage as base (Supabase may be unconfigured)
   const localDB = loadDB();
   try {
-    const allMatches = await WDB.loadMatches();
-    // Only real scout data — no AI Battle practice games
-    const matches = (allMatches || []).filter(isScoutMatch);
-    if (matches.length > 0) {
+    const matches = await WDB.getAllMatches();
+    if (matches && matches.length > 0) {
       // Merge: Supabase data + any local-only matches not in Supabase
       const sbIds = new Set(matches.map(m => m.id).filter(Boolean));
       const localOnly = (localDB.matches || []).filter(m => m.id && !sbIds.has(m.id));
@@ -720,11 +669,7 @@ async function init() {
   if (!ok) return; // redirecting to auth.html
 })();
 WAuth.renderAuthChip('authChip');
-  // Load dynamic league config (non-blocking — pickers auto-refresh via WTeamPicker._autoLoadDB)
-  if (typeof WTeams !== 'undefined' && WTeams.loadFromDB) WTeams.loadFromDB().catch(() => {});
   await loadDBFromSupabase();
-  // Normalize all team names in DB
-  if (typeof WTeams !== 'undefined') WTeams.normalizeDB(DB);
   const teams = Object.keys(DB.teams||{}).sort();
   const blueSel = document.getElementById('blueTeamSel');
   const redSel  = document.getElementById('redTeamSel');
@@ -734,32 +679,10 @@ WAuth.renderAuthChip('authChip');
     return;
   }
 
-  // Extra teams = scouted teams not in ANY season of any league (truly custom/unknown)
-  const allHistoricalTeams = (typeof WTeams !== 'undefined' && WTeams.getAllTimeTeams)
-    ? [...new Set(Object.keys(WTeams.LEAGUES).flatMap(lg => WTeams.getAllTimeTeams(lg)))]
-    : (typeof WTeams !== 'undefined' ? WTeams.all() : []);
-  const extraTeams = teams.filter(n => !allHistoricalTeams.includes(n));
-
-  // Init or refresh WTeamPicker instances — allTime:true shows historical team rosters
-  if (typeof WTeamPicker !== 'undefined') {
-    if (!_stBluePicker) {
-      _stBluePicker = WTeamPicker.create(blueSel, { placeholder: '— Select our team —',   extraTeams, onSelect: onTeamChange, allTime: true });
-    } else { _stBluePicker.refresh(extraTeams); }
-    if (!_stRedPicker) {
-      _stRedPicker  = WTeamPicker.create(redSel,  { placeholder: '— Select enemy team —', extraTeams, onSelect: onTeamChange, allTime: true });
-    } else { _stRedPicker.refresh(extraTeams); }
-  } else {
-    // Fallback: native select rebuild
-    if (typeof WTeams !== 'undefined') {
-      blueSel.innerHTML = WTeams.buildOptgroups(extraTeams, '', '— Select our team —');
-      redSel.innerHTML  = WTeams.buildOptgroups(extraTeams, '', '— Select enemy team —');
-    } else {
-      teams.forEach(name => {
-        const o1 = document.createElement('option'); o1.value = name; o1.textContent = name; blueSel.appendChild(o1);
-        const o2 = document.createElement('option'); o2.value = name; o2.textContent = name; redSel.appendChild(o2);
-      });
-    }
-  }
+  teams.forEach(name => {
+    const o1 = document.createElement('option'); o1.value = name; o1.textContent = name; blueSel.appendChild(o1);
+    const o2 = document.createElement('option'); o2.value = name; o2.textContent = name; redSel.appendChild(o2);
+  });
 
   // Build league filter pills
   const leagues = [...new Set((DB.matches||[]).map(m=>m.league).filter(Boolean))].sort();
@@ -865,20 +788,6 @@ function getTeamStats(name, vsOpponent=null) {
   const topFirstPick = Object.entries(fpC).sort((a,b)=>b[1]-a[1]).slice(0,5)
     .map(([n,c])=>({name:n,count:c}));
 
-  // Objective control — turtle & lord
-  let turtleWon=0, turtleTotal=0, lordWon=0, lordTotal=0;
-  allMatches.forEach(m => {
-    const isBlue = m.blueTeam === name;
-    const side   = isBlue ? 'blue' : 'red';
-    const obj    = m.objectives || {};
-    const tArr   = obj.turtle || [obj.t1, obj.t2, obj.t3].filter(Boolean);
-    const lArr   = obj.lord   || [obj.l1, obj.l2, obj.l3].filter(Boolean);
-    tArr.forEach(v => { if (v) { turtleTotal++; if (v === side) turtleWon++; } });
-    lArr.forEach(v => { if (v) { lordTotal++;   if (v === side) lordWon++;   } });
-  });
-  const turtleCtrl = turtleTotal > 0 ? Math.round(turtleWon / turtleTotal * 100) : null;
-  const lordCtrl   = lordTotal   > 0 ? Math.round(lordWon   / lordTotal   * 100) : null;
-
   // VS-opponent specific
   let vsData = null;
   if (vsOpponent) {
@@ -916,7 +825,6 @@ function getTeamStats(name, vsOpponent=null) {
     coachNotes:   t.coachNotes||'',
     leagues: t.leagues||[],
     poolDepth: t.poolDepth||0,
-    turtleCtrl, turtleTotal, lordCtrl, lordTotal,
   };
 }
 
@@ -967,17 +875,9 @@ function statBar(label, val, max, color) {
 
 // ══════ GENERATE REPORT ══════
 async function generateReport() {
-  const blueSel = document.getElementById('blueTeamSel').value;
-  const redSel  = document.getElementById('redTeamSel').value;
-  if (!blueSel || !redSel) return;
-
-  // ourName = the team WE are, enemyName = opponent
-  // blueTeamSel = team on blue side, redTeamSel = team on red side
-  // _ourSide tells us which position WE are in
-  const ourName   = _ourSide === 'blue' ? blueSel : redSel;
-  const enemyName = _ourSide === 'blue' ? redSel  : blueSel;
-  const blueName  = blueSel;
-  const redName   = redSel;
+  const blueName = document.getElementById('blueTeamSel').value;
+  const redName  = document.getElementById('redTeamSel').value;
+  if (!blueName || !redName) return;
 
   const blueStats = getTeamStats(blueName, redName);
   const redStats  = getTeamStats(redName, blueName);
@@ -994,11 +894,12 @@ async function generateReport() {
     if (aiEl) aiEl.innerHTML = `
       <div class="report-hdr"><span class="report-hdr-title">AI Draft Strategy</span></div>
       <div class="report-body" style="text-align:center;padding:24px;">
+        
         <div style="font-size:12px;color:var(--text3);">Add your Anthropic API key to unlock AI-powered strategy.</div>
       </div>`;
     return;
   }
-  await runAIReport(ourName, enemyName, _ourSide === 'blue' ? blueStats : redStats, _ourSide === 'blue' ? redStats : blueStats, h2h, _ourSide);
+  await runAIReport(blueName, redName, blueStats, redStats, h2h);
 }
 
 // ══════ STATIC REPORT ══════
@@ -1121,22 +1022,6 @@ function buildTeamCard(stats, side, name) {
       <div class="info-row"><span class="info-key">Red Side</span><span class="info-val">${stats.redSide>0?`${stats.redWR}% (${stats.redSide}g)`:'—'}</span></div>
       <div class="info-row"><span class="info-key">Pool Depth</span><span class="info-val">${stats.poolDepth} heroes</span></div>
       ${stats.winCondition?`<div class="info-row"><span class="info-key">Win Condition</span><span class="info-val" style="max-width:160px;text-align:right;font-size:10px;">${stats.winCondition}</span></div>`:''}
-      ${(stats.turtleCtrl!==null||stats.lordCtrl!==null)?`
-      <div style="margin-top:12px;">
-        <div class="section-label">Objective Control</div>
-        ${stats.turtleCtrl!==null?`<div class="stat-bar-row">
-          <div class="stat-bar-label">Turtle</div>
-          <div class="stat-bar-bg"><div class="stat-bar-fill" style="width:${stats.turtleCtrl}%;background:var(--neon);"></div></div>
-          <div class="stat-bar-val" style="color:var(--neon);">${stats.turtleCtrl}%</div>
-          <div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);width:28px;text-align:right;">${stats.turtleTotal}x</div>
-        </div>`:''}
-        ${stats.lordCtrl!==null?`<div class="stat-bar-row">
-          <div class="stat-bar-label">Lord</div>
-          <div class="stat-bar-bg"><div class="stat-bar-fill" style="width:${stats.lordCtrl}%;background:var(--gold);"></div></div>
-          <div class="stat-bar-val" style="color:var(--gold);">${stats.lordCtrl}%</div>
-          <div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);width:28px;text-align:right;">${stats.lordTotal}x</div>
-        </div>`:''}
-      </div>`:''}
       <div style="margin-top:12px;">
         <div class="section-label">Top Picks</div>
         ${stats.topPicks.slice(0,6).map(p => statBar(p.name, p.count, maxPick, color)).join('')}
@@ -1248,12 +1133,12 @@ function buildMemorySection() {
 }
 
 // ══════ AI REPORT ══════
-async function runAIReport(ourName, enemyName, ourStats, enemyStats, h2h, ourSide = 'blue') {
+async function runAIReport(blueName, redName, blueStats, redStats, h2h) {
   const aiSection = document.getElementById('aiReportSection');
   if (!aiSection) return;
 
-  const profile = (stats, role) => {
-    if (!stats) return `No data for ${role}.`;
+  const profile = (stats, side) => {
+    if (!stats) return `No data for ${side}.`;
     const vs = stats.vsData ? `\nVS THIS OPPONENT (${stats.vsData.games}g, ${stats.vsData.wins}W):\n  Picks: ${stats.vsData.topPicks.map(p=>`${p.name}(${p.count}g,${p.wr}%WR)`).join(', ')||'N/A'}\n  Bans: ${stats.vsData.topBans.map(b=>`${b.name}(${b.count}x)`).join(', ')||'N/A'}` : '';
     return `${stats.name} | ${stats.total}g | ${stats.wr}%WR | Blue:${stats.blueWR??'N/A'}% | Red:${stats.redWR??'N/A'}%
 Picks: ${stats.topPicks.slice(0,6).map(p=>`${p.name}(${p.count}g,${p.wr}%WR)`).join(', ')}
@@ -1263,20 +1148,15 @@ First picks: ${stats.topFirstPick?.map(p=>`${p.name}(${p.count}x)`).join(', ')||
 Win Condition: ${stats.winCondition||'unknown'}\nCoach Notes: ${stats.coachNotes||'none'}${vs}`;
   };
 
-  const ourSideLabel   = ourSide === 'blue' ? 'BLUE SIDE' : 'RED SIDE';
-  const enemySideLabel = ourSide === 'blue' ? 'RED SIDE'  : 'BLUE SIDE';
-  const h2hOurWins   = ourSide === 'blue' ? h2h.blueWins : h2h.redWins;
-  const h2hEnemyWins = ourSide === 'blue' ? h2h.redWins  : h2h.blueWins;
+  const prompt = `You are a professional MLBB draft coach. Generate a pre-match scouting report in JSON only (no markdown).
 
-  const prompt = `You are a professional MLBB draft coach. Generate a pre-match scouting report from OUR team's perspective. JSON only (no markdown).
+BLUE SIDE (OUR TEAM):
+${profile(blueStats,'blue')}
 
-${ourSideLabel} (OUR TEAM — ${ourName}):
-${profile(ourStats,'us')}
+RED SIDE (ENEMY):
+${profile(redStats,'red')}
 
-${enemySideLabel} (ENEMY — ${enemyName}):
-${profile(enemyStats,'enemy')}
-
-HEAD TO HEAD: ${h2h.total}g — Us (${ourName}): ${h2hOurWins}W, Enemy (${enemyName}): ${h2hEnemyWins}W
+HEAD TO HEAD: ${h2h.total}g — Blue: ${h2h.blueWins}W, Red: ${h2h.redWins}W
 
 Respond ONLY with JSON matching this exact schema:
 {
@@ -1302,8 +1182,6 @@ Respond ONLY with JSON matching this exact schema:
   },
   "winCondition": "max 30 words",
   "watchOut": "max 15 words — biggest enemy threat",
-  "lordControl": "max 20 words — who controls Lord and how, name heroes",
-  "turtleControl": "max 20 words — who secures early Turtles and how, name heroes",
   "confidence": "high|medium|low",
   "confidenceReason": "max 12 words"
 }`;
@@ -1408,14 +1286,6 @@ function renderAIReport(r, section) {
           <div class="section-label" style="color:var(--red);">Watch Out</div>
           <div style="font-size:12px;line-height:1.65;color:var(--text);">${r.watchOut||'—'}</div>
         </div>
-        ${r.lordControl?`<div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:12px;">
-          <div class="section-label" style="color:#f59e0b;">Lord Control</div>
-          <div style="font-size:12px;line-height:1.65;color:var(--text);">${r.lordControl}</div>
-        </div>`:''}
-        ${r.turtleControl?`<div style="background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.2);border-radius:8px;padding:12px;">
-          <div class="section-label" style="color:#34d399;">Turtle Control</div>
-          <div style="font-size:12px;line-height:1.65;color:var(--text);">${r.turtleControl}</div>
-        </div>`:''}
       </div>
 
       ${r.pickStrategy?`<div style="margin-top:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;font-size:11px;color:var(--text2);line-height:1.6;"> <strong>Pick Strategy:</strong> ${r.pickStrategy}</div>`:''}

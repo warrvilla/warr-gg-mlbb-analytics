@@ -170,37 +170,16 @@ const WAuth = {
   async renderAuthChip(containerId = 'authChip') {
     // init() is a no-op if already called
     if (!this._user) await this.init();
-    // Inject tier badge CSS once
-    if (!document.getElementById('_wtier-css')) {
-      const s = document.createElement('style');
-      s.id = '_wtier-css';
-      s.textContent = `
-        .wtier-badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;line-height:1;}
-        .wtier-free{background:rgba(148,163,184,.1);color:#94a3b8;border:1px solid rgba(148,163,184,.18);}
-        .wtier-pro{background:var(--accent-dim,rgba(99,102,241,.15));color:var(--accent,#818cf8);border:1px solid var(--accent-border,rgba(99,102,241,.3));}
-        .wtier-team{background:var(--gold-dim,rgba(245,158,11,.12));color:var(--gold,#f59e0b);border:1px solid var(--gold-border,rgba(245,158,11,.25));}
-      `;
-      document.head.appendChild(s);
-    }
     const el = document.getElementById(containerId);
     if (!el) return;
     if (this._user) {
       const name     = this.getDisplayName();
       const teamTag  = this._profile?.team_name ? `<span class="wauth-team">${this._profile.team_name}</span>` : '';
-      // Subscription tier badge
-      let tierTag = '';
-      if (typeof WDB !== 'undefined' && WDB.getSubscription) {
-        const sub  = WDB.getSubscription();
-        const plan = sub.plan || 'free';
-        const label = plan === 'team' ? 'TEAM' : plan === 'pro' ? 'PRO' : 'FREE';
-        tierTag = `<span class="wtier-badge wtier-${plan}" title="${plan.toUpperCase()} plan">${label}</span>`;
-      }
       el.innerHTML = `
         <div class="wauth-chip">
           <div class="wauth-dot"></div>
           <span class="wauth-name" title="${this._user.email}">${name}</span>
           ${teamTag}
-          ${tierTag}
           <button class="wauth-out" onclick="WAuth.signOut().then(()=>location.href='auth.html')">Sign Out</button>
         </div>`;
     } else {
@@ -243,468 +222,6 @@ const WAuth = {
 // ─────────────────────────────────────────────────────────────────
 
 // ═══════════════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════════════
-// TEAM REGISTRY — regional teams + name normalization
-// All team dropdowns across pages call WTeams.buildOptgroups()
-// ═══════════════════════════════════════════════════════════════
-window.WTeams = {
-  // Canonical team lists per league/region
-  LEAGUES: {
-    'MPL PH': ['AP.Bren','Team Liquid PH','Aurora PH','TNC Pro Team','ONIC PH','Twisted Minds PH','Smart Omega'],
-    'MPL ID': ['Natus Vincere','Bigetron Alpha','Dewa United','EVOS Legends','Geek Fam ID','ONIC Esports','Team Liquid ID','Alter Ego','RRQ Hoshi'],
-    'MPL MY': ['AC Esports','Bigetron MY','Invictus Gaming','Selangor Red Giants','Team Flash','Team Rey','Team Vamos'],
-    'MPL KH': ['CFU Gaming','Galaxy Legends','Pro Esports','Team Max','See You Soon','Valhalla','Duck Rice Esports','Vigor Apex'],
-  },
-
-  // Old name → canonical name (for fixing existing scout data)
-  ALIASES: {
-    'Twisted Minds':        'Twisted Minds PH',
-    'Blacklist International': 'Blacklist International',
-    'ECHO':                 'ECHO PH',
-    'Nexplay EVOS':         'Nexplay EVOS',
-    'ONIC Philippines':     'ONIC PH',
-    'AP Bren':              'AP.Bren',
-    'RSG Philippines':      'RSG PH',
-    'Omega Esports':        'Smart Omega',
-    'Geek Fam':             'Geek Fam ID',
-    'Team HAQ':             'Team HAQ',
-    'DRX MY':               'DRX MY',
-    'Todak':                'Todak',
-    'Team SMG':             'Team SMG',
-    'ONIC MY':              'ONIC MY',
-  },
-
-  // Normalize a team name — applies alias mapping
-  normalize(name) {
-    if (!name) return name;
-    return WTeams.ALIASES[name] || name;
-  },
-
-  // All canonical team names flat list (for searching)
-  all() {
-    return [...new Set(Object.values(WTeams.LEAGUES).flat())];
-  },
-
-  // Which league does this team belong to?
-  leagueOf(name) {
-    const n = WTeams.normalize(name);
-    for (const [lg, teams] of Object.entries(WTeams.LEAGUES)) {
-      if (teams.includes(n)) return lg;
-    }
-    return null;
-  },
-
-  // Build <option> / <optgroup> HTML for a select element
-  // extraNames = additional names from scout data not in LEAGUES
-  // currentVal = pre-selected value
-  // defaultLabel = first blank option label
-  // filterLeague = 'MPL PH' | 'MPL ID' | 'MPL MY' | 'MPL KH' | '' (all)
-  buildOptgroups(extraNames = [], currentVal = '', defaultLabel = '— Select team —', filterLeague = '') {
-    const sel = v => v === currentVal ? ' selected' : '';
-    const knownAll = WTeams.all();
-    const extras = extraNames.filter(n => !knownAll.includes(n) && n && n !== defaultLabel);
-
-    let html = `<option value="">${defaultLabel}</option>`;
-    const leagues = filterLeague
-      ? Object.entries(WTeams.LEAGUES).filter(([lg]) => lg === filterLeague)
-      : Object.entries(WTeams.LEAGUES);
-    for (const [lg, teams] of leagues) {
-      html += `<optgroup label="${lg}">`;
-      html += teams.map(t => `<option value="${t}"${sel(t)}>${t}</option>`).join('');
-      html += `</optgroup>`;
-    }
-    // Only show extras when not filtering (they'd be from other regions or custom)
-    if (!filterLeague && extras.length) {
-      html += `<optgroup label="Other / Custom">`;
-      html += extras.sort().map(t => `<option value="${t}"${sel(t)}>${t}</option>`).join('');
-      html += `</optgroup>`;
-    }
-    return html;
-  },
-
-  // Apply name normalization to all matches in a scout DB object (mutates in-place)
-  normalizeDB(db) {
-    if (!db) return db;
-    (db.matches || []).forEach(m => {
-      if (m.blueTeam) m.blueTeam = WTeams.normalize(m.blueTeam);
-      if (m.redTeam)  m.redTeam  = WTeams.normalize(m.redTeam);
-    });
-    // Re-key teams object with normalized names
-    const newTeams = {};
-    for (const [k, v] of Object.entries(db.teams || {})) {
-      const nk = WTeams.normalize(k);
-      newTeams[nk] = { ...v, name: nk };
-    }
-    db.teams = newTeams;
-    return db;
-  },
-
-  // ── DYNAMIC LEAGUE CONFIG ─────────────────────────────────────
-  _CACHE_KEY: 'warr_lcfg',
-  _CACHE_TTL:  5 * 60 * 1000, // 5 minutes
-  _config: null, // Season-aware config: { league: { label, color, activeSeason, seasons:{} } }
-
-  // Default accent colors for known leagues (used when bootstrapping new entries)
-  _COLORS: {
-    'MPL PH': '#60a5fa', 'MPL ID': '#34d399', 'MPL MY': '#f472b6',
-    'MPL KH': '#fb923c', 'MPL SG': '#a78bfa', 'MPL MM': '#facc15',
-  },
-
-  // Derive WTeams.LEAGUES (flat) from each league's activeSeason in _config
-  _syncLeagues() {
-    if (!WTeams._config) return;
-    const configKeys = Object.keys(WTeams._config);
-    // Guard: if config came back empty from DB, keep the hardcoded fallback data intact
-    if (!configKeys.length) return;
-    configKeys.forEach(lg => {
-      const info = WTeams._config[lg];
-      WTeams.LEAGUES[lg] = (info.seasons && info.seasons[info.activeSeason]) || [];
-    });
-    // Remove leagues no longer in config
-    Object.keys(WTeams.LEAGUES).forEach(k => {
-      if (!WTeams._config[k]) delete WTeams.LEAGUES[k];
-    });
-  },
-
-  // Auto-migrate old flat { "MPL PH": [...] } format to season-aware format
-  _migrate(raw) {
-    const out = {};
-    for (const [lg, val] of Object.entries(raw)) {
-      if (Array.isArray(val)) {
-        // Old format — wrap in Season 1
-        out[lg] = {
-          label: lg,
-          color: WTeams._COLORS[lg] || '#818cf8',
-          activeSeason: 'Season 1',
-          seasons: { 'Season 1': [...val] },
-        };
-      } else if (val && typeof val === 'object' && val.seasons) {
-        out[lg] = val; // Already season-aware
-      }
-    }
-    return out;
-  },
-
-  /** Load league config from Supabase. Falls back to hardcoded LEAGUES on error. */
-  async loadFromDB() {
-    try {
-      const raw = localStorage.getItem(WTeams._CACHE_KEY);
-      if (raw) {
-        const { d, t } = JSON.parse(raw);
-        if (d && typeof d === 'object' && Date.now() - t < WTeams._CACHE_TTL) {
-          WTeams._config = d;
-          WTeams._syncLeagues();
-          return WTeams._config;
-        }
-      }
-      const { data, error } = await _sbClient
-        .from('app_settings')
-        .select('value')
-        .eq('key', 'league_config')
-        .maybeSingle();
-      if (!error && data?.value && typeof data.value === 'object') {
-        const val = data.value;
-        const isOld = Object.values(val).some(v => Array.isArray(v));
-        WTeams._config = isOld ? WTeams._migrate(val) : val;
-        WTeams._syncLeagues();
-        localStorage.setItem(WTeams._CACHE_KEY, JSON.stringify({ d: WTeams._config, t: Date.now() }));
-        // Auto-save migrated format back to DB
-        if (isOld) WTeams.saveToDB(WTeams._config).catch(() => {});
-      }
-    } catch(e) { /* fail silently — use hardcoded LEAGUES */ }
-    return WTeams._config;
-  },
-
-  /** Save full season-aware config to Supabase (admin only). Syncs LEAGUES immediately. */
-  async saveToDB(config) {
-    const { error } = await _sbClient.from('app_settings').upsert(
-      { key: 'league_config', value: config, updated_at: new Date().toISOString() },
-      { onConflict: 'key' }
-    );
-    if (error) throw error;
-    WTeams._config = config;
-    WTeams._syncLeagues();
-    localStorage.setItem(WTeams._CACHE_KEY, JSON.stringify({ d: config, t: Date.now() }));
-  },
-
-  /** Bust local cache so next loadFromDB() hits the network. */
-  bustCache() { localStorage.removeItem(WTeams._CACHE_KEY); },
-
-  // ── SEASON HELPERS ─────────────────────────────────────────────
-
-  /** All season names for a league, newest first. */
-  getSeasons(league) {
-    const cfg = WTeams._config?.[league];
-    if (!cfg?.seasons) return [];
-    return Object.keys(cfg.seasons).reverse();
-  },
-
-  /** Team roster for a specific league+season. */
-  getSeasonRoster(league, season) {
-    return [...(WTeams._config?.[league]?.seasons?.[season] || [])];
-  },
-
-  /** Every unique team ever listed in any season for a league (for historical analysis). */
-  getAllTimeTeams(league) {
-    const cfg = WTeams._config?.[league];
-    if (!cfg?.seasons) return [...(WTeams.LEAGUES[league] || [])];
-    return [...new Set(Object.values(cfg.seasons).flat())].sort();
-  },
-};
-
-// ═══════════════════════════════════════════════════════════════
-// TEAM PICKER — custom dropdown replacing native <select>
-// Usage: const p = WTeamPicker.create(selectElement, { onSelect, extraTeams })
-//        p.setValue('Team Name')  — set value programmatically
-//        p.sync()                 — re-read selectEl.value and refresh button
-//        p.refresh(extraTeams)   — update extra teams list
-// ═══════════════════════════════════════════════════════════════
-window.WTeamPicker = (() => {
-  // Tabs are derived dynamically from WTeams.LEAGUES so new leagues appear automatically
-  function _getTabs() {
-    const keys = (typeof WTeams !== 'undefined') ? Object.keys(WTeams.LEAGUES) : [];
-    return [{ k: '', label: 'All' }, ...keys.map(k => ({ k, label: k }))];
-  }
-
-  let _cssInjected = false;
-  function _injectCSS() {
-    if (_cssInjected) return; _cssInjected = true;
-    const s = document.createElement('style');
-    s.textContent = `
-.wtp-wrap{position:relative;display:inline-block;}
-.wtp-btn{display:flex;align-items:center;gap:6px;padding:5px 12px;border:1px solid var(--border2);border-radius:8px;background:var(--surface2);color:var(--text);cursor:pointer;font-size:13px;font-weight:700;min-width:150px;max-width:210px;transition:border-color .15s,box-shadow .15s;outline:none;text-align:left;}
-.wtp-btn:hover{border-color:var(--accent);}
-.wtp-btn.open{border-color:var(--accent);box-shadow:0 0 0 2px rgba(168,136,204,.2);}
-.wtp-btn-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.wtp-btn-arrow{font-size:8px;color:var(--text3);transition:transform .15s;flex-shrink:0;}
-.wtp-btn.open .wtp-btn-arrow{transform:rotate(180deg);}
-.wtp-drop{position:fixed;top:0;left:0;z-index:9999;background:var(--surface);border:1px solid var(--border2);border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.55);width:260px;display:none;overflow:hidden;}
-.wtp-drop.open{display:flex;flex-direction:column;}
-.wtp-search-wrap{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;}
-.wtp-search-icon{color:var(--text3);font-size:11px;flex-shrink:0;}
-.wtp-search{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:12px;font-family:inherit;}
-.wtp-search::placeholder{color:var(--text3);}
-.wtp-tabs{display:flex;gap:4px;padding:8px 10px;border-bottom:1px solid var(--border);flex-wrap:wrap;background:rgba(0,0,0,.12);}
-.wtp-tab{padding:3px 9px;border-radius:10px;font-size:9px;font-weight:700;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;letter-spacing:.5px;transition:all .12s;}
-.wtp-tab:hover{border-color:var(--text2);color:var(--text2);}
-.wtp-tab.active{background:var(--accent);border-color:var(--accent);color:#fff;}
-.wtp-list{max-height:210px;overflow-y:auto;}
-.wtp-list::-webkit-scrollbar{width:4px;}
-.wtp-list::-webkit-scrollbar-track{background:transparent;}
-.wtp-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
-.wtp-section-hd{padding:5px 12px 3px;font-size:8px;font-weight:700;color:var(--text3);letter-spacing:2px;background:rgba(0,0,0,.15);border-bottom:1px solid rgba(255,255,255,.04);}
-.wtp-item{padding:9px 14px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text2);border-bottom:1px solid rgba(255,255,255,.03);transition:background .1s,color .1s;display:flex;align-items:center;gap:6px;}
-.wtp-item:hover{background:var(--surface2);color:var(--text);}
-.wtp-item.selected{color:var(--accent);}
-.wtp-item-flag{font-size:11px;flex-shrink:0;}
-.wtp-empty{padding:16px;font-size:11px;color:var(--text3);text-align:center;}
-.wtp-clear-item{padding:8px 14px;cursor:pointer;font-size:11px;color:var(--text3);border-bottom:1px solid var(--border);transition:background .1s;}
-.wtp-clear-item:hover{background:var(--surface2);color:var(--text);}
-    `;
-    document.head.appendChild(s);
-  }
-
-  const _insts = {};
-
-  // Auto-load league config from DB once per session — rebuilds tabs + list for all pickers
-  let _dbLoaded = false;
-  function _autoLoadDB() {
-    if (_dbLoaded || typeof WTeams === 'undefined' || !WTeams.loadFromDB) return;
-    _dbLoaded = true;
-    WTeams.loadFromDB().then(() => {
-      Object.keys(_insts).forEach(k => { _renderTabs(k); _renderList(k); });
-    }).catch(() => {});
-  }
-
-  // Build and inject tab buttons into an existing picker — safe to call anytime
-  function _renderTabs(id) {
-    const s = _insts[id]; if (!s) return;
-    const tabsEl = s.drop.querySelector('.wtp-tabs');
-    if (!tabsEl) return;
-    tabsEl.innerHTML = _getTabs().map(t =>
-      `<button class="wtp-tab${t.k === s.region ? ' active' : ''}" data-r="${t.k}" type="button">${t.label}</button>`
-    ).join('');
-    // Events re-attached via delegation on the container (set once in create())
-  }
-
-  function create(selectEl, { onSelect, extraTeams = [], placeholder = '— Select team —', allTime = false } = {}) {
-    if (!selectEl) return null;
-    _injectCSS();
-    _autoLoadDB();
-
-    const id = selectEl.id || ('wtp_' + Math.random().toString(36).slice(2, 8));
-    selectEl.style.display = 'none';
-
-    // Wrapper
-    const wrap = document.createElement('div');
-    wrap.className = 'wtp-wrap';
-    wrap.dataset.wtpId = id;
-    selectEl.parentNode.insertBefore(wrap, selectEl);
-    wrap.appendChild(selectEl);
-
-    // Trigger button
-    const btn = document.createElement('button');
-    btn.className = 'wtp-btn';
-    btn.type = 'button';
-    btn.innerHTML = `<span class="wtp-btn-name">${selectEl.value || placeholder}</span><span class="wtp-btn-arrow">▾</span>`;
-    wrap.insertBefore(btn, selectEl);
-
-    // Dropdown panel — portalled to document.body so it escapes any backdrop-filter
-    // stacking contexts (e.g. glass cards) that would clip z-index:9000
-    const drop = document.createElement('div');
-    drop.className = 'wtp-drop';
-    drop.innerHTML = `
-      <div class="wtp-search-wrap">
-        <span class="wtp-search-icon">⌕</span>
-        <input class="wtp-search" placeholder="Search team..." autocomplete="off" spellcheck="false">
-      </div>
-      <div class="wtp-tabs">
-        ${_getTabs().map(t => `<button class="wtp-tab${t.k===''?' active':''}" data-r="${t.k}" type="button">${t.label}</button>`).join('')}
-      </div>
-      <div class="wtp-list"></div>
-    `;
-    // Override absolute positioning — portal uses fixed so z-index is root-level
-    drop.style.position = 'fixed';
-    document.body.appendChild(drop);
-
-    const st = { id, selectEl, btn, drop, wrap, placeholder, region: '', search: '', extraTeams, onSelect, allTime };
-    _insts[id] = st;
-
-    // Events — use delegation on .wtp-tabs so _renderTabs() can freely rebuild innerHTML
-    btn.addEventListener('click', e => { e.stopPropagation(); _toggle(id); });
-    drop.querySelector('.wtp-search').addEventListener('input', e => { st.search = e.target.value; _renderList(id); });
-    drop.querySelector('.wtp-tabs').addEventListener('click', e => {
-      const tab = e.target.closest('.wtp-tab'); if (!tab) return;
-      e.stopPropagation(); st.region = tab.dataset.r; drop.querySelector('.wtp-search').value = ''; st.search = '';
-      _renderTabs(id); _renderList(id);
-    });
-    // Close when clicking outside both the trigger button and the portalled dropdown
-    document.addEventListener('click', e => {
-      const s = _insts[id]; if (!s) return;
-      if (!s.wrap.contains(e.target) && !s.drop.contains(e.target)) _close(id);
-    });
-    // Close on page scroll (but NOT when scrolling inside the dropdown list)
-    window.addEventListener('scroll', e => {
-      const s = _insts[id]; if (!s) return;
-      if (!s.drop.contains(e.target)) _close(id);
-    }, { passive: true, capture: true });
-    window.addEventListener('resize', () => _close(id));
-    window.addEventListener('keydown', e => { if (e.key === 'Escape') _close(id); });
-
-    _renderList(id);
-    return {
-      setValue(v) { _setValue(id, v); },
-      sync() { _sync(id); },
-      refresh(extra) { if (extra) st.extraTeams = extra; _renderList(id); },
-    };
-  }
-
-  function _toggle(id) {
-    const s = _insts[id]; if (!s) return;
-    const isOpen = s.drop.classList.contains('open');
-    Object.keys(_insts).forEach(k => { if (k !== id) _close(k); });
-    if (isOpen) _close(id); else _open(id);
-  }
-
-  function _open(id) {
-    const s = _insts[id]; if (!s) return;
-    // Position the portalled dropdown below the trigger button (fixed coords)
-    const rect = s.btn.getBoundingClientRect();
-    const dropW = 260;
-    const left  = Math.min(rect.left, window.innerWidth - dropW - 8);
-    const top   = rect.bottom + 6;
-    s.drop.style.top  = top  + 'px';
-    s.drop.style.left = left + 'px';
-    s.drop.style.width = dropW + 'px';
-    s.drop.classList.add('open');
-    s.btn.classList.add('open');
-    setTimeout(() => s.drop.querySelector('.wtp-search')?.focus(), 30);
-  }
-
-  function _close(id) {
-    const s = _insts[id]; if (!s) return;
-    s.drop.classList.remove('open');
-    s.btn.classList.remove('open');
-  }
-
-  function _renderList(id) {
-    const s = _insts[id]; if (!s) return;
-    const q = (s.search || '').toLowerCase();
-    const cur = s.selectEl.value;
-    const leagues = (typeof WTeams !== 'undefined') ? WTeams.LEAGUES : {};
-
-    // Resolve team list for a league — allTime shows every historical team, default shows active season
-    const _teamsFor = (lg) => {
-      if (s.allTime && typeof WTeams !== 'undefined' && WTeams.getAllTimeTeams) return WTeams.getAllTimeTeams(lg);
-      return leagues[lg] || [];
-    };
-
-    // knownAll: used to filter extraTeams so we don't double-list canonical teams
-    const knownAll = s.allTime && typeof WTeams !== 'undefined' && WTeams.getAllTimeTeams
-      ? [...new Set(Object.keys(leagues).flatMap(lg => WTeams.getAllTimeTeams(lg)))]
-      : (typeof WTeams !== 'undefined' ? WTeams.all() : []);
-
-    const extras = (s.extraTeams || []).filter(n => !knownAll.includes(n));
-
-    // leaguesToShow: for a specific tab use that league's teams; for "All" use allTime override
-    // or fall back to the original direct leagues reference (preserves original behaviour)
-    const leaguesToShow = s.region
-      ? { [s.region]: _teamsFor(s.region) }
-      : s.allTime
-        ? Object.fromEntries(Object.keys(leagues).map(lg => [lg, _teamsFor(lg)]))
-        : leagues; // original direct reference — unchanged behaviour for non-allTime pickers
-
-    let html = `<div class="wtp-clear-item" data-v="">${s.placeholder}</div>`;
-    for (const [lg, teams] of Object.entries(leaguesToShow)) {
-      const filtered = (teams || []).filter(t => !q || t.toLowerCase().includes(q));
-      if (!filtered.length) continue;
-      html += `<div class="wtp-section-hd">${lg}</div>`;
-      html += filtered.map(t => `<div class="wtp-item${t===cur?' selected':''}" data-v="${t}">${t}</div>`).join('');
-    }
-    if (!s.region && extras.length) {
-      const fe = extras.filter(t => !q || t.toLowerCase().includes(q)).sort();
-      if (fe.length) {
-        html += `<div class="wtp-section-hd">CUSTOM</div>`;
-        html += fe.map(t => `<div class="wtp-item${t===cur?' selected':''}" data-v="${t}">${t}</div>`).join('');
-      }
-    }
-    // Only show "no results" when there is actually a search query
-    if (q) {
-      const hasAny = Object.values(leaguesToShow).flat().some(t => t.toLowerCase().includes(q))
-        || extras.some(t => t.toLowerCase().includes(q));
-      if (!hasAny) html += `<div class="wtp-empty">No teams found for "${s.search}"</div>`;
-    }
-
-    const list = s.drop.querySelector('.wtp-list');
-    list.innerHTML = html;
-    list.querySelectorAll('[data-v]').forEach(item => item.addEventListener('click', () => { _setValue(id, item.dataset.v); _close(id); }));
-  }
-
-  function _setValue(id, value) {
-    const s = _insts[id]; if (!s) return;
-    // Ensure option exists — iterate directly instead of CSS.escape in querySelector
-    if (value && !Array.from(s.selectEl.options).some(o => o.value === value)) {
-      const opt = document.createElement('option');
-      opt.value = value; opt.textContent = value;
-      s.selectEl.appendChild(opt);
-    }
-    s.selectEl.value = value || '';
-    s.btn.querySelector('.wtp-btn-name').textContent = value || s.placeholder;
-    s.selectEl.dispatchEvent(new Event('change', { bubbles: true }));
-    if (s.onSelect) s.onSelect(value);
-    _renderList(id);
-  }
-
-  function _sync(id) {
-    const s = _insts[id]; if (!s) return;
-    const v = s.selectEl.value;
-    s.btn.querySelector('.wtp-btn-name').textContent = v || s.placeholder;
-    _renderList(id);
-  }
-
-  return { create, sync: _sync, setValue: _setValue };
-})();
-
 // ── ADMIN SYSTEM ──
 // Only the designated admin email can add/delete official competition data.
 // Leagues marked as ADMIN_LOCKED require admin auth for write operations.
@@ -712,12 +229,8 @@ window.WTeamPicker = (() => {
 window.WAdmin = {
   ADMIN_EMAIL: 'wrrenvillapando@gmail.com',
 
-  // Leagues that require admin auth to write/delete.
-  // Derived from WTeams.LEAGUES so any league added via admin is automatically locked.
-  get LOCKED_LEAGUES() {
-    const dynamic = (typeof WTeams !== 'undefined') ? Object.keys(WTeams.LEAGUES) : [];
-    return [...new Set([...dynamic, 'MSC', 'M-Series'])];
-  },
+  // Leagues that require admin auth to write/delete
+  LOCKED_LEAGUES: ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series'],
 
   // Check if the currently signed-in user is the admin
   isAdmin() {
@@ -754,12 +267,8 @@ const WDB = {
 
   // ── SCOUT MATCHES — public leagues shared; Scrims/Other private to creator ─────
 
-  // Leagues visible to ALL users.
-  // Derived from WTeams.LEAGUES so any league added via admin is automatically public.
-  get PUBLIC_LEAGUES() {
-    const dynamic = (typeof WTeams !== 'undefined') ? Object.keys(WTeams.LEAGUES) : [];
-    return [...new Set([...dynamic, 'MSC', 'M-Series'])];
-  },
+  // Leagues visible to ALL users
+  PUBLIC_LEAGUES: ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series'],
 
   /** Fetch scout matches — public leagues for everyone, private leagues only own */
   async loadMatches() {
@@ -1054,92 +563,57 @@ WDB.getCounterMap = function() {
 
 // ═══════════════════════════════════════════════════════════════
 // ── SUBSCRIPTION / TOKEN SYSTEM ──
-// 3-tier: free (5 drafts/day) / pro (50/day) / team (unlimited)
-// Plan is set by ADMIN only via Supabase profiles.plan
-// Daily usage tracked in profiles.tokens_used + profiles.token_reset_date
-//
-// Required Supabase SQL (run once):
-//   ALTER TABLE public.profiles
-//     ADD COLUMN IF NOT EXISTS plan text DEFAULT 'free',
-//     ADD COLUMN IF NOT EXISTS tokens_used integer DEFAULT 0,
-//     ADD COLUMN IF NOT EXISTS token_reset_date text DEFAULT NULL;
+// 3-tier: free (10 tokens/mo) / pro (50/mo) / team (200/mo)
 // ═══════════════════════════════════════════════════════════════
 WDB.PLANS = {
-  free: { label: 'Free', draftsPerDay: 3,   price: 0     },
-  pro:  { label: 'Pro',  draftsPerDay: 50,  price: 9.99  },
-  team: { label: 'Team', draftsPerDay: 999, price: 29.99 },
+  free:  { label: 'Free',  tokensPerMonth: 10,  price: 0     },
+  pro:   { label: 'Pro',   tokensPerMonth: 50,  price: 9.99  },
+  team:  { label: 'Team',  tokensPerMonth: 200, price: 29.99 },
 };
 
-const _24H = 24 * 60 * 60 * 1000; // 24 hours in ms
-
-// Sync read — reads from WAuth cached profile (call after WAuth.init)
 WDB.getSubscription = function() {
   try {
-    const profile = (typeof WAuth !== 'undefined' && WAuth.getProfile) ? WAuth.getProfile() : null;
-    const plan       = profile?.plan || 'free';
-    const tokensUsed = profile?.tokens_used || 0;
-    const resetDate  = profile?.token_reset_date || null;
-    return { plan, tokensUsed, resetDate };
-  } catch(e) { return { plan: 'free', tokensUsed: 0, resetDate: null }; }
-};
-
-// Call once per page after WAuth.init() — 24hr rolling window reset per account
-WDB.initDailyReset = async function() {
-  try {
-    if (typeof WAuth === 'undefined' || !WAuth.getUser || !WAuth.getUser()) return;
-    const profile = WAuth.getProfile();
-    if (!profile) return;
-    const resetAt = profile.token_reset_date ? new Date(profile.token_reset_date).getTime() : 0;
-    const expired = (Date.now() - resetAt) >= _24H;
-    if (expired) {
-      // Don't reset if we have no reset timestamp AND tokens_used is already 0 — avoids
-      // wiping mid-session just because the column is null on first load
-      if (resetAt === 0 && (profile.tokens_used || 0) === 0) {
-        // First ever use — just stamp the reset time, don't change count
-        await WAuth.saveProfile({ token_reset_date: new Date().toISOString() });
-      } else {
-        await WAuth.saveProfile({ tokens_used: 0, token_reset_date: new Date().toISOString() });
+    const raw = localStorage.getItem('warr_subscription');
+    if (!raw) return { plan: 'free', tokensUsed: 0, resetDate: null };
+    const sub = JSON.parse(raw);
+    if (sub.resetDate) {
+      const now = new Date();
+      if (now >= new Date(sub.resetDate)) {
+        sub.tokensUsed = 0;
+        sub.resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+        localStorage.setItem('warr_subscription', JSON.stringify(sub));
       }
     }
-  } catch(e) { /* silent */ }
+    return sub;
+  } catch (e) { return { plan: 'free', tokensUsed: 0, resetDate: null }; }
 };
 
-// Admin-only: reset a specific user's daily draft count
-WDB.adminResetUserDrafts = async function(userId) {
-  if (typeof WAuth === 'undefined' || !WAdmin.isAdmin()) return { error: 'Admin only' };
-  // Use full ISO timestamp (same format as initDailyReset) so the 24hr window is calculated correctly
-  return WAuth.adminUpdateProfile(userId, { tokens_used: 0, token_reset_date: new Date().toISOString() });
+WDB.saveSubscription = function(sub) {
+  if (!sub.resetDate) {
+    const now = new Date();
+    sub.resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+  }
+  localStorage.setItem('warr_subscription', JSON.stringify(sub));
 };
 
 WDB.getTokensRemaining = function() {
-  const sub  = WDB.getSubscription();
+  const sub = WDB.getSubscription();
   const plan = WDB.PLANS[sub.plan] || WDB.PLANS.free;
-  return Math.max(0, plan.draftsPerDay - (sub.tokensUsed || 0));
+  return Math.max(0, plan.tokensPerMonth - (sub.tokensUsed || 0));
 };
 
-// Returns true if draft was counted, false if limit reached
-WDB.consumeToken = async function() {
-  try {
-    const sub  = WDB.getSubscription();
-    const plan = WDB.PLANS[sub.plan] || WDB.PLANS.free;
-    if ((sub.tokensUsed || 0) >= plan.draftsPerDay) return false;
-    const newCount = (sub.tokensUsed || 0) + 1;
-    // Optimistic local update (WAuth caches profile)
-    if (WAuth._profile) WAuth._profile.tokens_used = newCount;
-    // Background sync to Supabase
-    if (typeof WAuth !== 'undefined' && WAuth.saveProfile && WAuth.getUser && WAuth.getUser()) {
-      WAuth.saveProfile({ tokens_used: newCount }).catch(() => {});
-    }
-    return true;
-  } catch(e) { return true; } // fail open so drafts aren't blocked on network error
+WDB.consumeToken = function() {
+  const sub = WDB.getSubscription();
+  const plan = WDB.PLANS[sub.plan] || WDB.PLANS.free;
+  if ((sub.tokensUsed || 0) >= plan.tokensPerMonth) return false;
+  sub.tokensUsed = (sub.tokensUsed || 0) + 1;
+  WDB.saveSubscription(sub);
+  return true;
 };
 
 WDB.canAnalyze = function() {
   return WDB.getTokensRemaining() > 0;
 };
-
-// Legacy no-op (kept so old callers don't crash)
-WDB.saveSubscription = function() {};
 
 // ═══════════════════════════════════════════════════════════════
 // HERO ROSTER (compact — used by profile picker & pool helpers)
