@@ -2081,12 +2081,19 @@ function localAI(step){
       // TEAM IDENTITY: ban this team's signature bans
       const teamBan=epBans.includes(h.name)?140:0;
 
-      // DENY: human's comfort/tendency picks — highest priority after must-bans
-      const favEntry=humanFavs.find(f=>f.name===h.name);
-      const denyFav=favEntry?(favEntry.score*18):0;
+      // DON'T WASTE BAN: opp already PICKED this lane — banning another hero there is low value
+      // Exception: Flex heroes stay dangerous; team signature bans always go through
+      const laneFilledByOpp=ln!=='Flex'&&!oppNeeded.includes(ln);
+      // Strong penalty so denyFav/breakCombo can't override a covered lane
+      const oppLaneFilled=laneFilledByOpp&&teamBan===0?-130:0;
 
-      // DENY: break human combos — if this hero is part of a winning combo the human uses
-      const breakCombo=humanCombos.some(cb=>cb.a===h.name||cb.b===h.name)?30:0;
+      // DENY: human's comfort/tendency picks — scale down if opp already has that lane covered
+      const favEntry=humanFavs.find(f=>f.name===h.name);
+      const denyFavRaw=favEntry?(favEntry.score*18):0;
+      const denyFav=laneFilledByOpp?Math.round(denyFavRaw*0.3):denyFavRaw;
+
+      // DENY: break human combos — reduced when lane already covered (combo partner may not matter)
+      const breakCombo=humanCombos.some(cb=>cb.a===h.name||cb.b===h.name)?(laneFilledByOpp?8:30):0;
 
       // COUNTER-BAN: ban heroes that counter our existing picks (scout-derived)
       const ctrsUs=myP.length>0&&myP.some(p=>scoutCounters(h.name,p.name))?35:0;
@@ -2094,22 +2101,11 @@ function localAI(step){
       // DENY LANE: ban strong heroes in lanes opp still needs
       const deniesLane=ln!=='Flex'&&oppNeeded.includes(ln)?22:0;
 
-      // DON'T WASTE BAN: opp already PICKED this lane — banning another hero there is useless
-      // Exception: Flex heroes (e.g. Sora: Gold/EXP) stay dangerous even if one of their lanes is filled
-      // Exception: team signature bans always go through
-      const laneFilledByOpp=ln!=='Flex'&&!oppNeeded.includes(ln);
-      const oppLaneFilled=laneFilledByOpp&&teamBan===0?-40:0;
-
-      // DON'T WASTE BAN: player (our opponent) already filled this lane with a pick
-      // e.g. player picked a jungler → banning Guinevere (also jungle) is low value
-      // myNeeded = lanes WE (AI) still need; oppNeeded = lanes PLAYER still needs
-      // If the player no longer needs this lane, they can't use this hero — deprioritize
-      const laneFilledByPlayer=ln!=='Flex'&&!oppNeeded.includes(ln); // same as laneFilledByOpp (oppP = player picks)
       // Mustban bonus: full +60 normally
-      // → drops to +5 if PLAYER already has their lane filled (can't pick this hero anyway)
-      // → drops to +10 if WE already have our own lane filled (banning it helps less)
+      // → drops to +5 if opp already has that lane filled (can't pick this hero for that lane)
+      // → drops to +15 if WE already have our own lane filled (banning it helps less)
       const myLaneFilled=ln!=='Flex'&&!myNeeded.includes(ln);
-      const mustbanBonus=isMustBan?(laneFilledByPlayer?5:myLaneFilled?15:60):0;
+      const mustbanBonus=isMustBan?(laneFilledByOpp?5:myLaneFilled?15:60):0;
 
       // DON'T BAN own needs — strong penalty so AI never wastes a ban on a lane it still needs
       // Exception: team signature bans always execute (teamBan > 0), mustbans always execute
