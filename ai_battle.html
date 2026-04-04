@@ -1823,16 +1823,18 @@ function localAI(step){
 
       // DON'T WASTE BAN: opp already has someone in this lane — banning here is low value
       const laneFilledByOpp=ln!=='Flex'&&!oppNeeded.includes(ln);
-      // Strong penalty so denyFav/breakCombo can't override a covered lane
-      const oppLaneFilled=laneFilledByOpp&&!isMustBan&&teamBan===0?-130:0;
+      const aiStillNeedsLane=ln!=='Flex'&&myNeeded.includes(ln);
+      // Double-waste: opp has the lane AND AI still needs it → near-absolute block
+      // Single-waste: only opp has the lane → strong penalty
+      const oppLaneFilled=laneFilledByOpp&&!isMustBan&&teamBan===0?(aiStillNeedsLane?-250:-130):0;
 
-      // DENY: human's comfort/tendency picks — scale down if opp already has that lane covered
+      // DENY: human's comfort/tendency picks — suppress when lane is already covered
       const favEntry=humanFavs.find(f=>f.name===h.name);
       const denyFavRaw=favEntry?(favEntry.score*18):0;
-      const denyFav=laneFilledByOpp?Math.round(denyFavRaw*0.3):denyFavRaw;
+      const denyFav=laneFilledByOpp?Math.round(denyFavRaw*(aiStillNeedsLane?0.05:0.3)):denyFavRaw;
 
-      // DENY: break human combos — reduced when lane already covered
-      const breakCombo=humanCombos.some(cb=>cb.a===h.name||cb.b===h.name)?(laneFilledByOpp?8:30):0;
+      // DENY: break human combos — suppressed when lane already covered
+      const breakCombo=humanCombos.some(cb=>cb.a===h.name||cb.b===h.name)?(laneFilledByOpp?4:30):0;
 
       // COUNTER-BAN: ban heroes that counter our existing picks (scout-derived)
       const ctrsUs=myP.length>0&&myP.some(p=>scoutCounters(h.name,p.name))?35:0;
@@ -1841,7 +1843,7 @@ function localAI(step){
       const deniesLane=ln!=='Flex'&&oppNeeded.includes(ln)?22:0;
 
       // DON'T BAN own needs
-      const dontBanOwn=myNeeded.includes(ln)&&ts>=75&&!isMustBan?-28:0;
+      const dontBanOwn=aiStillNeedsLane&&!isMustBan?-28:0;
 
       return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+deniesLane+oppLaneFilled+dontBanOwn+Math.random()*randRange};
     }).filter(Boolean).sort((a,b)=>b.score-a.score);
