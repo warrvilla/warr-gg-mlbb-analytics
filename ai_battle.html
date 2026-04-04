@@ -1876,7 +1876,9 @@ function localAI(step){
     const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
     const ts={S:100,A:78,B:55,C:30}[t]||30;
     const fillsNeeded=ln!=='Flex'&&myNeeded.includes(ln)?42:0;
-    const alreadyCovered=ln!=='Flex'&&myCovered.includes(ln)?-55:0;
+    // Hard block: never pick a duplicate lane — penalty must exceed all bonuses combined
+    const laneCount=myP.filter(p=>lane(p)===ln).length;
+    const alreadyCovered=ln!=='Flex'&&laneCount>0?(-260-(laneCount*80)):0;
     // TEAM IDENTITY: prioritise team's signature picks
     const epIdx=epCore.indexOf(h.name);
     const teamPick=epIdx>=0?Math.max(0,130-epIdx*15):0;
