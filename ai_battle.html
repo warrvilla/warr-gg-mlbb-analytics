@@ -1821,21 +1821,24 @@ function localAI(step){
       // TEAM IDENTITY: ban this team's signature bans
       const teamBan=epBans.includes(h.name)?140:0;
 
-      // DENY: human's comfort/tendency picks — highest priority after must-bans
-      const favEntry=humanFavs.find(f=>f.name===h.name);
-      const denyFav=favEntry?(favEntry.score*18):0;
+      // DON'T WASTE BAN: opp already has someone in this lane — banning here is low value
+      const laneFilledByOpp=ln!=='Flex'&&!oppNeeded.includes(ln);
+      // Strong penalty so denyFav/breakCombo can't override a covered lane
+      const oppLaneFilled=laneFilledByOpp&&!isMustBan&&teamBan===0?-130:0;
 
-      // DENY: break human combos — if this hero is part of a winning combo the human uses
-      const breakCombo=humanCombos.some(cb=>cb.a===h.name||cb.b===h.name)?30:0;
+      // DENY: human's comfort/tendency picks — scale down if opp already has that lane covered
+      const favEntry=humanFavs.find(f=>f.name===h.name);
+      const denyFavRaw=favEntry?(favEntry.score*18):0;
+      const denyFav=laneFilledByOpp?Math.round(denyFavRaw*0.3):denyFavRaw;
+
+      // DENY: break human combos — reduced when lane already covered
+      const breakCombo=humanCombos.some(cb=>cb.a===h.name||cb.b===h.name)?(laneFilledByOpp?8:30):0;
 
       // COUNTER-BAN: ban heroes that counter our existing picks (scout-derived)
       const ctrsUs=myP.length>0&&myP.some(p=>scoutCounters(h.name,p.name))?35:0;
 
       // DENY LANE: ban strong heroes in lanes opp still needs
       const deniesLane=ln!=='Flex'&&oppNeeded.includes(ln)?22:0;
-
-      // DON'T WASTE BAN: opp already has someone in this lane — banning here is low value
-      const oppLaneFilled=ln!=='Flex'&&!oppNeeded.includes(ln)&&!isMustBan&&teamBan===0?-40:0;
 
       // DON'T BAN own needs
       const dontBanOwn=myNeeded.includes(ln)&&ts>=75&&!isMustBan?-28:0;
@@ -2400,6 +2403,7 @@ updateMemChip();
     const scoutRoles = await WDB.computeHeroRoles(1);
     Object.entries(scoutRoles).forEach(([hero, primaryLane]) => {
       LANES_MAP[hero] = primaryLane;
+      if (TIER_LIST[hero]) TIER_LIST[hero].lane = primaryLane; // scout data beats stale meta sheet lane
     });
   } catch(e) { /* fail silently — defaults still apply */ }
 })();
