@@ -2345,16 +2345,24 @@ async function runAnalysis(){
       : '';
     const prompt=`You are an elite MLBB draft analyst. Analyze this completed draft and give SPECIFIC insights about the ACTUAL heroes drafted — not generic advice.
 
+MLBB OBJECTIVE TIMINGS (use these exactly — do not guess):
+- Turtle: first spawn 2:00, respawns 2 min after death, stops spawning at 9:00
+- Lord: first spawn 9:00, respawns 3 min after death (replaces Turtle at 9:00)
+- Crab (Lithowanderer): spawns 1:30, respawns 90s after death
+- Turtle window: 2:00–9:00 | Lord window: 9:00+ | First Turtle contest: ~3:50–4:30
+
 ${meta}${poolCtx}
 BLUE SIDE (${bt}): bans=[${bB}] picks=[${bP}]
 RED SIDE (${rt}): bans=[${rB}] picks=[${rP}]
 
 Requirements:
 - Reference actual hero names from this draft in every field
-- Strengths/weaknesses must be specific to these picks (e.g. "Chou dives onto Kimmy who has no escape" not "good engage")
-- Keys to victory must name specific heroes and objectives
-- draftVerdict must explain WHY this comp wins/loses, naming heroes
-- keyMatchup must name two specific heroes from opposite teams
+- Strengths/weaknesses must be specific to THESE heroes (e.g. "Chou dives onto Kimmy who has no escape" not "good engage")
+- Keys to victory must name specific heroes AND the exact objective/timing they spike at
+- criticalTiming must reference a real MLBB timing window (use the timings above) and name the heroes involved
+- draftVerdict must explain WHY this comp wins/loses with hero names and concrete reasons — not generic
+- keyMatchup must name two specific heroes from opposite teams and explain the interaction
+- Avoid repeating the same phrases across fields — each field must add new information
 
 JSON only (no markdown):
 {"blueWinrate":<0-100>,"redWinrate":<0-100>,"winner":"blue|red","blueCompArchetype":"<archetype label>","redCompArchetype":"<archetype label>","blueStrengths":["specific strength 1","specific strength 2","specific strength 3"],"blueWeaknesses":["specific weakness 1","specific weakness 2"],"redStrengths":["specific strength 1","specific strength 2","specific strength 3"],"redWeaknesses":["specific weakness 1","specific weakness 2"],"blueKeysToVictory":["hero-specific key 1","hero-specific key 2","hero-specific key 3"],"redKeysToVictory":["hero-specific key 1","hero-specific key 2","hero-specific key 3"],"blueComposition":"describe their full comp and win condition naming heroes","redComposition":"describe their full comp and win condition naming heroes","keyMatchup":"Name vs Name — why this matchup decides the game","criticalTiming":"when does the winning team spike and why","draftVerdict":"2-3 sentence verdict naming the heroes that win or lose this draft","mvpHero":"hero name","mvpReason":"why this specific hero is the game-changer"}`;
