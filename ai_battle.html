@@ -1837,7 +1837,8 @@ function localAI(step){
       const breakCombo=humanCombos.some(cb=>cb.a===h.name||cb.b===h.name)?(laneFilledByOpp?4:30):0;
 
       // COUNTER-BAN: ban heroes that counter our existing picks (scout-derived)
-      const ctrsUs=myP.length>0&&myP.some(p=>scoutCounters(h.name,p.name))?35:0;
+      // Reduce bonus if opp lane is filled — they can't pick this hero for that lane anyway
+      const ctrsUs=myP.length>0&&myP.some(p=>scoutCounters(h.name,p.name))?(laneFilledByOpp?12:35):0;
 
       // DENY LANE: ban strong heroes in lanes opp still needs
       const deniesLane=ln!=='Flex'&&oppNeeded.includes(ln)?22:0;
