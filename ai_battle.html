@@ -2807,7 +2807,10 @@ updateMemChip();
   try {
     const scoutMatches = await WDB.loadMatches();
     const scoutRoles = await WDB.computeHeroRoles(1);
-    Object.entries(scoutRoles).forEach(([hero, primaryLane]) => { LANES_MAP[hero] = primaryLane; });
+    Object.entries(scoutRoles).forEach(([hero, primaryLane]) => {
+      LANES_MAP[hero] = primaryLane;
+      if (TIER_LIST[hero]) TIER_LIST[hero].lane = primaryLane; // scout data beats stale meta sheet lane
+    });
     heroScoutStatsAB = computeHeroScoutStatsAB(scoutMatches);
     renderPool(); // redraw hero cards with WR badges
     _refreshABPicker(); // re-populate team picker with scout team names
