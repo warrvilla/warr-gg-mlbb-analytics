@@ -1846,7 +1846,11 @@ function localAI(step){
       // DON'T BAN own needs
       const dontBanOwn=aiStillNeedsLane&&!isMustBan?-28:0;
 
-      return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+deniesLane+oppLaneFilled+dontBanOwn+Math.random()*randRange};
+      // PREFER banning lanes neither team has covered — soft penalty when AI already has this lane
+      const aiLaneCovered=ln!=='Flex'&&!myNeeded.includes(ln)&&!laneFilledByOpp;
+      const ownCoveredPenalty=aiLaneCovered&&!isMustBan&&teamBan===0?-40:0;
+
+      return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+deniesLane+oppLaneFilled+dontBanOwn+ownCoveredPenalty+Math.random()*randRange};
     }).filter(Boolean).sort((a,b)=>b.score-a.score);
 
     const h=scored[0]?.hero||avail.find(h=>h.mp==='mustban')||avail.find(h=>['S'].includes(_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier))||avail[0];
