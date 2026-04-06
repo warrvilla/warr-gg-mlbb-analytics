@@ -778,12 +778,13 @@ async function loadAllData() {
 
     // Load all users (paginated — we'll load all for client-side filtering)
     let allUsers = [];
-    let page = 1;
+    let page = 0;
     const pgSize = 100;
     while (true) {
       const batch = await WAuth.adminGetAllProfiles(page, pgSize);
-      allUsers = allUsers.concat(batch);
-      if (batch.length < pgSize) break;
+      const rows = batch.data || batch || [];
+      allUsers = allUsers.concat(rows);
+      if (rows.length < pgSize) break;
       page++;
     }
 
