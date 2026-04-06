@@ -1531,29 +1531,9 @@ function renderPool(){
   }
 
   const grid=document.getElementById('hgrid');
+  grid.classList.remove('grouped');
   grid.classList.toggle('lane-filtered', alane!=='All');
-  if(alane==='All'){
-    grid.classList.add('grouped');
-    const laneOrder=['Gold','Jungle','Mid','EXP','Roam','Flex'];
-    let html='';
-    laneOrder.forEach(ln=>{
-      const group=vis.filter(h=>{const hl=getHeroLanesAB(h);return ln==='Flex'?hl.every(l=>l==='Flex'):hl.includes(ln);}).sort((a,b)=>a.name.localeCompare(b.name));
-      if(!group.length)return;
-      const col=LANE_COLORS_AB[ln]||'#94a3b8';
-      html+=`<div class="lane-section">
-        <div class="lane-section-header">
-          <span style="font-size:9px;font-weight:800;font-family:var(--font-head);letter-spacing:1.5px;color:${col};">${ln.toUpperCase()}</span>
-          <div style="flex:1;height:1px;background:${col}33;margin:0 8px;"></div>
-          <span style="font-size:9px;font-weight:600;color:${col}88;">${group.length}</span>
-        </div>
-        <div class="lane-section-cards">${group.map(heroCard).join('')}</div>
-      </div>`;
-    });
-    grid.innerHTML=html;
-  } else {
-    grid.classList.remove('grouped');
-    grid.innerHTML=vis.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(heroCard).join('');
-  }
+  grid.innerHTML=vis.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(heroCard).join('');
 }
 function setF(r){af=r;alane='All';renderPool();}
 function setLaneAB(l){alane=l;af='All';renderPool();}
