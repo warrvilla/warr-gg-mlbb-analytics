@@ -1691,30 +1691,8 @@ function renderPool(){
 
   const grid = document.getElementById('heroGrid');
 
-  if(activeLane==='All'){
-    // Group by lane — each section is its own flex-wrapped row (avoids CSS grid auto-placement bug)
-    grid.classList.add('grouped');
-    const laneOrder=['Gold','Jungle','Mid','EXP','Roam','Flex'];
-    let html='';
-    laneOrder.forEach(lane=>{
-      const group=vis.filter(h=>getHeroLanes(h).includes(lane)||(lane==='Flex'&&getHeroLanes(h).every(l=>l==='Flex')));
-      if(!group.length)return;
-      const col=LANE_COLORS[lane]||'#94a3b8';
-      html+=`<div class="lane-section">
-        <div class="lane-section-header">
-          <span style="font-size:9px;font-weight:800;font-family:var(--font-head);letter-spacing:1.5px;color:${col};">${lane.toUpperCase()}</span>
-          <div style="flex:1;height:1px;background:${col}33;margin:0 8px;"></div>
-          <span style="font-size:9px;font-weight:600;color:${col}88;">${group.length}</span>
-        </div>
-        <div class="lane-section-cards">${group.map(heroCard).join('')}</div>
-      </div>`;
-    });
-    grid.innerHTML=html;
-  } else {
-    // Single lane selected — standard auto-fill grid
-    grid.classList.remove('grouped');
-    grid.innerHTML=vis.map(heroCard).join('');
-  }
+  grid.classList.remove('grouped');
+  grid.innerHTML=vis.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(heroCard).join('');
 }
 
 function selectHeroBase(id){
@@ -6235,30 +6213,8 @@ function renderPool(){
 
   const grid = document.getElementById('heroGrid');
 
-  if(activeLane==='All'){
-    // Group by lane — each section is its own flex-wrapped row (avoids CSS grid auto-placement bug)
-    grid.classList.add('grouped');
-    const laneOrder=['Gold','Jungle','Mid','EXP','Roam','Flex'];
-    let html='';
-    laneOrder.forEach(lane=>{
-      const group=vis.filter(h=>getHeroLanes(h).includes(lane)||(lane==='Flex'&&getHeroLanes(h).every(l=>l==='Flex')));
-      if(!group.length)return;
-      const col=LANE_COLORS[lane]||'#94a3b8';
-      html+=`<div class="lane-section">
-        <div class="lane-section-header">
-          <span style="font-size:9px;font-weight:800;font-family:var(--font-head);letter-spacing:1.5px;color:${col};">${lane.toUpperCase()}</span>
-          <div style="flex:1;height:1px;background:${col}33;margin:0 8px;"></div>
-          <span style="font-size:9px;font-weight:600;color:${col}88;">${group.length}</span>
-        </div>
-        <div class="lane-section-cards">${group.map(heroCard).join('')}</div>
-      </div>`;
-    });
-    grid.innerHTML=html;
-  } else {
-    // Single lane selected — standard auto-fill grid
-    grid.classList.remove('grouped');
-    grid.innerHTML=vis.map(heroCard).join('');
-  }
+  grid.classList.remove('grouped');
+  grid.innerHTML=vis.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(heroCard).join('');
 }
 
 function selectHeroBase(id){
