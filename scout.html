@@ -1351,6 +1351,7 @@ let leagueFilter = 'all';
 let matchSearch = '';
 let teamSearch = '';
 let matchSort = 'date';
+let patchFilter = 'all';
 let teamSort = 'games';
 let metaSort = 'presence';
 let metaLeague = 'all';
@@ -1436,6 +1437,7 @@ function getFilteredMatches() {
   const q = matchSearch.toLowerCase();
   return DB_MODULE.getMatches().filter(m => {
     if (leagueFilter !== 'all' && m.league !== leagueFilter) return false;
+    if (patchFilter !== 'all' && (m.patch||'') !== patchFilter) return false;
     if (q && !m.blueTeam.toLowerCase().includes(q) && !m.redTeam.toLowerCase().includes(q) && !(m.notes||'').toLowerCase().includes(q)) return false;
     return true;
   });
@@ -1507,6 +1509,9 @@ function renderMatchList() {
             <option value="blue">Blue Team</option>
             <option value="red">Red Team</option>
           </select>
+          <select id="patchFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="patchFilter=this.value;renderMatchListBody()">
+            <option value="all">All Patches</option>
+          </select>
         </div>
       </div>
       <div id="matchListBody"></div>`;
@@ -1526,6 +1531,12 @@ function onMatchSearch(val) {
 function renderMatchListBody() {
   const body = document.getElementById('matchListBody');
   if (!body) return;
+  // Update patch dropdown with unique patches from all matches
+  const patchSel = document.getElementById('patchFilterSelect');
+  if (patchSel) {
+    const patches = [...new Set(DB_MODULE.getMatches().map(m=>m.patch||'').filter(Boolean))].sort().reverse();
+    patchSel.innerHTML = `<option value="all">All Patches</option>` + patches.map(p=>`<option value="${p}"${patchFilter===p?' selected':''}>${p}</option>`).join('');
+  }
   const series = getFilteredSeries();
   const subEl = document.getElementById('matchListSub');
   if (subEl) subEl.textContent = `${series.length} series · ${series.reduce((t,s)=>t+s.games.length,0)} games`;
@@ -1772,6 +1783,10 @@ function _openMatchModal(m) {
             <div class="form-group">
               <label class="form-label">Date</label>
               <input class="form-input" type="date" id="mf-date" value="${m.date||''}">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Patch</label>
+              <input class="form-input" id="mf-patch" placeholder="1.9.28" value="${m.patch||''}">
             </div>
           </div>
           <div class="form-row">
@@ -2183,6 +2198,7 @@ function saveMatch() {
     id: editingMatchId || 'match_' + Date.now(),
     league, seriesId,
     season: document.getElementById('mf-season')?.value||'',
+    patch: (document.getElementById('mf-patch')?.value||'').trim(),
     stage, week, seriesFormat: format,
     gameNum: Number(document.getElementById('mf-gamenum')?.value)||1,
     blueTeam, redTeam,
@@ -2293,6 +2309,7 @@ function _renderTeamsGrid() {
       ${tpc ? `<div style="font-size:8px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-top:8px;margin-bottom:4px;">TOP PICKS</div><div class="hero-chips">${tpc}</div>` : ''}
       ${tbc ? `<div style="font-size:8px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-top:6px;margin-bottom:4px;">TOP BANS</div><div class="hero-chips">${tbc}</div>` : ''}
       ${t.coachNotes ? `<div style="margin-top:8px;padding-top:7px;border-top:1px solid var(--border);font-size:10px;color:var(--text3);font-style:italic;line-height:1.5;">${t.coachNotes.slice(0,90)}${t.coachNotes.length>90?'…':''}</div>` : ''}
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%;font-size:10px;" onclick="event.stopPropagation();openH2H('${t.name}')">⚔ H2H Compare</button>
     </div>`;
   }).join('');
 }
@@ -2352,6 +2369,33 @@ function openTeamEditor(teamName) {
                 <div class="hero-chips">${(t.topFirstPick||[]).map(p=>`<span class="hero-chip" style="color:var(--blue);border-color:var(--blue-border);">${p.name} ×${p.count}</span>`).join('')}</div>
               </div>` : ''}
             </div>
+            ${(() => {
+              const blueC={}, redC={};
+              DB_MODULE.getMatches().filter(m=>m.blueTeam===teamName||m.redTeam===teamName).forEach(m=>{
+                const isBlue=m.blueTeam===teamName;
+                const picks=isBlue?(m.bluePicks||[]):(m.redPicks||[]);
+                picks.forEach(p=>{const n=p.name||p;if(isBlue)blueC[n]=(blueC[n]||0)+1;else redC[n]=(redC[n]||0)+1;});
+              });
+              const all=[...new Set([...Object.keys(blueC),...Object.keys(redC)])];
+              const sorted=all.sort((a,b)=>((blueC[b]||0)+(redC[b]||0))-((blueC[a]||0)+(redC[a]||0))).slice(0,12);
+              if(!sorted.length) return '';
+              return `<div style="margin-top:10px;">
+                <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">SIDE HEATMAP</div>
+                <div style="display:flex;flex-direction:column;gap:4px;">${sorted.map(h=>{
+                  const b=blueC[h]||0,r=redC[h]||0,tot=b+r;
+                  const bPct=Math.round(b/tot*100);
+                  return `<div style="display:flex;align-items:center;gap:6px;">
+                    <div style="width:80px;font-size:10px;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h}</div>
+                    <div style="flex:1;display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--surface3);">
+                      <div style="width:${bPct}%;background:#60a5fa;"></div>
+                      <div style="width:${100-bPct}%;background:#f87171;"></div>
+                    </div>
+                    <div style="font-size:9px;color:#60a5fa;width:20px;text-align:right;">B${b}</div>
+                    <div style="font-size:9px;color:#f87171;width:20px;">R${r}</div>
+                  </div>`;
+                }).join('')}</div>
+              </div>`;
+            })()}
           </div>` : ''}
       </div>
       <div class="modal-footer">
@@ -2383,6 +2427,126 @@ function deleteTeam(name) {
   document.getElementById('teamModal')?.remove();
   renderTeams();
   toast('Team deleted');
+}
+
+function openH2H(teamName) {
+  const teams = Object.keys(DB_MODULE.getTeams()).filter(n => n !== teamName).sort();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'h2hPickModal';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:380px;">
+      <div class="modal-header">
+        <div class="modal-title">H2H — ${teamName}</div>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="document.getElementById('h2hPickModal').remove()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Compare against</label>
+          <select class="form-select" id="h2hOppSelect">
+            <option value="">— select opponent —</option>
+            ${teams.map(n=>`<option value="${n}">${n}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="document.getElementById('h2hPickModal').remove()">Cancel</button>
+        <button class="btn btn-accent" onclick="const opp=document.getElementById('h2hOppSelect').value;if(!opp){toast('Select an opponent');return;}document.getElementById('h2hPickModal').remove();renderH2H('${teamName}',opp)">View H2H</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function renderH2H(teamA, teamB) {
+  const all = DB_MODULE.getMatches();
+  const games = all.filter(m =>
+    (m.blueTeam===teamA&&m.redTeam===teamB)||(m.blueTeam===teamB&&m.redTeam===teamA)
+  ).sort((a,b)=>new Date(b.date)-new Date(a.date));
+
+  if (!games.length) { toast(`No head-to-head data for ${teamA} vs ${teamB}`); return; }
+
+  let aWins=0, bWins=0, aBlue=0, aBlueW=0, aRed=0, aRedW=0;
+  const aBanC={}, bBanC={}, aPickC={}, bPickC={};
+  games.forEach(m => {
+    const aIsBlue = m.blueTeam===teamA;
+    const aWon = (aIsBlue&&m.winner==='blue')||(!aIsBlue&&m.winner==='red');
+    if (aWon) aWins++; else bWins++;
+    if (aIsBlue) { aBlue++; if (aWon) aBlueW++; } else { aRed++; if (aWon) aRedW++; }
+    const aPicks = aIsBlue?(m.bluePicks||[]):(m.redPicks||[]);
+    const bPicks = aIsBlue?(m.redPicks||[]):(m.bluePicks||[]);
+    const aBans  = aIsBlue?(m.blueBans||[]):(m.redBans||[]);
+    const bBans  = aIsBlue?(m.redBans||[]):(m.blueBans||[]);
+    aPicks.forEach(p=>{const n=p.name||p;aPickC[n]=(aPickC[n]||0)+1;});
+    bPicks.forEach(p=>{const n=p.name||p;bPickC[n]=(bPickC[n]||0)+1;});
+    aBans.forEach(b=>{const n=b.name||b;aBanC[n]=(aBanC[n]||0)+1;});
+    bBans.forEach(b=>{const n=b.name||b;bBanC[n]=(bBanC[n]||0)+1;});
+  });
+
+  const topN=(obj,n=5)=>Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n);
+  const col=aWins>bWins?'var(--green)':aWins<bWins?'var(--red)':'var(--gold)';
+  const gameRows = games.map(m=>{
+    const aIsBlue=m.blueTeam===teamA;
+    const aWon=(aIsBlue&&m.winner==='blue')||(!aIsBlue&&m.winner==='red');
+    const d=new Date(m.date);
+    const ds=isNaN(d)?m.date:`${d.getDate()}/${d.getMonth()+1}`;
+    return `<div style="display:flex;align-items:center;gap:8px;font-size:10px;padding:4px 0;border-bottom:1px solid var(--border);">
+      <span style="color:var(--text3);width:38px;">${ds}</span>
+      <span class="league-badge ${(window.LEAGUE_CSS||{})[m.league]||'lg-other'}" style="font-size:8px;">${m.league||''}</span>
+      <span style="flex:1;color:var(--text2);">G${m.gameNum||1}</span>
+      <span style="font-weight:700;color:${aWon?'var(--green)':'var(--red)'};">${aWon?'W':'L'}</span>
+      <span style="color:var(--text3);font-size:9px;">${aIsBlue?'Blue':'Red'}</span>
+    </div>`;
+  }).join('');
+
+  const chipRow=(entries)=>entries.map(([n,c])=>`<span class="hero-chip">${n} <span style="color:var(--text3);">×${c}</span></span>`).join('');
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'h2hModal';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:560px;">
+      <div class="modal-header">
+        <div class="modal-title">⚔ ${teamA} vs ${teamB}</div>
+        <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="document.getElementById('h2hModal').remove()">✕</button>
+      </div>
+      <div class="modal-body" style="overflow-y:auto;max-height:70vh;">
+        <div style="display:flex;align-items:center;justify-content:center;gap:24px;padding:12px 0;margin-bottom:12px;background:var(--surface2);border-radius:8px;">
+          <div style="text-align:center;">
+            <div style="font-size:28px;font-weight:800;font-family:var(--font-head);color:${col};">${aWins}</div>
+            <div style="font-size:10px;color:var(--text3);">${teamA}</div>
+          </div>
+          <div style="font-size:13px;color:var(--text3);">–</div>
+          <div style="text-align:center;">
+            <div style="font-size:28px;font-weight:800;font-family:var(--font-head);color:${aWins<bWins?'var(--green)':aWins>bWins?'var(--red)':'var(--gold)'};">${bWins}</div>
+            <div style="font-size:10px;color:var(--text3);">${teamB}</div>
+          </div>
+          <div style="text-align:center;margin-left:16px;">
+            <div style="font-size:11px;color:var(--text3);">${games.length} game${games.length!==1?'s':''}</div>
+            ${aBlue?`<div style="font-size:10px;color:var(--text3);">${teamA} Blue: ${aBlueW}/${aBlue} | Red: ${aRedW}/${aRed}</div>`:''}
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;">
+          <div style="flex:1;min-width:180px;">
+            <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">${teamA} PICKS</div>
+            <div class="hero-chips">${chipRow(topN(aPickC))}</div>
+            <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-top:8px;margin-bottom:4px;">${teamA} BANS</div>
+            <div class="hero-chips">${chipRow(topN(aBanC))}</div>
+          </div>
+          <div style="flex:1;min-width:180px;">
+            <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">${teamB} PICKS</div>
+            <div class="hero-chips">${chipRow(topN(bPickC))}</div>
+            <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-top:8px;margin-bottom:4px;">${teamB} BANS</div>
+            <div class="hero-chips">${chipRow(topN(bBanC))}</div>
+          </div>
+        </div>
+        <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">GAME HISTORY</div>
+        ${gameRows}
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="document.getElementById('h2hModal').remove()">Close</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
 }
 
 // ══════════════════════════════════════════════════════════════
