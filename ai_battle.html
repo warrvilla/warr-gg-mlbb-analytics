@@ -161,6 +161,9 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
 .hero-card.banned{opacity:.2;cursor:not-allowed;filter:grayscale(1);}
 .hero-card.picked{opacity:.3;cursor:not-allowed;}
 .hero-card.lkd{opacity:.5;cursor:not-allowed;}
+.hero-card[data-tooltip]{position:relative;}
+.hero-card[data-tooltip]:hover::after{content:attr(data-tooltip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1a1a2e;color:#e2e8f0;font-size:9px;white-space:pre;padding:5px 8px;border-radius:6px;border:1px solid rgba(168,85,247,.3);pointer-events:none;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,.5);line-height:1.6;min-width:120px;text-align:center;}
+.hero-card[data-tooltip]:hover::before{content:'';position:absolute;bottom:calc(100% + 1px);left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#1a1a2e;pointer-events:none;z-index:999;}
 .hero-img{width:106px;height:106px;margin:0 auto 4px;border-radius:7px;object-fit:cover;display:block;background:var(--surface);border:1px solid var(--border);flex-shrink:0;}
 .hero-cname{font-size:11px;font-weight:700;color:var(--text);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .hero-crole{font-size:9px;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -299,7 +302,9 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
   #setup { padding: 0 12px; margin: 20px auto; }
   .grid3 { grid-template-columns: 1fr; }
   .hero-grid { grid-template-columns: repeat(auto-fill, 80px); gap: 5px; padding: 10px 12px; }
-  .hero-card { width: 80px; height: 106px; padding: 5px 4px 5px; }
+  .hero-grid.lane-filtered { display: flex; flex-direction: row; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 8px; gap: 6px; }
+  .hero-grid.lane-filtered .lane-section { display: contents; }
+  .hero-card { width: 80px; height: 106px; padding: 5px 4px 5px; flex-shrink: 0; }
   .hero-img { width: 64px; height: 64px; }
   .hero-cname { font-size: 10px; }
   .hero-crole { font-size: 8px; }
@@ -825,6 +830,10 @@ input:focus, .search-input:focus {
     </div>
   </div>
   <div class="logbar"><div style="font-size:7.5px;font-weight:700;color:var(--ai);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:2px;">AI LOG</div><div id="logEntries"></div></div>
+  <div id="breakdownPanel" style="display:none;border-top:1px solid rgba(168,85,247,.15);background:var(--surface);">
+    <button onclick="const b=document.getElementById('breakdownBody');const a=document.getElementById('breakdownArrow');b.style.display=b.style.display==='none'?'block':'none';a.textContent=b.style.display==='none'?'▶':'▼';" style="width:100%;background:none;border:none;padding:5px 14px;text-align:left;cursor:pointer;font-size:9px;font-weight:700;color:var(--ai);letter-spacing:1.5px;text-transform:uppercase;display:flex;align-items:center;gap:6px;"><span id="breakdownArrow">▶</span>AI PICK BREAKDOWN</button>
+    <div id="breakdownBody" style="display:none;padding:6px 14px 8px;max-height:160px;overflow-y:auto;"></div>
+  </div>
 </div>
 
 <!-- RESULT -->
@@ -1357,7 +1366,18 @@ function initBattle(){
   document.getElementById('srch').value='';
   document.getElementById('anaBtn').disabled=true;
   document.getElementById('logEntries').innerHTML='';
+  document.getElementById('breakdownPanel').style.display='none';
+  document.getElementById('breakdownBody').innerHTML='';
   document.getElementById('rasummary').style.display='none';
+  if(diff==='gm'){
+    const favs=getHumanTendencies().slice(0,3).map(f=>f.name).filter(Boolean);
+    if(favs.length){
+      const el=document.getElementById('logEntries');
+      const row=document.createElement('div');row.className='logrow';
+      row.innerHTML=`<span style="color:var(--ai);font-size:8px;">⚡ GM mode — reading tendencies: ${favs.join(', ')}</span>`;
+      el.appendChild(row);
+    }
+  }
   const ib=pSide==='blue';
   const isEnemy=aiMode==='enemy'&&enemyProfile;
   const aiName=isEnemy?enemyProfile.name:'Warr.GG AI';
@@ -1438,7 +1458,9 @@ function psl(h,active,side,lbl){
     const laneStyle=isNaturalFlex&&!isAssigned
       ?`border-style:dashed;border-color:${lc};color:${lc};cursor:pointer;`
       :`border-color:${lc}44;color:${lc};cursor:pointer;`;
-    return`<div class="pick-slot filled"><div class="slot-order">${lbl}</div><img src="${u}" alt="${h.name}" class="slot-img" onerror="if(this.dataset.t){this.src='${fb(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${iun(h)}';}"><div class="slot-info"><div class="slot-hname">${h.name}</div><div class="slot-role" style="color:${rc(h.role)}">${h.role}</div><span class="slot-lane" style="${laneStyle}" onclick="cycleLaneAB('${h.id}',event)" title="Click to change lane">${ln}${isNaturalFlex&&!isAssigned?' ↕':''}</span></div><div class="slot-tier" style="color:${tc(h.tier)}">${h.tier}</div></div>`;
+    const confColor={'high':'#4ade80','medium':'#fbbf24','low':'#f87171'}[h._c]||'';
+    const confBadge=h._c?`<div style="position:absolute;bottom:3px;right:3px;width:7px;height:7px;border-radius:50%;background:${confColor};box-shadow:0 0 4px ${confColor}88;" title="AI confidence: ${h._c}"></div>`:'';
+    return`<div class="pick-slot filled" style="position:relative;"><div class="slot-order">${lbl}</div><img src="${u}" alt="${h.name}" class="slot-img" onerror="if(this.dataset.t){this.src='${fb(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${iun(h)}';}"><div class="slot-info"><div class="slot-hname">${h.name}</div><div class="slot-role" style="color:${rc(h.role)}">${h.role}</div><span class="slot-lane" style="${laneStyle}" onclick="cycleLaneAB('${h.id}',event)" title="Click to change lane">${ln}${isNaturalFlex&&!isAssigned?' ↕':''}</span></div><div class="slot-tier" style="color:${tc(h.tier)}">${h.tier}</div>${confBadge}</div>`;
   }
   return`<div class="pick-slot${active?' '+ac:''}"><div class="slot-order">${lbl}</div><div class="slot-placeholder">+</div><div class="slot-info"><div style="font-size:9px;color:var(--text3);">Empty</div></div></div>`;
 }
@@ -1496,7 +1518,9 @@ function renderPool(){
     const displayLaneAB=(isLaneModeAB && alane!=='All') ? alane : primary;
     const pc=LANE_COLORS_AB[displayLaneAB]||'#94a3b8';
     const inPool = _abPool.has(h.name);
-    return`<div class="${cls}" data-id="${h.id}" ${used||locked?'data-locked="1"':''} onclick="if(!this.dataset.locked)pick(this.dataset.id)" title="${h.name} · ${h.role} · ${displayLaneAB} · ${h.tier}${inPool?' · ★ Your Pool':''}">
+    const _ms=META_SCORES[h.name];const _pr=_ms?.pr?`PR ${_ms.pr}%`:'';const _br=_ms?.br?`BR ${_ms.br}%`:'';
+    const _tip=[h.name,`${displayLaneAB} · ${h.tier}-tier`,_pr&&_br?`${_pr}  ${_br}`:_pr||_br,inPool?'★ In your pool':''].filter(Boolean).join('\n');
+    return`<div class="${cls}" data-id="${h.id}" ${used||locked?'data-locked="1"':''} onclick="if(!this.dataset.locked)pick(this.dataset.id)" data-tooltip="${_tip}">
       <img src="${u}" class="hero-img" alt="${h.name}" onerror="if(this.dataset.t){this.src='${fb(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${iun(h)}';}">
       <div class="hero-cname">${h.name}</div><div class="hero-crole" style="color:${LANE_COLORS_AB[displayLaneAB]||'#94a3b8'}">${isLaneModeAB?displayLaneAB:h.role.split('/')[0]}</div>
       <div class="tier-badge tier-${h.tier}">${h.tier}</div>
@@ -1507,6 +1531,7 @@ function renderPool(){
   }
 
   const grid=document.getElementById('hgrid');
+  grid.classList.toggle('lane-filtered', alane!=='All');
   if(alane==='All'){
     grid.classList.add('grouped');
     const laneOrder=['Gold','Jungle','Mid','EXP','Roam','Flex'];
@@ -1559,6 +1584,10 @@ function commit(h){
   ST.hist.push({step:ST.step,hero:h,type:s.type,team:s.team});
   if(s.type==='ban'){s.team==='blue'?ST.bb.push(h):ST.rb.push(h);}
   else{s.team==='blue'?ST.bp.push(h):ST.rp.push(h);}
+  // Track AI's first ban for variety in future games
+  if(s.type==='ban'&&s.team===aiSide&&(aiSide==='blue'?ST.bb.length:ST.rb.length)===1){
+    try{const bh=JSON.parse(localStorage.getItem('warr_ab_ban_history')||'[]');bh.unshift(h.name);localStorage.setItem('warr_ab_ban_history',JSON.stringify(bh.slice(0,5)));}catch(e){}
+  }
   ST.step++;
   document.getElementById('anaBtn').disabled=(ST.bp.length+ST.rp.length)<6;
   renderAll();updateTurn();
@@ -1582,7 +1611,25 @@ function undoPick(){
 function resetBattle(){if(confirm('Reset draft?'))initBattle();}
 
 function onComplete(){
-  done=true;document.getElementById('anaBtn').disabled=false;renderPool();showResult();}
+  done=true;document.getElementById('anaBtn').disabled=false;renderPool();showResult();renderBreakdownPanel();}
+
+function renderBreakdownPanel(){
+  const aiPicks=[...(aiSide==='blue'?ST.bp:ST.rp),...(aiSide==='blue'?ST.bb:ST.rb)];
+  if(!aiPicks.length)return;
+  const confColor={'high':'#4ade80','medium':'#fbbf24','low':'#f87171'};
+  const rows=ST.hist.filter(e=>e.team===aiSide).map(e=>{
+    const h=e.hero;const col=confColor[h._c]||'var(--text3)';
+    return`<div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);">
+      <span style="font-size:9px;color:var(--text3);width:22px;flex-shrink:0;">${e.type==='ban'?'BAN':'PCK'}</span>
+      <span style="font-size:10px;font-weight:600;color:var(--text);min-width:80px;">${h.name}</span>
+      <span style="font-size:8px;padding:1px 5px;border-radius:8px;background:${col}22;color:${col};flex-shrink:0;">${h._c||'—'}</span>
+      <span style="font-size:9px;color:var(--text3);flex:1;">${h._r||'Best available'}</span>
+    </div>`;
+  }).join('');
+  const body=document.getElementById('breakdownBody');
+  const panel=document.getElementById('breakdownPanel');
+  if(body&&panel){body.innerHTML=rows||'<div style="font-size:9px;color:var(--text3);">No AI actions recorded.</div>';panel.style.display='block';}
+}
 
 // ═══════ AI ENGINE ═══════
 function triggerAI(){
@@ -1797,6 +1844,10 @@ function localAI(step){
   // Higher normal range adds variety when scout data is thin
   const randRange={normal:32,hard:12,gm:4}[diff]??16;
 
+  // Ban memory: soft penalty for heroes AI banned first in recent games
+  let recentBans=[];
+  try{recentBans=JSON.parse(localStorage.getItem('warr_ab_ban_history')||'[]');}catch(e){}
+
   // Enemy profile identity (team selected by user)
   const ep=(aiMode==='enemy'&&enemyProfile)?enemyProfile:null;
   const epCore=ep?[...new Set([...(epSide==='blue'?ep.blueSideCore||[]:ep.redSideCore||[]),...(ep.topPicks||[]).slice(0,6)])]:[];
@@ -1850,7 +1901,8 @@ function localAI(step){
       const aiLaneCovered=ln!=='Flex'&&!myNeeded.includes(ln)&&!laneFilledByOpp;
       const ownCoveredPenalty=aiLaneCovered&&!isMustBan&&teamBan===0?-40:0;
 
-      return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+deniesLane+oppLaneFilled+dontBanOwn+ownCoveredPenalty+Math.random()*randRange};
+      const banMemory=recentBans.includes(h.name)?-30:0;
+      return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+deniesLane+oppLaneFilled+dontBanOwn+ownCoveredPenalty+banMemory+Math.random()*randRange};
     }).filter(Boolean).sort((a,b)=>b.score-a.score);
 
     const h=scored[0]?.hero||avail.find(h=>h.mp==='mustban')||avail.find(h=>['S'].includes(_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier))||avail[0];
@@ -1897,7 +1949,9 @@ function localAI(step){
     }).length*15;
     const metaBonus=h.mp==='highpick'?12:h.mp==='mustban'?6:0;
     const compAdj=compScoreAdjust(h,myP);
-    return{hero:h,score:ts+fillsNeeded+alreadyCovered+teamPick+countersOpp+vuln+beatsHumanFavs+metaBonus+compAdj+Math.random()*randRange};
+    // Normal: occasional B-tier surprise to simulate imperfect play
+    const mistakeNudge=diff==='normal'&&((_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier)==='B')?Math.random()*22:0;
+    return{hero:h,score:ts+fillsNeeded+alreadyCovered+teamPick+countersOpp+vuln+beatsHumanFavs+metaBonus+compAdj+mistakeNudge+Math.random()*randRange};
   }).sort((a,b)=>b.score-a.score);
 
   const h=scored[0]?.hero||avail[0];

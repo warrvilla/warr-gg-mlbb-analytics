@@ -812,8 +812,28 @@ WDB.getPoolByRole = function(roleKw) {
 WAdmin._getExtraAdmins = function() {
   try { return JSON.parse(localStorage.getItem('warr_extra_admins') || '[]'); } catch(e) { return []; }
 };
-WAdmin._setExtraAdmins = function(list) {
+WAdmin._setExtraAdmins = async function(list) {
   localStorage.setItem('warr_extra_admins', JSON.stringify(list));
+  try {
+    await _sbClient
+      .from('site_config')
+      .upsert({ key: 'extra_admins', value: JSON.stringify(list), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  } catch(e) {
+    console.warn('[WAdmin] Could not persist extra_admins to Supabase:', e.message);
+  }
+};
+/** Fetch extra_admins from Supabase and cache locally — call before isAdmin() check on protected pages */
+WAdmin.loadExtraAdmins = async function() {
+  try {
+    const { data } = await _sbClient
+      .from('site_config')
+      .select('value')
+      .eq('key', 'extra_admins')
+      .single();
+    if (data?.value) {
+      localStorage.setItem('warr_extra_admins', data.value);
+    }
+  } catch(e) { /* table may not exist yet — fall through */ }
 };
 /** Override isAdmin to also check extra admin list */
 (function() {

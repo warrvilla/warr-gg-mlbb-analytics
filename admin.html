@@ -778,12 +778,13 @@ async function loadAllData() {
 
     // Load all users (paginated — we'll load all for client-side filtering)
     let allUsers = [];
-    let page = 1;
+    let page = 0;
     const pgSize = 100;
     while (true) {
       const batch = await WAuth.adminGetAllProfiles(page, pgSize);
-      allUsers = allUsers.concat(batch);
-      if (batch.length < pgSize) break;
+      const rows = batch.data || batch || [];
+      allUsers = allUsers.concat(rows);
+      if (rows.length < pgSize) break;
       page++;
     }
 
@@ -821,6 +822,11 @@ async function init() {
     chip.innerHTML = user
       ? `<a href="profile.html" class="cta-secondary" style="padding:7px 18px;font-size:13px;">${(user.email||'').split('@')[0]}</a>`
       : `<a href="auth.html" class="cta-secondary" style="padding:7px 18px;font-size:13px;">Sign In</a>`;
+  }
+
+  // Fetch extra admins from Supabase so granted users can pass the check
+  if (typeof WAdmin !== 'undefined' && WAdmin.loadExtraAdmins) {
+    try { await WAdmin.loadExtraAdmins(); } catch(e) {}
   }
 
   // Check admin access
@@ -875,21 +881,21 @@ function renderExtraAdmins() {
     </div>
   `).join('');
 }
-function addExtraAdmin() {
+async function addExtraAdmin() {
   const email = (document.getElementById('extraAdminInput').value || '').trim().toLowerCase();
   if (!email || !email.includes('@')) { toast('Enter a valid email', 'error'); return; }
   const list = WAdmin._getExtraAdmins();
   if (list.includes(email)) { toast('Already an admin', 'error'); return; }
   list.push(email);
-  WAdmin._setExtraAdmins(list);
+  await WAdmin._setExtraAdmins(list);
   document.getElementById('extraAdminInput').value = '';
   renderExtraAdmins();
   toast(`Admin access granted to ${email} ✓`, 'success');
 }
-function removeExtraAdmin(email) {
+async function removeExtraAdmin(email) {
   if (!confirm(`Revoke admin access for ${email}?`)) return;
   const list = WAdmin._getExtraAdmins().filter(e => e !== email);
-  WAdmin._setExtraAdmins(list);
+  await WAdmin._setExtraAdmins(list);
   renderExtraAdmins();
   toast('Admin access revoked', 'success');
 }

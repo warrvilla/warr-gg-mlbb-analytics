@@ -185,6 +185,7 @@ body { background: var(--bg); min-height: 100vh; }
 }
 .save-btn:hover { background: #b89ae0; }
 .save-btn:active { transform: scale(.98); }
+.pw-seg{flex:1;height:3px;border-radius:2px;background:var(--surface3);transition:background .2s;}
 
 /* ── MPL teams list ── */
 .mpl-teams {
@@ -450,6 +451,24 @@ body { background: var(--bg); min-height: 100vh; }
 
       <div style="margin-top:20px;">
         <button class="save-btn" id="saveBtn" onclick="saveProfile()">Save Profile</button>
+      </div>
+
+      <div class="divider" style="margin-top:20px;"></div>
+      <div class="section-label">Change Password</div>
+      <div id="pwChangeForm">
+        <div class="field-group">
+          <div class="field-label">New Password</div>
+          <input type="password" id="newPwInput" class="field-input" placeholder="Enter new password" oninput="updatePwStrength(this.value)">
+          <div id="pwStrengthBar" style="display:flex;gap:3px;margin-top:5px;">
+            <div class="pw-seg" id="pws1"></div><div class="pw-seg" id="pws2"></div><div class="pw-seg" id="pws3"></div><div class="pw-seg" id="pws4"></div>
+          </div>
+          <div id="pwStrengthLabel" style="font-size:10px;color:var(--text3);margin-top:3px;"></div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Confirm New Password</div>
+          <input type="password" id="confirmPwInput" class="field-input" placeholder="Confirm new password">
+        </div>
+        <button onclick="changePassword()" style="margin-top:8px;padding:9px 20px;border-radius:10px;background:var(--accent);border:none;color:#fff;font-size:12px;font-weight:600;cursor:pointer;">Update Password</button>
       </div>
     </div>
 
@@ -881,6 +900,36 @@ function exportProfileData() {
   a.href = url; a.download = 'warr-profile-export.json';
   a.click(); URL.revokeObjectURL(url);
   toast('Data exported ✓', 'success');
+}
+
+// ── Password change ──
+function updatePwStrength(pw) {
+  const segs = [1,2,3,4].map(i => document.getElementById('pws'+i));
+  const lbl = document.getElementById('pwStrengthLabel');
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  const colors = ['#ef4444','#f97316','#eab308','#4ade80'];
+  const labels = ['Weak','Fair','Good','Strong'];
+  segs.forEach((s,i) => { s.style.background = i < score ? colors[score-1] : 'var(--surface3)'; });
+  lbl.textContent = pw.length ? labels[score-1]||'' : '';
+}
+async function changePassword() {
+  const np = document.getElementById('newPwInput').value;
+  const cp = document.getElementById('confirmPwInput').value;
+  if (!np) { toast('Enter a new password','error'); return; }
+  if (np.length < 8) { toast('Password must be at least 8 characters','error'); return; }
+  if (np !== cp) { toast('Passwords do not match','error'); return; }
+  try {
+    const { error } = await _sbClient.auth.updateUser({ password: np });
+    if (error) throw error;
+    document.getElementById('newPwInput').value = '';
+    document.getElementById('confirmPwInput').value = '';
+    updatePwStrength('');
+    toast('Password updated ✓','success');
+  } catch(e) { toast(e.message||'Failed to update password','error'); }
 }
 
 // ── Reset token counter ──
