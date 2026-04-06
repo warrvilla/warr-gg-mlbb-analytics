@@ -277,181 +277,9 @@ table.users-table {
         <div class="admin-title">Admin Panel</div>
         <div class="admin-subtitle">Warr.GG — User & Subscription Management</div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button onclick="document.getElementById('rlsNotice').style.display='block'" style="padding:9px 20px;border-radius:10px;background:var(--surface3);border:1px solid rgba(96,165,250,.4);color:#60a5fa;font-size:12px;cursor:pointer;font-weight:600;">
-          DB Setup SQL
-        </button>
-        <button onclick="document.getElementById('diagPanel').style.display='block';runDiagnostic();" style="padding:9px 20px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:#fbbf24;font-size:12px;cursor:pointer;font-weight:600;">
-          Diagnostics
-        </button>
-        <button onclick="refreshAll()" style="padding:9px 20px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:12px;cursor:pointer;font-weight:600;">
-          Refresh
-        </button>
-      </div>
-    </div>
-
-    <!-- DIAGNOSTIC PANEL -->
-    <div id="diagPanel" style="display:none;margin-bottom:16px;padding:14px 18px;background:rgba(15,23,42,.6);border:1px solid var(--border2);border-radius:10px;">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-        <span style="font-size:12px;font-weight:700;color:var(--text2);">Connection Diagnostics</span>
-        <button onclick="document.getElementById('diagPanel').style.display='none'" style="margin-left:auto;background:transparent;border:none;color:var(--text3);font-size:12px;cursor:pointer;">✕</button>
-      </div>
-      <div id="diagBox" style="font-family:monospace;background:rgba(0,0,0,.3);border-radius:6px;padding:10px;min-height:40px;"></div>
-    </div>
-
-    <!-- RLS SETUP NOTICE — toggleable via "DB Setup SQL" button or auto-shown when users=0 -->
-    <div id="rlsNotice" style="display:none;margin-bottom:16px;padding:14px 18px;background:rgba(15,23,42,.7);border:1px solid rgba(96,165,250,.3);border-radius:10px;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-        <div style="font-size:13px;font-weight:700;color:#60a5fa;">Supabase DB Setup SQL</div>
-        <button onclick="document.getElementById('rlsNotice').style.display='none'" style="margin-left:auto;background:transparent;border:none;color:var(--text3);font-size:13px;cursor:pointer;">✕</button>
-      </div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Run this in your <a href="https://supabase.com/dashboard" target="_blank" style="color:#60a5fa;">Supabase SQL Editor</a>. Fixes: RLS policy, email/name display, auto-profile trigger. <strong>Safe to re-run anytime.</strong></div>
-      <pre id="rlsSqlBox" style="font-size:11px;background:rgba(0,0,0,.35);border:1px solid var(--border2);border-radius:6px;padding:12px;overflow-x:auto;color:#a5f3fc;white-space:pre;margin:0 0 10px;">-- Drop old restrictive SELECT policy (if any)
-DROP POLICY IF EXISTS "Users read own profile" ON public.profiles;
-DROP POLICY IF EXISTS "Admin reads all profiles" ON public.profiles;
-
--- New policy: own row OR admin email
-CREATE POLICY "Users read own profile" ON public.profiles
-  FOR SELECT USING (
-    auth.uid() = id
-    OR auth.email() = 'wrrenvillapando@gmail.com'
-  );
-
--- Also ensure write policies exist
-DROP POLICY IF EXISTS "Users insert own profile" ON public.profiles;
-DROP POLICY IF EXISTS "Users update own profile" ON public.profiles;
-CREATE POLICY "Users insert own profile" ON public.profiles
-  FOR INSERT WITH CHECK (auth.uid() = id);
-CREATE POLICY "Users update own profile" ON public.profiles
-  FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
-
--- Ensure required columns exist (including email + display_name)
-ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS email text,
-  ADD COLUMN IF NOT EXISTS display_name text,
-  ADD COLUMN IF NOT EXISTS tokens_used integer DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS token_reset_date text DEFAULT NULL,
-  ADD COLUMN IF NOT EXISTS plan text DEFAULT 'free';
-
--- Backfill email + display_name from auth.users
-UPDATE public.profiles p
-SET
-  email = u.email,
-  display_name = COALESCE(
-    p.display_name,
-    u.raw_user_meta_data->>'full_name',
-    u.raw_user_meta_data->>'name',
-    split_part(u.email, '@', 1)
-  )
-FROM auth.users u
-WHERE p.id = u.id;
-
--- Update trigger so new signups auto-get email + display_name
-CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS trigger AS $$
-BEGIN
-  INSERT INTO public.profiles (id, email, display_name, created_at)
-  VALUES (
-    NEW.id,
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', split_part(NEW.email,'@',1)),
-    now()
-  )
-  ON CONFLICT (id) DO UPDATE
-    SET email = EXCLUDED.email,
-        display_name = COALESCE(EXCLUDED.display_name, public.profiles.display_name);
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION handle_new_user();
-
--- app_settings table (league config + future global settings)
-CREATE TABLE IF NOT EXISTS public.app_settings (
-  key         text PRIMARY KEY,
-  value       jsonb NOT NULL,
-  updated_at  timestamptz DEFAULT now()
-);
-ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "All users read app_settings" ON public.app_settings;
-DROP POLICY IF EXISTS "Admin write app_settings"    ON public.app_settings;
-CREATE POLICY "All users read app_settings" ON public.app_settings
-  FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Admin write app_settings" ON public.app_settings
-  FOR ALL USING (auth.email() = 'wrrenvillapando@gmail.com');</pre>
-      <button onclick="navigator.clipboard.writeText(document.getElementById('rlsSqlBox').textContent).then(()=>alert('Copied! Paste in Supabase SQL Editor → Run.'))" style="padding:6px 16px;background:var(--blue);border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">Copy SQL</button>
-    </div>
-
-    <!-- LEAGUE MANAGER -->
-    <div class="admin-card" id="leagueManagerCard">
-      <div class="admin-section-title" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        League Manager
-        <span id="lmSaveStatus" style="font-size:10px;font-weight:600;color:var(--green);display:none;margin-left:4px;">Saved</span>
-        <span id="lmSaveErr" style="font-size:10px;font-weight:600;color:var(--red);display:none;margin-left:4px;"></span>
-        <button onclick="lmSave()" style="margin-left:auto;padding:5px 18px;border-radius:8px;background:rgba(129,140,248,.1);border:1px solid rgba(129,140,248,.3);color:var(--accent,#818cf8);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.04em;">Save All Changes</button>
-      </div>
-
-      <div style="display:grid;grid-template-columns:200px 1fr;gap:14px;min-height:320px;" id="lmGrid">
-
-        <!-- LEFT — League sidebar -->
-        <div style="display:flex;flex-direction:column;gap:5px;">
-          <div style="font-size:9px;font-weight:700;letter-spacing:.12em;color:var(--text4);margin-bottom:2px;text-transform:uppercase;">Leagues</div>
-          <div id="lmLeagueList" style="flex:1;display:flex;flex-direction:column;gap:3px;"></div>
-          <button onclick="lmAddLeague()" style="margin-top:6px;padding:8px 0;border-radius:10px;border:1.5px dashed var(--glass-border2);background:transparent;color:var(--text4);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.04em;" onmouseover="this.style.color='var(--text2)';this.style.borderColor='var(--border2)'" onmouseout="this.style.color='var(--text4)';this.style.borderColor='var(--glass-border2)'">+ New League</button>
-        </div>
-
-        <!-- RIGHT — Detail panel -->
-        <div id="lmDetailPanel" style="display:none;background:var(--surface2);border:1px solid var(--glass-border2);border-radius:14px;padding:18px 20px;flex-direction:column;gap:0;">
-
-          <!-- Row 1: label + color + remove -->
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
-            <input id="lmLabelInput" type="text" placeholder="League label..."
-              style="flex:1;min-width:120px;padding:7px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--surface3);color:var(--text);font-size:14px;font-weight:700;outline:none;font-family:inherit;"
-              oninput="_lmSyncLabel()">
-            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-              <label style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.08em;">Color</label>
-              <input id="lmColorInput" type="color" value="#818cf8"
-                style="width:30px;height:30px;border-radius:6px;border:1px solid var(--border2);background:none;cursor:pointer;padding:2px;" oninput="_lmSyncColor()">
-            </div>
-            <button onclick="lmRemoveLeague()" style="padding:6px 14px;border-radius:8px;background:rgba(220,80,80,.07);border:1px solid rgba(220,80,80,.25);color:var(--red);font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;">Remove League</button>
-          </div>
-
-          <!-- Row 2: season selector + badge + new season -->
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
-            <label style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;flex-shrink:0;">Season</label>
-            <select id="lmSeasonSelect" onchange="lmSelectSeason(this.value)"
-              style="padding:5px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--surface3);color:var(--text);font-size:12px;font-weight:600;font-family:inherit;outline:none;cursor:pointer;flex:1;max-width:200px;"></select>
-            <span id="lmActiveSeasonBadge" style="padding:2px 9px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:none;flex-shrink:0;">Active</span>
-            <button onclick="lmRenameSeason()" title="Rename this season" style="padding:5px 10px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid var(--border2);color:var(--text3);font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">Rename</button>
-            <button onclick="lmNewSeason()" style="margin-left:auto;padding:5px 14px;border-radius:8px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.3);color:#34d399;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap;">+ New Season</button>
-          </div>
-
-          <!-- Row 3: team roster label -->
-          <div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;">
-            Teams &mdash; <span id="lmRosterSeasonLabel" style="color:var(--text2);font-weight:700;"></span>
-          </div>
-
-          <!-- Row 4: team chips -->
-          <div id="lmTeamList" style="display:flex;flex-wrap:wrap;gap:6px;min-height:38px;margin-bottom:14px;"></div>
-
-          <!-- Row 5: add team input -->
-          <div style="display:flex;gap:6px;align-items:center;">
-            <input id="lmAddTeamInput" placeholder="Team name..." autocomplete="off"
-              style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--surface3);color:var(--text);font-size:12px;outline:none;font-family:inherit;"
-              onkeydown="if(event.key==='Enter')lmAddTeam()">
-            <button onclick="lmAddTeam()" style="padding:8px 18px;border-radius:8px;background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.3);color:var(--accent,#818cf8);font-size:11px;font-weight:700;cursor:pointer;">Add Team</button>
-          </div>
-        </div>
-
-        <!-- Empty state -->
-        <div id="lmEmptyState" style="display:flex;align-items:center;justify-content:center;color:var(--text4);font-size:12px;font-weight:600;letter-spacing:.04em;border:1.5px dashed var(--glass-border2);border-radius:14px;min-height:180px;">
-          Select a league to manage
-        </div>
-
-      </div>
+      <button onclick="refreshAll()" style="padding:9px 20px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:12px;cursor:pointer;font-weight:600;">
+        Refresh
+      </button>
     </div>
 
     <!-- STATS ROW -->
@@ -741,23 +569,6 @@ async function changePlan(userId, newPlan) {
   }
 }
 
-// ── Reset a user's daily draft count ──
-async function adminResetDrafts(userId) {
-  const u = _allUsers.find(x => x.id === userId);
-  const email = u ? (u.email || userId) : userId;
-  if (!confirm(`Reset daily draft count for ${email}?`)) return;
-  try {
-    const today = new Date().toISOString().slice(0, 10);
-    await WAuth.adminUpdateProfile(userId, { tokens_used: 0, token_reset_date: today });
-    if (u) u.tokens_used = 0;
-    const el = document.getElementById('draftsUsed-' + userId);
-    if (el) el.textContent = '0';
-    toast(`Draft count reset for ${email} ✓`, 'success');
-  } catch(e) {
-    toast('Error: ' + (e.message || e), 'error');
-  }
-}
-
 // ── Ban / unban ──
 async function toggleBan(userId) {
   const u = _allUsers.find(x => x.id === userId);
@@ -880,11 +691,7 @@ function renderUsersTable() {
           ${planLabel}
         </button>
       </td>
-      <td style="text-align:right;">
-        <span id="draftsUsed-${u.id}">${u.tokens_used || 0}</span>
-        <button onclick="adminResetDrafts('${u.id}')" title="Reset today's draft count"
-          style="margin-left:6px;padding:2px 7px;border-radius:5px;font-size:10px;background:transparent;border:1px solid var(--border2);color:var(--text3);cursor:pointer;">↺</button>
-      </td>
+      <td style="text-align:right;">${u.tokens_used || 0}</td>
       <td>${fmtDate(u.created_at)}</td>
       <td>
         <button id="noteBtn-${u.id}" class="btn-ban" title="${escHtml(u.admin_notes || 'Add note')}"
@@ -963,347 +770,25 @@ async function refreshAll() {
   await loadAllData();
 }
 
-// ════════════════════════════════════════════════════════════
-// LEAGUE MANAGER — Season-Aware
-// ════════════════════════════════════════════════════════════
-let _lmConfig = {};      // { league: { label, color, activeSeason, seasons:{} } }
-let _lmSelected = null;  // currently selected league key
-let _lmViewSeason = null; // season being edited (may differ from activeSeason)
-
-async function lmInit() {
-  WTeams.bustCache(); // admin always gets fresh data
-  await WTeams.loadFromDB();
-  if (WTeams._config && Object.keys(WTeams._config).length) {
-    _lmConfig = JSON.parse(JSON.stringify(WTeams._config));
-  } else {
-    // Bootstrap from hardcoded LEAGUES if DB has nothing
-    _lmConfig = {};
-    Object.entries(WTeams.LEAGUES).forEach(([lg, teams]) => {
-      _lmConfig[lg] = {
-        label: lg,
-        color: WTeams._COLORS[lg] || '#818cf8',
-        activeSeason: 'Current Season',
-        seasons: { 'Current Season': [...teams] },
-      };
-    });
-  }
-  lmRenderLeagueList();
-  const first = Object.keys(_lmConfig)[0];
-  if (first) lmSelectLeague(first);
-}
-
-function lmRenderLeagueList() {
-  const el = document.getElementById('lmLeagueList');
-  if (!el) return;
-  const keys = Object.keys(_lmConfig);
-  if (!keys.length) {
-    el.innerHTML = `<div style="font-size:11px;color:var(--text4);padding:16px 0;text-align:center;">No leagues yet</div>`;
-    return;
-  }
-  el.innerHTML = keys.map(k => {
-    const cfg = _lmConfig[k];
-    const active = k === _lmSelected;
-    const dot = cfg.color || '#818cf8';
-    // Show team count from activeSeason
-    const teamCount = (cfg.seasons && cfg.seasons[cfg.activeSeason] || []).length;
-    const seasonCount = Object.keys(cfg.seasons || {}).length;
-    return `<button onclick="lmSelectLeague('${k.replace(/'/g,"\\'")}')"
-      style="width:100%;text-align:left;padding:9px 12px;border-radius:10px;
-             border:1px solid ${active ? 'rgba(129,140,248,.4)' : 'var(--glass-border2)'};
-             background:${active ? 'rgba(129,140,248,.1)' : 'var(--surface2)'};
-             cursor:pointer;display:flex;align-items:center;gap:8px;transition:border-color .15s,background .15s;">
-        <span style="width:8px;height:8px;border-radius:50%;background:${dot};flex-shrink:0;box-shadow:0 0 6px ${dot}88;"></span>
-        <span style="flex:1;font-size:12px;font-weight:700;color:${active ? 'var(--accent,#818cf8)' : 'var(--text)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${cfg.label || k}</span>
-        <span style="font-size:9px;color:var(--text4);flex-shrink:0;">${teamCount}t · ${seasonCount}s</span>
-      </button>`;
-  }).join('');
-}
-
-function lmSelectLeague(key) {
-  _lmSelected = key;
-  const cfg = _lmConfig[key];
-  if (!cfg) return;
-  _lmViewSeason = cfg.activeSeason;
-  lmRenderLeagueList();
-  // Show detail panel
-  document.getElementById('lmEmptyState').style.display = 'none';
-  const panel = document.getElementById('lmDetailPanel');
-  panel.style.display = 'flex';
-  // Fill header fields
-  document.getElementById('lmLabelInput').value = cfg.label || key;
-  document.getElementById('lmColorInput').value = cfg.color || '#818cf8';
-  // Render season selector + teams
-  lmRenderSeasonSelect();
-  lmRenderTeams();
-  document.getElementById('lmAddTeamInput').value = '';
-}
-
-function lmRenderSeasonSelect() {
-  if (!_lmSelected) return;
-  const cfg = _lmConfig[_lmSelected];
-  const sel   = document.getElementById('lmSeasonSelect');
-  const badge = document.getElementById('lmActiveSeasonBadge');
-  const lbl   = document.getElementById('lmRosterSeasonLabel');
-  if (!sel || !cfg) return;
-  const seasons = Object.keys(cfg.seasons || {});
-  sel.innerHTML = seasons.map(s =>
-    `<option value="${s}"${s === _lmViewSeason ? ' selected' : ''}>${s}</option>`
-  ).join('');
-  // Active season badge
-  const isActive = _lmViewSeason === cfg.activeSeason;
-  badge.style.display = isActive ? 'inline-block' : 'none';
-  if (isActive) {
-    const c = cfg.color || '#818cf8';
-    badge.style.cssText += `;background:${c}22;color:${c};border:1px solid ${c}55;`;
-  }
-  if (lbl) lbl.textContent = _lmViewSeason || '';
-}
-
-function lmSelectSeason(season) {
-  _lmViewSeason = season;
-  lmRenderSeasonSelect();
-  lmRenderTeams();
-}
-
-function lmRenderTeams() {
-  const el = document.getElementById('lmTeamList');
-  if (!el || !_lmSelected) return;
-  const cfg = _lmConfig[_lmSelected];
-  const teams = ((cfg?.seasons || {})[_lmViewSeason] || []).slice().sort();
-  const isActive = _lmViewSeason === cfg?.activeSeason;
-  if (!teams.length) {
-    el.innerHTML = `<span style="font-size:11px;color:var(--text4);padding:4px 0;">${isActive ? 'No teams yet — add one below' : 'No teams in this season'}</span>`;
-    return;
-  }
-  el.innerHTML = teams.map(t =>
-    `<div style="display:inline-flex;align-items:center;gap:4px;padding:5px 8px 5px 12px;background:var(--surface3);border:1px solid var(--glass-border2);border-radius:20px;font-size:11px;font-weight:600;color:var(--text);">
-      ${t}
-      ${isActive ? `<button onclick="lmRemoveTeam('${t.replace(/'/g,"\\'")}') "title="Remove"
-        style="background:none;border:none;color:var(--text4);cursor:pointer;font-size:14px;line-height:1;padding:0 2px;margin-left:1px;"
-        onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text4)'">×</button>` : ''}
-    </div>`
-  ).join('');
-}
-
-function lmAddTeam() {
-  const inp = document.getElementById('lmAddTeamInput');
-  if (!inp || !_lmSelected) return;
-  const name = inp.value.trim();
-  if (!name) return;
-  const cfg = _lmConfig[_lmSelected];
-  if (!cfg.seasons) cfg.seasons = {};
-  if (!cfg.seasons[_lmViewSeason]) cfg.seasons[_lmViewSeason] = [];
-  if (!cfg.seasons[_lmViewSeason].includes(name)) {
-    cfg.seasons[_lmViewSeason].push(name);
-    lmRenderTeams();
-    lmRenderLeagueList();
-  }
-  inp.value = '';
-  inp.focus();
-}
-
-function lmRemoveTeam(name) {
-  if (!_lmSelected) return;
-  const cfg = _lmConfig[_lmSelected];
-  if (cfg?.seasons?.[_lmViewSeason]) {
-    cfg.seasons[_lmViewSeason] = cfg.seasons[_lmViewSeason].filter(t => t !== name);
-    lmRenderTeams();
-    lmRenderLeagueList();
-  }
-}
-
-function _lmSyncLabel() {
-  if (!_lmSelected) return;
-  _lmConfig[_lmSelected].label = document.getElementById('lmLabelInput').value.trim() || _lmSelected;
-  lmRenderLeagueList();
-}
-
-function _lmSyncColor() {
-  if (!_lmSelected) return;
-  _lmConfig[_lmSelected].color = document.getElementById('lmColorInput').value;
-  lmRenderLeagueList();
-  lmRenderSeasonSelect(); // update badge color
-}
-
-async function lmAddLeague() {
-  const name = prompt('New league key (e.g. MPL SG):');
-  if (!name?.trim()) return;
-  const key = name.trim();
-  if (_lmConfig[key]) { alert(`"${key}" already exists.`); return; }
-  const seasonName = prompt(`Initial season name for ${key}:`, 'Season 1');
-  if (!seasonName?.trim()) return;
-  const sKey = seasonName.trim();
-  const color = WTeams._COLORS[key] || '#818cf8';
-  _lmConfig[key] = { label: key, color, activeSeason: sKey, seasons: { [sKey]: [] } };
-  lmRenderLeagueList();
-  lmSelectLeague(key);
-}
-
-async function lmRemoveLeague() {
-  if (!_lmSelected) return;
-  const label = _lmConfig[_lmSelected]?.label || _lmSelected;
-  if (!confirm(`Remove "${label}" and all its seasons and teams?\nThis cannot be undone.`)) return;
-  delete _lmConfig[_lmSelected];
-  _lmSelected = null;
-  _lmViewSeason = null;
-  document.getElementById('lmDetailPanel').style.display = 'none';
-  document.getElementById('lmEmptyState').style.display = 'flex';
-  lmRenderLeagueList();
-}
-
-async function lmNewSeason() {
-  if (!_lmSelected) return;
-  const cfg = _lmConfig[_lmSelected];
-  const existing = Object.keys(cfg.seasons || {});
-  const suggested = `Season ${existing.length + 1}`;
-  const seasonName = prompt(`New season name for ${cfg.label || _lmSelected}:`, suggested);
-  if (!seasonName?.trim()) return;
-  const key = seasonName.trim();
-  if (cfg.seasons[key]) { alert(`Season "${key}" already exists.`); return; }
-  const copy = confirm(`Copy roster from "${cfg.activeSeason}" as a starting point?`);
-  cfg.seasons[key] = copy ? [...(cfg.seasons[cfg.activeSeason] || [])] : [];
-  cfg.activeSeason = key;
-  _lmViewSeason = key;
-  lmRenderLeagueList();
-  lmRenderSeasonSelect();
-  lmRenderTeams();
-}
-
-function lmRenameSeason() {
-  if (!_lmSelected || !_lmViewSeason) return;
-  const cfg = _lmConfig[_lmSelected];
-  const newName = prompt(`Rename "${_lmViewSeason}" to:`, _lmViewSeason);
-  if (!newName?.trim() || newName.trim() === _lmViewSeason) return;
-  const key = newName.trim();
-  if (cfg.seasons[key]) { alert(`Season "${key}" already exists.`); return; }
-  // Move the roster to the new key
-  cfg.seasons[key] = cfg.seasons[_lmViewSeason];
-  delete cfg.seasons[_lmViewSeason];
-  // Update activeSeason pointer if needed
-  if (cfg.activeSeason === _lmViewSeason) cfg.activeSeason = key;
-  _lmViewSeason = key;
-  lmRenderLeagueList();
-  lmRenderSeasonSelect();
-  lmRenderTeams();
-}
-
-async function lmSave() {
-  const saveErr = document.getElementById('lmSaveErr');
-  const saveOk  = document.getElementById('lmSaveStatus');
-  saveErr.style.display = 'none';
-  saveOk.style.display  = 'none';
-  try {
-    await WTeams.saveToDB(_lmConfig);
-    saveOk.style.display = 'inline';
-    setTimeout(() => saveOk.style.display = 'none', 3000);
-  } catch(e) {
-    const msg = e.message || String(e);
-    const needsSQL = msg.includes('app_settings') || msg.includes('schema cache') || msg.includes('relation') || msg.includes('does not exist');
-    if (needsSQL) {
-      saveErr.innerHTML = 'Table missing — <a href="#" onclick="document.getElementById(\'rlsNotice\').style.display=\'block\';this.closest(\'span\').style.display=\'none\';return false;" style="color:var(--red);font-weight:800;text-decoration:underline;">run DB Setup SQL first</a>';
-    } else {
-      saveErr.textContent = 'Save failed: ' + msg;
-    }
-    saveErr.style.display = 'inline';
-  }
-}
-
-// ── Diagnostic — shows exactly where the chain breaks ──
-async function runDiagnostic() {
-  const box = document.getElementById('diagBox');
-  if (!box) return;
-  box.style.display = 'block';
-  const log = (msg, ok) => {
-    const color = ok === true ? '#4ade80' : ok === false ? '#f87171' : '#fbbf24';
-    box.innerHTML += `<div style="color:${color};font-size:11px;padding:2px 0;">${msg}</div>`;
-  };
-  box.innerHTML = '<div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Running diagnostics…</div>';
-
-  // Step 1: auth user
-  const user = WAuth.getUser();
-  if (user) {
-    log(`✓ Logged in as: ${user.email}`, true);
-  } else {
-    log('✗ No auth user — not logged in', false);
-    return;
-  }
-
-  // Step 2: isAdmin check
-  const admin = WAdmin.isAdmin();
-  log(`${admin ? '✓' : '✗'} WAdmin.isAdmin() = ${admin}  (expected: true)`, admin);
-  if (!admin) {
-    log('  → Email in JWT does not match ADMIN_EMAIL. Check you are signed in as wrrenvillapando@gmail.com', false);
-    return;
-  }
-
-  // Step 3: raw Supabase SELECT on profiles (bypasses WAuth wrapper)
-  const _sb = WAuth._sb();
-  const { data: selfRow, error: selfErr } = await _sb.from('profiles').select('id,plan').eq('id', user.id).maybeSingle();
-  if (selfErr) {
-    log(`✗ SELECT own profile row failed: ${selfErr.message}`, false);
-    log('  → profiles table may not exist, or RLS blocks even own row', false);
-  } else if (selfRow) {
-    log(`✓ Own profile row found (plan=${selfRow.plan||'free'})`, true);
-  } else {
-    log('⚠ No profile row for admin yet — will be created on first save', null);
-  }
-
-  // Step 4: SELECT all profiles (tests admin RLS policy)
-  const { data: allRows, error: allErr, count } = await _sb
-    .from('profiles')
-    .select('id', { count: 'exact' })
-    .limit(5);
-  if (allErr) {
-    log(`✗ SELECT all profiles failed: ${allErr.message}`, false);
-    log('  → RLS policy is still blocking. Re-run the SQL in Supabase dashboard.', false);
-  } else {
-    log(`✓ SELECT all profiles OK — ${count ?? (allRows||[]).length} total rows visible`, true);
-  }
-
-  // Step 5: check created_at column (query uses it for ordering)
-  const { error: orderErr } = await _sb.from('profiles').select('id').order('created_at', { ascending: false }).limit(1);
-  if (orderErr && orderErr.message.includes('created_at')) {
-    log('⚠ profiles table has no created_at column — ordering will fail', null);
-    log('  → Run: ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();', null);
-  } else if (!orderErr) {
-    log('✓ created_at column OK', true);
-  }
-
-  log('— Diagnostic complete —', null);
-}
-
 // ── Load all data from Supabase ──
 async function loadAllData() {
   try {
     // Load pending requests first (fast)
-    const pendingResult = await WAuth.adminGetPendingRequests();
-    const pending = Array.isArray(pendingResult) ? pendingResult : (pendingResult.data || []);
+    const pending = await WAuth.adminGetPendingRequests();
 
     // Load all users (paginated — we'll load all for client-side filtering)
     let allUsers = [];
-    let page = 0;   // 0-based: adminGetAllProfiles uses page*pageSize as offset
+    let page = 1;
     const pgSize = 100;
     while (true) {
       const batch = await WAuth.adminGetAllProfiles(page, pgSize);
-      const rows = Array.isArray(batch) ? batch : (batch.data || []);
-      // Surface Supabase errors into the UI
-      const batchErr = !Array.isArray(batch) && batch.error;
-      if (batchErr) throw new Error('Supabase error: ' + (batchErr.message || JSON.stringify(batchErr)));
-      allUsers = allUsers.concat(rows);
-      if (rows.length < pgSize) break;
+      allUsers = allUsers.concat(batch);
+      if (batch.length < pgSize) break;
       page++;
     }
 
     _allUsers = allUsers;
     _filteredUsers = [..._allUsers];
-
-    // Show RLS setup notice + auto-run diagnostics if no users found
-    const rlsNotice = document.getElementById('rlsNotice');
-    if (rlsNotice) rlsNotice.style.display = allUsers.length === 0 ? 'block' : 'none';
-    if (allUsers.length === 0) {
-      document.getElementById('diagPanel').style.display = 'block';
-      runDiagnostic();
-    }
 
     updateStats();
     renderPending(_allUsers);
@@ -1311,8 +796,6 @@ async function loadAllData() {
     renderPagination();
 
   } catch(e) {
-    const rlsNotice = document.getElementById('rlsNotice');
-    if (rlsNotice) rlsNotice.style.display = 'block';
     document.getElementById('pendingList').innerHTML =
       `<div class="empty-state" style="color:var(--red);">Error loading data: ${escHtml(e.message || String(e))}</div>`;
     document.getElementById('usersTableBody').innerHTML =
@@ -1340,6 +823,11 @@ async function init() {
       : `<a href="auth.html" class="cta-secondary" style="padding:7px 18px;font-size:13px;">Sign In</a>`;
   }
 
+  // Fetch extra admins from Supabase so granted users can pass the check
+  if (typeof WAdmin !== 'undefined' && WAdmin.loadExtraAdmins) {
+    try { await WAdmin.loadExtraAdmins(); } catch(e) {}
+  }
+
   // Check admin access
   const isAdmin = typeof WAdmin !== 'undefined' && WAdmin.isAdmin && WAdmin.isAdmin();
   loading.style.display = 'none';
@@ -1353,7 +841,6 @@ async function init() {
   content.style.display = 'block';
   renderExtraAdmins();
   refreshApiKeyStatus(); // async — no need to await
-  lmInit();             // load league manager (async, non-blocking)
   await loadAllData();
 }
 
@@ -1393,21 +880,21 @@ function renderExtraAdmins() {
     </div>
   `).join('');
 }
-function addExtraAdmin() {
+async function addExtraAdmin() {
   const email = (document.getElementById('extraAdminInput').value || '').trim().toLowerCase();
   if (!email || !email.includes('@')) { toast('Enter a valid email', 'error'); return; }
   const list = WAdmin._getExtraAdmins();
   if (list.includes(email)) { toast('Already an admin', 'error'); return; }
   list.push(email);
-  WAdmin._setExtraAdmins(list);
+  await WAdmin._setExtraAdmins(list);
   document.getElementById('extraAdminInput').value = '';
   renderExtraAdmins();
   toast(`Admin access granted to ${email} ✓`, 'success');
 }
-function removeExtraAdmin(email) {
+async function removeExtraAdmin(email) {
   if (!confirm(`Revoke admin access for ${email}?`)) return;
   const list = WAdmin._getExtraAdmins().filter(e => e !== email);
-  WAdmin._setExtraAdmins(list);
+  await WAdmin._setExtraAdmins(list);
   renderExtraAdmins();
   toast('Admin access revoked', 'success');
 }
