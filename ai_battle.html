@@ -150,7 +150,7 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
 .filter-row{display:flex;gap:4px;flex-wrap:wrap;align-items:center;}
 .lane-btn{padding:3px 9px;border:1px solid var(--border2);border-radius:10px;background:transparent;font-size:10px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:3px;color:var(--text3);}
 .lane-btn:hover{border-color:var(--text2);color:var(--text);}
-.hero-grid{display:grid;grid-template-columns:repeat(auto-fill,130px);gap:8px;overflow-y:auto;padding:14px 16px;flex:1;justify-content:center;align-content:start;min-height:0;}
+.hero-grid{display:flex;flex-wrap:wrap;justify-content:center;align-content:start;gap:8px;overflow-y:auto;padding:14px 16px;flex:1;min-height:0;}
 .hero-grid.grouped{display:flex;flex-direction:column;gap:0;}
 .lane-section{width:100%;margin-bottom:4px;}
 .lane-section-header{display:flex;align-items:center;gap:8px;padding:8px 0 8px;}
@@ -278,7 +278,7 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
   .pool-section { grid-column: 1 / -1; }
 }
 @media (max-width: 768px) {
-  .hero-grid { grid-template-columns: repeat(auto-fill, 110px); }
+  /* hero-grid columns handled by flex-wrap + hero-card width */
   .hero-card { width: 110px; height: 134px; }
   .hero-img { width: 88px; height: 88px; }
 }
@@ -301,7 +301,7 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
   .setup-title { font-size: 24px; }
   #setup { padding: 0 12px; margin: 20px auto; }
   .grid3 { grid-template-columns: 1fr; }
-  .hero-grid { grid-template-columns: repeat(auto-fill, 80px); gap: 5px; padding: 10px 12px; }
+.hero-grid { gap: 5px; padding: 10px 12px; }
   .hero-grid.lane-filtered { display: flex; flex-direction: row; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 8px; gap: 6px; }
   .hero-grid.lane-filtered .lane-section { display: contents; }
   .hero-card { width: 80px; height: 106px; padding: 5px 4px 5px; flex-shrink: 0; }
@@ -319,7 +319,7 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
   .filter-row.collapsed { display: none !important; }
 }
 @media (max-width: 420px) {
-  .hero-grid { grid-template-columns: repeat(auto-fill, 72px); gap: 4px; }
+.hero-grid { gap: 4px; }
   .hero-card { width: 72px; height: 97px; padding: 4px 3px 4px; }
   .hero-img { width: 58px; height: 58px; }
   .ban-slot { width: 30px; height: 36px; }
