@@ -637,12 +637,10 @@ body {
 .lg-mplph { background: rgba(79,142,247,.12); color: #60a5fa; border: 1px solid rgba(79,142,247,.25); }
 .lg-mplmy { background: rgba(168,85,247,.12); color: #c084fc; border: 1px solid rgba(168,85,247,.25); }
 .lg-mplid { background: rgba(240,82,82,.12); color: #f87171; border: 1px solid rgba(240,82,82,.25); }
-.lg-mplkh { background: rgba(52,209,160,.12); color: #34d1a0; border: 1px solid rgba(52,209,160,.25); }
 .lg-mplsg { background: rgba(34,209,122,.12); color: #4ade80; border: 1px solid rgba(34,209,122,.25); }
 .lg-msc { background: rgba(244,165,52,.12); color: #fbbf24; border: 1px solid rgba(244,165,52,.25); }
 .lg-mseries { background: rgba(34,211,238,.12); color: #22d3ee; border: 1px solid rgba(34,211,238,.25); }
 .lg-scrims { background: rgba(251,146,60,.12); color: #fb923c; border: 1px solid rgba(251,146,60,.25); }
-.lg-draftboard { background: rgba(249,115,22,.12); color: #f97316; border: 1px solid rgba(249,115,22,.25); }
 .lg-other { background: var(--surface3); color: var(--text3); border: 1px solid var(--border); }
 
 /* ── MODAL ── */
@@ -968,18 +966,13 @@ body::after {
 // ══════════════════════════════════════════════════════════════
 // DATA MODEL & CONSTANTS
 // ══════════════════════════════════════════════════════════════
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 3;
 const STORAGE_KEY = 'warr_scout_data';
 const DRAFT_KEY = 'mlbb_draft_data';
 
-const LEAGUES = ['MPL PH','MPL MY','MPL ID','MPL KH','MPL SG','MSC','M-Series','Scrims','Draft Board','Other'];
-// Returns LEAGUES merged with any dynamic leagues added via admin (WTeams.LEAGUES keys)
-function _getLogLeagues() {
-  const dynamic = (typeof WTeams !== 'undefined') ? Object.keys(WTeams.LEAGUES) : [];
-  return [...new Set([...dynamic, ...LEAGUES])];
-}
-const LEAGUE_CSS = {'MPL PH':'lg-mplph','MPL MY':'lg-mplmy','MPL ID':'lg-mplid','MPL KH':'lg-mplkh','MPL SG':'lg-mplsg','MSC':'lg-msc','M-Series':'lg-mseries','Scrims':'lg-scrims','Draft Board':'lg-draftboard','Other':'lg-other'};
-const LEAGUE_COLOR = {'MPL PH':'#60a5fa','MPL MY':'#c084fc','MPL ID':'#f87171','MPL KH':'#34d1a0','MPL SG':'#4ade80','MSC':'#fbbf24','M-Series':'#22d3ee','Scrims':'#fb923c','Draft Board':'#f97316','Other':'#4f5d78'};
+const LEAGUES = ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series','Scrims','Other'];
+const LEAGUE_CSS = {'MPL PH':'lg-mplph','MPL MY':'lg-mplmy','MPL ID':'lg-mplid','MPL SG':'lg-mplsg','MSC':'lg-msc','M-Series':'lg-mseries','Scrims':'lg-scrims','Other':'lg-other'};
+const LEAGUE_COLOR = {'MPL PH':'#60a5fa','MPL MY':'#c084fc','MPL ID':'#f87171','MPL SG':'#4ade80','MSC':'#fbbf24','M-Series':'#22d3ee','Scrims':'#fb923c','Other':'#4f5d78'};
 const LANES = ['Gold','Jungle','Mid','EXP','Roam'];
 const LANE_COLORS = {Gold:'#f4a534',Mid:'#a855f7',Roam:'#34d17a',Jungle:'#f05252',EXP:'#38bdf8',Flex:'#8b97b0'};
 const LANE_ICONS = {Gold:'GLD',Mid:'MID',Roam:'RMG',Jungle:'JGL',EXP:'EXP',Flex:'FLX'};
@@ -1108,23 +1101,6 @@ const DB_MODULE = (() => {
         }
       });
       db.version = 3;
-    }
-    if (db.version < 4) {
-      // v3→v4: normalize team names via WTeams aliases
-      if (typeof WTeams !== 'undefined') {
-        db.matches.forEach(m => {
-          if (m.blueTeam) m.blueTeam = WTeams.normalize(m.blueTeam);
-          if (m.redTeam)  m.redTeam  = WTeams.normalize(m.redTeam);
-        });
-        const newTeams = {};
-        Object.entries(db.teams||{}).forEach(([k,v]) => {
-          const nk = WTeams.normalize(k);
-          v.name = nk;
-          newTeams[nk] = v;
-        });
-        db.teams = newTeams;
-      }
-      db.version = 4;
     }
     return db;
   }
@@ -1411,8 +1387,6 @@ let _searchDebounce = null;
   } catch(e) { /* fail silently */ }
 })();
 WAuth.renderAuthChip('authChip');
-// Load dynamic league/team config from DB (updates WTeams.LEAGUES for team pickers)
-if (typeof WTeams !== 'undefined' && WTeams.loadFromDB) WTeams.loadFromDB().then(() => updateScoutTeamList()).catch(() => {});
 // Auto-load from Supabase on page load
 loadFromSupabase().catch(() => {});
 
@@ -1738,53 +1712,9 @@ function openEditMatch(id) {
   _openMatchModal(m);
 }
 
-function _buildTeamOpts(filterLeague, filterSeason) {
-  if (typeof WTeams !== 'undefined' && filterLeague && WTeams.LEAGUES[filterLeague]) {
-    // Use season-specific roster if a season is provided and WTeams supports it
-    const leagueTeams = (filterSeason && WTeams.getSeasonRoster)
-      ? WTeams.getSeasonRoster(filterLeague, filterSeason)
-      : WTeams.LEAGUES[filterLeague];
-    // Extra: scouted teams tagged to this league (+ season) not in official roster
-    const scoutedInLeague = [...new Set(
-      DB_MODULE.getMatches()
-        .filter(m => m.league === filterLeague && (!filterSeason || m.season === filterSeason))
-        .flatMap(m => [m.blueTeam, m.redTeam].filter(Boolean))
-        .map(t => WTeams.normalize(t))
-    )].filter(t => !leagueTeams.includes(t));
-    return [...leagueTeams, ...scoutedInLeague].map(t => `<option value="${t}">${t}</option>`).join('');
-  }
-  // No league filter — show all WTeams (all-time) + all scouted teams
-  const existingTeams = Object.keys(DB_MODULE.getTeams());
-  const allWTeams = (typeof WTeams !== 'undefined') ? WTeams.all() : [];
-  const merged = [...new Set([...allWTeams, ...existingTeams])].sort();
-  return merged.map(t => `<option value="${t}">${t}</option>`).join('');
-}
-
-function updateScoutTeamList() {
-  const league = document.getElementById('mf-league')?.value || '';
-  const season = document.getElementById('mf-season')?.value || '';
-  const dl = document.getElementById('teamList');
-  if (dl) dl.innerHTML = _buildTeamOpts(league, season);
-}
-
-// Rebuild season datalist suggestions when league changes
-function updateScoutSeasonOpts() {
-  const leagueEl = document.getElementById('mf-league');
-  const seasonEl = document.getElementById('mf-season');
-  const dl       = document.getElementById('seasonSuggestions');
-  if (!leagueEl || !seasonEl || typeof WTeams === 'undefined' || !WTeams.getSeasons) return;
-  const league  = leagueEl.value;
-  const seasons = WTeams.getSeasons(league); // newest first from _config
-  // Populate datalist with suggestions — user can still type any value freely
-  if (dl) dl.innerHTML = seasons.map(s => `<option value="${s}">`).join('');
-  // Auto-fill only when field is empty (never overwrite what the user typed)
-  if (!seasonEl.value && league && WTeams._config?.[league]?.activeSeason) {
-    seasonEl.value = WTeams._config[league].activeSeason;
-  }
-}
-
 function _openMatchModal(m) {
-  const teamOpts = _buildTeamOpts(m.league || '');
+  const existingTeams = Object.keys(DB_MODULE.getTeams());
+  const teamOpts = existingTeams.map(t => `<option value="${t}">${t}</option>`).join('');
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -1806,8 +1736,8 @@ function _openMatchModal(m) {
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">League</label>
-              <select class="form-select" id="mf-league" onchange="checkLeagueAdminLock(this.value);updateScoutSeasonOpts();updateScoutTeamList()">
-                ${_getLogLeagues().map(l=>`<option value="${l}" ${m.league===l?'selected':''}>${l}</option>`).join('')}
+              <select class="form-select" id="mf-league" onchange="checkLeagueAdminLock(this.value)">
+                ${LEAGUES.map(l=>`<option value="${l}" ${m.league===l?'selected':''}>${l}</option>`).join('')}
               </select>
               <div id="leagueAdminWarning" style="display:none;margin-top:5px;font-size:10px;color:var(--gold);background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:6px;padding:5px 10px;">
                 🔒 Official competition data — only the Warr.GG admin can save matches for this league.
@@ -1815,11 +1745,7 @@ function _openMatchModal(m) {
             </div>
             <div class="form-group">
               <label class="form-label">Season</label>
-              <input class="form-input" id="mf-season" placeholder="e.g. Season 15" autocomplete="off"
-                list="seasonSuggestions" value="${m.season||''}" oninput="updateScoutTeamList()">
-              <datalist id="seasonSuggestions">
-                ${(typeof WTeams!=='undefined'&&WTeams.getSeasons?WTeams.getSeasons(m.league||''):[]).map(s=>`<option value="${s}">`).join('')}
-              </datalist>
+              <input class="form-input" id="mf-season" placeholder="Season 15" value="${m.season||''}">
             </div>
             <div class="form-group">
               <label class="form-label">Stage</label>
@@ -2283,8 +2209,43 @@ function saveMatch() {
 // ══════════════════════════════════════════════════════════════
 // TEAMS VIEW
 // ══════════════════════════════════════════════════════════════
+let _teamSearchTimer = null;
+function _onTeamSearch(v) {
+  teamSearch = v;
+  clearTimeout(_teamSearchTimer);
+  _teamSearchTimer = setTimeout(() => _renderTeamsGrid(), 150);
+}
+
 function renderTeams() {
   const area = document.getElementById('mainArea');
+  const tSorts = [['games','Games'],['winrate','WR'],['wins','Wins'],['bluewr','Blue WR'],['redwr','Red WR'],['pool','Pool'],['name','Name']];
+
+  // Only build the header once — preserve input focus across re-renders
+  if (!document.getElementById('teamsGrid')) {
+    area.innerHTML = `
+      <div class="page-header">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <div class="page-title">Team Profiles</div>
+          <button class="btn btn-accent btn-sm" onclick="openTeamEditor(null)" style="margin-left:auto;">+ Add Team</button>
+        </div>
+        <div class="search-bar" style="margin-bottom:10px;">
+          <input id="teamSearchInput" placeholder="Search teams…" oninput="_onTeamSearch(this.value)">
+        </div>
+        <div id="teamSortRow" class="filter-row"></div>
+      </div>
+      <div id="teamsGrid"></div>`;
+    const inp = document.getElementById('teamSearchInput');
+    if (inp && teamSearch) inp.value = teamSearch;
+  }
+
+  // Always update sort buttons (reflects active sort)
+  const sortRow = document.getElementById('teamSortRow');
+  if (sortRow) sortRow.innerHTML = `<span style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1.5px;text-transform:uppercase;">SORT</span>${tSorts.map(([k,l]) => `<button class="filter-badge${teamSort===k?' active':''}" onclick="teamSort='${k}';renderTeams()">${l}</button>`).join('')}`;
+
+  _renderTeamsGrid();
+}
+
+function _renderTeamsGrid() {
   const teams = Object.values(DB_MODULE.getTeams()).filter(t => {
     if (leagueFilter !== 'all' && !t.leagues?.includes(leagueFilter)) return false;
     if (teamSearch && !t.name.toLowerCase().includes(teamSearch.toLowerCase())) return false;
@@ -2299,24 +2260,6 @@ function renderTeams() {
     if (teamSort==='pool')    return (b.poolDepth||0)-(a.poolDepth||0);
     return (b.gamesPlayed||0)-(a.gamesPlayed||0);
   });
-
-  const tSorts = [['games','Games'],['winrate','WR'],['wins','Wins'],['bluewr','Blue WR'],['redwr','Red WR'],['pool','Pool'],['name','Name']];
-  area.innerHTML = `
-    <div class="page-header">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-        <div class="page-title">Team Profiles</div>
-        <button class="btn btn-accent btn-sm" onclick="openTeamEditor(null)" style="margin-left:auto;">+ Add Team</button>
-      </div>
-      <div class="search-bar" style="margin-bottom:10px;">
-        
-        <input placeholder="Search teams…" value="${teamSearch}" oninput="teamSearch=this.value;renderTeams()">
-      </div>
-      <div class="filter-row">
-        <span style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1.5px;text-transform:uppercase;">SORT</span>
-        ${tSorts.map(([k,l]) => `<button class="filter-badge${teamSort===k?' active':''}" onclick="teamSort='${k}';renderTeams()">${l}</button>`).join('')}
-      </div>
-    </div>
-    <div id="teamsGrid"></div>`;
 
   const grid = document.getElementById('teamsGrid');
   if (!teams.length) {
