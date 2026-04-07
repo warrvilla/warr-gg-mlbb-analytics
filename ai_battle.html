@@ -1499,7 +1499,7 @@ function renderPool(){
   // Filter heroes
   let vis=HEROES.filter(h=>{
     if(alane!=='All'){
-      if(isLaneModeAB){const hl=getHeroLanesAB(h);if(!hl.includes(alane))return false;}
+      if(isLaneModeAB){if(lane(h)!==alane)return false;}
       else{if(h.role.split('/')[0]!==alane)return false;}
     }
     if(sq&&!h.name.toLowerCase().includes(sq.toLowerCase()))return false;
