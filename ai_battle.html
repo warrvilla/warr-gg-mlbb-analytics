@@ -1858,10 +1858,13 @@ function localAI(step){
 
       // DON'T WASTE BAN: opp already has someone in this lane — banning here is low value
       const laneFilledByOpp=ln!=='Flex'&&!oppNeeded.includes(ln);
+      const aiAlsoCoveredLane=ln!=='Flex'&&!myNeeded.includes(ln);
       const aiStillNeedsLane=ln!=='Flex'&&myNeeded.includes(ln);
-      // Double-waste: opp has the lane AND AI still needs it → near-absolute block
-      // Single-waste: only opp has the lane → strong penalty
-      const oppLaneFilled=laneFilledByOpp&&!isMustBan&&teamBan===0?(aiStillNeedsLane?-250:-130):0;
+      // Both teams have lane covered = total waste → near-absolute block
+      // Only opp has lane + AI still needs it = double-waste → near-absolute block
+      // Only opp has lane, AI doesn't need it yet = waste → strong penalty
+      const oppLaneFilled=laneFilledByOpp&&!isMustBan&&teamBan===0
+        ?(aiAlsoCoveredLane?-999:(aiStillNeedsLane?-250:-130)):0;
 
       // DENY: human's comfort/tendency picks — suppress when lane is already covered
       const favEntry=humanFavs.find(f=>f.name===h.name);
