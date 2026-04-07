@@ -646,7 +646,7 @@ input:focus, .search-input:focus {
 <div class="lo" id="lo"><div class="ls"></div><div class="lt">ANALYZING DRAFT</div></div>
 <div class="toast" id="toast"></div>
 <div class="aithink" id="aithink"><div class="aispin"></div><div><div class="aitxt" id="aitxt">AI thinking...</div><div class="aisub" id="aisub">Evaluating options...</div></div></div>
-<div class="aireveal" id="aireveal"><div class="arl" id="arl">AI PICKS</div><img class="arimg" id="arimg" src="" alt=""><div class="arname" id="arname"></div><div class="arreason" id="arreason"></div><div class="arconf" id="arconf"></div></div>
+<div class="aireveal" id="aireveal" style="cursor:pointer;"><div class="arl" id="arl">AI PICKS</div><img class="arimg" id="arimg" src="" alt=""><div class="arname" id="arname"></div><div class="arreason" id="arreason"></div><div class="arconf" id="arconf"></div><div style="margin-top:10px;font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;">tap to continue</div></div>
 
 <!-- TOP NAV -->
 <nav class="topnav">
@@ -1626,7 +1626,7 @@ async function aiTurn(){
     const hero=(!hasKey||diff==='normal')?localAI(s):await claudeAI(s);
     await new Promise(r=>setTimeout(r,350));
     showThink(false);
-    if(hero){showReveal(hero,s);await new Promise(r=>setTimeout(r,1100));hideReveal();commit(hero);addLog(hero,s);}
+    if(hero){showReveal(hero,s);await new Promise(r=>{let done=false;const go=()=>{if(done)return;done=true;hideReveal();r();};setTimeout(go,2500);document.getElementById('aireveal').onclick=()=>go();});commit(hero);addLog(hero,s);}
     aiThink=false;renderPool();setTimeout(()=>triggerAI(),200);
   }catch(e){
     console.error(e);showThink(false);
@@ -1877,9 +1877,9 @@ function localAI(step){
       // DON'T BAN own needs
       const dontBanOwn=aiStillNeedsLane&&!isMustBan?-28:0;
 
-      // PREFER banning lanes neither team has covered — soft penalty when AI already has this lane
+      // Hard penalty when AI already has this lane AND it's not a must-ban/team-ban
       const aiLaneCovered=ln!=='Flex'&&!myNeeded.includes(ln)&&!laneFilledByOpp;
-      const ownCoveredPenalty=aiLaneCovered&&!isMustBan&&teamBan===0?-40:0;
+      const ownCoveredPenalty=aiLaneCovered&&!isMustBan&&teamBan===0?-999:0;
 
       const banMemory=recentBans.includes(h.name)?-30:0;
       return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+deniesLane+oppLaneFilled+dontBanOwn+ownCoveredPenalty+banMemory+Math.random()*randRange};
@@ -1912,9 +1912,10 @@ function localAI(step){
     const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
     const ts={S:100,A:78,B:55,C:30}[t]||30;
     const fillsNeeded=ln!=='Flex'&&myNeeded.includes(ln)?42:0;
-    // Hard block: never pick a duplicate lane — penalty must exceed all bonuses combined
+    // Hard block: never pick a duplicate lane — absolute disqualifier
     const laneCount=myP.filter(p=>lane(p)===ln).length;
-    const alreadyCovered=ln!=='Flex'&&laneCount>0?(-260-(laneCount*80)):0;
+    if(ln!=='Flex'&&laneCount>0)return null;
+    const alreadyCovered=0;
     // TEAM IDENTITY: prioritise team's signature picks
     const epIdx=epCore.indexOf(h.name);
     const teamPick=epIdx>=0?Math.max(0,130-epIdx*15):0;
