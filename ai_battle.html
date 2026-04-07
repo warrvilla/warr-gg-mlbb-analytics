@@ -646,7 +646,7 @@ input:focus, .search-input:focus {
 <div class="lo" id="lo"><div class="ls"></div><div class="lt">ANALYZING DRAFT</div></div>
 <div class="toast" id="toast"></div>
 <div class="aithink" id="aithink"><div class="aispin"></div><div><div class="aitxt" id="aitxt">AI thinking...</div><div class="aisub" id="aisub">Evaluating options...</div></div></div>
-<div class="aireveal" id="aireveal"><div class="arl" id="arl">AI PICKS</div><img class="arimg" id="arimg" src="" alt=""><div class="arname" id="arname"></div><div class="arreason" id="arreason"></div><div class="arconf" id="arconf"></div></div>
+<div class="aireveal" id="aireveal" style="cursor:pointer;"><div class="arl" id="arl">AI PICKS</div><img class="arimg" id="arimg" src="" alt=""><div class="arname" id="arname"></div><div class="arreason" id="arreason"></div><div class="arconf" id="arconf"></div><div style="margin-top:10px;font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;">tap to continue</div></div>
 
 <!-- TOP NAV -->
 <nav class="topnav">
@@ -1208,15 +1208,19 @@ const LANE_COLORS_AB = { Gold:'#f59e0b', Mid:'#a855f7', Roam:'#22c55e', Jungle:'
 const LANE_ICONS_AB  = { Gold:'GLD', Mid:'MID', Roam:'RMG', Jungle:'JGL', EXP:'EXP', Flex:'FLX' };
 
 function getHeroLanesAB(h) {
-  if (LANES_MAP[h.name]) return [LANES_MAP[h.name]];
+  const primary = TIER_LIST[h.name]?.lane || LANES_MAP[h.name] || null;
   const r = h.role;
-  if (r.includes('Support')) return ['Roam'];
-  if (r === 'MM' || r.startsWith('MM/')) return ['Gold'];
-  if (r.includes('Assassin') && !r.includes('Fighter')) return ['Jungle'];
-  if (r.includes('Mage') && !r.includes('Support')) return ['Mid'];
-  if (r.includes('Tank') && !r.includes('Fighter')) return ['Roam'];
-  if (r.includes('Fighter')) return ['EXP'];
-  return ['Flex'];
+  // Role-based secondary lanes (ordered by likelihood)
+  const sec = [];
+  if (r.includes('Support')) sec.push('Roam');
+  if (r === 'MM' || r.startsWith('MM/')) sec.push('Gold');
+  if (r.includes('Assassin') && !r.includes('Fighter')) { sec.push('Jungle'); sec.push('EXP'); }
+  if (r.includes('Mage') && !r.includes('Support')) { sec.push('Mid'); sec.push('Roam'); }
+  if (r.includes('Tank') && !r.includes('Fighter')) { sec.push('Roam'); sec.push('EXP'); }
+  if (r.includes('Fighter')) { sec.push('EXP'); sec.push('Jungle'); }
+  // Primary first, then secondaries (deduped)
+  const all = primary ? [primary, ...sec.filter(l=>l!==primary)] : (sec.length ? sec : ['Flex']);
+  return [...new Set(all)];
 }
 
 // ═══════ SESSION STATE ═══════
@@ -1626,7 +1630,7 @@ async function aiTurn(){
     const hero=(!hasKey||diff==='normal')?localAI(s):await claudeAI(s);
     await new Promise(r=>setTimeout(r,350));
     showThink(false);
-    if(hero){showReveal(hero,s);await new Promise(r=>setTimeout(r,1100));hideReveal();commit(hero);addLog(hero,s);}
+    if(hero){showReveal(hero,s);await new Promise(r=>{let done=false;const go=()=>{if(done)return;done=true;hideReveal();r();};setTimeout(go,2500);document.getElementById('aireveal').onclick=()=>go();});commit(hero);addLog(hero,s);}
     aiThink=false;renderPool();setTimeout(()=>triggerAI(),200);
   }catch(e){
     console.error(e);showThink(false);
@@ -1854,10 +1858,13 @@ function localAI(step){
 
       // DON'T WASTE BAN: opp already has someone in this lane — banning here is low value
       const laneFilledByOpp=ln!=='Flex'&&!oppNeeded.includes(ln);
+      const aiAlsoCoveredLane=ln!=='Flex'&&!myNeeded.includes(ln);
       const aiStillNeedsLane=ln!=='Flex'&&myNeeded.includes(ln);
-      // Double-waste: opp has the lane AND AI still needs it → near-absolute block
-      // Single-waste: only opp has the lane → strong penalty
-      const oppLaneFilled=laneFilledByOpp&&!isMustBan&&teamBan===0?(aiStillNeedsLane?-250:-130):0;
+      // Both teams have lane covered = total waste → near-absolute block
+      // Only opp has lane + AI still needs it = double-waste → near-absolute block
+      // Only opp has lane, AI doesn't need it yet = waste → strong penalty
+      const oppLaneFilled=laneFilledByOpp&&!isMustBan&&teamBan===0
+        ?(aiAlsoCoveredLane?-999:(aiStillNeedsLane?-250:-130)):0;
 
       // DENY: human's comfort/tendency picks — suppress when lane is already covered
       const favEntry=humanFavs.find(f=>f.name===h.name);
@@ -1877,9 +1884,9 @@ function localAI(step){
       // DON'T BAN own needs
       const dontBanOwn=aiStillNeedsLane&&!isMustBan?-28:0;
 
-      // PREFER banning lanes neither team has covered — soft penalty when AI already has this lane
+      // Hard penalty when AI already has this lane AND it's not a must-ban/team-ban
       const aiLaneCovered=ln!=='Flex'&&!myNeeded.includes(ln)&&!laneFilledByOpp;
-      const ownCoveredPenalty=aiLaneCovered&&!isMustBan&&teamBan===0?-40:0;
+      const ownCoveredPenalty=aiLaneCovered&&!isMustBan&&teamBan===0?-999:0;
 
       const banMemory=recentBans.includes(h.name)?-30:0;
       return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+deniesLane+oppLaneFilled+dontBanOwn+ownCoveredPenalty+banMemory+Math.random()*randRange};
@@ -1908,13 +1915,17 @@ function localAI(step){
     const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
     return h.mp!=='off'||['S','A','B'].includes(t)||(hasTeamData&&epCore.includes(h.name));
   }).map(h=>{
-    const ln=lane(h);
+    const heroLanes=getHeroLanesAB(h);
+    // Use the best needed lane this hero can fill; fall back to primary
+    const effectiveLane=heroLanes.find(l=>myNeeded.includes(l))||heroLanes[0]||'Flex';
+    const ln=effectiveLane;
     const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
     const ts={S:100,A:78,B:55,C:30}[t]||30;
     const fillsNeeded=ln!=='Flex'&&myNeeded.includes(ln)?42:0;
-    // Hard block: never pick a duplicate lane — penalty must exceed all bonuses combined
+    // Hard block: only if every lane this hero can play is already covered
     const laneCount=myP.filter(p=>lane(p)===ln).length;
-    const alreadyCovered=ln!=='Flex'&&laneCount>0?(-260-(laneCount*80)):0;
+    if(ln!=='Flex'&&laneCount>0)return null;
+    const alreadyCovered=0;
     // TEAM IDENTITY: prioritise team's signature picks
     const epIdx=epCore.indexOf(h.name);
     const teamPick=epIdx>=0?Math.max(0,130-epIdx*15):0;
