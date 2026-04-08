@@ -2192,6 +2192,20 @@ function localAI(step){
     }).length*15;
     // Synergy: bonus if hero + existing picks form a winning combo in scout data
     const synergyBonus=myP.reduce((sum,ex)=>{const key=[h.name,ex.name].sort().join('+');const cb=scoutCombosAI[key];return sum+(cb&&cb.count>=2&&(cb.wins/cb.count)>=0.6?Math.round((cb.wins/cb.count)*30):0);},0);
+    // Carry protection: if team has a squishy carry (MM/Assassin) with no protector yet,
+    // boost heroes that scout data shows winning alongside that carry
+    const _squishyCarries=myP.filter(p=>{const r=getHeroRole(p.name);return r==='Marksman'||r==='Mage';});
+    const _hasProtector=myP.some(p=>{const r=getHeroRole(p.name);return r==='Support'||r==='Tank';});
+    const carryProtectBonus=_squishyCarries.length>0&&!_hasProtector?_squishyCarries.reduce((best,carry)=>{
+      const key=[h.name,carry.name].sort().join('+');
+      const cb=scoutCombosAI[key];
+      if(!cb||cb.count<2)return best;
+      const wr=cb.wins/cb.count;
+      const r=getHeroRole(h.name);
+      // Only boost if this hero is a protector role
+      if(r!=='Support'&&r!=='Tank')return best;
+      return Math.max(best,Math.round(wr*45)); // max 45 for perfect scout carry+protector pair
+    },0):0;
     const metaBonus=h.mp==='highpick'?25:h.mp==='mustban'?10:0;
     // Archetype fit: hero fits current draft strategy
     const archBonus=arch?((arch.roleWeights[getHeroRole(h.name)]||0)*10+(arch.heroKeys.includes(h.name)?25:0)):0;
@@ -2208,7 +2222,7 @@ function localAI(step){
     const laBonus=diff!=='normal'?_pickLookAheadBonus(h,myP,oppP,bannedSet,ST.step,step.team,humanFavs):0;
     // Normal: occasional B-tier surprise to simulate imperfect play
     const mistakeNudge=diff==='normal'&&((_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier)==='B')?Math.random()*22:0;
-    return{hero:h,score:ts+fillsNeeded+teamPick+countersOpp+vuln+beatsHumanFavs+synergyBonus+metaBonus+archBonus+pickTimingAdj+compAdj+laBonus+mistakeNudge+Math.random()*randRange};
+    return{hero:h,score:ts+fillsNeeded+teamPick+countersOpp+vuln+beatsHumanFavs+synergyBonus+carryProtectBonus+metaBonus+archBonus+pickTimingAdj+compAdj+laBonus+mistakeNudge+Math.random()*randRange};
   }).sort((a,b)=>b.score-a.score);
 
   const h=scored[0]?.hero||avail[0];
@@ -2229,6 +2243,16 @@ function localAI(step){
   const _oppAssassins=oppP.filter(p=>getHeroRole(p.name)==='Assassin');
   const _synergyWR=synergyWith?(()=>{const key=[h.name,synergyWith.name].sort().join('+');const cb=scoutCombosAI[key];return cb?Math.round(cb.wins/cb.count*100):0;})():0;
   const _inPhase1=epPhase1.includes(h.name);
+  // Carry protection reasoning context
+  const _protectedCarry=myP.find(carry=>{
+    const r=getHeroRole(carry.name);
+    if(r!=='Marksman'&&r!=='Mage')return false;
+    const pr=getHeroRole(h.name);if(pr!=='Support'&&pr!=='Tank')return false;
+    const key=[h.name,carry.name].sort().join('+');
+    const cb=scoutCombosAI[key];
+    return cb&&cb.count>=2&&(cb.wins/cb.count)>=0.6;
+  });
+  const _protectWR=_protectedCarry?(()=>{const key=[h.name,_protectedCarry.name].sort().join('+');const cb=scoutCombosAI[key];return cb?Math.round(cb.wins/cb.count*100):0;})():0;
   const _teamPickPos=epPickPos[h.name]??_avgPos;
   h._r=isTeamPick&&inPhase1&&pickPhase===1&&epName
     ?`${epName} locks ${h.name} here — on schedule with their Phase 1 pattern (avg pos ${_teamPickPos.toFixed(1)})`
@@ -2238,6 +2262,8 @@ function localAI(step){
     ?`Counter-pick — ${h.name} answers ${countered.slice(0,2).map(x=>x.name).join(' + ')} in the ${ln} lane${learnedFor.length?' (confirmed in your scout data)':''}`
     :countered.length
     ?`${h.name} counters ${countered.slice(0,2).map(x=>x.name).join(' + ')}${learnedFor.length?' — confirmed matchup from your scout data':''}`
+    :_protectedCarry
+    ?`Scout data says ${h.name}+${_protectedCarry.name} wins ${_protectWR}% — ${_protectedCarry.name} needs a protector and this is the proven pairing`
     :needsFrontline&&_oppAssassins.length
     ?`No frontline yet — ${_oppAssassins.map(a=>a.name).join('/')} reaches your carries unchecked. ${h.name} is the answer`
     :needsFrontline
