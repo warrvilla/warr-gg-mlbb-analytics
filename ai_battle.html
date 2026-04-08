@@ -1114,6 +1114,35 @@ let _scoutTierCache = null;
 })();
 
 
+// ── PICK TIMING FROM SCOUT DATA ──────────────────────────
+// Computes avg pick order (0=first pick, 4=last pick) per hero across all matches
+// Heroes avg'd near 4 = situational/last-pick; near 0 = priority/safe picks
+let _pickPositionCache = null;
+(function computePickPositions() {
+  try {
+    const raw = localStorage.getItem('warr_scout_data');
+    if (!raw) return;
+    const db = JSON.parse(raw);
+    const totals = {}; // heroName → {sum, count}
+    (db.matches || []).forEach(mx => {
+      [mx.bluePicks || [], mx.redPicks || []].forEach(picks => {
+        picks.forEach((p, idx) => {
+          const name = p.name || p;
+          if (!name) return;
+          if (!totals[name]) totals[name] = { sum: 0, count: 0 };
+          totals[name].sum += idx;
+          totals[name].count++;
+        });
+      });
+    });
+    _pickPositionCache = {};
+    Object.entries(totals).forEach(([name, d]) => {
+      if (d.count >= 2) _pickPositionCache[name] = d.sum / d.count;
+    });
+    console.log('[AI Battle] Pick positions computed:', Object.keys(_pickPositionCache).length, 'heroes');
+  } catch(e) {}
+})();
+
 // ── SCOUT DATA ──────────────────────────────────────────
 const SCOUT_KEY_AB = 'warr_scout_data';
 let scoutLeagueAB = 'all';
@@ -2089,12 +2118,20 @@ function localAI(step){
     const metaBonus=h.mp==='highpick'?25:h.mp==='mustban'?10:0;
     // Archetype fit: hero fits current draft strategy
     const archBonus=arch?((arch.roleWeights[getHeroRole(h.name)]||0)*10+(arch.heroKeys.includes(h.name)?25:0)):0;
+    // Pick timing: penalize situational/last-pick heroes when drafting blind (no enemy picks yet)
+    // Lifted if we already have a counter reason (enemy picks exist to counter)
+    const avgPickPos=_pickPositionCache?.[h.name]??2.0;
+    const isEarlyDraft=myP.length<=1&&oppP.length<=1; // very early, enemy has shown nothing
+    const hasCounterReason=countersOpp>0||beatsHumanFavs>0;
+    const pickTimingAdj=isEarlyDraft&&avgPickPos>=3.5&&!hasCounterReason?-50   // situational hero, no reason to pick early
+      :isEarlyDraft&&avgPickPos<=1.0?18   // confirmed priority/safe pick — bonus for drafting on time
+      :0;
     const compAdj=compScoreAdjust(h,myP);
     // Lookahead: simulate next 2 draft steps — does this pick open great follow-ups or bad counters?
     const laBonus=diff!=='normal'?_pickLookAheadBonus(h,myP,oppP,bannedSet,ST.step,step.team,humanFavs):0;
     // Normal: occasional B-tier surprise to simulate imperfect play
     const mistakeNudge=diff==='normal'&&((_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier)==='B')?Math.random()*22:0;
-    return{hero:h,score:ts+fillsNeeded+teamPick+countersOpp+vuln+beatsHumanFavs+synergyBonus+metaBonus+archBonus+compAdj+laBonus+mistakeNudge+Math.random()*randRange};
+    return{hero:h,score:ts+fillsNeeded+teamPick+countersOpp+vuln+beatsHumanFavs+synergyBonus+metaBonus+archBonus+pickTimingAdj+compAdj+laBonus+mistakeNudge+Math.random()*randRange};
   }).sort((a,b)=>b.score-a.score);
 
   const h=scored[0]?.hero||avail[0];
@@ -2108,10 +2145,13 @@ function localAI(step){
   const isTeamPick=epCore.includes(h.name);
   const synergyWith=myP.find(ex=>{const key=[h.name,ex.name].sort().join('+');const cb=scoutCombosAI[key];return cb&&cb.count>=2&&(cb.wins/cb.count)>=0.6;});
   const fitsArch=arch&&(arch.heroKeys.includes(h.name)||(arch.roleWeights[role]||0)>=2);
+  const _avgPos=_pickPositionCache?.[h.name]??2.0;
+  const isPriorityPick=_avgPos<=1.0;
   h._r=isTeamPick?`${epName||'Team'} signature pick`
     :countered.length?`Counters ${countered.slice(0,2).map(x=>x.name).join('+')}${learnedFor.length?' (learned)':''}`
     :needsFrontline?`Frontline anchor — team needs Tank/Fighter`
     :synergyWith?`Wins with ${synergyWith.name} (scout combo)`
+    :isPriorityPick?`Priority pick — scout shows early draft (avg pos ${_avgPos.toFixed(1)})`
     :fitsArch?`${arch.emoji} Fits ${arch.label} strategy`
     :myNeeded.includes(ln)?`Fills ${ln} lane`
     :`Best available (${_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier}-tier)`;
