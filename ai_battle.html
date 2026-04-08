@@ -1229,7 +1229,7 @@ let ST={step:0,bb:[],rb:[],bp:[],rp:[],hist:[]};
 let af='All',alane='All',sq='',aiThink=false,done=false,laneAssignmentsAB={};
 let heroFilterModeAB = 'lane'; // 'lane' | 'role'
 let _side='blue',_diff='hard';
-let aiMode='generic',enemyTeamName='',enemyProfile=null;
+let aiMode='generic',enemyTeamName='',enemyProfile=null,aiArchetype=null;
 
 // ═══════ SETUP ═══════
 function setSide(s){['blue','red','random'].forEach(x=>{document.getElementById('sc-'+x).className='opt-card';});document.getElementById('sc-'+s).className='opt-card sel-'+s;_side=s;}
@@ -1395,9 +1395,21 @@ function initBattle(){
   document.getElementById('bhAIName').style.color=aiColor;
   document.getElementById('bhAITag').textContent=isEnemy?'ENEMY':'AI';
   document.getElementById('bhAITag').style.cssText=isEnemy?'background:rgba(240,82,82,.12);color:var(--red);border:1px solid rgba(240,82,82,.3);':'';
+  // Determine AI archetype: infer from scout identity, else random
+  const _aiSide=pSide==='blue'?'red':'blue';
+  const _epCoreForArch=isEnemy?[...new Set([...(_aiSide==='blue'?enemyProfile.blueSideCore||[]:enemyProfile.redSideCore||[]),...(enemyProfile.topPicks||[]).slice(0,6)])]:[];
+  aiArchetype=_epCoreForArch.length>=3?inferArchetype(_epCoreForArch):randomArchetype();
+  const _arch=ARCH_DEFS[aiArchetype];
+
   const banner=document.getElementById('enemyBanner');
-  if(isEnemy){banner.style.display='block';banner.textContent=`Simulating ${enemyProfile.name} · ${enemyProfile.t.gamesPlayed}g scouted · WR ${enemyProfile.t.winRate||0}% · ${enemyProfile.winCondition||'Studying their patterns'}`;}
-  else banner.style.display='none';
+  banner.style.display='block';
+  if(isEnemy){
+    banner.style.background='rgba(240,82,82,.08)';banner.style.borderColor='rgba(240,82,82,.2)';banner.style.color='var(--red)';
+    banner.innerHTML=`Simulating ${enemyProfile.name} · ${enemyProfile.t.gamesPlayed}g scouted · WR ${enemyProfile.t.winRate||0}%<span style="opacity:.65;margin-left:10px;">${_arch.emoji} ${_arch.label}: ${_arch.desc}</span>`;
+  }else{
+    banner.style.background='rgba(168,85,247,.07)';banner.style.borderColor='rgba(168,85,247,.18)';banner.style.color='var(--ai)';
+    banner.innerHTML=`${_arch.emoji} <strong>AI Strategy this draft:</strong> ${_arch.label} — ${_arch.desc}`;
+  }
   const dmap={normal:'Normal',hard:'Hard',gm:'Grandmaster'};
   const dcls={normal:'dif dif-n',hard:'dif dif-h',gm:'dif dif-g'};
   const db=document.getElementById('difBadge');db.textContent=dmap[diff];db.className=dcls[diff];
@@ -1786,6 +1798,67 @@ function isCounteredBy(h, oppPicks){
   return oppPicks.some(op=>scoutCounters(op.name, h.name));
 }
 
+// ══════════════════════════════════════════════════
+// DRAFT ARCHETYPES — AI strategy identity per game
+// ══════════════════════════════════════════════════
+const ARCH_DEFS={
+  dive:{
+    label:'Dive/Burst',emoji:'⚔️',
+    desc:'Assassinate backline, burst carries before they react',
+    roleWeights:{Assassin:3,Fighter:2,Tank:1},
+    heroKeys:['Ling','Lancelot','Hayabusa','Gusion','Chou','Jawhead','Khufra','Zilong','Paquito','Benedetta','Aamon','Julian','Arlott','Karina','Helcurt','Saber','Roger'],
+    counters:['Lolita','Diggie','Uranus','Esmeralda','Atlas','Angela','Rafaela']
+  },
+  poke:{
+    label:'Poke/Siege',emoji:'🎯',
+    desc:'Whittle opponents from range, take objectives safely',
+    roleWeights:{Mage:3,MM:2,Support:1},
+    heroKeys:['Pharsa','Lunox','Selena','Beatrix','Lesley','Natan','Yve','Valir','Harith','Novaria','Cyclops','Aurora','Chang\'e','Kimmy','Layla'],
+    counters:['Ling','Lancelot','Fanny','Gusion','Hayabusa','Karina','Helcurt']
+  },
+  teamfight:{
+    label:'Teamfight',emoji:'💥',
+    desc:'Win through sustained AOE clashes and big ultimates',
+    roleWeights:{Tank:3,Mage:2,Support:2},
+    heroKeys:['Atlas','Tigreal','Vale','Kagura','Wanwan','Ruby','Gatotkaca','Carmilla','Floryn','Estes','Grock','Belerick','Johnson','Khufra','Lolita','Faramis'],
+    counters:['Natalia','Fanny','Lancelot','Helcurt','Benedetta']
+  },
+  pickoff:{
+    label:'Pick-off',emoji:'🪤',
+    desc:'Catch isolated enemies, snowball through rotations',
+    roleWeights:{Assassin:2,Support:2,Tank:2},
+    heroKeys:['Chou','Franco','Kaja','Natalia','Selena','Saber','Hanzo','Fanny','Akai','Mathilda','Diggie','Helcurt','Benedetta','Cecilion'],
+    counters:['Wanwan','Karrie','Lolita','Atlas','Angela']
+  },
+  turtle:{
+    label:'Turtle/Scale',emoji:'🐢',
+    desc:'Survive early, outscale opponents in late game',
+    roleWeights:{MM:3,Tank:2,Support:2},
+    heroKeys:['Karrie','Wanwan','Esmeralda','Uranus','Diggie','Angela','Hylos','Estes','Yi Sun-shin','Melissa','Moskov','Bruno','Granger'],
+    counters:['Zilong','Masha','Leomord','Paquito','Jawhead','Chou']
+  }
+};
+
+function inferArchetype(coreNames){
+  // Score each archetype based on hero roles and specific hero matches
+  const scores=Object.fromEntries(Object.keys(ARCH_DEFS).map(k=>[k,0]));
+  coreNames.forEach(name=>{
+    const h=HEROES.find(x=>x.name===name);
+    if(!h)return;
+    const role=(h.role||'').split('/')[0].trim();
+    Object.entries(ARCH_DEFS).forEach(([arch,def])=>{
+      scores[arch]+=(def.roleWeights[role]||0);
+      if(def.heroKeys.includes(name))scores[arch]+=3;
+    });
+  });
+  const best=Object.entries(scores).sort((a,b)=>b[1]-a[1])[0];
+  return best&&best[1]>0?best[0]:randomArchetype();
+}
+function randomArchetype(){
+  const keys=Object.keys(ARCH_DEFS);
+  return keys[Math.floor(Math.random()*keys.length)];
+}
+
 // ── Team composition helpers ──
 function getHeroRole(heroName) {
   const h = HEROES.find(x => x.name === heroName);
@@ -1815,17 +1888,65 @@ function compScoreAdjust(h, myPicks) {
   return stackPenalty + frontlineBonus + bruiserBonus;
 }
 
+// ── Lookahead helpers (used by localAI) ──
+function _simBestPick(myPicks,oppPicks,bannedSet,forOpp,humanFavsArr){
+  const {needed}=needs(forOpp?oppPicks:myPicks);
+  return HEROES.filter(h=>!bannedSet.has(h.id)&&!myPicks.some(p=>p.id===h.id)&&!oppPicks.some(p=>p.id===h.id))
+    .map(h=>{
+      const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
+      if(!['S','A','B'].includes(t))return null;
+      const ts={S:100,A:78,B:55}[t]||55;
+      const heroLanes=getHeroLanesAB(h);
+      const eff=heroLanes.find(l=>needed.includes(l))||heroLanes[0]||'Flex';
+      const prev=forOpp?oppPicks:myPicks;
+      if(eff!=='Flex'&&prev.filter(p=>lane(p)===eff).length>0)return null;
+      const fills=eff!=='Flex'&&needed.includes(eff)?45:0;
+      const fav=forOpp&&humanFavsArr?(humanFavsArr.find(f=>f.name===h.name)?.score||0)*12:0;
+      return{hero:h,score:ts+fills+fav};
+    }).filter(Boolean).sort((a,b)=>b.score-a.score)[0]?.hero;
+}
+function _pickLookAheadBonus(candidate,myPicks,oppPicks,bannedSet,stepIdx,aiTeam,humanFavsArr){
+  let bonus=0,simMyP=[...myPicks,candidate],simOppP=[...oppPicks];
+  const simBanned=new Set([...bannedSet,candidate.id]);
+  for(let i=stepIdx+1;i<=Math.min(stepIdx+2,DRAFT_ORDER.length-1);i++){
+    const s=DRAFT_ORDER[i];if(s.type!=='pick')continue;
+    if(s.team!==aiTeam){
+      const hNext=_simBestPick(simMyP,simOppP,simBanned,true,humanFavsArr);
+      if(hNext){
+        const cl=fullCounterList(candidate.name).find(x=>x.name===hNext.name);
+        if(cl)bonus-=Math.round((cl.wr||0.65)*35);
+        if(simMyP.some(p=>scoutCounters(hNext.name,p.name)))bonus-=12;
+        simBanned.add(hNext.id);simOppP=[...simOppP,hNext];
+      }
+    }else{
+      const aiNext=_simBestPick(simMyP,simOppP,simBanned,false,humanFavsArr);
+      if(aiNext){
+        const{needed:nxt}=needs(simMyP);
+        if(nxt.includes(lane(aiNext)))bonus+=18;
+        if(simOppP.some(op=>scoutCounters(aiNext.name,op.name)))bonus+=12;
+        simBanned.add(aiNext.id);simMyP=[...simMyP,aiNext];
+      }
+    }
+  }
+  return bonus;
+}
+
 function localAI(step){
   const usedIds=[...ST.bb,...ST.rb,...ST.bp,...ST.rp].map(h=>h.id);
+  const bannedSet=new Set([...ST.bb,...ST.rb].map(h=>h.id));
   const avail=HEROES.filter(h=>!usedIds.includes(h.id));
   const myP=step.team==='blue'?ST.bp:ST.rp;
   const oppP=step.team==='blue'?ST.rp:ST.bp;
   const {needed:myNeeded,cl:myCovered}=needs(myP);
   const {needed:oppNeeded}=needs(oppP);
-  const epSide=step.team; // AI is always the enemy side
+  const epSide=step.team;
+  const isRedSide=step.team==='red';
+  const arch=ARCH_DEFS[aiArchetype]||null;
+  // Phase detection: steps 0-5 = ban1, 6-11 = pick1, 12-15 = ban2, 16-19 = pick2
+  const isPhase2=ST.step>=12;
+  const isPhase2Ban=step.type==='ban'&&isPhase2;
 
   // Difficulty-scaled randomness (lower = more deterministic)
-  // Higher normal range adds variety when scout data is thin
   const randRange={normal:32,hard:12,gm:4}[diff]??16;
 
   // Ban memory: soft penalty for heroes AI banned first in recent games
@@ -1838,11 +1959,27 @@ function localAI(step){
   const epBans=ep?(ep.topBans||[]).slice(0,6):[];
   const epName=ep?(ep.name||ep.team||''):'';
 
-
   // Load tendency data once
-  const humanFavs=getHumanTendencies(); // heroes human picks most + wins with
-  const humanCombos=getHumanComboThreats(); // combos human uses that win
+  const humanFavs=getHumanTendencies();
+  const humanCombos=getHumanComboThreats();
   const humanFavIds=new Set(humanFavs.slice(0,8).map(f=>HEROES.find(h=>h.name===f.name)?.id).filter(Boolean));
+
+  // Precompute scout synergy combos — hero pairs that win together in ALL scout matches
+  const scoutCombosAI={};
+  try{
+    const _sdb=loadScoutAB();
+    (_sdb.matches||[]).forEach(mx=>{
+      [[mx.bluePicks||[],'blue'],[mx.redPicks||[],'red']].forEach(([picks,side])=>{
+        const names=picks.map(p=>p.name).filter(Boolean);
+        const won=mx.winner===side;
+        for(let i=0;i<names.length;i++)for(let j=i+1;j<names.length;j++){
+          const key=[names[i],names[j]].sort().join('+');
+          if(!scoutCombosAI[key])scoutCombosAI[key]={wins:0,count:0};
+          scoutCombosAI[key].count++;if(won)scoutCombosAI[key].wins++;
+        }
+      });
+    });
+  }catch(e){}
 
   if(step.type==='ban'){
     const scored=avail.map(h=>{
@@ -1876,8 +2013,14 @@ function localAI(step){
       const breakCombo=matchedCombo?(laneFilledByOpp?4:Math.round((matchedCombo.wr||0.6)*75)):0;
 
       // COUNTER-BAN: ban heroes that counter our existing picks (scout-derived)
-      // Reduce bonus if opp lane is filled — they can't pick this hero for that lane anyway
-      const ctrsUs=myP.length>0&&myP.some(p=>scoutCounters(h.name,p.name))?(laneFilledByOpp?12:35):0;
+      // Phase 2: counter-banning is critical — much higher weight
+      const ctrsUsWeight=isPhase2Ban?65:35;
+      const ctrsUs=myP.length>0&&myP.some(p=>scoutCounters(h.name,p.name))?(laneFilledByOpp?12:ctrsUsWeight):0;
+      // PROTECT COMBO: phase 2 — ban heroes that counter an existing AI synergy pair
+      const protectsCombo=isPhase2Ban&&myP.length>=2?myP.reduce((best,p)=>{
+        const threat=myP.filter(q=>q!==p).some(q=>{const ck=[p.name,q.name].sort().join('+');const cb=scoutCombosAI[ck];return cb&&cb.count>=2&&(cb.wins/cb.count)>=0.65;});
+        return best||(threat&&scoutCounters(h.name,p.name)?35:0);
+      },0):0;
 
       // DENY LANE: ban strong heroes in lanes opp still needs
       const deniesLane=ln!=='Flex'&&oppNeeded.includes(ln)?22:0;
@@ -1889,8 +2032,10 @@ function localAI(step){
       const aiLaneCovered=ln!=='Flex'&&!myNeeded.includes(ln)&&!laneFilledByOpp;
       const ownCoveredPenalty=aiLaneCovered&&!isMustBan?-999:0;
 
+      // ARCHETYPE DEFENSE: ban heroes that hard-counter our strategy
+      const archCounterBan=arch&&arch.counters.includes(h.name)&&!isMustBan?30:0;
       const banMemory=recentBans.includes(h.name)?-30:0;
-      return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+deniesLane+oppLaneFilled+dontBanOwn+ownCoveredPenalty+banMemory+Math.random()*randRange};
+      return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+protectsCombo+archCounterBan+deniesLane+oppLaneFilled+dontBanOwn+ownCoveredPenalty+banMemory+Math.random()*randRange};
     }).filter(Boolean).sort((a,b)=>b.score-a.score);
 
     const h=scored[0]?.hero||avail.find(h=>h.mp==='mustban')||avail.find(h=>['S'].includes(_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier))||avail[0];
@@ -1909,24 +2054,7 @@ function localAI(step){
     h._c='high';return h;
   }
 
-  // Precompute scout synergy combos once (hero pairs that win together across ALL matches)
-  const scoutCombos={};
-  try{
-    const _sdb=loadScoutAB();
-    (_sdb.matches||[]).forEach(mx=>{
-      [[mx.bluePicks||[],'blue'],[mx.redPicks||[],'red']].forEach(([picks,side])=>{
-        const names=picks.map(p=>p.name).filter(Boolean);
-        const won=mx.winner===side;
-        for(let i=0;i<names.length;i++)for(let j=i+1;j<names.length;j++){
-          const key=[names[i],names[j]].sort().join('+');
-          if(!scoutCombos[key])scoutCombos[key]={wins:0,count:0};
-          scoutCombos[key].count++;if(won)scoutCombos[key].wins++;
-        }
-      });
-    });
-  }catch(e){}
-
-  // PICK: tier + fill lane + counter-pick + avoid being countered + use learned counters
+  // PICK: tier + fill lane + counter-pick + avoid being countered + lookahead
   // When ep data is thin, widen pool to B-tier so we don't always see same 5 picks
   const hasTeamData=epCore.length>=3;
   const scored=avail.filter(h=>{
@@ -1946,8 +2074,9 @@ function localAI(step){
     // TEAM IDENTITY: prioritise team's signature picks
     const epIdx=epCore.indexOf(h.name);
     const teamPick=epIdx>=0?Math.max(0,130-epIdx*15):0;
-    // Counter-pick: weighted by scout WR (harder counters = higher bonus)
-    const countersOpp=oppP.reduce((sum,op)=>{const cl=fullCounterList(op.name).find(x=>x.name===h.name);return sum+(cl?Math.round((cl.wr||0.65)*40):0);},0);
+    // Counter-pick: weighted by WR — red side gets bonus weight (last-pick advantage)
+    const counterMult=isRedSide?1.2:1.0;
+    const countersOpp=Math.round(oppP.reduce((sum,op)=>{const cl=fullCounterList(op.name).find(x=>x.name===h.name);return sum+(cl?Math.round((cl.wr||0.65)*40):0);},0)*counterMult);
     // Avoid being countered: weighted by scout WR
     const vuln=oppP.reduce((sum,op)=>{const cl=fullCounterList(h.name).find(x=>x.name===op.name);return sum+(cl?-Math.round((cl.wr||0.65)*28):0);},0);
     // Bonus if this hero has a high win rate vs human's comfort heroes
@@ -1956,12 +2085,16 @@ function localAI(step){
       return lc.some(x=>x.name===h.name);
     }).length*15;
     // Synergy: bonus if hero + existing picks form a winning combo in scout data
-    const synergyBonus=myP.reduce((sum,ex)=>{const key=[h.name,ex.name].sort().join('+');const cb=scoutCombos[key];return sum+(cb&&cb.count>=2&&cb.wins/cb.count>=0.6?Math.round((cb.wins/cb.count)*30):0);},0);
+    const synergyBonus=myP.reduce((sum,ex)=>{const key=[h.name,ex.name].sort().join('+');const cb=scoutCombosAI[key];return sum+(cb&&cb.count>=2&&(cb.wins/cb.count)>=0.6?Math.round((cb.wins/cb.count)*30):0);},0);
     const metaBonus=h.mp==='highpick'?25:h.mp==='mustban'?10:0;
+    // Archetype fit: hero fits current draft strategy
+    const archBonus=arch?((arch.roleWeights[getHeroRole(h.name)]||0)*10+(arch.heroKeys.includes(h.name)?25:0)):0;
     const compAdj=compScoreAdjust(h,myP);
+    // Lookahead: simulate next 2 draft steps — does this pick open great follow-ups or bad counters?
+    const laBonus=diff!=='normal'?_pickLookAheadBonus(h,myP,oppP,bannedSet,ST.step,step.team,humanFavs):0;
     // Normal: occasional B-tier surprise to simulate imperfect play
     const mistakeNudge=diff==='normal'&&((_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier)==='B')?Math.random()*22:0;
-    return{hero:h,score:ts+fillsNeeded+teamPick+countersOpp+vuln+beatsHumanFavs+synergyBonus+metaBonus+compAdj+mistakeNudge+Math.random()*randRange};
+    return{hero:h,score:ts+fillsNeeded+teamPick+countersOpp+vuln+beatsHumanFavs+synergyBonus+metaBonus+archBonus+compAdj+laBonus+mistakeNudge+Math.random()*randRange};
   }).sort((a,b)=>b.score-a.score);
 
   const h=scored[0]?.hero||avail[0];
@@ -1973,12 +2106,16 @@ function localAI(step){
   const role=getHeroRole(h.name);
   const needsFrontline=!hasFrontline&&(role==='Tank'||role==='Fighter');
   const isTeamPick=epCore.includes(h.name);
+  const synergyWith=myP.find(ex=>{const key=[h.name,ex.name].sort().join('+');const cb=scoutCombosAI[key];return cb&&cb.count>=2&&(cb.wins/cb.count)>=0.6;});
+  const fitsArch=arch&&(arch.heroKeys.includes(h.name)||(arch.roleWeights[role]||0)>=2);
   h._r=isTeamPick?`${epName||'Team'} signature pick`
     :countered.length?`Counters ${countered.slice(0,2).map(x=>x.name).join('+')}${learnedFor.length?' (learned)':''}`
     :needsFrontline?`Frontline anchor — team needs Tank/Fighter`
+    :synergyWith?`Wins with ${synergyWith.name} (scout combo)`
+    :fitsArch?`${arch.emoji} Fits ${arch.label} strategy`
     :myNeeded.includes(ln)?`Fills ${ln} lane`
     :`Best available (${_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier}-tier)`;
-  h._c=isTeamPick?'high':countered.length?'high':needsFrontline?'high':'medium';return h;
+  h._c=isTeamPick?'high':countered.length?'high':needsFrontline?'high':synergyWith?'high':fitsArch?'high':'medium';return h;
 }
 
 
