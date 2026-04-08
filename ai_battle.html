@@ -1114,6 +1114,35 @@ let _scoutTierCache = null;
 })();
 
 
+// ── PICK TIMING FROM SCOUT DATA ──────────────────────────
+// Computes avg pick order (0=first pick, 4=last pick) per hero across all matches
+// Heroes avg'd near 4 = situational/last-pick; near 0 = priority/safe picks
+let _pickPositionCache = null;
+(function computePickPositions() {
+  try {
+    const raw = localStorage.getItem('warr_scout_data');
+    if (!raw) return;
+    const db = JSON.parse(raw);
+    const totals = {}; // heroName → {sum, count}
+    (db.matches || []).forEach(mx => {
+      [mx.bluePicks || [], mx.redPicks || []].forEach(picks => {
+        picks.forEach((p, idx) => {
+          const name = p.name || p;
+          if (!name) return;
+          if (!totals[name]) totals[name] = { sum: 0, count: 0 };
+          totals[name].sum += idx;
+          totals[name].count++;
+        });
+      });
+    });
+    _pickPositionCache = {};
+    Object.entries(totals).forEach(([name, d]) => {
+      if (d.count >= 2) _pickPositionCache[name] = d.sum / d.count;
+    });
+    console.log('[AI Battle] Pick positions computed:', Object.keys(_pickPositionCache).length, 'heroes');
+  } catch(e) {}
+})();
+
 // ── SCOUT DATA ──────────────────────────────────────────
 const SCOUT_KEY_AB = 'warr_scout_data';
 let scoutLeagueAB = 'all';
@@ -1302,6 +1331,38 @@ function buildEnemyProfileCache(name){
       const thr=Math.max(2,Math.ceil(sideMatches.length*0.5));
       return Object.entries(freq).filter(([,c])=>c>=thr).sort((a,b)=>b[1]-a[1]).map(([n])=>n);
     }
+    // Per-hero avg pick position for this team (0=first pick, 4=last pick)
+    function teamPickPositions(sideMatches,isBlue){
+      const totals={};
+      sideMatches.forEach(m=>{
+        const picks=(isBlue?m.bluePicks:m.redPicks)||[];
+        picks.forEach((p,idx)=>{
+          const n=p.name||p;if(!n)return;
+          if(!totals[n])totals[n]={sum:0,count:0};
+          totals[n].sum+=idx;totals[n].count++;
+        });
+      });
+      const out={};
+      Object.entries(totals).forEach(([n,d])=>{if(d.count>=2)out[n]=d.sum/d.count;});
+      return out;
+    }
+    // Phase-specific cores: picks 0-2 = phase 1 (priority), picks 3-4 = phase 2 (situational)
+    function phasedCore(sideMatches,isBlue){
+      const p1={},p2={};
+      const thr=Math.max(2,Math.ceil(sideMatches.length*0.4));
+      sideMatches.forEach(m=>{
+        const picks=(isBlue?m.bluePicks:m.redPicks)||[];
+        picks.forEach((p,idx)=>{
+          const n=p.name||p;if(!n)return;
+          if(idx<=2){p1[n]=(p1[n]||0)+1;}else{p2[n]=(p2[n]||0)+1;}
+        });
+      });
+      return{
+        phase1:Object.entries(p1).filter(([,c])=>c>=thr).sort((a,b)=>b[1]-a[1]).map(([n])=>n),
+        phase2:Object.entries(p2).filter(([,c])=>c>=thr).sort((a,b)=>b[1]-a[1]).map(([n])=>n),
+      };
+    }
+    const bPhased=phasedCore(bm,true),rPhased=phasedCore(rm,false);
     enemyProfile={
       name,t,matches,blueWR:bwr,redWR:rwr,
       topPicks:(t.topPicks||[]).map(p=>p.name),
@@ -1310,6 +1371,11 @@ function buildEnemyProfileCache(name){
       coachNotes:t.coachNotes||'',
       blueSideCore:corePicks(bm,true),
       redSideCore:corePicks(rm,false),
+      // Phase-aware pick data
+      bluePhase1:bPhased.phase1, bluePhase2:bPhased.phase2,
+      redPhase1:rPhased.phase1,  redPhase2:rPhased.phase2,
+      bluePickPos:teamPickPositions(bm,true),
+      redPickPos:teamPickPositions(rm,false),
     };
   }catch(e){enemyProfile=null;}
 }
@@ -1326,7 +1392,8 @@ function renderEnemyProfileCard(name){
       <div style="text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px;"><div style="font-size:15px;font-weight:700;color:var(--blue);">${ep.blueWR}%</div><div style="font-size:8px;color:var(--text3);">Blue Side</div></div>
       <div style="text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px;"><div style="font-size:15px;font-weight:700;color:var(--red);">${ep.redWR}%</div><div style="font-size:8px;color:var(--text3);">Red Side</div></div>
     </div>
-    <div style="font-size:9px;color:var(--text3);margin-bottom:3px;"><b style="color:var(--text);">Top Picks:</b> ${ep.topPicks.slice(0,5).join(', ')||'—'}</div>
+    <div style="font-size:9px;color:var(--text3);margin-bottom:3px;"><b style="color:var(--text);">Phase 1 Picks:</b> ${ep.bluePhase1?.slice(0,4).join(', ')||ep.topPicks.slice(0,3).join(', ')||'—'}</div>
+    <div style="font-size:9px;color:var(--text3);margin-bottom:3px;"><b style="color:var(--text);">Phase 2 Picks:</b> ${ep.bluePhase2?.slice(0,4).join(', ')||'—'}</div>
     <div style="font-size:9px;color:var(--text3);margin-bottom:3px;"><b style="color:var(--text);">Top Bans:</b> ${ep.topBans.slice(0,4).join(', ')||'—'}</div>
     ${ep.winCondition?`<div style="font-size:9px;color:var(--text3);margin-bottom:3px;"><b style="color:var(--text);">Win Condition:</b> ${ep.winCondition}</div>`:''}
     ${ep.coachNotes?`<div style="font-size:9px;color:var(--text3);"><b style="color:var(--text);">Intel:</b> ${ep.coachNotes.slice(0,100)}${ep.coachNotes.length>100?'…':''}</div>`:''}
@@ -1343,6 +1410,8 @@ function buildEnemyPromptCtx(step){
     `Win Condition: ${ep.winCondition||'Unknown'} | WR: ${ep.t.winRate||0}% | Blue: ${ep.blueWR}% | Red: ${ep.redWR}%`,
     `Their comfort/priority picks: ${allCore.join(', ')||'none logged'}`,
     `Their ${side} side core: ${coreForSide.join(', ')||'see top picks'}`,
+    `Their Phase 1 picks (always secure early): ${(side==='blue'?ep.bluePhase1:ep.redPhase1||[]).slice(0,4).join(', ')||'unknown'}`,
+    `Their Phase 2 picks (situational/counter): ${(side==='blue'?ep.bluePhase2:ep.redPhase2||[]).slice(0,4).join(', ')||'unknown'}`,
     `Their typical bans: ${ep.topBans.slice(0,4).join(', ')||'none logged'}`,
     ep.coachNotes?`Scout intel: ${ep.coachNotes.slice(0,150)}`:'',
     `RULES: (1) Bans: open with their known ban targets. (2) Picks: prioritize their comfort heroes first even if not meta-optimal. (3) If their signature heroes are gone, pick nearest role/style. (4) Stay true to their archetype — do NOT switch to generic optimal drafting.`,
@@ -1964,6 +2033,14 @@ function localAI(step){
   const humanCombos=getHumanComboThreats();
   const humanFavIds=new Set(humanFavs.slice(0,8).map(f=>HEROES.find(h=>h.name===f.name)?.id).filter(Boolean));
 
+  // Phase-aware enemy pick data from scout profile
+  const _epSideForPhase=step.team; // AI's side
+  const epPhase1=ep?(_epSideForPhase==='blue'?ep.bluePhase1||[]:ep.redPhase1||[]):[];
+  const epPhase2=ep?(_epSideForPhase==='blue'?ep.bluePhase2||[]:ep.redPhase2||[]):[];
+  const epPickPos=ep?(_epSideForPhase==='blue'?ep.bluePickPos||{}:ep.redPickPos||{}):{}; // per-team avg pick position
+  // Current draft phase for picks: early (myP.length<=2) vs late (myP.length>=3)
+  const pickPhase=myP.length<=2?1:2;
+
   // Precompute scout synergy combos — hero pairs that win together in ALL scout matches
   const scoutCombosAI={};
   try{
@@ -2022,6 +2099,8 @@ function localAI(step){
         return best||(threat&&scoutCounters(h.name,p.name)?35:0);
       },0):0;
 
+      // DENY PHASE 1: ban enemy's confirmed phase-1 priority picks before they can secure them
+      const deniesPhase1=epPhase1.includes(h.name)&&!isPhase2Ban?35:0;
       // DENY LANE: ban strong heroes in lanes opp still needs
       const deniesLane=ln!=='Flex'&&oppNeeded.includes(ln)?22:0;
 
@@ -2035,22 +2114,41 @@ function localAI(step){
       // ARCHETYPE DEFENSE: ban heroes that hard-counter our strategy
       const archCounterBan=arch&&arch.counters.includes(h.name)&&!isMustBan?30:0;
       const banMemory=recentBans.includes(h.name)?-30:0;
-      return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+protectsCombo+archCounterBan+deniesLane+oppLaneFilled+dontBanOwn+ownCoveredPenalty+banMemory+Math.random()*randRange};
+      return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+protectsCombo+archCounterBan+deniesPhase1+deniesLane+oppLaneFilled+dontBanOwn+ownCoveredPenalty+banMemory+Math.random()*randRange};
     }).filter(Boolean).sort((a,b)=>b.score-a.score);
 
     const h=scored[0]?.hero||avail.find(h=>h.mp==='mustban')||avail.find(h=>['S'].includes(_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier))||avail[0];
     const ln=lane(h);
-    const isFav=humanFavs.slice(0,5).some(f=>f.name===h.name);
-    const ctrsUs=myP.some(p=>scoutCounters(h.name,p.name));
-    const isCombo=humanCombos.some(cb=>cb.a===h.name||cb.b===h.name);
-    const isTeamBan=epBans.includes(h.name);
-    h._r=h.mp==='mustban'?'Must-ban priority'
-      :isTeamBan?`${epName||'Team'} signature ban`
-      :isFav?`Deny human's comfort pick (${Math.round((humanFavs.find(f=>f.name===h.name)?.wr||0.5)*100)}%WR)`
-      :isCombo?'Breaks human win combo'
-      :ctrsUs?`Counters our ${myP.find(p=>scoutCounters(h.name,p.name))?.name}`
-      :oppNeeded.includes(ln)?`Denies opponent ${ln} lane`
-      :'Top tier threat';
+    const _favE=humanFavs.find(f=>f.name===h.name);
+    const _comboE=humanCombos.find(cb=>cb.a===h.name||cb.b===h.name);
+    const _comboPartner=_comboE?(_comboE.a===h.name?_comboE.b:_comboE.a):null;
+    const _victimP=myP.find(p=>scoutCounters(h.name,p.name));
+    const _banT=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
+    const _isPhase1Pick=epPhase1.includes(h.name);
+    const _protectsOurCombo=isPhase2Ban&&myP.length>=2&&myP.some(p=>scoutCounters(h.name,p.name));
+    h._r=h.mp==='mustban'
+      ?`Broken at this patch — no comp has reliable counterplay. Auto-first-ban, do not let through`
+      :epBans.includes(h.name)&&epName
+      ?`${epName} opens every series with this ban — it's built into their prep. Mirror it`
+      :_isPhase1Pick&&epName
+      ?`${epName}'s guaranteed Phase 1 pick (avg pos ${((epPickPos[h.name]??0)).toFixed(1)}). Deny it now or they lock it immediately`
+      :_favE&&(_favE.count||0)>=3
+      ?`You gave them ${h.name} in ${_favE.count} games — they went ${Math.round(_favE.wr*100)}% WR with it. This is a free win if you let it through`
+      :_comboE&&_comboPartner
+      ?`Breaks the ${h.name}+${_comboPartner} combo (${Math.round((_comboE.wr||0.6)*100)}% win rate in your scout data). They cannot run it without both heroes`
+      :_victimP&&isPhase2Ban
+      ?`CRITICAL — ${h.name} shuts down your ${_victimP.name}. Phase 2 must-ban to protect your win condition`
+      :_victimP
+      ?`${h.name} directly counters your ${_victimP.name}. Remove it before they draft a hard answer`
+      :arch&&arch.counters.includes(h.name)
+      ?`${h.name} is a direct answer to your ${arch.label} gameplan. Ban it before they read your strategy`
+      :_protectsOurCombo
+      ?`Protects your core combo — ${h.name} threatens your existing picks. Phase 2 security ban`
+      :oppNeeded.includes(ln)&&oppNeeded.length<=2
+      ?`Denies their ${ln} lane — they have ${oppNeeded.length} lane(s) left to fill and this is their best option at ${_banT}-tier`
+      :oppNeeded.includes(ln)
+      ?`${h.name} (${_banT}-tier ${ln}) — removes their strongest option in a lane they still need`
+      :`${h.name} is a ${_banT}-tier threat — too dangerous to leave in the pool at this stage`;
     h._c='high';return h;
   }
 
@@ -2071,9 +2169,17 @@ function localAI(step){
     // Hard block: only if every lane this hero can play is already covered
     const laneCount=myP.filter(p=>lane(p)===ln).length;
     if(ln!=='Flex'&&laneCount>0)return null;
-    // TEAM IDENTITY: prioritise team's signature picks
+    // TEAM IDENTITY: phase-aware pick priority from scout data
+    // Phase 1 heroes drafted early, phase 2 heroes saved for counter/situational
     const epIdx=epCore.indexOf(h.name);
-    const teamPick=epIdx>=0?Math.max(0,130-epIdx*15):0;
+    const teamPickPos=epPickPos[h.name]??(_pickPositionCache?.[h.name]??2.0);
+    const inPhase1=epPhase1.includes(h.name),inPhase2=epPhase2.includes(h.name);
+    const phaseMatch=(pickPhase===1&&inPhase1)||(pickPhase===2&&inPhase2);
+    const phaseMismatch=(pickPhase===1&&inPhase2&&!inPhase1)||(pickPhase===2&&inPhase1&&!inPhase2);
+    const teamPickBase=epIdx>=0?Math.max(0,130-epIdx*15):0;
+    const teamPick=teamPickBase+(phaseMatch?30:0)+(phaseMismatch?-25:0)
+      +(teamPickPos<=1.0&&pickPhase===1?20:0)  // confirmed early-pick hero on time
+      +(teamPickPos>=3.5&&pickPhase===1&&countersOpp===0?-40:0); // late-pick hero, no counter reason
     // Counter-pick: weighted by WR — red side gets bonus weight (last-pick advantage)
     const counterMult=isRedSide?1.2:1.0;
     const countersOpp=Math.round(oppP.reduce((sum,op)=>{const cl=fullCounterList(op.name).find(x=>x.name===h.name);return sum+(cl?Math.round((cl.wr||0.65)*40):0);},0)*counterMult);
@@ -2086,15 +2192,37 @@ function localAI(step){
     }).length*15;
     // Synergy: bonus if hero + existing picks form a winning combo in scout data
     const synergyBonus=myP.reduce((sum,ex)=>{const key=[h.name,ex.name].sort().join('+');const cb=scoutCombosAI[key];return sum+(cb&&cb.count>=2&&(cb.wins/cb.count)>=0.6?Math.round((cb.wins/cb.count)*30):0);},0);
+    // Carry protection: if team has a squishy carry (MM/Assassin) with no protector yet,
+    // boost heroes that scout data shows winning alongside that carry
+    const _squishyCarries=myP.filter(p=>{const r=getHeroRole(p.name);return r==='Marksman'||r==='Mage';});
+    const _hasProtector=myP.some(p=>{const r=getHeroRole(p.name);return r==='Support'||r==='Tank';});
+    const carryProtectBonus=_squishyCarries.length>0&&!_hasProtector?_squishyCarries.reduce((best,carry)=>{
+      const key=[h.name,carry.name].sort().join('+');
+      const cb=scoutCombosAI[key];
+      if(!cb||cb.count<2)return best;
+      const wr=cb.wins/cb.count;
+      const r=getHeroRole(h.name);
+      // Only boost if this hero is a protector role
+      if(r!=='Support'&&r!=='Tank')return best;
+      return Math.max(best,Math.round(wr*45)); // max 45 for perfect scout carry+protector pair
+    },0):0;
     const metaBonus=h.mp==='highpick'?25:h.mp==='mustban'?10:0;
     // Archetype fit: hero fits current draft strategy
     const archBonus=arch?((arch.roleWeights[getHeroRole(h.name)]||0)*10+(arch.heroKeys.includes(h.name)?25:0)):0;
+    // Pick timing: penalize situational/last-pick heroes when drafting blind (no enemy picks yet)
+    // Lifted if we already have a counter reason (enemy picks exist to counter)
+    const avgPickPos=_pickPositionCache?.[h.name]??2.0;
+    const isEarlyDraft=myP.length<=1&&oppP.length<=1; // very early, enemy has shown nothing
+    const hasCounterReason=countersOpp>0||beatsHumanFavs>0;
+    const pickTimingAdj=isEarlyDraft&&avgPickPos>=3.5&&!hasCounterReason?-50   // situational hero, no reason to pick early
+      :isEarlyDraft&&avgPickPos<=1.0?18   // confirmed priority/safe pick — bonus for drafting on time
+      :0;
     const compAdj=compScoreAdjust(h,myP);
     // Lookahead: simulate next 2 draft steps — does this pick open great follow-ups or bad counters?
     const laBonus=diff!=='normal'?_pickLookAheadBonus(h,myP,oppP,bannedSet,ST.step,step.team,humanFavs):0;
     // Normal: occasional B-tier surprise to simulate imperfect play
     const mistakeNudge=diff==='normal'&&((_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier)==='B')?Math.random()*22:0;
-    return{hero:h,score:ts+fillsNeeded+teamPick+countersOpp+vuln+beatsHumanFavs+synergyBonus+metaBonus+archBonus+compAdj+laBonus+mistakeNudge+Math.random()*randRange};
+    return{hero:h,score:ts+fillsNeeded+teamPick+countersOpp+vuln+beatsHumanFavs+synergyBonus+carryProtectBonus+metaBonus+archBonus+pickTimingAdj+compAdj+laBonus+mistakeNudge+Math.random()*randRange};
   }).sort((a,b)=>b.score-a.score);
 
   const h=scored[0]?.hero||avail[0];
@@ -2108,14 +2236,52 @@ function localAI(step){
   const isTeamPick=epCore.includes(h.name);
   const synergyWith=myP.find(ex=>{const key=[h.name,ex.name].sort().join('+');const cb=scoutCombosAI[key];return cb&&cb.count>=2&&(cb.wins/cb.count)>=0.6;});
   const fitsArch=arch&&(arch.heroKeys.includes(h.name)||(arch.roleWeights[role]||0)>=2);
-  h._r=isTeamPick?`${epName||'Team'} signature pick`
-    :countered.length?`Counters ${countered.slice(0,2).map(x=>x.name).join('+')}${learnedFor.length?' (learned)':''}`
-    :needsFrontline?`Frontline anchor — team needs Tank/Fighter`
-    :synergyWith?`Wins with ${synergyWith.name} (scout combo)`
-    :fitsArch?`${arch.emoji} Fits ${arch.label} strategy`
-    :myNeeded.includes(ln)?`Fills ${ln} lane`
-    :`Best available (${_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier}-tier)`;
-  h._c=isTeamPick?'high':countered.length?'high':needsFrontline?'high':synergyWith?'high':fitsArch?'high':'medium';return h;
+  const _avgPos=_pickPositionCache?.[h.name]??2.0;
+  const isPriorityPick=_avgPos<=1.0;
+  const _pickT=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
+  const _lanesLeft=myNeeded.length;
+  const _oppAssassins=oppP.filter(p=>getHeroRole(p.name)==='Assassin');
+  const _synergyWR=synergyWith?(()=>{const key=[h.name,synergyWith.name].sort().join('+');const cb=scoutCombosAI[key];return cb?Math.round(cb.wins/cb.count*100):0;})():0;
+  const _inPhase1=epPhase1.includes(h.name);
+  // Carry protection reasoning context
+  const _protectedCarry=myP.find(carry=>{
+    const r=getHeroRole(carry.name);
+    if(r!=='Marksman'&&r!=='Mage')return false;
+    const pr=getHeroRole(h.name);if(pr!=='Support'&&pr!=='Tank')return false;
+    const key=[h.name,carry.name].sort().join('+');
+    const cb=scoutCombosAI[key];
+    return cb&&cb.count>=2&&(cb.wins/cb.count)>=0.6;
+  });
+  const _protectWR=_protectedCarry?(()=>{const key=[h.name,_protectedCarry.name].sort().join('+');const cb=scoutCombosAI[key];return cb?Math.round(cb.wins/cb.count*100):0;})():0;
+  const _teamPickPos=epPickPos[h.name]??_avgPos;
+  h._r=isTeamPick&&inPhase1&&pickPhase===1&&epName
+    ?`${epName} locks ${h.name} here — on schedule with their Phase 1 pattern (avg pos ${_teamPickPos.toFixed(1)})`
+    :isTeamPick&&epName
+    ?`${epName} signature pick — consistent with their scouted draft identity`
+    :countered.length&&isPhase2
+    ?`Counter-pick — ${h.name} answers ${countered.slice(0,2).map(x=>x.name).join(' + ')} in the ${ln} lane${learnedFor.length?' (confirmed in your scout data)':''}`
+    :countered.length
+    ?`${h.name} counters ${countered.slice(0,2).map(x=>x.name).join(' + ')}${learnedFor.length?' — confirmed matchup from your scout data':''}`
+    :_protectedCarry
+    ?`Scout data says ${h.name}+${_protectedCarry.name} wins ${_protectWR}% — ${_protectedCarry.name} needs a protector and this is the proven pairing`
+    :needsFrontline&&_oppAssassins.length
+    ?`No frontline yet — ${_oppAssassins.map(a=>a.name).join('/')} reaches your carries unchecked. ${h.name} is the answer`
+    :needsFrontline
+    ?`${h.name} anchors your frontline. Without a tank/fighter your team cannot survive sustained fights`
+    :synergyWith
+    ?`${h.name}+${synergyWith.name} wins ${_synergyWR}% in your scout data — building the proven combo`
+    :isPriorityPick&&pickPhase===1
+    ?`Consistent Phase 1 lock across your scout data (avg pick pos ${_avgPos.toFixed(1)}) — secure now before it gets banned`
+    :fitsArch&&pickPhase===1
+    ?`${arch.emoji} Phase 1 ${arch.label} piece — ${arch.desc.charAt(0).toLowerCase()+arch.desc.slice(1)}`
+    :fitsArch
+    ?`${arch.emoji} Completes the ${arch.label} gameplan — ${arch.desc.charAt(0).toLowerCase()+arch.desc.slice(1)}`
+    :_lanesLeft===1
+    ?`Completes your comp — fills the last open lane (${ln}) to make your team ready`
+    :myNeeded.includes(ln)
+    ?`Best available ${_pickT}-tier option for your open ${ln} lane`
+    :`${_pickT}-tier flex — strongest remaining pick for the current board state`;
+  h._c=isTeamPick?'high':countered.length?'high':needsFrontline?'high':synergyWith?'high':isPriorityPick?'high':fitsArch?'high':'medium';return h;
 }
 
 
