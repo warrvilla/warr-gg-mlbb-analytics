@@ -1863,8 +1863,8 @@ function localAI(step){
       // Both teams have lane covered = total waste → near-absolute block
       // Only opp has lane + AI still needs it = double-waste → near-absolute block
       // Only opp has lane, AI doesn't need it yet = waste → strong penalty
-      const oppLaneFilled=laneFilledByOpp&&!isMustBan&&teamBan===0
-        ?(aiAlsoCoveredLane?-999:(aiStillNeedsLane?-250:-130)):0;
+      const oppLaneFilled=laneFilledByOpp&&!isMustBan
+        ?(aiAlsoCoveredLane?-999:(aiStillNeedsLane?-999:-999)):0;
 
       // DENY: human's comfort/tendency picks — suppress when lane is already covered
       const favEntry=humanFavs.find(f=>f.name===h.name);
@@ -1886,7 +1886,7 @@ function localAI(step){
 
       // Hard penalty when AI already has this lane AND it's not a must-ban/team-ban
       const aiLaneCovered=ln!=='Flex'&&!myNeeded.includes(ln)&&!laneFilledByOpp;
-      const ownCoveredPenalty=aiLaneCovered&&!isMustBan&&teamBan===0?-999:0;
+      const ownCoveredPenalty=aiLaneCovered&&!isMustBan?-999:0;
 
       const banMemory=recentBans.includes(h.name)?-30:0;
       return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+deniesLane+oppLaneFilled+dontBanOwn+ownCoveredPenalty+banMemory+Math.random()*randRange};
