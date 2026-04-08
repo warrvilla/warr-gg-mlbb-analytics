@@ -2119,17 +2119,36 @@ function localAI(step){
 
     const h=scored[0]?.hero||avail.find(h=>h.mp==='mustban')||avail.find(h=>['S'].includes(_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier))||avail[0];
     const ln=lane(h);
-    const isFav=humanFavs.slice(0,5).some(f=>f.name===h.name);
-    const ctrsUs=myP.some(p=>scoutCounters(h.name,p.name));
-    const isCombo=humanCombos.some(cb=>cb.a===h.name||cb.b===h.name);
-    const isTeamBan=epBans.includes(h.name);
-    h._r=h.mp==='mustban'?'Must-ban priority'
-      :isTeamBan?`${epName||'Team'} signature ban`
-      :isFav?`Deny human's comfort pick (${Math.round((humanFavs.find(f=>f.name===h.name)?.wr||0.5)*100)}%WR)`
-      :isCombo?'Breaks human win combo'
-      :ctrsUs?`Counters our ${myP.find(p=>scoutCounters(h.name,p.name))?.name}`
-      :oppNeeded.includes(ln)?`Denies opponent ${ln} lane`
-      :'Top tier threat';
+    const _favE=humanFavs.find(f=>f.name===h.name);
+    const _comboE=humanCombos.find(cb=>cb.a===h.name||cb.b===h.name);
+    const _comboPartner=_comboE?(_comboE.a===h.name?_comboE.b:_comboE.a):null;
+    const _victimP=myP.find(p=>scoutCounters(h.name,p.name));
+    const _banT=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
+    const _isPhase1Pick=epPhase1.includes(h.name);
+    const _protectsOurCombo=isPhase2Ban&&myP.length>=2&&myP.some(p=>scoutCounters(h.name,p.name));
+    h._r=h.mp==='mustban'
+      ?`Broken at this patch — no comp has reliable counterplay. Auto-first-ban, do not let through`
+      :epBans.includes(h.name)&&epName
+      ?`${epName} opens every series with this ban — it's built into their prep. Mirror it`
+      :_isPhase1Pick&&epName
+      ?`${epName}'s guaranteed Phase 1 pick (avg pos ${((epPickPos[h.name]??0)).toFixed(1)}). Deny it now or they lock it immediately`
+      :_favE&&(_favE.count||0)>=3
+      ?`You gave them ${h.name} in ${_favE.count} games — they went ${Math.round(_favE.wr*100)}% WR with it. This is a free win if you let it through`
+      :_comboE&&_comboPartner
+      ?`Breaks the ${h.name}+${_comboPartner} combo (${Math.round((_comboE.wr||0.6)*100)}% win rate in your scout data). They cannot run it without both heroes`
+      :_victimP&&isPhase2Ban
+      ?`CRITICAL — ${h.name} shuts down your ${_victimP.name}. Phase 2 must-ban to protect your win condition`
+      :_victimP
+      ?`${h.name} directly counters your ${_victimP.name}. Remove it before they draft a hard answer`
+      :arch&&arch.counters.includes(h.name)
+      ?`${h.name} is a direct answer to your ${arch.label} gameplan. Ban it before they read your strategy`
+      :_protectsOurCombo
+      ?`Protects your core combo — ${h.name} threatens your existing picks. Phase 2 security ban`
+      :oppNeeded.includes(ln)&&oppNeeded.length<=2
+      ?`Denies their ${ln} lane — they have ${oppNeeded.length} lane(s) left to fill and this is their best option at ${_banT}-tier`
+      :oppNeeded.includes(ln)
+      ?`${h.name} (${_banT}-tier ${ln}) — removes their strongest option in a lane they still need`
+      :`${h.name} is a ${_banT}-tier threat — too dangerous to leave in the pool at this stage`;
     h._c='high';return h;
   }
 
@@ -2205,15 +2224,38 @@ function localAI(step){
   const fitsArch=arch&&(arch.heroKeys.includes(h.name)||(arch.roleWeights[role]||0)>=2);
   const _avgPos=_pickPositionCache?.[h.name]??2.0;
   const isPriorityPick=_avgPos<=1.0;
-  h._r=isTeamPick?`${epName||'Team'} signature pick`
-    :countered.length?`Counters ${countered.slice(0,2).map(x=>x.name).join('+')}${learnedFor.length?' (learned)':''}`
-    :needsFrontline?`Frontline anchor — team needs Tank/Fighter`
-    :synergyWith?`Wins with ${synergyWith.name} (scout combo)`
-    :isPriorityPick?`Priority pick — scout shows early draft (avg pos ${_avgPos.toFixed(1)})`
-    :fitsArch?`${arch.emoji} Fits ${arch.label} strategy`
-    :myNeeded.includes(ln)?`Fills ${ln} lane`
-    :`Best available (${_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier}-tier)`;
-  h._c=isTeamPick?'high':countered.length?'high':needsFrontline?'high':synergyWith?'high':fitsArch?'high':'medium';return h;
+  const _pickT=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
+  const _lanesLeft=myNeeded.length;
+  const _oppAssassins=oppP.filter(p=>getHeroRole(p.name)==='Assassin');
+  const _synergyWR=synergyWith?(()=>{const key=[h.name,synergyWith.name].sort().join('+');const cb=scoutCombosAI[key];return cb?Math.round(cb.wins/cb.count*100):0;})():0;
+  const _inPhase1=epPhase1.includes(h.name);
+  const _teamPickPos=epPickPos[h.name]??_avgPos;
+  h._r=isTeamPick&&inPhase1&&pickPhase===1&&epName
+    ?`${epName} locks ${h.name} here — on schedule with their Phase 1 pattern (avg pos ${_teamPickPos.toFixed(1)})`
+    :isTeamPick&&epName
+    ?`${epName} signature pick — consistent with their scouted draft identity`
+    :countered.length&&isPhase2
+    ?`Counter-pick — ${h.name} answers ${countered.slice(0,2).map(x=>x.name).join(' + ')} in the ${ln} lane${learnedFor.length?' (confirmed in your scout data)':''}`
+    :countered.length
+    ?`${h.name} counters ${countered.slice(0,2).map(x=>x.name).join(' + ')}${learnedFor.length?' — confirmed matchup from your scout data':''}`
+    :needsFrontline&&_oppAssassins.length
+    ?`No frontline yet — ${_oppAssassins.map(a=>a.name).join('/')} reaches your carries unchecked. ${h.name} is the answer`
+    :needsFrontline
+    ?`${h.name} anchors your frontline. Without a tank/fighter your team cannot survive sustained fights`
+    :synergyWith
+    ?`${h.name}+${synergyWith.name} wins ${_synergyWR}% in your scout data — building the proven combo`
+    :isPriorityPick&&pickPhase===1
+    ?`Consistent Phase 1 lock across your scout data (avg pick pos ${_avgPos.toFixed(1)}) — secure now before it gets banned`
+    :fitsArch&&pickPhase===1
+    ?`${arch.emoji} Phase 1 ${arch.label} piece — ${arch.desc.charAt(0).toLowerCase()+arch.desc.slice(1)}`
+    :fitsArch
+    ?`${arch.emoji} Completes the ${arch.label} gameplan — ${arch.desc.charAt(0).toLowerCase()+arch.desc.slice(1)}`
+    :_lanesLeft===1
+    ?`Completes your comp — fills the last open lane (${ln}) to make your team ready`
+    :myNeeded.includes(ln)
+    ?`Best available ${_pickT}-tier option for your open ${ln} lane`
+    :`${_pickT}-tier flex — strongest remaining pick for the current board state`;
+  h._c=isTeamPick?'high':countered.length?'high':needsFrontline?'high':synergyWith?'high':isPriorityPick?'high':fitsArch?'high':'medium';return h;
 }
 
 
