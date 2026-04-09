@@ -3182,27 +3182,55 @@ async function fetchMPLData() {
   // ── Team name mapping UI ──────────────────────────────────────
   // Collect unique team names from the sheet
   const sheetTeams = [...new Set(parsed.flatMap(m => [m.blueTeam, m.redTeam]))].sort();
-  const existingTeams = Object.keys(DB_MODULE.getTeams()).sort();
+  const allTeams   = DB_MODULE.getTeams(); // {name: teamObj}
+  const existingTeams = Object.keys(allTeams).sort();
 
-  // Auto-match: case-insensitive exact match
+  // Auto-match: prefer MPL PH teams, then case-insensitive exact match
+  // Never auto-match a non-MPL-PH team (different region = different org)
   const autoMap = {};
   sheetTeams.forEach(st => {
-    const match = existingTeams.find(et => et.toLowerCase() === st.toLowerCase());
-    autoMap[st] = match || st; // default to same name if no match
+    const mplphMatch = existingTeams.find(et =>
+      et.toLowerCase() === st.toLowerCase() &&
+      (allTeams[et].leagues || []).includes('MPL PH')
+    );
+    const anyMatch = existingTeams.find(et => et.toLowerCase() === st.toLowerCase());
+    autoMap[st] = mplphMatch || anyMatch || st;
   });
 
   const mapRows = sheetTeams.map(st => {
     const hasExisting = existingTeams.length > 0;
-    const opts = [`<option value="${st}">${st} (keep as-is)</option>`,
-      ...existingTeams.filter(et => et !== st).map(et =>
-        `<option value="${et}"${autoMap[st]===et?' selected':''}>${et}</option>`)
+
+    // Build option list: "keep as-is" first, then MPL PH teams, then other regions separated
+    const mplphTeams  = existingTeams.filter(et => (allTeams[et].leagues||[]).includes('MPL PH') && et !== st);
+    const otherTeams  = existingTeams.filter(et => !(allTeams[et].leagues||[]).includes('MPL PH') && et !== st);
+
+    const teamLabel = et => {
+      const leagues = (allTeams[et].leagues || []);
+      const tag = leagues.length ? ` [${leagues.join(', ')}]` : '';
+      return `${et}${tag}`;
+    };
+
+    const opts = [
+      `<option value="${st}">${st} (keep as-is / new team)</option>`,
+      ...(mplphTeams.length ? [`<option disabled>── MPL PH teams ──</option>`] : []),
+      ...mplphTeams.map(et => `<option value="${et}"${autoMap[st]===et?' selected':''}>${teamLabel(et)}</option>`),
+      ...(otherTeams.length ? [`<option disabled>── Other regions ──</option>`] : []),
+      ...otherTeams.map(et => `<option value="${et}"${autoMap[st]===et?' selected':''}>${teamLabel(et)}</option>`),
     ].join('');
-    const isNew = !existingTeams.some(et => et.toLowerCase() === st.toLowerCase());
-    const badge = isNew
-      ? `<span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(52,209,122,.12);color:#4ade80;border:1px solid rgba(52,209,122,.22);">NEW TEAM</span>`
-      : `<span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(94,160,216,.12);color:#60a5fa;border:1px solid rgba(94,160,216,.22);">MATCH</span>`;
-    return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);">
-      <span style="font-size:12px;font-weight:600;min-width:90px;">${st}</span>
+
+    const isMplphMatch = existingTeams.some(et =>
+      et.toLowerCase() === st.toLowerCase() &&
+      (allTeams[et].leagues || []).includes('MPL PH')
+    );
+    const isAnyMatch = !isMplphMatch && existingTeams.some(et => et.toLowerCase() === st.toLowerCase());
+    const badge = isMplphMatch
+      ? `<span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(94,160,216,.12);color:#60a5fa;border:1px solid rgba(94,160,216,.22);">MPL PH ✓</span>`
+      : isAnyMatch
+        ? `<span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(244,165,52,.12);color:#fbbf24;border:1px solid rgba(244,165,52,.22);">DIFF REGION?</span>`
+        : `<span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(52,209,122,.12);color:#4ade80;border:1px solid rgba(52,209,122,.22);">NEW</span>`;
+
+    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:12px;font-weight:600;min-width:80px;">${st}</span>
       ${badge}
       ${hasExisting ? `<span style="color:var(--text3);font-size:11px;">→</span>
       <select data-sheet="${st}" style="flex:1;background:var(--surface3);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:4px 8px;font-size:11px;">${opts}</select>` : ''}
