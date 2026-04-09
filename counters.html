@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hero Counters — Warr.GG</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="warr-lib.js"></script>
+<link rel="stylesheet" href="warr-styles.css">
+<style>
+:root{
+  --bg:#07070C;--bg2:#0B0B12;--surface:#101018;--surface2:#161620;--surface3:#1E1E2A;--surface4:#272734;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.07);--border3:rgba(255,255,255,0.11);
+  --accent:#A888CC;--accent-dim:rgba(168,136,204,0.09);--accent-border:rgba(168,136,204,0.22);--accent-glow:rgba(168,136,204,0.22);
+  --neon:#4CB87A;--neon-dim:rgba(76,184,122,0.09);--neon-border:rgba(76,184,122,0.22);--neon-glow:rgba(76,184,122,0.20);
+  --blue:#5EA0D8;--blue2:#3B82F6;--blue-dim:rgba(94,160,216,0.09);--blue-border:rgba(94,160,216,0.22);--blue-glow:rgba(94,160,216,0.18);
+  --red:#D87880;--red-dim:rgba(216,120,128,0.09);--red-border:rgba(216,120,128,0.22);
+  --gold:#C89050;--gold-dim:rgba(200,144,80,0.09);--gold-border:rgba(200,144,80,0.22);
+  --purple:#A78BFA;--purple-dim:rgba(139,92,246,.08);--purple-border:rgba(139,92,246,.28);
+  --text:#F0F0F8;--text2:rgba(240,240,248,0.54);--text3:rgba(240,240,248,0.28);--text4:rgba(240,240,248,0.12);
+  --font-head:-apple-system,'SF Pro Display','Inter',sans-serif;--font-body:'Inter',sans-serif;--font-mono:'JetBrains Mono',monospace;
+  --r:12px;--r2:18px;--shadow:0 2px 16px rgba(0,0,0,.7);--shadow2:0 8px 40px rgba(0,0,0,.9);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:14px;}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;overflow-x:hidden;}
+
+/* ── TOPBAR ── */
+.topbar{background:rgba(8,11,16,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:.5px solid rgba(255,255,255,0.07);padding:0 20px;display:flex;align-items:center;gap:12px;height:52px;position:sticky;top:0;z-index:100;}
+.logo{font-family:var(--font-head);font-weight:800;font-size:17px;color:var(--text);display:flex;align-items:center;gap:9px;text-decoration:none;letter-spacing:-.2px;}
+.logo-mark{width:28px;height:28px;background:linear-gradient(135deg,var(--blue),#7c5df9);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;box-shadow:0 0 14px rgba(79,142,247,.4);}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:6px;}
+.tab-btn{padding:5px 13px;font-size:11px;font-weight:600;font-family:var(--font-head);letter-spacing:.3px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;border-radius:6px;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
+.tab-btn:hover{border-color:var(--border3);color:var(--text2);}
+.tab-btn.active{border-color:var(--blue-border);background:var(--accent-dim);color:var(--accent);}
+
+/* ── PAGE LAYOUT ── */
+.page{max-width:1120px;margin:0 auto;padding:32px 20px;}
+
+/* ── HERO SEARCH ── */
+.search-section{text-align:center;margin-bottom:40px;}
+.search-eyebrow{font-size:9px;font-weight:700;letter-spacing:.25em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;}
+.search-title{font-family:var(--font-head);font-size:28px;font-weight:800;letter-spacing:.02em;margin-bottom:4px;}
+.search-title span{background:linear-gradient(135deg,var(--red),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.search-sub{font-size:12px;color:var(--text3);margin-bottom:28px;}
+
+.search-box{position:relative;max-width:460px;margin:0 auto 20px;}
+.search-input{width:100%;background:var(--surface2);border:1.5px solid var(--border2);border-radius:14px;color:var(--text);font-family:var(--font-body);font-size:15px;font-weight:500;padding:14px 18px 14px 48px;outline:none;transition:all .2s;}
+.search-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-dim);}
+.search-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--text3);pointer-events:none;}
+.search-drop{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--surface2);border:1px solid var(--border2);border-radius:12px;max-height:260px;overflow-y:auto;z-index:50;box-shadow:var(--shadow2);display:none;}
+.search-drop.open{display:block;}
+.search-drop::-webkit-scrollbar{width:4px;}.search-drop::-webkit-scrollbar-thumb{background:var(--border2);}
+.drop-item{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;transition:background .1s;}
+.drop-item:hover,.drop-item.focused{background:var(--surface3);}
+.drop-portrait{width:32px;height:32px;border-radius:8px;object-fit:cover;background:var(--surface3);}
+.drop-name{font-size:13px;font-weight:600;}
+.drop-role{font-size:10px;color:var(--text3);}
+
+/* ── QUICK PICK GRID ── */
+.quick-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;}
+.quick-grid{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:700px;margin:0 auto;}
+.quick-chip{display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:20px;cursor:pointer;transition:all .15s;font-size:11px;font-weight:600;}
+.quick-chip:hover{border-color:var(--border3);background:var(--surface3);}
+.quick-chip img{width:20px;height:20px;border-radius:5px;object-fit:cover;}
+
+/* ── RESULTS ── */
+#results{display:none;animation:fadeIn .3s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Hero profile header */
+.hero-profile{display:flex;align-items:center;gap:20px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r2);padding:22px 24px;margin-bottom:24px;position:relative;overflow:hidden;}
+.hero-profile::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 0% 50%,var(--hero-color-dim,rgba(94,160,216,0.06)) 0%,transparent 70%);pointer-events:none;}
+.profile-portrait{width:72px;height:72px;border-radius:14px;object-fit:cover;flex-shrink:0;box-shadow:0 4px 20px rgba(0,0,0,.5);}
+.profile-info{flex:1;}
+.profile-name{font-family:var(--font-head);font-size:22px;font-weight:800;letter-spacing:.02em;}
+.profile-meta{display:flex;align-items:center;gap:8px;margin-top:5px;flex-wrap:wrap;}
+.role-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.8px;}
+.tier-badge{font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:.8px;}
+.data-note{font-size:10px;color:var(--text3);margin-top:6px;}
+.profile-stats{display:flex;gap:20px;flex-shrink:0;}
+.pstat{text-align:center;}
+.pstat-val{font-family:var(--font-head);font-size:18px;font-weight:700;}
+.pstat-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:1px;}
+
+/* Section layout */
+.sections{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+@media(max-width:720px){.sections{grid-template-columns:1fr;}}
+.section-full{margin-bottom:16px;}
+
+.section{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r2);overflow:hidden;}
+.section-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.section-icon{font-size:16px;}
+.section-title{font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;}
+.section-subtitle{font-size:10px;color:var(--text3);margin-top:1px;}
+.section-count{margin-left:auto;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
+
+/* Counter rows */
+.counter-list{padding:8px 0;}
+.ctr-row{display:flex;align-items:center;gap:12px;padding:9px 18px;cursor:pointer;transition:background .1s;text-decoration:none;color:inherit;}
+.ctr-row:hover{background:var(--surface2);}
+.ctr-rank{font-family:var(--font-mono);font-size:10px;color:var(--text4);width:16px;flex-shrink:0;text-align:right;}
+.ctr-portrait{width:38px;height:38px;border-radius:10px;object-fit:cover;flex-shrink:0;}
+.ctr-info{flex:1;min-width:0;}
+.ctr-name{font-weight:700;font-size:13px;}
+.ctr-role{font-size:10px;color:var(--text3);}
+.ctr-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;}
+.wr-pill{font-family:var(--font-mono);font-size:11px;font-weight:700;padding:2px 9px;border-radius:8px;}
+.wr-win{background:rgba(76,184,122,.15);color:var(--neon);border:1px solid var(--neon-border);}
+.wr-lose{background:rgba(216,120,128,.12);color:var(--red);border:1px solid var(--red-border);}
+.wr-neutral{background:rgba(200,144,80,.10);color:var(--gold);border:1px solid var(--gold-border);}
+.ctr-games{font-size:9px;color:var(--text4);font-family:var(--font-mono);}
+
+/* WR bar inside row */
+.wr-bar-wrap{display:flex;align-items:center;gap:6px;margin-top:2px;}
+.wr-bar-track{width:80px;height:3px;background:var(--surface3);border-radius:2px;overflow:hidden;}
+.wr-bar-fill{height:100%;border-radius:2px;transition:width .5s;}
+.wr-bar-fill.win{background:var(--neon);}
+.wr-bar-fill.lose{background:var(--red);}
+.wr-bar-fill.neutral{background:var(--gold);}
+
+/* Synergy cards */
+.synergy-list{padding:8px 0;}
+.syn-row{display:flex;align-items:center;gap:12px;padding:9px 18px;cursor:pointer;transition:background .1s;text-decoration:none;color:inherit;}
+.syn-row:hover{background:var(--surface2);}
+
+/* Empty state */
+.empty-state{padding:40px 20px;text-align:center;color:var(--text3);}
+.empty-icon{font-size:28px;margin-bottom:8px;}
+.empty-msg{font-size:12px;}
+.empty-sub{font-size:10px;color:var(--text4);margin-top:4px;}
+
+/* Matchup matrix (mini) */
+.matrix-note{padding:14px 18px;font-size:11px;color:var(--text3);border-top:1px solid var(--border);}
+
+/* Role color map */
+.role-tank{background:rgba(94,160,216,.15);color:var(--blue);border:1px solid var(--blue-border);}
+.role-fighter{background:rgba(240,100,80,.12);color:#f97060;border:1px solid rgba(240,100,80,.3);}
+.role-assassin{background:rgba(168,136,204,.12);color:var(--accent);border:1px solid var(--accent-border);}
+.role-mage{background:rgba(139,92,246,.12);color:var(--purple);border:1px solid var(--purple-border);}
+.role-marksman{background:rgba(200,144,80,.12);color:var(--gold);border:1px solid var(--gold-border);}
+.role-support{background:rgba(76,184,122,.12);color:var(--neon);border:1px solid var(--neon-border);}
+
+/* No data landing */
+.no-scout{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r2);padding:40px;text-align:center;margin-top:24px;}
+.no-scout-icon{font-size:36px;margin-bottom:14px;}
+.no-scout-title{font-family:var(--font-head);font-size:16px;font-weight:700;margin-bottom:6px;}
+.no-scout-sub{font-size:12px;color:var(--text3);line-height:1.6;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html" class="logo"><div class="logo-mark">W</div>Warr.GG</a>
+  <div class="topbar-right">
+    <a href="draft_board.html" class="tab-btn">Draft</a>
+    <a href="scout.html" class="tab-btn">Scout</a>
+    <a href="ai_battle.html" class="tab-btn">AI Battle</a>
+    <a href="top100.html" class="tab-btn">Top 100</a>
+    <a href="counters.html" class="tab-btn active">Counters</a>
+    <a href="stats.html" class="tab-btn">Stats</a>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- Search section -->
+  <div class="search-section">
+    <div class="search-eyebrow">Scout-Derived Intelligence</div>
+    <h1 class="search-title">Hero <span>Counter</span> Chart</h1>
+    <div class="search-sub">Built from your scout match data — counters, weaknesses, and synergies</div>
+
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="heroSearch" placeholder="Search hero name..." autocomplete="off">
+      <div class="search-drop" id="searchDrop"></div>
+    </div>
+
+    <div class="quick-label">Quick pick</div>
+    <div class="quick-grid" id="quickGrid"></div>
+  </div>
+
+  <!-- Results -->
+  <div id="results">
+
+    <!-- Hero profile -->
+    <div class="hero-profile" id="heroProfile"></div>
+
+    <!-- Counters + Countered-by -->
+    <div class="sections">
+      <div class="section" id="sectionBeats">
+        <div class="section-head">
+          <span class="section-icon">⚔️</span>
+          <div>
+            <div class="section-title" style="color:var(--neon)">Counters</div>
+            <div class="section-subtitle" id="beatsSubtitle">Heroes this hero beats</div>
+          </div>
+          <span class="section-count" id="beatsCount" style="background:var(--neon-dim);color:var(--neon);border:1px solid var(--neon-border)">0</span>
+        </div>
+        <div class="counter-list" id="beatsList"></div>
+      </div>
+
+      <div class="section" id="sectionLoses">
+        <div class="section-head">
+          <span class="section-icon">🛡️</span>
+          <div>
+            <div class="section-title" style="color:var(--red)">Weak Against</div>
+            <div class="section-subtitle" id="losesSubtitle">Heroes that beat this hero</div>
+          </div>
+          <span class="section-count" id="losesCount" style="background:var(--red-dim);color:var(--red);border:1px solid var(--red-border)">0</span>
+        </div>
+        <div class="counter-list" id="losesList"></div>
+      </div>
+    </div>
+
+    <!-- Synergies -->
+    <div class="section section-full" id="sectionSynergy">
+      <div class="section-head">
+        <span class="section-icon">🤝</span>
+        <div>
+          <div class="section-title" style="color:var(--accent)">Best Teammates</div>
+          <div class="section-subtitle" id="synergySubtitle">Highest win rate when paired together</div>
+        </div>
+        <span class="section-count" id="synergyCount" style="background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent-border)">0</span>
+      </div>
+      <div class="synergy-list" id="synergyList"></div>
+    </div>
+
+  </div>
+
+  <!-- No data state (shown when no scout data) -->
+  <div class="no-scout" id="noScout" style="display:none">
+    <div class="no-scout-icon">📋</div>
+    <div class="no-scout-title">No Scout Data Yet</div>
+    <div class="no-scout-sub">Counter data is built from your scouted matches.<br>Log games in the <a href="scout.html" style="color:var(--accent)">Scout tab</a> to unlock this feature.</div>
+  </div>
+
+</div>
+
+<script>
+// ── Shared hero data (inlined from ai_battle.html) ────────────────────────────
+const ALL_H=[
+  {id:'tigreal',name:'Tigreal',role:'Tank'},{id:'akai',name:'Akai',role:'Tank'},
+  {id:'franco',name:'Franco',role:'Tank'},{id:'minotaur',name:'Minotaur',role:'Tank'},
+  {id:'lolita',name:'Lolita',role:'Tank'},{id:'johnson',name:'Johnson',role:'Tank'},
+  {id:'atlas',name:'Atlas',role:'Tank'},{id:'khufra',name:'Khufra',role:'Tank'},
+  {id:'esmeralda',name:'Esmeralda',role:'Tank/Mage'},{id:'uranus',name:'Uranus',role:'Tank'},
+  {id:'hylos',name:'Hylos',role:'Tank'},{id:'belerick',name:'Belerick',role:'Tank'},
+  {id:'grock',name:'Grock',role:'Tank'},{id:'carmilla',name:'Carmilla',role:'Tank'},
+  {id:'baxia',name:'Baxia',role:'Tank'},{id:'gloo',name:'Gloo',role:'Tank'},
+  {id:'chip',name:'Chip',role:'Tank'},{id:'fredrinn',name:'Fredrinn',role:'Tank/Fighter'},
+  {id:'kalea',name:'Kalea',role:'Tank'},{id:'edith',name:'Edith',role:'Tank/MM'},
+  {id:'marcel',name:'Marcel',role:'Tank'},
+  {id:'barats',name:'Barats',role:'Fighter/Tank'},{id:'balmond',name:'Balmond',role:'Fighter'},
+  {id:'zilong',name:'Zilong',role:'Fighter'},{id:'alucard',name:'Alucard',role:'Fighter'},
+  {id:'alpha',name:'Alpha',role:'Fighter'},{id:'sun',name:'Sun',role:'Fighter'},
+  {id:'argus',name:'Argus',role:'Fighter'},{id:'hilda',name:'Hilda',role:'Fighter'},
+  {id:'ruby',name:'Ruby',role:'Fighter'},{id:'xborg',name:'X.Borg',role:'Fighter'},
+  {id:'aldous',name:'Aldous',role:'Fighter'},{id:'chou',name:'Chou',role:'Fighter'},
+  {id:'badang',name:'Badang',role:'Fighter'},{id:'guinevere',name:'Guinevere',role:'Fighter'},
+  {id:'terizla',name:'Terizla',role:'Fighter'},{id:'thamuz',name:'Thamuz',role:'Fighter'},
+  {id:'masha',name:'Masha',role:'Fighter'},{id:'khaleed',name:'Khaleed',role:'Fighter'},
+  {id:'paquito',name:'Paquito',role:'Fighter'},{id:'yuzhong',name:'Yu Zhong',role:'Fighter'},
+  {id:'yin',name:'Yin',role:'Fighter'},{id:'aulus',name:'Aulus',role:'Fighter'},
+  {id:'lapu',name:'Lapu-Lapu',role:'Fighter'},{id:'dyrroth',name:'Dyrroth',role:'Fighter'},
+  {id:'phoveus',name:'Phoveus',role:'Fighter'},{id:'freya',name:'Freya',role:'Fighter'},
+  {id:'kaja',name:'Kaja',role:'Fighter/Support'},{id:'martis',name:'Martis',role:'Fighter'},
+  {id:'silvanna',name:'Silvanna',role:'Fighter'},{id:'joy',name:'Joy',role:'Fighter'},
+  {id:'leomord',name:'Leomord',role:'Fighter'},{id:'roger',name:'Roger',role:'Fighter/MM'},
+  {id:'jawhead',name:'Jawhead',role:'Fighter'},{id:'arlott',name:'Arlott',role:'Fighter'},
+  {id:'nolan',name:'Nolan',role:'Fighter'},
+  {id:'balmond_j',name:'Balmond',role:'Fighter'},
+  {id:'suyou',name:'Suyou',role:'Fighter/Assassin'},{id:'lukas',name:'Lukas',role:'Fighter'},
+  {id:'layla',name:'Layla',role:'Marksman'},{id:'miya',name:'Miya',role:'Marksman'},
+  {id:'clint',name:'Clint',role:'Marksman'},{id:'irithel',name:'Irithel',role:'Marksman'},
+  {id:'karrie',name:'Karrie',role:'Marksman'},{id:'kimmy',name:'Kimmy',role:'Marksman/Mage'},
+  {id:'granger',name:'Granger',role:'Marksman'},{id:'wanwan',name:'Wanwan',role:'Marksman'},
+  {id:'popol',name:'Popol and Kupa',role:'Marksman'},{id:'beatrix',name:'Beatrix',role:'Marksman'},
+  {id:'brody',name:'Brody',role:'Marksman'},{id:'natan',name:'Natan',role:'Marksman'},
+  {id:'melissa',name:'Melissa',role:'Marksman'},{id:'ixia',name:'Ixia',role:'Marksman'},
+  {id:'moskov',name:'Moskov',role:'Marksman'},{id:'claude',name:'Claude',role:'Marksman'},
+  {id:'lesley',name:'Lesley',role:'Marksman'},{id:'hanabi',name:'Hanabi',role:'Marksman'},
+  {id:'miya2',name:'Miya',role:'Marksman'},{id:'yi_sun',name:'Yi Sun-shin',role:'Marksman'},
+  {id:'wan',name:'Wan Wan',role:'Marksman'},{id:'xavier',name:'Xavier',role:'Mage'},
+  {id:'alice',name:'Alice',role:'Mage'},{id:'nana',name:'Nana',role:'Mage/Support'},
+  {id:'kagura',name:'Kagura',role:'Mage'},{id:'aurora',name:'Aurora',role:'Mage'},
+  {id:'vexana',name:'Vexana',role:'Mage'},{id:'cyclops',name:'Cyclops',role:'Mage'},
+  {id:'harley',name:'Harley',role:'Mage'},{id:'gord',name:'Gord',role:'Mage'},
+  {id:'valir',name:'Valir',role:'Mage'},{id:'kadita',name:'Kadita',role:'Mage'},
+  {id:'chang_e',name:'Chang\'e',role:'Mage'},{id:'pharsa',name:'Pharsa',role:'Mage'},
+  {id:'lylia',name:'Lylia',role:'Mage'},{id:'cecilion',name:'Cecilion',role:'Mage'},
+  {id:'yve',name:'Yve',role:'Mage'},{id:'valentina',name:'Valentina',role:'Mage'},
+  {id:'lunox',name:'Lunox',role:'Mage'},{id:'odette',name:'Odette',role:'Mage'},
+  {id:'zhask',name:'Zhask',role:'Mage'},{id:'eudora',name:'Eudora',role:'Mage'},
+  {id:'julian',name:'Julian',role:'Mage/Fighter'},{id:'novaria',name:'Novaria',role:'Mage'},
+  {id:'chip_m',name:'Chip',role:'Tank'},{id:'novi',name:'Novi',role:'Mage'},
+  {id:'rafaela',name:'Rafaela',role:'Support'},{id:'estes',name:'Estes',role:'Support'},
+  {id:'Angela',name:'Angela',role:'Support'},{id:'diggie',name:'Diggie',role:'Support'},
+  {id:'nana_s',name:'Nana',role:'Mage/Support'},{id:'faramis',name:'Faramis',role:'Support'},
+  {id:'mathilda',name:'Mathilda',role:'Support/Assassin'},{id:'floryn',name:'Floryn',role:'Support'},
+  {id:'Angela2',name:'Angela',role:'Support'},{id:'angela',name:'Angela',role:'Support'},
+  {id:'ling',name:'Ling',role:'Assassin'},{id:'hayabusa',name:'Hayabusa',role:'Assassin'},
+  {id:'lancelot',name:'Lancelot',role:'Assassin'},{id:'gusion',name:'Gusion',role:'Assassin'},
+  {id:'fanny',name:'Fanny',role:'Assassin'},{id:'karina',name:'Karina',role:'Assassin'},
+  {id:'aamon',name:'Aamon',role:'Assassin'},{id:'natalia',name:'Natalia',role:'Assassin'},
+  {id:'helcurt',name:'Helcurt',role:'Assassin'},{id:'saber',name:'Saber',role:'Assassin'},
+  {id:'yi',name:'Yi Sun-shin',role:'Assassin/MM'},{id:'selena',name:'Selena',role:'Assassin/Mage'},
+  {id:'benedetta',name:'Benedetta',role:'Assassin'},{id:'hanzo',name:'Hanzo',role:'Assassin'},
+  {id:'aldous2',name:'Aldous',role:'Fighter'},{id:'julian2',name:'Julian',role:'Fighter/Mage'},
+  {id:'cici',name:'Cici',role:'Fighter'},{id:'zhuxin',name:'Zhuxin',role:'Mage'},
+  {id:'chip2',name:'Chip',role:'Tank'},{id:'melanthe',name:'Melanthe',role:'Assassin/Mage'},
+];
+// Deduplicate by name, keeping first occurrence
+const seen=new Set();
+const HEROES=ALL_H.filter(h=>{if(seen.has(h.name))return false;seen.add(h.name);return true;});
+const heroMap=Object.fromEntries(HEROES.map(h=>[h.name,h]));
+
+// ── Scout data helpers ────────────────────────────────────────────────────────
+function loadScout(){
+  try{const r=localStorage.getItem('warr_scout_data');return r?JSON.parse(r):{matches:[],teams:{}};}catch(e){return{matches:[],teams:{}};}
+}
+
+// Build full head-to-head win rate matrix from ALL scout matches
+// vsMatrix[heroA][heroB] = {wins, total} meaning: heroA won when heroB was on opposing team
+function buildMatrix(){
+  const db=loadScout();
+  const matches=db.matches||[];
+  const matrix={};
+  const combos={};
+
+  matches.forEach(m=>{
+    const bp=(m.bluePicks||[]).map(p=>p.name||p).filter(Boolean);
+    const rp=(m.redPicks||[]).map(p=>p.name||p).filter(Boolean);
+    const bWon=m.winner==='blue';
+
+    // Head-to-head: blue heroes vs red heroes
+    bp.forEach(a=>{
+      rp.forEach(b=>{
+        if(!matrix[a])matrix[a]={};
+        if(!matrix[a][b])matrix[a][b]={wins:0,total:0};
+        matrix[a][b].total++;
+        if(bWon)matrix[a][b].wins++;
+
+        if(!matrix[b])matrix[b]={};
+        if(!matrix[b][a])matrix[b][a]={wins:0,total:0};
+        matrix[b][a].total++;
+        if(!bWon)matrix[b][a].wins++;
+      });
+    });
+
+    // Co-pick synergy
+    [[bp,'blue'],[rp,'red']].forEach(([picks,side])=>{
+      const won=(side==='blue'&&bWon)||(side==='red'&&!bWon);
+      for(let i=0;i<picks.length;i++){
+        for(let j=i+1;j<picks.length;j++){
+          const key=[picks[i],picks[j]].sort().join('\x00');
+          if(!combos[key])combos[key]={wins:0,total:0,a:picks[i],b:picks[j]};
+          combos[key].total++;
+          if(won)combos[key].wins++;
+        }
+      }
+    });
+  });
+  return{matrix,combos,matchCount:matches.length};
+}
+
+// ── Counters for a hero ───────────────────────────────────────────────────────
+const MIN_GAMES=2; // min matchups to surface a counter relationship
+const COUNTER_WR=0.55; // WR threshold to call something a counter
+
+function getCounters(heroName,matrix){
+  // Heroes that heroName beats
+  const beats=[];
+  // Heroes that beat heroName
+  const loses=[];
+  const row=matrix[heroName]||{};
+  Object.entries(row).forEach(([opp,{wins,total}])=>{
+    if(total<MIN_GAMES)return;
+    const wr=wins/total;
+    const entry={name:opp,wr,games:total};
+    if(wr>=COUNTER_WR) beats.push(entry);
+    else if(wr<(1-COUNTER_WR)) loses.push(entry);
+  });
+  beats.sort((a,b)=>b.wr-a.wr);
+  loses.sort((a,b)=>a.wr-b.wr);
+  return{beats,loses};
+}
+
+function getSynergies(heroName,combos){
+  const syn=[];
+  Object.values(combos).forEach(c=>{
+    if(c.a!==heroName&&c.b!==heroName)return;
+    if(c.total<MIN_GAMES)return;
+    const wr=c.wins/c.total;
+    if(wr<0.5)return;
+    const partner=c.a===heroName?c.b:c.a;
+    syn.push({name:partner,wr,games:c.total});
+  });
+  syn.sort((a,b)=>b.wr-a.wr);
+  return syn.slice(0,10);
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+function portrait(name){
+  return `portraits/${name}.png`;
+}
+
+function roleClass(role){
+  const r=(role||'').toLowerCase();
+  if(r.includes('tank'))return'role-tank';
+  if(r.includes('fighter'))return'role-fighter';
+  if(r.includes('assassin'))return'role-assassin';
+  if(r.includes('mage'))return'role-mage';
+  if(r.includes('marksman')||r.includes('mm'))return'role-marksman';
+  if(r.includes('support'))return'role-support';
+  return'';
+}
+
+function wrClass(wr){
+  if(wr>=0.60)return'wr-win';
+  if(wr<=0.45)return'wr-lose';
+  return'wr-neutral';
+}
+function barClass(wr){
+  if(wr>=0.60)return'win';
+  if(wr<=0.45)return'lose';
+  return'neutral';
+}
+
+function counterRow(entry,rank){
+  const h=heroMap[entry.name]||{name:entry.name,role:'Unknown'};
+  const wr=entry.wr;
+  const pct=Math.round(wr*1000)/10;
+  const barW=Math.round(wr*100);
+  return `
+    <div class="ctr-row" onclick="selectHero('${h.name}')">
+      <span class="ctr-rank">${rank}</span>
+      <img class="ctr-portrait" src="${portrait(h.name)}" onerror="this.style.opacity='.3'" alt="${h.name}">
+      <div class="ctr-info">
+        <div class="ctr-name">${h.name}</div>
+        <div class="ctr-role">${h.role||''}</div>
+        <div class="wr-bar-wrap">
+          <div class="wr-bar-track"><div class="wr-bar-fill ${barClass(wr)}" style="width:${barW}%"></div></div>
+        </div>
+      </div>
+      <div class="ctr-right">
+        <span class="wr-pill ${wrClass(wr)}">${pct}%</span>
+        <span class="ctr-games">${entry.games} match${entry.games!==1?'es':''}</span>
+      </div>
+    </div>`;
+}
+
+function synergyRow(entry,rank){
+  const h=heroMap[entry.name]||{name:entry.name,role:'Unknown'};
+  const wr=entry.wr;
+  const pct=Math.round(wr*1000)/10;
+  const barW=Math.round(wr*100);
+  return `
+    <div class="syn-row" onclick="selectHero('${h.name}')">
+      <span class="ctr-rank">${rank}</span>
+      <img class="ctr-portrait" src="${portrait(h.name)}" onerror="this.style.opacity='.3'" alt="${h.name}">
+      <div class="ctr-info">
+        <div class="ctr-name">${h.name}</div>
+        <div class="ctr-role">${h.role||''}</div>
+        <div class="wr-bar-wrap">
+          <div class="wr-bar-track"><div class="wr-bar-fill win" style="width:${barW}%"></div></div>
+        </div>
+      </div>
+      <div class="ctr-right">
+        <span class="wr-pill wr-win">${pct}%</span>
+        <span class="ctr-games">${entry.games} match${entry.games!==1?'es':''}</span>
+      </div>
+    </div>`;
+}
+
+function emptyState(msg,sub){
+  return `<div class="empty-state"><div class="empty-icon">—</div><div class="empty-msg">${msg}</div>${sub?`<div class="empty-sub">${sub}</div>`:''}</div>`;
+}
+
+// ── Render results ────────────────────────────────────────────────────────────
+let _matrix=null,_combos=null,_matchCount=0;
+
+function selectHero(name){
+  if(!_matrix){
+    const d=buildMatrix();
+    _matrix=d.matrix;_combos=d.combos;_matchCount=d.matchCount;
+  }
+
+  const hero=heroMap[name];
+  if(!hero)return;
+
+  document.getElementById('heroSearch').value=name;
+  document.getElementById('searchDrop').classList.remove('open');
+
+  const{beats,loses}=getCounters(name,_matrix);
+  const synergies=getSynergies(name,_combos);
+
+  // Profile
+  const totalGames=(_matrix[name]?Object.values(_matrix[name]).reduce((s,v)=>s+v.total,0):0);
+  const totalWins=(_matrix[name]?Object.values(_matrix[name]).reduce((s,v)=>s+v.wins,0):0);
+  const overallWR=totalGames>0?Math.round(totalWins/totalGames*1000)/10:null;
+
+  document.getElementById('heroProfile').innerHTML=`
+    <img class="profile-portrait" src="${portrait(name)}" onerror="this.style.opacity='.3'" alt="${name}">
+    <div class="profile-info">
+      <div class="profile-name">${name}</div>
+      <div class="profile-meta">
+        <span class="role-badge ${roleClass(hero.role)}">${hero.role||'Unknown'}</span>
+      </div>
+      <div class="data-note">${_matchCount} scout match${_matchCount!==1?'es':''} analysed</div>
+    </div>
+    <div class="profile-stats">
+      <div class="pstat">
+        <div class="pstat-val" style="color:var(--neon)">${beats.length}</div>
+        <div class="pstat-lbl">Counters</div>
+      </div>
+      <div class="pstat">
+        <div class="pstat-val" style="color:var(--red)">${loses.length}</div>
+        <div class="pstat-lbl">Weak vs</div>
+      </div>
+      <div class="pstat">
+        <div class="pstat-val" style="color:var(--accent)">${synergies.length}</div>
+        <div class="pstat-lbl">Synergies</div>
+      </div>
+    </div>
+  `;
+  document.getElementById('heroProfile').style.setProperty('--hero-color-dim','rgba(94,160,216,0.06)');
+
+  // Beats
+  document.getElementById('beatsCount').textContent=beats.length;
+  document.getElementById('beatsSubtitle').textContent=`${name} wins when facing these`;
+  document.getElementById('beatsList').innerHTML=beats.length
+    ?beats.slice(0,10).map((e,i)=>counterRow(e,i+1)).join('')
+    :emptyState('No counter data yet','Log more scout matches to unlock');
+
+  // Loses
+  document.getElementById('losesCount').textContent=loses.length;
+  document.getElementById('losesSubtitle').textContent=`These heroes beat ${name}`;
+  document.getElementById('losesList').innerHTML=loses.length
+    ?loses.slice(0,10).map((e,i)=>counterRow(e,i+1)).join('')
+    :emptyState('No weakness data yet','Log more scout matches to unlock');
+
+  // Synergy
+  document.getElementById('synergyCount').textContent=synergies.length;
+  document.getElementById('synergySubtitle').textContent=`Best co-picks with ${name}`;
+  document.getElementById('synergyList').innerHTML=synergies.length
+    ?synergies.slice(0,8).map((e,i)=>synergyRow(e,i+1)).join('')
+    :emptyState('No synergy data yet','Log more scout matches to unlock');
+
+  document.getElementById('results').style.display='block';
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+let focusedIdx=-1;
+const input=document.getElementById('heroSearch');
+const drop=document.getElementById('searchDrop');
+
+function renderDrop(q){
+  const matches=HEROES.filter(h=>h.name.toLowerCase().includes(q.toLowerCase())).slice(0,12);
+  if(!matches.length){drop.classList.remove('open');return;}
+  drop.innerHTML=matches.map((h,i)=>`
+    <div class="drop-item" data-idx="${i}" data-name="${h.name}" onmousedown="selectHero('${h.name}')">
+      <img class="drop-portrait" src="${portrait(h.name)}" onerror="this.style.opacity='.3'" alt="">
+      <div><div class="drop-name">${h.name}</div><div class="drop-role">${h.role||''}</div></div>
+    </div>
+  `).join('');
+  drop.classList.add('open');
+  focusedIdx=-1;
+}
+
+input.addEventListener('input',()=>{renderDrop(input.value);});
+input.addEventListener('focus',()=>{if(input.value)renderDrop(input.value);});
+input.addEventListener('blur',()=>setTimeout(()=>drop.classList.remove('open'),150));
+input.addEventListener('keydown',e=>{
+  const items=drop.querySelectorAll('.drop-item');
+  if(e.key==='ArrowDown'){e.preventDefault();focusedIdx=Math.min(focusedIdx+1,items.length-1);}
+  else if(e.key==='ArrowUp'){e.preventDefault();focusedIdx=Math.max(focusedIdx-1,0);}
+  else if(e.key==='Enter'&&focusedIdx>=0){selectHero(items[focusedIdx].dataset.name);return;}
+  else if(e.key==='Escape'){drop.classList.remove('open');return;}
+  items.forEach((el,i)=>el.classList.toggle('focused',i===focusedIdx));
+});
+
+// ── Quick pick grid ───────────────────────────────────────────────────────────
+function buildQuickGrid(){
+  const db=loadScout();
+  const matches=db.matches||[];
+  if(!matches.length){
+    document.getElementById('noScout').style.display='block';
+    return;
+  }
+  // Most-picked heroes in scout data
+  const freq={};
+  matches.forEach(m=>{
+    [...(m.bluePicks||[]),...(m.redPicks||[])].forEach(p=>{
+      const n=p.name||p;if(n)freq[n]=(freq[n]||0)+1;
+    });
+  });
+  const top=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,16).map(([n])=>n);
+  const grid=document.getElementById('quickGrid');
+  grid.innerHTML=top.map(name=>`
+    <div class="quick-chip" onclick="selectHero('${name}')">
+      <img src="${portrait(name)}" onerror="this.style.opacity='.3'" alt="">
+      ${name}
+    </div>
+  `).join('');
+}
+
+buildQuickGrid();
+</script>
+</body>
+</html>
