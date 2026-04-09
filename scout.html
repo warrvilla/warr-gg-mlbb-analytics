@@ -988,6 +988,14 @@ body::after {
     <div id="mplSyncBtns" style="display:flex;gap:10px;margin-top:4px;">
       <button onclick="fetchMPLData()" style="padding:9px 20px;border-radius:8px;border:none;background:var(--blue2);color:#fff;cursor:pointer;font-size:12px;font-weight:600;">Fetch Latest Data</button>
     </div>
+    <!-- Team name mapping step (shown between fetch and import) -->
+    <div id="mplNameMap" style="display:none;margin-top:16px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">Team Name Mapping</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:10px;line-height:1.6;">
+        The sheet uses these team names. Map them to your existing team profiles if they differ (e.g. sheet says "ECHO" but you use "Echo Esports").
+      </div>
+      <div id="mplNameMapRows" style="display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto;margin-bottom:12px;"></div>
+    </div>
   </div>
 </div>
 
@@ -3164,24 +3172,55 @@ async function fetchMPLData() {
 
   _mplParsedMatches = parsed;
 
-  const newCount  = parsed.filter(m => m._isNew).length;
-  const updCount  = parsed.filter(m => !m._isNew).length;
-  const total     = parsed.length;
-
+  const total = parsed.length;
   if (!total) {
     _mplStatus('No valid match data found in the sheet.', 'error');
     document.getElementById('mplSyncBtns').style.display = 'flex';
     return;
   }
 
-  // Build preview table
+  // ── Team name mapping UI ──────────────────────────────────────
+  // Collect unique team names from the sheet
+  const sheetTeams = [...new Set(parsed.flatMap(m => [m.blueTeam, m.redTeam]))].sort();
+  const existingTeams = Object.keys(DB_MODULE.getTeams()).sort();
+
+  // Auto-match: case-insensitive exact match
+  const autoMap = {};
+  sheetTeams.forEach(st => {
+    const match = existingTeams.find(et => et.toLowerCase() === st.toLowerCase());
+    autoMap[st] = match || st; // default to same name if no match
+  });
+
+  const mapRows = sheetTeams.map(st => {
+    const hasExisting = existingTeams.length > 0;
+    const opts = [`<option value="${st}">${st} (keep as-is)</option>`,
+      ...existingTeams.filter(et => et !== st).map(et =>
+        `<option value="${et}"${autoMap[st]===et?' selected':''}>${et}</option>`)
+    ].join('');
+    const isNew = !existingTeams.some(et => et.toLowerCase() === st.toLowerCase());
+    const badge = isNew
+      ? `<span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(52,209,122,.12);color:#4ade80;border:1px solid rgba(52,209,122,.22);">NEW TEAM</span>`
+      : `<span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(94,160,216,.12);color:#60a5fa;border:1px solid rgba(94,160,216,.22);">MATCH</span>`;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:12px;font-weight:600;min-width:90px;">${st}</span>
+      ${badge}
+      ${hasExisting ? `<span style="color:var(--text3);font-size:11px;">→</span>
+      <select data-sheet="${st}" style="flex:1;background:var(--surface3);border:1px solid var(--border2);border-radius:6px;color:var(--text);padding:4px 8px;font-size:11px;">${opts}</select>` : ''}
+    </div>`;
+  }).join('');
+
+  document.getElementById('mplNameMapRows').innerHTML = mapRows || '<div style="color:var(--text3);font-size:11px;">No teams found.</div>';
+  document.getElementById('mplNameMap').style.display = 'block';
+
+  // ── Preview table ─────────────────────────────────────────────
+  const newCount = parsed.filter(m => m._isNew).length;
+  const updCount = parsed.filter(m => !m._isNew).length;
+
   const previewRows = parsed.slice(0, 50).map(m => {
     const badge = m._isNew
       ? `<span style="font-size:9px;padding:1px 5px;border-radius:4px;background:rgba(52,209,122,.12);color:#4ade80;border:1px solid rgba(52,209,122,.22);">NEW</span>`
       : `<span style="font-size:9px;padding:1px 5px;border-radius:4px;background:var(--surface3);color:var(--text3);">UPDATE</span>`;
-    const mapStr = m.map
-      ? `<span style="color:var(--text3);font-size:10px;">${m.map}</span>`
-      : `<span style="color:var(--text4);font-size:10px;">—</span>`;
+    const mapStr = m.map ? `<span style="color:var(--text3);font-size:10px;">${m.map}</span>` : `<span style="color:var(--text4);font-size:10px;">—</span>`;
     const winnerStr = m.winner === 'blue'
       ? `<span style="color:var(--blue);">${m.blueTeam}</span>`
       : `<span style="color:var(--red);">${m.redTeam}</span>`;
@@ -3195,31 +3234,48 @@ async function fetchMPLData() {
   }).join('');
 
   const more = total > 50 ? `<div style="padding:8px 0;color:var(--text3);font-size:11px;">...and ${total - 50} more games</div>` : '';
-
   document.getElementById('mplPreviewContent').innerHTML = previewRows + more;
   document.getElementById('mplImportBtn').textContent = `Import ${newCount} new${updCount ? ` + update ${updCount}` : ''}`;
   document.getElementById('mplSyncPreview').style.display = 'block';
-  _mplStatus(`Found ${total} games total — ${newCount} new, ${updCount} existing.`, 'success');
+  _mplStatus(`Found ${total} games — ${newCount} new, ${updCount} existing. Check name mapping below.`, 'success');
 }
 
 function importMPLData() {
   if (!_mplParsedMatches.length) return;
 
+  // Read name mappings from dropdowns
+  const nameMap = {};
+  document.querySelectorAll('#mplNameMapRows select[data-sheet]').forEach(sel => {
+    nameMap[sel.dataset.sheet] = sel.value;
+  });
+  // Also include unmapped teams (no dropdown = keep as-is)
+  _mplParsedMatches.forEach(m => {
+    if (!nameMap[m.blueTeam]) nameMap[m.blueTeam] = m.blueTeam;
+    if (!nameMap[m.redTeam])  nameMap[m.redTeam]  = m.redTeam;
+  });
+
   _mplParsedMatches.forEach(m => {
     const { _battleId, _isNew, ...match } = m;
+    match.blueTeam = nameMap[match.blueTeam] || match.blueTeam;
+    match.redTeam  = nameMap[match.redTeam]  || match.redTeam;
     DB_MODULE.upsertMatch(match);
   });
 
   DB_MODULE.rebuildTeams();
   DB_MODULE.save();
-  renderMatchList();
-  renderTeams();
-  setLeagueFilter('MPL PH');
   closeMPLSync();
 
   const newCount = _mplParsedMatches.filter(m => m._isNew).length;
-  toast(`✓ MPL PH synced — ${newCount} new game${newCount !== 1 ? 's' : ''} imported`);
   _mplParsedMatches = [];
+
+  // Switch to Teams view filtered to MPL PH so user sees the updated profiles
+  leagueFilter = 'MPL PH';
+  showView('teams');
+  updateSidebarCounts();
+  document.getElementById('sb-MPL PH')?.classList.add('active');
+  document.querySelectorAll('.sidebar-btn[id^="sb-"]:not(#sb-teams):not(#sb-matches):not(#sb-meta):not(#sb-MPL\\ PH)').forEach(el => el.classList.remove('active'));
+
+  toast(`✓ MPL PH synced — ${newCount} new game${newCount !== 1 ? 's' : ''} imported`);
 }
 </script>
 
