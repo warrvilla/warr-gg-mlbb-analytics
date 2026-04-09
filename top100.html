@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Top 100 Global — Warr.GG</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="warr-lib.js"></script>
+<link rel="stylesheet" href="warr-styles.css">
+<style>
+:root{
+  --bg:#07070C;--bg2:#0B0B12;--surface:#101018;--surface2:#161620;--surface3:#1E1E2A;--surface4:#272734;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.07);--border3:rgba(255,255,255,0.11);
+  --accent:#A888CC;--accent-dim:rgba(168,136,204,0.09);--accent-border:rgba(168,136,204,0.22);
+  --neon:#4CB87A;--neon-dim:rgba(76,184,122,0.09);--neon-border:rgba(76,184,122,0.22);
+  --blue:#5EA0D8;--blue-dim:rgba(94,160,216,0.09);--blue-border:rgba(94,160,216,0.22);
+  --red:#D87880;--red-dim:rgba(216,120,128,0.09);--red-border:rgba(216,120,128,0.22);
+  --gold:#C89050;--gold-dim:rgba(200,144,80,0.09);--gold-border:rgba(200,144,80,0.22);
+  --text:#F0F0F8;--text2:rgba(240,240,248,0.54);--text3:rgba(240,240,248,0.28);--text4:rgba(240,240,248,0.12);
+  --font-head:-apple-system,'SF Pro Display','Inter',sans-serif;--font-body:'Inter',sans-serif;--font-mono:'JetBrains Mono',monospace;
+  --r:12px;--shadow:0 2px 16px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:14px;}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;}
+
+.topbar{background:rgba(8,11,16,.92);backdrop-filter:blur(16px);border-bottom:.5px solid rgba(255,255,255,0.07);padding:0 20px;display:flex;align-items:center;gap:12px;height:52px;position:sticky;top:0;z-index:100;}
+.logo{font-family:var(--font-head);font-weight:800;font-size:17px;color:var(--text);display:flex;align-items:center;gap:9px;text-decoration:none;}
+.logo-mark{width:28px;height:28px;background:linear-gradient(135deg,var(--blue),#7c5df9);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;box-shadow:0 0 14px rgba(79,142,247,.4);}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:6px;}
+.tab-btn{padding:5px 13px;font-size:11px;font-weight:600;font-family:var(--font-head);letter-spacing:.3px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;border-radius:6px;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
+.tab-btn:hover{border-color:var(--border3);color:var(--text2);}
+.tab-btn.active{border-color:var(--blue-border);background:var(--accent-dim);color:var(--accent);}
+
+.page{max-width:1100px;margin:0 auto;padding:28px 20px;}
+.ph{margin-bottom:28px;}
+.ph-title{font-family:var(--font-head);font-size:22px;font-weight:700;letter-spacing:.04em;}
+.ph-title span{color:var(--gold);}
+.ph-sub{font-size:11px;color:var(--text3);margin-top:5px;font-family:var(--font-mono);letter-spacing:.1em;text-transform:uppercase;}
+
+/* Controls */
+.controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px;}
+.ctrl-group{display:flex;align-items:center;gap:6px;}
+.ctrl-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;}
+select.ctrl-sel,input.ctrl-in{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-body);font-size:12px;padding:7px 12px;outline:none;cursor:pointer;transition:border-color .15s;}
+select.ctrl-sel:focus,input.ctrl-in:focus{border-color:var(--blue);}
+.ctrl-sep{width:1px;height:20px;background:var(--border2);}
+.badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;background:var(--accent-dim);border:1px solid var(--accent-border);color:var(--accent);}
+.no-data{text-align:center;padding:60px 20px;color:var(--text3);font-size:13px;}
+
+/* Date tabs */
+.date-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;}
+.date-tab{padding:5px 12px;font-size:11px;font-weight:600;border:1px solid var(--border2);border-radius:8px;background:var(--surface2);color:var(--text3);cursor:pointer;transition:all .15s;}
+.date-tab:hover{border-color:var(--border3);color:var(--text2);}
+.date-tab.active{border-color:var(--gold-border);background:var(--gold-dim);color:var(--gold);}
+.date-tab.latest::after{content:'LATEST';font-size:7px;margin-left:5px;color:var(--neon);vertical-align:middle;}
+
+/* Hero table */
+.hero-table{width:100%;border-collapse:collapse;}
+.hero-table th{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border2);}
+.hero-table th.r{text-align:right;}
+.hero-table td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;font-size:13px;}
+.hero-table td.r{text-align:right;font-family:var(--font-mono);font-size:12px;}
+.hero-table tr:hover td{background:var(--surface2);}
+.hero-table tr.expanded td{background:var(--surface2);}
+
+.rank-num{font-family:var(--font-mono);font-size:11px;color:var(--text3);width:32px;}
+.rank-num.top3{color:var(--gold);font-weight:700;}
+.hero-name{font-weight:700;font-size:13px;}
+.hero-role{font-size:10px;color:var(--text3);margin-top:1px;}
+.usage-bar{display:flex;align-items:center;gap:8px;}
+.bar-track{flex:1;height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;min-width:80px;}
+.bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--blue),var(--accent));transition:width .4s;}
+.usage-num{font-family:var(--font-mono);font-size:11px;color:var(--text2);flex-shrink:0;}
+
+.wr-chip{display:inline-block;padding:2px 8px;border-radius:8px;font-family:var(--font-mono);font-size:11px;font-weight:700;}
+.wr-high{background:rgba(76,184,122,.15);color:var(--neon);}
+.wr-mid{background:rgba(200,144,80,.12);color:var(--gold);}
+.wr-low{background:rgba(216,120,128,.12);color:var(--red);}
+
+/* Expand row */
+.expand-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:0 4px;transition:transform .15s;}
+.expand-btn.open{transform:rotate(90deg);}
+.player-list{display:none;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:10px;margin:4px 0;}
+.player-list.open{display:block;}
+.player-row{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.player-row:last-child{border-bottom:none;}
+.player-rank{font-family:var(--font-mono);font-size:10px;color:var(--text3);width:28px;flex-shrink:0;}
+.player-name{flex:1;font-weight:600;}
+.player-wr{font-family:var(--font-mono);font-size:11px;}
+.player-games{font-family:var(--font-mono);font-size:10px;color:var(--text3);}
+
+/* Stats cards */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:24px;}
+.stat-card{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);padding:16px;}
+.stat-val{font-family:var(--font-head);font-size:22px;font-weight:700;color:var(--text);}
+.stat-lbl{font-size:10px;color:var(--text3);margin-top:3px;text-transform:uppercase;letter-spacing:1px;}
+.stat-sub{font-size:11px;color:var(--text2);margin-top:2px;}
+
+/* Loading */
+.loading{text-align:center;padding:60px;color:var(--text3);}
+.spin{display:inline-block;width:24px;height:24px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:12px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="index.html" class="logo"><div class="logo-mark">W</div>Warr.GG</a>
+  <div class="topbar-right">
+    <a href="draft_board.html" class="tab-btn">Draft</a>
+    <a href="scout.html" class="tab-btn">Scout</a>
+    <a href="ai_battle.html" class="tab-btn">AI Battle</a>
+    <a href="top100.html" class="tab-btn active">Top 100</a>
+    <a href="stats.html" class="tab-btn">Stats</a>
+  </div>
+</div>
+
+<div class="page">
+  <div class="ph">
+    <div class="ph-title">Top 100 <span>Global</span></div>
+    <div class="ph-sub" id="snapshotInfo">Loading latest snapshot...</div>
+  </div>
+
+  <!-- Stats summary -->
+  <div class="stats-row" id="statsRow"></div>
+
+  <!-- Date picker -->
+  <div class="date-tabs" id="dateTabs"></div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">Role</span>
+      <select class="ctrl-sel" id="roleFilter">
+        <option value="">All Roles</option>
+        <option>Assassin</option><option>Fighter</option><option>Marksman</option>
+        <option>Mage</option><option>Support</option><option>Tank</option>
+      </select>
+    </div>
+    <div class="ctrl-sep"></div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Sort</span>
+      <select class="ctrl-sel" id="sortBy">
+        <option value="users">Most Used</option>
+        <option value="wr">Highest WR</option>
+        <option value="games">Most Games</option>
+        <option value="name">Hero Name</option>
+      </select>
+    </div>
+    <div class="ctrl-sep"></div>
+    <div class="ctrl-group">
+      <input class="ctrl-in" id="searchIn" placeholder="Search hero..." style="width:140px;">
+    </div>
+    <span class="badge" id="countBadge">— heroes</span>
+  </div>
+
+  <!-- Table -->
+  <div id="tableWrap">
+    <div class="loading"><div class="spin"></div><br>Loading top 100 data...</div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let snapshots = [];   // [{id, scraped_at, total_players, heroes}]
+let activeDate = null;
+let heroRoles = {};
+
+// Build role map from HEROES if warr-lib loaded
+if(typeof HEROES !== 'undefined'){
+  HEROES.forEach(h=>{ heroRoles[h.name]=h.role||''; });
+}
+
+// ── Load snapshots ────────────────────────────────────────────────────────────
+async function loadSnapshots(){
+  const {data,error} = await sb
+    .from('top100_snapshots')
+    .select('id,scraped_at,total_players,heroes')
+    .order('scraped_at',{ascending:false})
+    .limit(60); // last 2 months
+
+  if(error||!data?.length){
+    document.getElementById('tableWrap').innerHTML =
+      `<div class="no-data">No snapshots yet.<br><span style="font-size:11px;color:var(--text4)">Run the scraper on Windows to populate this page.</span></div>`;
+    document.getElementById('snapshotInfo').textContent='No data available';
+    return;
+  }
+
+  snapshots=data;
+  buildDateTabs();
+  selectDate(snapshots[0].scraped_at);
+}
+
+// ── Date tabs ─────────────────────────────────────────────────────────────────
+function buildDateTabs(){
+  const tabs=document.getElementById('dateTabs');
+  tabs.innerHTML='';
+  snapshots.forEach((s,i)=>{
+    const d=new Date(s.scraped_at+'T00:00:00');
+    const label=d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const btn=document.createElement('button');
+    btn.className='date-tab'+(i===0?' latest':'');
+    btn.textContent=label;
+    btn.dataset.date=s.scraped_at;
+    btn.onclick=()=>selectDate(s.scraped_at);
+    tabs.appendChild(btn);
+  });
+}
+
+function selectDate(date){
+  activeDate=date;
+  document.querySelectorAll('.date-tab').forEach(b=>{
+    b.classList.toggle('active',b.dataset.date===date);
+  });
+  const snap=snapshots.find(s=>s.scraped_at===date);
+  if(snap) renderSnapshot(snap);
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderSnapshot(snap){
+  const d=new Date(snap.scraped_at+'T00:00:00');
+  const dateStr=d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  document.getElementById('snapshotInfo').textContent=
+    `Snapshot from ${dateStr} · ${snap.total_players||'?'} players scanned`;
+
+  // Stats cards
+  const heroes=snap.heroes||[];
+  const topHero=heroes[0];
+  const topWR=[...heroes].filter(h=>h.avg_win_rate&&h.top100_users>=2).sort((a,b)=>b.avg_win_rate-a.avg_win_rate)[0];
+  document.getElementById('statsRow').innerHTML=`
+    <div class="stat-card">
+      <div class="stat-val">${snap.total_players||'—'}</div>
+      <div class="stat-lbl">Players Scanned</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">${heroes.length}</div>
+      <div class="stat-lbl">Distinct Heroes</div>
+      <div class="stat-sub">Used in top 100</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">${topHero?topHero.hero:'—'}</div>
+      <div class="stat-lbl">Most Popular</div>
+      <div class="stat-sub">${topHero?`${topHero.top100_users} players`:''}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">${topWR?Math.round(topWR.avg_win_rate*1000)/10+'%':'—'}</div>
+      <div class="stat-lbl">Highest Avg WR</div>
+      <div class="stat-sub">${topWR?topWR.hero:''}</div>
+    </div>
+  `;
+
+  renderTable(heroes);
+}
+
+function getFiltered(heroes){
+  const role=document.getElementById('roleFilter').value;
+  const sort=document.getElementById('sortBy').value;
+  const q=document.getElementById('searchIn').value.trim().toLowerCase();
+
+  let list=[...heroes];
+  if(role) list=list.filter(h=>(heroRoles[h.hero]||'')===role);
+  if(q)    list=list.filter(h=>h.hero.toLowerCase().includes(q));
+
+  list.sort((a,b)=>{
+    if(sort==='wr')   return (b.avg_win_rate||0)-(a.avg_win_rate||0);
+    if(sort==='games')return (b.avg_games||0)-(a.avg_games||0);
+    if(sort==='name') return a.hero.localeCompare(b.hero);
+    return b.top100_users-a.top100_users;
+  });
+  return list;
+}
+
+function renderTable(allHeroes){
+  const list=getFiltered(allHeroes);
+  const maxUsers=allHeroes[0]?.top100_users||1;
+
+  document.getElementById('countBadge').textContent=`${list.length} hero${list.length!==1?'s':''}`;
+
+  if(!list.length){
+    document.getElementById('tableWrap').innerHTML='<div class="no-data">No heroes match your filters.</div>';
+    return;
+  }
+
+  const rows=list.map((h,i)=>{
+    const rank=i+1;
+    const rankCls=rank<=3?'top3':'';
+    const wr=h.avg_win_rate!=null?h.avg_win_rate:null;
+    const wrPct=wr!=null?Math.round(wr*1000)/10:null;
+    const wrChip=wr==null?'—':wr>=0.65?`<span class="wr-chip wr-high">${wrPct}%</span>`
+      :wr>=0.55?`<span class="wr-chip wr-mid">${wrPct}%</span>`
+      :`<span class="wr-chip wr-low">${wrPct}%</span>`;
+    const barW=Math.round(h.top100_users/maxUsers*100);
+    const role=heroRoles[h.hero]||'';
+    const players=h.players||[];
+    const playerId=`pl_${i}`;
+    return `
+      <tr>
+        <td><span class="rank-num ${rankCls}">${rank}</span></td>
+        <td>
+          <div class="hero-name">${h.hero}</div>
+          ${role?`<div class="hero-role">${role}</div>`:''}
+        </td>
+        <td>
+          <div class="usage-bar">
+            <div class="bar-track"><div class="bar-fill" style="width:${barW}%"></div></div>
+            <span class="usage-num">${h.top100_users} <span style="color:var(--text4)">/ 100</span></span>
+          </div>
+        </td>
+        <td class="r">${wrChip}</td>
+        <td class="r">${h.avg_games!=null?h.avg_games.toLocaleString():'—'}</td>
+        <td>
+          ${players.length?`<button class="expand-btn" onclick="togglePlayers(this,'${playerId}')">▶</button>`:''}
+        </td>
+      </tr>
+      <tr id="row_${playerId}" style="display:none">
+        <td colspan="6" style="padding:4px 12px 10px 44px">
+          <div class="player-list open" id="${playerId}">
+            ${players.map(p=>`
+              <div class="player-row">
+                <span class="player-rank">#${p.rank||'?'}</span>
+                <span class="player-name">${p.name||'Unknown'}</span>
+                <span class="player-wr ${p.wr>=0.65?'wr-high':p.wr>=0.55?'wr-mid':'wr-low'}">${p.wr!=null?Math.round(p.wr*1000)/10+'%':'—'}</span>
+                <span class="player-games">${p.games!=null?p.games.toLocaleString()+' games':''}</span>
+              </div>
+            `).join('')}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  document.getElementById('tableWrap').innerHTML=`
+    <table class="hero-table">
+      <thead>
+        <tr>
+          <th style="width:40px">#</th>
+          <th>Hero</th>
+          <th>Usage in Top 100</th>
+          <th class="r">Avg WR</th>
+          <th class="r">Avg Games</th>
+          <th style="width:36px"></th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function togglePlayers(btn, id){
+  const row=document.getElementById('row_'+id);
+  const open=row.style.display!=='none';
+  row.style.display=open?'none':'';
+  btn.classList.toggle('open',!open);
+}
+
+// ── Event listeners ───────────────────────────────────────────────────────────
+['roleFilter','sortBy'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',()=>{
+    const snap=snapshots.find(s=>s.scraped_at===activeDate);
+    if(snap) renderTable(snap.heroes||[]);
+  });
+});
+document.getElementById('searchIn').addEventListener('input',()=>{
+  const snap=snapshots.find(s=>s.scraped_at===activeDate);
+  if(snap) renderTable(snap.heroes||[]);
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadSnapshots();
+</script>
+</body>
+</html>

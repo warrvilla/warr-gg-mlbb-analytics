@@ -2,54 +2,50 @@
 """
 MLBB Top 100 Global Scraper — warr.gg
 ======================================
-Opens BlueStacks, reads the MLBB Global Leaderboard using Claude Vision,
-navigates pages automatically, and outputs top100_meta.json.
+Fully automated daily pipeline:
+  1. Launches / focuses BlueStacks
+  2. Navigates inside MLBB to Global Leaderboard using Claude Vision
+  3. Reads every page, extracts player + hero + WR data
+  4. Uploads a dated snapshot to Supabase
+  5. Previous snapshots are kept — browse by date on warr.gg
 
-Usage:
-  1. pip install -r requirements.txt
-  2. Set ANTHROPIC_API_KEY in your environment (or enter it when prompted)
-  3. Open BlueStacks → MLBB → Leaderboard → Global Top 100 (first page visible)
-  4. python scraper.py
+Setup:
+  pip install -r requirements.txt
+  Set env vars ANTHROPIC_API_KEY, SUPABASE_URL, SUPABASE_SERVICE_KEY
+  Run once manually, then schedule with task_scheduler.bat
 """
 
-import os
-import sys
-import json
-import time
-import base64
-import io
-import re
+import os, sys, json, time, base64, io, re, subprocess, datetime
 import pyautogui
 import pygetwindow as gw
 from PIL import ImageGrab, Image
 import anthropic
+import urllib.request, urllib.error
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
-OUTPUT_FILE     = "top100_meta.json"
-MAX_PAGES       = 25       # safety cap — stops after this many pages
-PAGE_DELAY      = 2.5      # seconds to wait after clicking next page
-CLICK_DELAY     = 0.4      # seconds after window focus before screenshot
-MAX_EMPTY_PAGES = 3        # stop after this many consecutive pages with no data
+ANTHROPIC_API_KEY    = os.environ.get("ANTHROPIC_API_KEY", "YOUR_ANTHROPIC_KEY")
+SUPABASE_URL         = os.environ.get("SUPABASE_URL",      "YOUR_SUPABASE_URL")
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "YOUR_SERVICE_ROLE_KEY")
 
-# BlueStacks window title variants (tries each in order)
+OUTPUT_FILE       = "top100_meta.json"   # local backup always saved
+MAX_PAGES         = 25
+PAGE_DELAY        = 2.5
+CLICK_DELAY       = 0.5
+MAX_EMPTY_PAGES   = 3
+NAV_MAX_STEPS     = 8    # max Claude-guided taps to reach leaderboard
+BLUESTACKS_EXE    = r"C:\Program Files\BlueStacks_nxt\HD-Player.exe"  # adjust if needed
+
 BLUESTACKS_TITLES = [
     "BlueStacks App Player",
-    "BlueStacks",
     "BlueStacks 5",
+    "BlueStacks",
     "HD-Player",
 ]
 
-# ── INIT ──────────────────────────────────────────────────────────────────────
-api_key = os.environ.get("ANTHROPIC_API_KEY")
-if not api_key:
-    api_key = input("Anthropic API key: ").strip()
-    if not api_key:
-        print("ERROR: API key required.")
-        sys.exit(1)
+# ── CLIENTS ───────────────────────────────────────────────────────────────────
+client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
-client = anthropic.Anthropic(api_key=api_key)
-
-# ── WINDOW HELPERS ────────────────────────────────────────────────────────────
+# ── WINDOW ────────────────────────────────────────────────────────────────────
 def find_bluestacks():
     for title in BLUESTACKS_TITLES:
         wins = gw.getWindowsWithTitle(title)
@@ -57,8 +53,37 @@ def find_bluestacks():
             return wins[0]
     return None
 
+def launch_bluestacks():
+    print("  Launching BlueStacks...")
+    paths = [
+        BLUESTACKS_EXE,
+        r"C:\Program Files (x86)\BlueStacks_nxt\HD-Player.exe",
+        r"C:\Program Files\BlueStacks\BlueStacks.exe",
+    ]
+    for path in paths:
+        if os.path.exists(path):
+            subprocess.Popen([path])
+            break
+    else:
+        print("  WARNING: BlueStacks not found at default paths.")
+        print("  Edit BLUESTACKS_EXE in scraper.py to point to your install.")
+        return False
+    print("  Waiting for BlueStacks to load (30s)...")
+    for _ in range(30):
+        time.sleep(1)
+        if find_bluestacks():
+            return True
+    return False
+
+def get_window():
+    win = find_bluestacks()
+    if not win:
+        if not launch_bluestacks():
+            return None
+        win = find_bluestacks()
+    return win
+
 def activate_and_screenshot(win):
-    """Bring window to front and capture it. Returns (PIL Image, (x, y, w, h))."""
     try:
         win.activate()
     except Exception:
@@ -68,99 +93,134 @@ def activate_and_screenshot(win):
     img = ImageGrab.grab(bbox=(x, y, x + w, y + h))
     return img, (x, y, w, h)
 
-# ── VISION HELPERS ────────────────────────────────────────────────────────────
-def to_base64(img: Image.Image) -> str:
+# ── VISION ────────────────────────────────────────────────────────────────────
+def to_b64(img):
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return base64.standard_b64encode(buf.getvalue()).decode()
 
-def ask_claude(img: Image.Image, prompt: str, model="claude-opus-4-6", max_tokens=2048) -> str:
-    response = client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        messages=[{
-            "role": "user",
-            "content": [
-                {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "image/png",
-                        "data": to_base64(img),
-                    },
-                },
-                {"type": "text", "text": prompt},
-            ],
-        }],
+def ask_claude(img, prompt, model="claude-opus-4-6", max_tokens=2048):
+    r = client.messages.create(
+        model=model, max_tokens=max_tokens,
+        messages=[{"role":"user","content":[
+            {"type":"image","source":{"type":"base64","media_type":"image/png","data":to_b64(img)}},
+            {"type":"text","text":prompt}
+        ]}]
     )
-    return response.content[0].text.strip()
+    return r.content[0].text.strip()
 
-def parse_json_response(text: str):
-    """Extract JSON from Claude's response even if wrapped in markdown."""
-    # Strip markdown code fences
-    text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.MULTILINE)
-    text = re.sub(r"```\s*$", "", text, flags=re.MULTILINE)
+def parse_json(text):
+    text = re.sub(r"^```(?:json)?\s*","",text,flags=re.MULTILINE)
+    text = re.sub(r"```\s*$","",text,flags=re.MULTILINE)
     return json.loads(text.strip())
+
+# ── AUTO-NAVIGATION ───────────────────────────────────────────────────────────
+NAV_PROMPT = """
+You are helping navigate to the Mobile Legends Global Leaderboard screen.
+
+Look at this screenshot and tell me:
+1. What screen is currently showing?
+2. What single button/element should I tap to get closer to: Leaderboard → Global Rankings (top 100 players with hero + win rate)
+
+Return ONLY JSON:
+{
+  "screen": "<brief description of current screen>",
+  "on_leaderboard": <true if already showing top 100 player rows with hero + WR>,
+  "tap": {"x": <x pixel in image>, "y": <y pixel in image>},
+  "tap_label": "<what you're tapping>"
+}
+
+If already on the leaderboard set "on_leaderboard": true and any values for tap.
+If stuck or unclear set "tap": null.
+""".strip()
+
+def navigate_to_leaderboard(win):
+    """Use Claude Vision to tap through MLBB UI to the Global Leaderboard."""
+    print("  Navigating to Global Leaderboard via Claude Vision...")
+    for step in range(1, NAV_MAX_STEPS + 1):
+        img, bounds = activate_and_screenshot(win)
+        try:
+            raw = ask_claude(img, NAV_PROMPT, model="claude-opus-4-6", max_tokens=300)
+            nav = parse_json(raw)
+        except Exception as e:
+            print(f"    Step {step}: nav error ({e}) — retrying")
+            time.sleep(2)
+            continue
+
+        screen   = nav.get("screen","?")
+        on_board = nav.get("on_leaderboard", False)
+        tap      = nav.get("tap")
+        label    = nav.get("tap_label","?")
+
+        if on_board:
+            print(f"    Step {step}: ✓ On leaderboard — starting extraction")
+            return True
+
+        if not tap:
+            print(f"    Step {step}: stuck on '{screen}' — cannot find path")
+            return False
+
+        win_x, win_y = bounds[0], bounds[1]
+        abs_x = win_x + tap["x"]
+        abs_y = win_y + tap["y"]
+        print(f"    Step {step}: '{screen}' → tapping '{label}' at ({tap['x']},{tap['y']})")
+        pyautogui.click(abs_x, abs_y)
+        time.sleep(2.5)
+
+    print("  Could not reach leaderboard after max steps.")
+    return False
 
 # ── EXTRACTION ────────────────────────────────────────────────────────────────
 EXTRACT_PROMPT = """
 This is a Mobile Legends Bang Bang Global Leaderboard screenshot.
 
-Extract every visible player row as a JSON array. Each object must have:
+Extract every visible player row as a JSON array. Each object:
 {
-  "rank":     <global rank integer, e.g. 1>,
+  "rank":     <global rank integer>,
   "player":   <player IGN string>,
-  "hero":     <hero name string exactly as shown>,
-  "win_rate": <win rate as a decimal float, e.g. 0.657 for 65.7%>,
+  "hero":     <hero name exactly as shown>,
+  "win_rate": <win rate as decimal float, e.g. 0.657 for 65.7%>,
   "games":    <total games played integer>
 }
 
 Rules:
-- If win rate is shown as "65.7%" return 0.657
-- If a field is not visible return null for that field
-- Return ONLY a valid JSON array — no explanation, no markdown
+- win rate "65.7%" → 0.657
+- missing field → null
+- Return ONLY a valid JSON array, no explanation
 
-If no leaderboard data is visible at all return: []
+If no leaderboard rows visible: []
 """.strip()
 
-def extract_entries(img: Image.Image) -> list:
+NEXT_BTN_PROMPT = """
+Find the next-page or right-arrow button in this MLBB leaderboard.
+Return ONLY JSON (no markdown):
+{"found": true, "x": <x pixel>, "y": <y pixel>}
+If none: {"found": false}
+Coordinates relative to the image.
+""".strip()
+
+def extract_entries(img):
     try:
         raw = ask_claude(img, EXTRACT_PROMPT, model="claude-opus-4-6")
-        data = parse_json_response(raw)
+        data = parse_json(raw)
         if isinstance(data, list):
             return data
     except Exception as e:
         print(f"    [extract error: {e}]")
     return []
 
-# ── NAVIGATION ────────────────────────────────────────────────────────────────
-NAV_PROMPT = """
-Find the NEXT PAGE button or right-arrow navigation button in this MLBB leaderboard.
-
-Return ONLY JSON (no markdown):
-{"found": true, "x": <x pixel in image>, "y": <y pixel in image>}
-
-If there is no next-page button (last page or not a leaderboard screen):
-{"found": false}
-
-Coordinates must be relative to the image, not the screen.
-""".strip()
-
-def find_next_button(img: Image.Image) -> dict:
+def find_next_button(img):
     try:
-        raw = ask_claude(img, NAV_PROMPT, model="claude-haiku-4-5-20251001", max_tokens=100)
-        return parse_json_response(raw)
+        raw = ask_claude(img, NEXT_BTN_PROMPT, model="claude-haiku-4-5-20251001", max_tokens=80)
+        return parse_json(raw)
     except Exception:
         return {"found": False}
 
-def click_relative(bounds: tuple, rx: int, ry: int):
-    """Click at image-relative (rx, ry) translated to absolute screen coords."""
-    win_x, win_y, _, _ = bounds
-    pyautogui.click(win_x + rx, win_y + ry)
+def click_at(bounds, rx, ry):
+    pyautogui.click(bounds[0] + rx, bounds[1] + ry)
 
 # ── AGGREGATION ───────────────────────────────────────────────────────────────
-def aggregate(entries: list) -> list:
-    """Roll up raw player entries into per-hero stats."""
+def aggregate(entries):
     stats = {}
     for e in entries:
         hero = (e.get("hero") or "").strip()
@@ -169,63 +229,105 @@ def aggregate(entries: list) -> list:
         if hero not in stats:
             stats[hero] = {"hero": hero, "players": []}
         stats[hero]["players"].append({
-            "rank":   e.get("rank"),
-            "name":   e.get("player"),
-            "wr":     e.get("win_rate"),
-            "games":  e.get("games"),
+            "rank":  e.get("rank"),
+            "name":  e.get("player"),
+            "wr":    e.get("win_rate"),
+            "games": e.get("games"),
         })
-
     result = []
     for hero, d in stats.items():
         players = d["players"]
         wrs   = [p["wr"]    for p in players if p["wr"]    is not None]
         games = [p["games"] for p in players if p["games"] is not None]
         result.append({
-            "hero":          hero,
-            "top100_users":  len(players),
-            "avg_win_rate":  round(sum(wrs)   / len(wrs),   4) if wrs   else None,
-            "avg_games":     round(sum(games) / len(games))    if games else None,
-            "players":       sorted(players, key=lambda p: p["rank"] or 9999),
+            "hero":         hero,
+            "top100_users": len(players),
+            "avg_win_rate": round(sum(wrs)/len(wrs), 4)   if wrs   else None,
+            "avg_games":    round(sum(games)/len(games))   if games else None,
+            "players":      sorted(players, key=lambda p: p["rank"] or 9999),
         })
-
     return sorted(result, key=lambda h: h["top100_users"], reverse=True)
+
+# ── SUPABASE UPLOAD ───────────────────────────────────────────────────────────
+def upload_to_supabase(heroes, raw_entries):
+    today = datetime.date.today().isoformat()  # e.g. "2026-04-09"
+    payload = json.dumps({
+        "scraped_at":    today,
+        "total_players": len(raw_entries),
+        "heroes":        heroes,
+        "raw":           raw_entries,
+    }).encode("utf-8")
+
+    url = f"{SUPABASE_URL.rstrip('/')}/rest/v1/top100_snapshots"
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        method="POST",
+        headers={
+            "apikey":        SUPABASE_SERVICE_KEY,
+            "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+            "Content-Type":  "application/json",
+            "Prefer":        "resolution=merge-duplicates",  # upsert by scraped_at
+        }
+    )
+    try:
+        with urllib.request.urlopen(req) as resp:
+            print(f"  ✓ Uploaded to Supabase (date: {today}, status: {resp.status})")
+            return True
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        print(f"  ✗ Supabase upload failed: {e.code} — {body}")
+        return False
+    except Exception as e:
+        print(f"  ✗ Supabase upload error: {e}")
+        return False
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
 def main():
     print()
     print("╔══════════════════════════════════════════╗")
     print("║   MLBB Top 100 Scraper — warr.gg         ║")
+    print(f"║   {datetime.datetime.now().strftime('%Y-%m-%d  %H:%M:%S')}                    ║")
     print("╚══════════════════════════════════════════╝")
     print()
-    print("Before you continue:")
-    print("  1. BlueStacks is open and visible")
-    print("  2. Mobile Legends is running")
-    print("  3. You are on: Leaderboard → Global → Top 100 (Page 1)")
-    print()
-    input("Press Enter when ready → ")
-    print()
 
-    win = find_bluestacks()
-    if not win:
-        print("ERROR: BlueStacks window not found.")
-        print("Make sure BlueStacks is running (not minimized).")
+    # Validate config
+    missing = [k for k,v in [
+        ("ANTHROPIC_API_KEY",    ANTHROPIC_API_KEY),
+        ("SUPABASE_URL",         SUPABASE_URL),
+        ("SUPABASE_SERVICE_KEY", SUPABASE_SERVICE_KEY),
+    ] if v.startswith("YOUR_")]
+    if missing:
+        print(f"ERROR: Missing config: {', '.join(missing)}")
+        print("Set them as environment variables or edit scraper.py directly.")
         sys.exit(1)
 
-    print(f"✓ BlueStacks found: \"{win.title}\" ({win.width}×{win.height})")
-    print()
+    # Get / launch BlueStacks
+    print("[ 1/4 ] Finding BlueStacks...")
+    win = get_window()
+    if not win:
+        print("ERROR: Could not open BlueStacks.")
+        sys.exit(1)
+    print(f"  ✓ Window: \"{win.title}\" ({win.width}×{win.height})")
 
-    all_entries   = []
-    seen_ranks    = set()
-    empty_streak  = 0
-    page          = 1
+    # Navigate to leaderboard
+    print()
+    print("[ 2/4 ] Navigating to Global Leaderboard...")
+    if not navigate_to_leaderboard(win):
+        print("ERROR: Could not navigate to leaderboard automatically.")
+        print("Please open the leaderboard manually and re-run.")
+        sys.exit(1)
+
+    # Scrape pages
+    print()
+    print("[ 3/4 ] Scraping pages...")
+    all_entries, seen_ranks, empty_streak, page = [], set(), 0, 1
 
     while page <= MAX_PAGES:
-        print(f"  Page {page:02d} — capturing... ", end="", flush=True)
-
+        print(f"  Page {page:02d} — ", end="", flush=True)
         img, bounds = activate_and_screenshot(win)
         entries = extract_entries(img)
 
-        # Deduplicate by rank
         new = []
         for e in entries:
             r = e.get("rank")
@@ -234,60 +336,58 @@ def main():
                     seen_ranks.add(r)
                     new.append(e)
             else:
-                new.append(e)   # no rank field — keep anyway
+                new.append(e)
 
         if new:
             all_entries.extend(new)
             print(f"✓ {len(new)} players  (total: {len(all_entries)})")
             empty_streak = 0
         else:
-            print("— no data")
+            print("no data")
             empty_streak += 1
             if empty_streak >= MAX_EMPTY_PAGES:
-                print()
-                print(f"  Stopped: {MAX_EMPTY_PAGES} consecutive empty pages.")
+                print(f"  Stopped: {MAX_EMPTY_PAGES} empty pages in a row.")
                 break
 
-        # Navigate to next page
         nav = find_next_button(img)
         if not nav.get("found"):
-            print()
-            print("  No more pages — done!")
+            print("  ✓ Last page reached.")
             break
 
-        click_relative(bounds, nav["x"], nav["y"])
+        click_at(bounds, nav["x"], nav["y"])
         time.sleep(PAGE_DELAY)
         page += 1
 
-    # ── Output ────────────────────────────────────────────────────────────────
-    print()
-    print(f"Scanned {len(all_entries)} unique player entries across {page} page(s).")
-    print("Aggregating hero stats... ", end="", flush=True)
+    print(f"\n  Total: {len(all_entries)} unique players across {page} page(s)")
 
-    hero_stats = aggregate(all_entries)
-    print(f"✓  {len(hero_stats)} distinct heroes")
+    # Aggregate + upload
     print()
+    print("[ 4/4 ] Aggregating and uploading...")
+    heroes = aggregate(all_entries)
 
     output = {
-        "generated_at":         time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "generated_at":          datetime.datetime.now().isoformat(),
         "total_players_scanned": len(all_entries),
-        "heroes":               hero_stats,
-        "raw":                  all_entries,
+        "heroes":                heroes,
+        "raw":                   all_entries,
     }
-
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
+    print(f"  ✓ Local backup saved → {OUTPUT_FILE}")
 
-    print(f"✅  Saved → {OUTPUT_FILE}")
+    upload_to_supabase(heroes, all_entries)
+
+    # Summary
     print()
-    print("Top 10 heroes by usage in top 100 global:")
+    print("Top 10 heroes in today's top 100:")
     print(f"  {'Hero':<18} {'Players':>7}   {'Avg WR':>7}   {'Avg Games':>10}")
     print(f"  {'─'*18}   {'─'*7}   {'─'*7}   {'─'*10}")
-    for h in hero_stats[:10]:
-        wr   = f"{h['avg_win_rate']*100:.1f}%" if h['avg_win_rate'] is not None else "  —"
-        gms  = str(h['avg_games'])              if h['avg_games']   is not None else "—"
+    for h in heroes[:10]:
+        wr  = f"{h['avg_win_rate']*100:.1f}%" if h["avg_win_rate"] is not None else "—"
+        gms = str(h["avg_games"])             if h["avg_games"]    is not None else "—"
         print(f"  {h['hero']:<18} {h['top100_users']:>7}   {wr:>7}   {gms:>10}")
     print()
+    print("Done.")
 
 if __name__ == "__main__":
     main()
