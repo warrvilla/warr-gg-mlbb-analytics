@@ -2087,10 +2087,11 @@ function localAI(step){
   // Current draft phase for picks: early (myP.length<=2) vs late (myP.length>=3)
   const pickPhase=myP.length<=2?1:2;
 
-  // Precompute scout synergy combos + league-wide pick frequency in one pass
+  // Precompute scout synergy combos + league-wide pick/ban frequency in one pass
   const scoutCombosAI={};
-  // leaguePickFreq[hero] = appearances / (totalMatches × 2 sides) → comparable to epPickFreq (per-side rate)
+  // leaguePickFreq / leagueBanFreq: appearances / (totalMatches × 2 sides) → 0..1 rate per side-slot
   const leaguePickFreq={};
+  const leagueBanFreq={};
   try{
     const _sdb=loadScoutAB();
     const _sdbM=_sdb.matches||[];
@@ -2108,9 +2109,16 @@ function localAI(step){
         // League pick frequency — count per side-slot
         names.forEach(n=>{leaguePickFreq[n]=(leaguePickFreq[n]||0)+1;});
       });
+      // League ban frequency — count per side-slot
+      [[mx.blueBans||[],'blue'],[mx.redBans||[],'red']].forEach(([bans])=>{
+        bans.forEach(b=>{const n=typeof b==='string'?b:(b?.name||b);if(n)leagueBanFreq[n]=(leagueBanFreq[n]||0)+1;});
+      });
     });
-    // Normalize: appearances / total-side-slots → rate 0..1 (1.0 = picked every match both sides)
-    if(_leagueTotal>0)Object.keys(leaguePickFreq).forEach(n=>{leaguePickFreq[n]/=_leagueTotal;});
+    // Normalize both: appearances / total-side-slots
+    if(_leagueTotal>0){
+      Object.keys(leaguePickFreq).forEach(n=>{leaguePickFreq[n]/=_leagueTotal;});
+      Object.keys(leagueBanFreq).forEach(n=>{leagueBanFreq[n]/=_leagueTotal;});
+    }
   }catch(e){}
 
   if(step.type==='ban'){
@@ -2129,15 +2137,27 @@ function localAI(step){
 
       // ── ENEMY TEAM MODE: scout ban patterns drive everything ──
       if(ep){
+        const epSideCount=epSideKey==='blue'?(ep.blueSideCount||0):(ep.redSideCount||0);
+        const thinBanData=epSideCount<4; // fewer than 4 side-games — not enough to trust ban patterns
+        const epHasPhasedBans=epBanPhase1.length>0||epBanPhase2.length>0;
         const inP1=epBanPhase1.includes(h.name);
         const inP2=epBanPhase2.includes(h.name);
         const inAny=epBans.includes(h.name);
-        // Score is anchored to scout ban frequency, tier is minor tiebreaker
-        const banFreqScore=inP1&&!isPhase2Ban?500   // phase 1 ban, in phase 1 → highest priority
-          :inP2&&isPhase2Ban?480                     // phase 2 ban, in phase 2 → high priority
-          :inP1&&isPhase2Ban?100                     // phase 1 ban but already in phase 2, lower
-          :inAny?80                                  // in top bans but no phase data
-          :0;
+        // Thick data + hero never appears in any ban list → team simply doesn't ban this hero
+        if(!thinBanData&&epHasPhasedBans&&!inP1&&!inP2&&!inAny&&!isMustBan)return null;
+        let banFreqScore;
+        if(thinBanData&&!epHasPhasedBans){
+          // Not enough data to trust team ban patterns — use league ban frequency as fallback
+          const leagueBanF=leagueBanFreq[h.name]??0;
+          banFreqScore=leagueBanF*300;
+        }else{
+          banFreqScore=inP1&&!isPhase2Ban?500   // phase 1 ban, in phase 1 → highest priority
+            :inP2&&isPhase2Ban?480              // phase 2 ban, in phase 2 → high priority
+            :inP1&&isPhase2Ban?100              // phase 1 ban spilling into phase 2
+            :inAny&&!isPhase2Ban?60             // only in topBans (no phase confirmation) — conservative in P1
+            :inAny?80                           // topBans hero in phase 2 — situational ban
+            :0;
+        }
         // Lane enforcement still applies (never waste a ban on a filled lane)
         const laneFilledByOpp=ln!=='Flex'&&!oppNeeded.includes(ln);
         const aiLaneCovered=ln!=='Flex'&&!myNeeded.includes(ln)&&!laneFilledByOpp;
