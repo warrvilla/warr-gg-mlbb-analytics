@@ -1362,7 +1362,38 @@ function buildEnemyProfileCache(name){
         phase2:Object.entries(p2).filter(([,c])=>c>=thr).sort((a,b)=>b[1]-a[1]).map(([n])=>n),
       };
     }
+    // Pick frequency per hero — rate of appearance in matches (0..1)
+    function pickFrequency(sideMatches,isBlue){
+      if(!sideMatches.length)return{};
+      const freq={};
+      sideMatches.forEach(m=>{
+        ((isBlue?m.bluePicks:m.redPicks)||[]).forEach(p=>{
+          const n=p.name||p;if(n)freq[n]=(freq[n]||0)+1;
+        });
+      });
+      const out={};
+      Object.entries(freq).forEach(([n,c])=>out[n]=c/sideMatches.length);
+      return out;
+    }
+    // Phase-specific bans: positions 0-2 = phase 1, positions 3-4 = phase 2
+    function phasedBans(sideMatches,isBlue){
+      const p1={},p2={};
+      const thr=Math.max(1,Math.ceil(sideMatches.length*0.3));
+      sideMatches.forEach(m=>{
+        const bans=(isBlue?m.blueBans:m.redBans)||[];
+        bans.forEach((b,idx)=>{
+          const n=typeof b==='string'?b:(b?.name||b);if(!n)return;
+          if(idx<=2){p1[n]=(p1[n]||0)+1;}else{p2[n]=(p2[n]||0)+1;}
+        });
+      });
+      return{
+        phase1:Object.entries(p1).filter(([,c])=>c>=thr).sort((a,b)=>b[1]-a[1]).map(([n])=>n),
+        phase2:Object.entries(p2).filter(([,c])=>c>=thr).sort((a,b)=>b[1]-a[1]).map(([n])=>n),
+        freq:Object.fromEntries([...Object.entries(p1),...Object.entries(p2)].reduce((m,[n,c])=>{m.set(n,(m.get(n)||0)+c);return m;},new Map())),
+      };
+    }
     const bPhased=phasedCore(bm,true),rPhased=phasedCore(rm,false);
+    const bBans=phasedBans(bm,true),rBans=phasedBans(rm,false);
     enemyProfile={
       name,t,matches,blueWR:bwr,redWR:rwr,
       topPicks:(t.topPicks||[]).map(p=>p.name),
@@ -1376,6 +1407,12 @@ function buildEnemyProfileCache(name){
       redPhase1:rPhased.phase1,  redPhase2:rPhased.phase2,
       bluePickPos:teamPickPositions(bm,true),
       redPickPos:teamPickPositions(rm,false),
+      // Pick frequency: rate each hero actually appears in this team's picks
+      bluePickFreq:pickFrequency(bm,true),
+      redPickFreq:pickFrequency(rm,false),
+      // Phase-specific ban patterns
+      blueBanPhase1:bBans.phase1, blueBanPhase2:bBans.phase2,
+      redBanPhase1:rBans.phase1,  redBanPhase2:rBans.phase2,
     };
   }catch(e){enemyProfile=null;}
 }
@@ -2024,9 +2061,15 @@ function localAI(step){
 
   // Enemy profile identity (team selected by user)
   const ep=(aiMode==='enemy'&&enemyProfile)?enemyProfile:null;
-  const epCore=ep?[...new Set([...(epSide==='blue'?ep.blueSideCore||[]:ep.redSideCore||[]),...(ep.topPicks||[]).slice(0,6)])]:[];
+  const epSideKey=epSide==='blue'?'blue':'red';
+  const epCore=ep?[...new Set([...(epSideKey==='blue'?ep.blueSideCore||[]:ep.redSideCore||[]),...(ep.topPicks||[]).slice(0,6)])]:[];
   const epBans=ep?(ep.topBans||[]).slice(0,6):[];
   const epName=ep?(ep.name||ep.team||''):'';
+  // Phase-specific ban patterns from scout
+  const epBanPhase1=ep?(epSideKey==='blue'?ep.blueBanPhase1||[]:ep.redBanPhase1||[]):[];
+  const epBanPhase2=ep?(epSideKey==='blue'?ep.blueBanPhase2||[]:ep.redBanPhase2||[]):[];
+  // Pick frequency: how often this team actually picks each hero (0..1)
+  const epPickFreq=ep?(epSideKey==='blue'?ep.bluePickFreq||{}:ep.redPickFreq||{}):{};
 
   // Load tendency data once
   const humanFavs=getHumanTendencies();
@@ -2067,8 +2110,15 @@ function localAI(step){
       if(!isMustBan&&!isHighPick&&['C','D'].includes(t))return null;
       const ln=lane(h);
 
-      // TEAM IDENTITY: ban this team's signature bans
-      const teamBan=epBans.includes(h.name)?140:0;
+      // TEAM IDENTITY: phase-specific ban priority from scout
+      // Phase 1 bans get full weight in phase 1, phase 2 bans only fire in phase 2
+      const inEpBan1=epBanPhase1.includes(h.name);
+      const inEpBan2=epBanPhase2.includes(h.name);
+      const teamBan=inEpBan1&&!isPhase2Ban?150:inEpBan2&&isPhase2Ban?140:epBans.includes(h.name)&&!inEpBan1&&!inEpBan2?60:0;
+      // NEVER PICK penalty: if team has zero pick frequency for this hero, they won't pick it
+      // → strong penalty on "ban their pick" motives, but still allow banning true threats
+      const epNeverPicks=ep&&(epPickFreq[h.name]||0)===0;
+      const neverPickPenalty=epNeverPicks&&!isMustBan?-80:0;
 
       // DON'T WASTE BAN: opp already has someone in this lane — banning here is low value
       const laneFilledByOpp=ln!=='Flex'&&!oppNeeded.includes(ln);
@@ -2114,7 +2164,7 @@ function localAI(step){
       // ARCHETYPE DEFENSE: ban heroes that hard-counter our strategy
       const archCounterBan=arch&&arch.counters.includes(h.name)&&!isMustBan?30:0;
       const banMemory=recentBans.includes(h.name)?-30:0;
-      return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+denyFav+breakCombo+ctrsUs+protectsCombo+archCounterBan+deniesPhase1+deniesLane+oppLaneFilled+dontBanOwn+ownCoveredPenalty+banMemory+Math.random()*randRange};
+      return{hero:h,score:ts+(isMustBan?60:0)+(isHighPick?18:0)+teamBan+neverPickPenalty+denyFav+breakCombo+ctrsUs+protectsCombo+archCounterBan+deniesPhase1+deniesLane+oppLaneFilled+dontBanOwn+ownCoveredPenalty+banMemory+Math.random()*randRange};
     }).filter(Boolean).sort((a,b)=>b.score-a.score);
 
     const h=scored[0]?.hero||avail.find(h=>h.mp==='mustban')||avail.find(h=>['S'].includes(_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier))||avail[0];
@@ -2170,16 +2220,22 @@ function localAI(step){
     const laneCount=myP.filter(p=>lane(p)===ln).length;
     if(ln!=='Flex'&&laneCount>0)return null;
     // TEAM IDENTITY: phase-aware pick priority from scout data
-    // Phase 1 heroes drafted early, phase 2 heroes saved for counter/situational
     const epIdx=epCore.indexOf(h.name);
     const teamPickPos=epPickPos[h.name]??(_pickPositionCache?.[h.name]??2.0);
     const inPhase1=epPhase1.includes(h.name),inPhase2=epPhase2.includes(h.name);
     const phaseMatch=(pickPhase===1&&inPhase1)||(pickPhase===2&&inPhase2);
     const phaseMismatch=(pickPhase===1&&inPhase2&&!inPhase1)||(pickPhase===2&&inPhase1&&!inPhase2);
-    const teamPickBase=epIdx>=0?Math.max(0,130-epIdx*15):0;
-    const teamPick=teamPickBase+(phaseMatch?30:0)+(phaseMismatch?-25:0)
-      +(teamPickPos<=1.0&&pickPhase===1?20:0)  // confirmed early-pick hero on time
-      +(teamPickPos>=3.5&&pickPhase===1&&countersOpp===0?-40:0); // late-pick hero, no counter reason
+    // Pick frequency gate: if team has scout data and NEVER picks this hero → hard suppress
+    // Freq 0 = never picked → -999 block (they won't pick it, don't draft it as them)
+    // Freq > 0 = scale the team bonus by actual frequency
+    const heroFreq=epPickFreq[h.name]??null;
+    const epHasFreqData=ep&&Object.keys(epPickFreq).length>0;
+    if(epHasFreqData&&heroFreq===null)return null; // team never picked this hero — block it
+    const freqMult=epHasFreqData?(heroFreq||0)*2.5:1.0; // max 2.5x for heroes picked every game
+    const teamPickBase=epIdx>=0?Math.max(0,(130-epIdx*15)*Math.min(freqMult,1.5)):0;
+    const teamPick=teamPickBase+(phaseMatch?35:0)+(phaseMismatch?-35:0)
+      +(teamPickPos<=1.0&&pickPhase===1?25:0)
+      +(teamPickPos>=3.5&&pickPhase===1&&countersOpp===0?-50:0);
     // Counter-pick: weighted by WR — red side gets bonus weight (last-pick advantage)
     const counterMult=isRedSide?1.2:1.0;
     const countersOpp=Math.round(oppP.reduce((sum,op)=>{const cl=fullCounterList(op.name).find(x=>x.name===h.name);return sum+(cl?Math.round((cl.wr||0.65)*40):0);},0)*counterMult);
