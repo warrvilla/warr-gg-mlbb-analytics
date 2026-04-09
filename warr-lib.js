@@ -457,20 +457,24 @@ WDB.computeDynamicTiers = function(minGames = 3) {
     // Compute rates and assign tiers
     const result = {};
     Object.entries(heroStats).forEach(([name, stats]) => {
-      const presence = ((stats.picks + stats.bans) / totalGames) * 100;
+      // Tier is based on PICK rate + win rate only — bans are denial/fear, not pick strength.
+      // A hero banned 10 games but never picked (denial target) should stay C-tier.
+      const pickRate = (stats.picks / totalGames) * 100;
+      const banRate  = (stats.bans  / totalGames) * 100;
+      const presence = ((stats.picks + stats.bans) / totalGames) * 100; // kept for mp calc
       const winRate = stats.picks > 0 ? (stats.wins / stats.picks) * 100 : 0;
 
-      // Tier assignment based on presence + win rate
-      // S-tier: >60% presence OR (>35% presence AND >55% WR)
-      // A-tier: >30% presence OR (>15% presence AND >52% WR)
-      // B-tier: >10% presence
-      // C-tier: everything else that appeared
+      // Tier assignment: pick rate + win rate only
+      // S-tier: >40% pick rate OR (>20% pick rate AND >58% WR)
+      // A-tier: >20% pick rate OR (>10% pick rate AND >54% WR)
+      // B-tier: >5% pick rate
+      // C-tier: everything else (includes denial bans that are rarely/never picked)
       let tier = 'C';
-      if (presence >= 60 || (presence >= 35 && winRate >= 55)) tier = 'S';
-      else if (presence >= 30 || (presence >= 15 && winRate >= 52)) tier = 'A';
-      else if (presence >= 10) tier = 'B';
+      if (pickRate >= 40 || (pickRate >= 20 && winRate >= 58)) tier = 'S';
+      else if (pickRate >= 20 || (pickRate >= 10 && winRate >= 54)) tier = 'A';
+      else if (pickRate >= 5) tier = 'B';
 
-      // Meta priority based on presence
+      // Meta priority uses presence (picks+bans) — high ban rate still means "pay attention"
       let mp = 'off';
       if (presence >= 80) mp = 'mustban';
       else if (presence >= 50) mp = 'highpick';
