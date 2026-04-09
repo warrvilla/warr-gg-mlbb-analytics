@@ -1410,6 +1410,9 @@ function buildEnemyProfileCache(name){
       // Pick frequency: rate each hero actually appears in this team's picks
       bluePickFreq:pickFrequency(bm,true),
       redPickFreq:pickFrequency(rm,false),
+      // Side match counts — used to detect thin data and trigger league fallback
+      blueSideCount:bm.length,
+      redSideCount:rm.length,
       // Phase-specific ban patterns
       blueBanPhase1:bBans.phase1, blueBanPhase2:bBans.phase2,
       redBanPhase1:rBans.phase1,  redBanPhase2:rBans.phase2,
@@ -2084,21 +2087,30 @@ function localAI(step){
   // Current draft phase for picks: early (myP.length<=2) vs late (myP.length>=3)
   const pickPhase=myP.length<=2?1:2;
 
-  // Precompute scout synergy combos — hero pairs that win together in ALL scout matches
+  // Precompute scout synergy combos + league-wide pick frequency in one pass
   const scoutCombosAI={};
+  // leaguePickFreq[hero] = appearances / (totalMatches × 2 sides) → comparable to epPickFreq (per-side rate)
+  const leaguePickFreq={};
   try{
     const _sdb=loadScoutAB();
-    (_sdb.matches||[]).forEach(mx=>{
+    const _sdbM=_sdb.matches||[];
+    const _leagueTotal=_sdbM.length*2; // total side-slots across all matches
+    _sdbM.forEach(mx=>{
       [[mx.bluePicks||[],'blue'],[mx.redPicks||[],'red']].forEach(([picks,side])=>{
         const names=picks.map(p=>p.name).filter(Boolean);
         const won=mx.winner===side;
+        // Synergy combos
         for(let i=0;i<names.length;i++)for(let j=i+1;j<names.length;j++){
           const key=[names[i],names[j]].sort().join('+');
           if(!scoutCombosAI[key])scoutCombosAI[key]={wins:0,count:0};
           scoutCombosAI[key].count++;if(won)scoutCombosAI[key].wins++;
         }
+        // League pick frequency — count per side-slot
+        names.forEach(n=>{leaguePickFreq[n]=(leaguePickFreq[n]||0)+1;});
       });
     });
+    // Normalize: appearances / total-side-slots → rate 0..1 (1.0 = picked every match both sides)
+    if(_leagueTotal>0)Object.keys(leaguePickFreq).forEach(n=>{leaguePickFreq[n]/=_leagueTotal;});
   }catch(e){}
 
   if(step.type==='ban'){
@@ -2224,15 +2236,31 @@ function localAI(step){
 
     // ── ENEMY TEAM MODE ──────────────────────────────────────────────────
     if(ep){
+      // How many matches exist on this specific side for the team
+      const epSideCount=epSideKey==='blue'?(ep.blueSideCount||0):(ep.redSideCount||0);
+      const thinData=epSideCount<5; // fewer than 5 side-games = not enough to hard-block
       const heroFreq=epPickFreq[h.name]??null;
-      // Hard block: team has data but never picked this hero
-      if(epHasFreqData&&heroFreq===null)return null;
-      const freq=heroFreq||0;
+      const leagueFreq=leaguePickFreq[h.name]??0;
+      // Smart block: only block if 5+ games AND team never picked it AND it's also rare league-wide
+      // (prevents blocking heroes the team has simply never faced an occasion to pick yet)
+      if(epHasFreqData&&!thinData&&heroFreq===null&&leagueFreq<0.06)return null;
+      // Frequency blend:
+      //   - Team has data + thick dataset → use team freq directly
+      //   - Team has data + thin dataset → blend 65% team / 35% league to stabilise thin samples
+      //   - Team never picked this hero → use 30% of league freq (not zero — they might try it)
+      let freq;
+      if(heroFreq!==null){
+        freq=thinData?(heroFreq*0.65+leagueFreq*0.35):heroFreq;
+      }else{
+        freq=leagueFreq*0.3;
+      }
+      // Soft penalty for heroes the team has never picked (with enough data to be confident)
+      const neverPickedPenalty=epHasFreqData&&!thinData&&heroFreq===null?-150:0;
       const inP1=epPhase1.includes(h.name);
       const inP2=epPhase2.includes(h.name);
       const inCore=epCore.includes(h.name);
       const teamPickPos=epPickPos[h.name]??2.0;
-      // Primary score = pick frequency × 500 (hero picked every game = 500, picked 20% = 100)
+      // Primary score = pick frequency × 500 (picked every game = 500, 20% rate = 100)
       const freqScore=freq*500;
       // Phase bonus: right hero at the right phase
       const phaseBonus=inP1&&pickPhase===1?120:inP2&&pickPhase===2?100:inP1&&pickPhase===2?20:inP2&&pickPhase===1?-60:0;
@@ -2240,14 +2268,15 @@ function localAI(step){
       const posBonus=teamPickPos<=1.0&&pickPhase===1?60:teamPickPos>=3.5&&pickPhase===1?-80:0;
       // Fill needed lane still applies — a team won't skip their needed lane
       const fillsNeeded=ln!=='Flex'&&myNeeded.includes(ln)?40:0;
-      // Counter bonus still applies in phase 2 (situational counter-picks are real)
+      // Counter bonus: Phase 2 = full weight, Phase 1 = 45% weight (real teams do counter in P1 too)
       const counterMult=isRedSide?1.2:1.0;
-      const countersOpp=pickPhase===2?Math.round(oppP.reduce((sum,op)=>{const cl=fullCounterList(op.name).find(x=>x.name===h.name);return sum+(cl?Math.round((cl.wr||0.65)*40):0);},0)*counterMult):0;
+      const countersOppFull=Math.round(oppP.reduce((sum,op)=>{const cl=fullCounterList(op.name).find(x=>x.name===h.name);return sum+(cl?Math.round((cl.wr||0.65)*40):0);},0)*counterMult);
+      const countersOpp=pickPhase===2?countersOppFull:Math.round(countersOppFull*0.45);
       const vuln=oppP.reduce((sum,op)=>{const cl=fullCounterList(h.name).find(x=>x.name===op.name);return sum+(cl?-Math.round((cl.wr||0.65)*20):0);},0);
-      // Tier as pure tiebreaker
-      const tierTB=ts*0.15;
+      // Tier weight raised — quality matters, not just frequency
+      const tierTB=ts*0.35;
       const laBonus=diff!=='normal'?_pickLookAheadBonus(h,myP,oppP,bannedSet,ST.step,step.team,humanFavs):0;
-      return{hero:h,score:freqScore+phaseBonus+posBonus+fillsNeeded+countersOpp+vuln+tierTB+laBonus+Math.random()*randRange};
+      return{hero:h,score:freqScore+phaseBonus+posBonus+fillsNeeded+countersOpp+vuln+tierTB+neverPickedPenalty+laBonus+Math.random()*randRange};
     }
 
     // ── GENERIC AI MODE ──────────────────────────────────────────────────
