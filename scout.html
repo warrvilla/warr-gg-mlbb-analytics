@@ -1193,6 +1193,16 @@ const DB_MODULE = (() => {
       t.blueSideWR = t.blueSideGames ? Math.round(t.blueWins/t.blueSideGames*100) : null;
       t.redSideWR  = t.redSideGames  ? Math.round(t.redWins/t.redSideGames*100)   : null;
 
+      // Map win rates
+      const MAP_NAMES = ['Dangerous Grass','Broken Walls','Flying Cloud','Expanding River'];
+      t.mapStats = {};
+      MAP_NAMES.forEach(mp => {
+        const mg = games.filter(m => m.map === mp);
+        if (!mg.length) return;
+        const mw = mg.filter(m => (m.winner==='blue'&&m.blueTeam===name)||(m.winner==='red'&&m.redTeam===name)).length;
+        t.mapStats[mp] = { games: mg.length, wins: mw, wr: Math.round(mw/mg.length*100) };
+      });
+
       // Form: last 5 game results
       t.form = sorted.slice(-5).map(m => {
         const won = (m.winner==='blue'&&m.blueTeam===name)||(m.winner==='red'&&m.redTeam===name);
@@ -1805,6 +1815,16 @@ function _openMatchModal(m) {
                 <option value="red"  ${m.winner==='red' ?'selected':''}>Red Side</option>
               </select>
             </div>
+            <div class="form-group">
+              <label class="form-label">Map</label>
+              <select class="form-select" id="mf-map">
+                <option value="">— Any —</option>
+                <option value="Dangerous Grass" ${m.map==='Dangerous Grass'?'selected':''}>🌿 Dangerous Grass</option>
+                <option value="Broken Walls"    ${m.map==='Broken Walls'   ?'selected':''}>🏚️ Broken Walls</option>
+                <option value="Flying Cloud"    ${m.map==='Flying Cloud'   ?'selected':''}>☁️ Flying Cloud</option>
+                <option value="Expanding River" ${m.map==='Expanding River'?'selected':''}>🌊 Expanding River</option>
+              </select>
+            </div>
           </div>
           <div class="form-row">
             <div class="form-group wide">
@@ -2208,6 +2228,7 @@ function saveMatch() {
     notes: document.getElementById('mf-notes')?.value||'',
     blueBans, redBans, bluePicks, redPicks,
     objectives,
+    map: document.getElementById('mf-map')?.value || '',
     savedAt: Date.now(),
   };
 
@@ -2306,6 +2327,7 @@ function _renderTeamsGrid() {
       <div class="team-stat-row"><span class="team-stat-label">Pool Depth</span><span class="team-stat-val">${t.poolDepth||0} heroes</span></div>
       ${t.turtleCtrl!==null?`<div class="team-stat-row"><span class="team-stat-label">Turtle Ctrl</span><span class="team-stat-val" style="color:var(--neon);">${t.turtleCtrl}% <span style="color:var(--text3);font-size:10px;">(${t.turtleTotal})</span></span></div>`:''}
       ${t.lordCtrl!==null?`<div class="team-stat-row"><span class="team-stat-label">Lord Ctrl</span><span class="team-stat-val" style="color:var(--gold);">${t.lordCtrl}% <span style="color:var(--text3);font-size:10px;">(${t.lordTotal})</span></span></div>`:''}
+      ${Object.keys(t.mapStats||{}).length?`<div class="team-stat-row" style="align-items:flex-start;"><span class="team-stat-label" style="padding-top:1px;">Maps</span><span class="team-stat-val" style="display:flex;flex-direction:column;gap:2px;">${Object.entries(t.mapStats).map(([mp,s])=>`<span style="font-size:10px;"><span style="color:var(--text3);">${mp.split(' ').pop()}</span> <span style="color:${s.wr>=60?'var(--green)':s.wr>=50?'var(--gold)':'var(--red)'};">${s.wr}%</span> <span style="color:var(--text3);font-size:9px;">(${s.games}g)</span></span>`).join('')}</span></div>`:''}
       ${tpc ? `<div style="font-size:8px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-top:8px;margin-bottom:4px;">TOP PICKS</div><div class="hero-chips">${tpc}</div>` : ''}
       ${tbc ? `<div style="font-size:8px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-top:6px;margin-bottom:4px;">TOP BANS</div><div class="hero-chips">${tbc}</div>` : ''}
       ${t.coachNotes ? `<div style="margin-top:8px;padding-top:7px;border-top:1px solid var(--border);font-size:10px;color:var(--text3);font-style:italic;line-height:1.5;">${t.coachNotes.slice(0,90)}${t.coachNotes.length>90?'…':''}</div>` : ''}
@@ -2351,6 +2373,25 @@ function openTeamEditor(teamName) {
               ${t.turtleCtrl!==null?`<div class="stat-chip"><div class="stat-chip-val" style="color:var(--neon);">${t.turtleCtrl}%</div><div class="stat-chip-label">Turtle</div></div>`:''}
               ${t.lordCtrl!==null?`<div class="stat-chip"><div class="stat-chip-val" style="color:var(--gold);">${t.lordCtrl}%</div><div class="stat-chip-label">Lord</div></div>`:''}
             </div>
+            ${Object.keys(t.mapStats||{}).length ? `
+            <div style="margin-top:10px;">
+              <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">MAP WIN RATES</div>
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                ${Object.entries(t.mapStats).map(([mp,s])=>{
+                  const emoji=mp==='Dangerous Grass'?'🌿':mp==='Broken Walls'?'🏚️':mp==='Flying Cloud'?'☁️':'🌊';
+                  const wrc=s.wr>=60?'var(--green)':s.wr>=50?'var(--gold)':'var(--red)';
+                  const barW=s.wr;
+                  return `<div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:11px;width:130px;flex-shrink:0;">${emoji} ${mp}</span>
+                    <div style="flex:1;height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;">
+                      <div style="width:${barW}%;height:100%;background:${wrc};border-radius:3px;"></div>
+                    </div>
+                    <span style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:${wrc};width:36px;text-align:right;">${s.wr}%</span>
+                    <span style="font-size:10px;color:var(--text3);">${s.games}g</span>
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>` : ''}
             <div style="display:flex;gap:16px;flex-wrap:wrap;">
               <div>
                 <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">TOP PICKS</div>
