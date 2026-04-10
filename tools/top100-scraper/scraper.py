@@ -33,7 +33,7 @@ PAGE_DELAY        = 2.5
 CLICK_DELAY       = 0.5
 MAX_EMPTY_PAGES   = 3
 NAV_MAX_STEPS     = 8    # max Claude-guided taps to reach leaderboard
-BLUESTACKS_EXE    = r"C:\Program Files\BlueStacks_nxt\HD-Player.exe"  # adjust if needed
+BLUESTACKS_EXE    = os.environ.get("BLUESTACKS_EXE", r"C:\Program Files\BlueStacks_nxt\HD-Player.exe")
 
 BLUESTACKS_TITLES = [
     "BlueStacks App Player",

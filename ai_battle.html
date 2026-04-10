@@ -732,6 +732,29 @@ input:focus, .search-input:focus {
     </div>
   </div>
 
+  <!-- MAP SELECTION -->
+  <div class="setup-card">
+    <div class="card-title">Map <span style="font-weight:400;color:var(--text3);">— optional, affects team WR context</span></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+      <div class="opt-card" id="map-none" onclick="setMap('')" style="text-align:center;padding:8px 4px;">
+        <div class="opt-name" style="font-size:10px;">Any</div>
+      </div>
+      <div class="opt-card" id="map-Dangerous Grass" onclick="setMap('Dangerous Grass')" style="text-align:center;padding:8px 4px;">
+        <div class="opt-name" style="font-size:10px;">Dangerous Grass</div>
+      </div>
+      <div class="opt-card" id="map-Broken Walls" onclick="setMap('Broken Walls')" style="text-align:center;padding:8px 4px;">
+        <div class="opt-name" style="font-size:10px;">Broken Walls</div>
+      </div>
+      <div class="opt-card" id="map-Flying Cloud" onclick="setMap('Flying Cloud')" style="text-align:center;padding:8px 4px;">
+        <div class="opt-name" style="font-size:10px;">Flying Cloud</div>
+      </div>
+      <div class="opt-card" id="map-Expanding River" onclick="setMap('Expanding River')" style="text-align:center;padding:8px 4px;">
+        <div class="opt-name" style="font-size:10px;">Expanding River</div>
+      </div>
+    </div>
+    <div id="mapWRContext" style="display:none;margin-top:8px;font-size:10px;color:var(--text3);"></div>
+  </div>
+
   <!-- ENEMY TEAM MODE -->
   <div class="setup-card" style="position:relative;z-index:2;">
     <div class="card-title">AI Opponent Mode</div>
@@ -772,6 +795,7 @@ input:focus, .search-input:focus {
     <div class="bh-side r"><span class="bh-name" id="bhAIName" style="color:var(--ai);">WARR.GG AI</span><span class="bh-tag tag-ai" id="bhAITag">AI</span></div>
   </div>
   <div id="enemyBanner" style="display:none;background:rgba(240,82,82,.08);border-bottom:1px solid rgba(240,82,82,.2);padding:5px 16px;font-size:10px;color:var(--red);font-weight:600;text-align:center;"></div>
+  <div id="mapBanner" style="display:none;background:rgba(94,160,216,.07);border-bottom:1px solid rgba(94,160,216,.18);padding:4px 16px;font-size:10px;color:var(--blue);text-align:center;"></div>
   <div class="phase-bar">
     <div class="phase-lbl" id="phaseLbl">Ban Phase I</div>
     <div class="turn-tag turn-you" id="turnTag">YOUR TURN — BAN</div>
@@ -1259,11 +1283,39 @@ let af='All',alane='All',sq='',aiThink=false,done=false,laneAssignmentsAB={};
 let heroFilterModeAB = 'lane'; // 'lane' | 'role'
 let _side='blue',_diff='hard';
 let aiMode='generic',enemyTeamName='',enemyProfile=null,aiArchetype=null;
+let _selectedMap='', _battleMap='';
 
 // ═══════ SETUP ═══════
 function setSide(s){['blue','red','random'].forEach(x=>{document.getElementById('sc-'+x).className='opt-card';});document.getElementById('sc-'+s).className='opt-card sel-'+s;_side=s;}
 function setDiff(d){['normal','hard','gm'].forEach(x=>{document.getElementById('dc-'+x).className='opt-card';});document.getElementById('dc-'+d).className='opt-card sel-gold';_diff=d;}
-setSide('blue');setDiff('hard');
+
+function setMap(m){
+  _selectedMap=m;
+  const keys=['','Dangerous Grass','Broken Walls','Flying Cloud','Expanding River'];
+  keys.forEach(k=>{
+    const el=document.getElementById('map-'+k);
+    if(el) el.className='opt-card'+(k===m?' sel-blue':'');
+  });
+  // Show map WR context if a map is selected and scout data has it
+  const ctx=document.getElementById('mapWRContext');
+  if(!m){ctx.style.display='none';return;}
+  try{
+    const db=loadScoutAB();
+    const teams=Object.values(db.teams||{});
+    const withData=teams.filter(t=>t.mapStats&&t.mapStats[m]);
+    if(!withData.length){ctx.style.display='none';return;}
+    const sorted=[...withData].sort((a,b)=>(b.mapStats[b.mapStats[m]?m:'']?.wr||0)-(a.mapStats[a.mapStats[m]?m:'']?.wr||0));
+    const top=sorted.slice(0,5).map(t=>{
+      const s=t.mapStats[m];
+      const wrc=s.wr>=60?'var(--green)':s.wr>=50?'var(--gold)':'var(--red)';
+      return `<span style="margin-right:10px;">${t.name} <span style="color:${wrc};font-weight:700;">${s.wr}%</span> <span style="color:var(--text4);">${s.games}g</span></span>`;
+    }).join('');
+    ctx.innerHTML=`<span style="color:var(--text4);font-size:9px;text-transform:uppercase;letter-spacing:1px;margin-right:6px;">Top teams on ${m}:</span>${top}`;
+    ctx.style.display='block';
+  }catch(e){ctx.style.display='none';}
+}
+
+setSide('blue');setDiff('hard');setMap('');
 // Show API key status + token display on load
 document.addEventListener('DOMContentLoaded',async()=>{
   // Pre-warm API key cache from Supabase so sync version works immediately
@@ -1463,6 +1515,7 @@ function startBattle(){
   pSide=_side==='random'?(Math.random()<.5?'blue':'red'):_side;
   aiSide=pSide==='blue'?'red':'blue';
   diff=_diff;
+  _battleMap=_selectedMap;
   if(aiMode==='enemy'&&!enemyProfile){toast('Select a scouted enemy team first','error');return;}
   document.getElementById('setup').style.display='none';
   document.getElementById('battle').style.display='flex';
@@ -1519,6 +1572,21 @@ function initBattle(){
     banner.style.background='rgba(168,85,247,.07)';banner.style.borderColor='rgba(168,85,247,.18)';banner.style.color='var(--ai)';
     banner.innerHTML=`${_arch.emoji} <strong>AI Strategy this draft:</strong> ${_arch.label} — ${_arch.desc}`;
   }
+  // Map banner
+  const mapBanner=document.getElementById('mapBanner');
+  if(_battleMap){
+    const blueName=pSide==='blue'?pName:aiName;
+    const redName=pSide==='red'?pName:aiName;
+    const bMs=_getMapWR(blueName,_battleMap);
+    const rMs=_getMapWR(redName,_battleMap);
+    const bStr=bMs&&bMs.games>=2?` · Blue ${bMs.wr}% (${bMs.games}g)`:'';
+    const rStr=rMs&&rMs.games>=2?` · Red ${rMs.wr}% (${rMs.games}g)`:'';
+    mapBanner.innerHTML=`Map: <strong>${_battleMap}</strong>${bStr}${rStr}`;
+    mapBanner.style.display='block';
+  } else {
+    mapBanner.style.display='none';
+  }
+
   const dmap={normal:'Normal',hard:'Hard',gm:'Grandmaster'};
   const dcls={normal:'dif dif-n',hard:'dif dif-h',gm:'dif dif-g'};
   const db=document.getElementById('difBadge');db.textContent=dmap[diff];db.className=dcls[diff];
@@ -2696,6 +2764,15 @@ async function captureResult() {
 }
 
 // ═══════ FULL ANALYSIS ═══════
+function _getMapWR(teamName,map){
+  if(!map||!teamName)return null;
+  try{
+    const db=loadScoutAB();
+    const t=db.teams?.[teamName];
+    return t?.mapStats?.[map]||null;
+  }catch(e){return null;}
+}
+
 function localAnalysis(bp,rp,bb,rb,bt,rt){
   const tierScore={S:10,A:8,B:6,C:4,D:2};
   const scoreTeam=picks=>picks.reduce((s,h)=>{
@@ -2703,7 +2780,19 @@ function localAnalysis(bp,rp,bb,rb,bt,rt){
     return s+(Number(h.ms)||tierScore[t]||5)+(h.mp==='mustban'?2:h.mp==='highpick'?1:0);
   },0)/Math.max(picks.length,1);
   const bs=scoreTeam(bp),rs=scoreTeam(rp),tot=bs+rs||1;
-  const bWR=Math.round(Math.min(72,Math.max(28,38+(bs/tot)*24)));
+  let bWR=Math.round(Math.min(72,Math.max(28,38+(bs/tot)*24)));
+  // Map WR adjustment: if we have scout data for either team on this map, nudge the win %
+  if(_battleMap){
+    const bMapS=_getMapWR(bt,_battleMap);
+    const rMapS=_getMapWR(rt,_battleMap);
+    if(bMapS&&bMapS.games>=3){
+      const mapAdv=Math.round((bMapS.wr-50)*0.15); // max ~±10 pts
+      bWR=Math.min(75,Math.max(25,bWR+mapAdv));
+    } else if(rMapS&&rMapS.games>=3){
+      const mapAdv=Math.round((rMapS.wr-50)*0.15);
+      bWR=Math.min(75,Math.max(25,bWR-mapAdv));
+    }
+  }
   const rWR=100-bWR;
   const archetype=picks=>{
     const r=picks.map(h=>h.role||'');
@@ -2815,7 +2904,11 @@ async function runAnalysis(){
     const allUsed=[...ST.bb,...ST.rb,...ST.bp,...ST.rp].map(h=>h.id);
     const mb=HEROES.filter(h=>h.mp==='mustban'&&!allUsed.includes(h.id)).map(h=>h.name).slice(0,5);
     const hp=HEROES.filter(h=>h.mp==='highpick'&&!allUsed.includes(h.id)).map(h=>h.name).slice(0,6);
-    const meta=[PV?`Patch:${PV}`:'',mb.length?`MustBan:${mb.join(',')}` :'',hp.length?`HighPick:${hp.join(',')}` :''].filter(Boolean).join(' | ')||'Base data';
+    const meta=[PV?`Patch:${PV}`:'',_battleMap?`Map:${_battleMap}`:'',mb.length?`MustBan:${mb.join(',')}` :'',hp.length?`HighPick:${hp.join(',')}` :''].filter(Boolean).join(' | ')||'Base data';
+    // Map WR context for the prompt
+    const bMapS=_getMapWR(bt,_battleMap), rMapS=_getMapWR(rt,_battleMap);
+    const mapCtx=_battleMap?`\nMap: ${_battleMap}${bMapS&&bMapS.games>=2?` | ${bt} map WR: ${bMapS.wr}% (${bMapS.games}g)`:''}${rMapS&&rMapS.games>=2?` | ${rt} map WR: ${rMapS.wr}% (${rMapS.games}g)`:''}`:'';
+
     // Hero pool context
     const _pool = (typeof WDB!=='undefined'&&WDB.getHeroPool) ? WDB.getHeroPool() : [];
     const poolInDraft = _pool.filter(n=>[...ST.bp,...ST.rp].some(h=>h.name===n));
@@ -2831,7 +2924,7 @@ MLBB OBJECTIVE TIMINGS (use these exactly — do not guess):
 - Crab (Lithowanderer): spawns 1:30, respawns 90s after death
 - Turtle window: 2:00–9:00 | Lord window: 9:00+ | First Turtle contest: ~3:50–4:30
 
-${meta}${poolCtx}
+${meta}${mapCtx}${poolCtx}
 BLUE SIDE (${bt}): bans=[${bB}] picks=[${bP}]
 RED SIDE (${rt}): bans=[${rB}] picks=[${rP}]
 
