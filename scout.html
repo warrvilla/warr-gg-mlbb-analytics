@@ -522,7 +522,7 @@ body {
 .search-bar input::placeholder { color: var(--text3); }
 
 /* ── TEAM GRID ── */
-.team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
 .team-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -544,15 +544,32 @@ body {
 }
 .team-card:hover { border-color: var(--border3); background: var(--surface2); }
 .team-card:hover::before { opacity: 1; }
-.team-name { font-size: 14px; font-weight: 700; font-family: var(--font-head); color: var(--text); margin-bottom: 3px; }
-.team-stat-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
+.team-name { font-size: 15px; font-weight: 700; font-family: var(--font-head); color: var(--text); margin-bottom: 4px; }
+.team-stat-row { display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 5px; }
 .team-stat-label { color: var(--text3); }
 .team-stat-val { font-weight: 700; }
-.hero-chips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px; }
+/* Big stat blocks at top of card */
+.team-kpi-row { display: flex; gap: 0; margin: 10px 0 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.team-kpi { flex: 1; text-align: center; padding: 8px 4px; border-right: 1px solid var(--border); }
+.team-kpi:last-child { border-right: none; }
+.team-kpi-val { font-size: 16px; font-weight: 800; font-family: var(--font-head); line-height: 1; margin-bottom: 3px; }
+.team-kpi-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
+/* Section divider */
+.team-section { margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--border); }
+.team-section-label { font-size: 9px; font-weight: 700; color: var(--text4); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 7px; font-family: var(--font-head); }
+/* Map WR bars */
+.map-wr-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+.map-wr-row:last-child { margin-bottom: 0; }
+.map-wr-name { font-size: 10.5px; color: var(--text2); width: 106px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.map-wr-bar-wrap { flex: 1; height: 4px; background: var(--surface3); border-radius: 2px; overflow: hidden; }
+.map-wr-bar { height: 100%; border-radius: 2px; }
+.map-wr-pct { font-size: 11px; font-weight: 700; font-family: var(--font-mono); width: 34px; text-align: right; flex-shrink: 0; }
+.map-wr-games { font-size: 9px; color: var(--text4); width: 22px; flex-shrink: 0; }
+.hero-chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .hero-chip {
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 600;
-  padding: 2px 6px;
+  padding: 3px 7px;
   background: var(--surface3);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -560,7 +577,7 @@ body {
 }
 /* Form indicator dots */
 .form-dots { display: flex; gap: 3px; }
-.form-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.form-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .form-dot.w { background: var(--green); }
 .form-dot.l { background: var(--red); }
 .form-dot.u { background: var(--border3); }
@@ -792,7 +809,7 @@ body {
   }
   .sidebar-btn { width: 33.33%; text-align: center; justify-content: center; padding: 10px 8px; font-size: 12px; border-bottom: 2px solid transparent; border-left: none; }
   .sidebar-btn.active { border-bottom-color: var(--accent); background: var(--accent-dim); }
-  .team-grid { grid-template-columns: 1fr; }
+  .team-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
   .meta-table { font-size: 11px; }
   .meta-table th, .meta-table td { padding: 5px 7px; }
   .card { padding: 12px 14px; }
@@ -2344,33 +2361,85 @@ function _renderTeamsGrid() {
   }
   grid.className = 'team-grid';
   grid.innerHTML = teams.map(t => {
-    const wr = t.winRate||0;
+    const wr  = t.winRate||0;
     const wrc = wr>=60?'var(--green)':wr>=50?'var(--gold)':'var(--red)';
+    const bwrc = (t.blueSideWR??0)>=60?'var(--green)':(t.blueSideWR??0)>=50?'var(--gold)':'var(--red)';
+    const rwrc = (t.redSideWR??0)>=60?'var(--green)':(t.redSideWR??0)>=50?'var(--gold)':'var(--red)';
     const lb = (t.leagues||[]).map(l=>`<span class="league-badge ${LEAGUE_CSS[l]||'lg-other'}">${l}</span>`).join(' ');
-    const tpc = (t.topPicks||[]).slice(0,5).map(p=>`<span class="hero-chip">${p.name} <span style="color:var(--text3);">×${p.count}</span></span>`).join('');
-    const tbc = (t.topBans||[]).slice(0,5).map(b=>`<span class="hero-chip" style="border-color:rgba(240,82,82,.25);color:#f87171;">${b.name} <span style="opacity:.7;">×${b.count}</span></span>`).join('');
+    const tpc = (t.topPicks||[]).slice(0,6).map(p=>{
+      const pwrc = (p.wr||0)>=60?'var(--green)':(p.wr||0)>=50?'var(--gold)':'var(--text3)';
+      return `<span class="hero-chip">${p.name} <span style="color:var(--text4);">x${p.count}</span> <span style="color:${pwrc};">${p.wr}%</span></span>`;
+    }).join('');
+    const tbc = (t.topBans||[]).slice(0,6).map(b=>`<span class="hero-chip" style="border-color:rgba(240,82,82,.2);color:#f87171;">${b.name} <span style="opacity:.6;">x${b.count}</span></span>`).join('');
     const formDots = (t.form||[]).map(r=>`<div class="form-dot ${r==='W'?'w':'l'}" title="${r}"></div>`).join('');
-    const streakLabel = t.streak?.count > 1 ? `<span style="font-size:9px;color:${t.streak.type==='W'?'var(--green)':'var(--red)'};">${t.streak.type}${t.streak.count}</span>` : '';
+    const streakLabel = t.streak?.count > 1 ? `<span style="font-size:9px;font-weight:700;color:${t.streak.type==='W'?'var(--green)':'var(--red)'};">${t.streak.type}${t.streak.count}</span>` : '';
+
+    const mapRows = Object.entries(t.mapStats||{}).map(([mp,s])=>{
+      const mc = s.wr>=60?'var(--green)':s.wr>=50?'var(--gold)':'var(--red)';
+      return `<div class="map-wr-row">
+        <span class="map-wr-name">${mp}</span>
+        <div class="map-wr-bar-wrap"><div class="map-wr-bar" style="width:${s.wr}%;background:${mc};"></div></div>
+        <span class="map-wr-pct" style="color:${mc};">${s.wr}%</span>
+        <span class="map-wr-games">${s.games}g</span>
+      </div>`;
+    }).join('');
 
     return `<div class="team-card" onclick="openTeamEditor('${t.name}')">
-      <div class="team-name">${t.name}</div>
-      <div style="display:flex;align-items:center;gap:5px;margin-bottom:8px;flex-wrap:wrap;">
-        ${lb}
-        <div style="flex:1;"></div>
-        <div class="form-dots" title="Recent form">${formDots}</div>
-        ${streakLabel}
+
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px;">
+        <div class="team-name">${t.name}</div>
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;padding-top:2px;">
+          <div class="form-dots" title="Recent form">${formDots}</div>
+          ${streakLabel}
+        </div>
       </div>
-      <div class="team-stat-row"><span class="team-stat-label">Record</span><span class="team-stat-val" style="color:${wrc};">${t.wins||0}W ${t.losses||0}L (${wr}%)</span></div>
-      <div class="team-stat-row"><span class="team-stat-label">Blue Side</span><span class="team-stat-val">${t.blueSideWR!==null?t.blueSideWR+'%':'-'} <span style="color:var(--text3);font-size:10px;">(${t.blueSideGames||0}g)</span></span></div>
-      <div class="team-stat-row"><span class="team-stat-label">Red Side</span><span class="team-stat-val">${t.redSideWR!==null?t.redSideWR+'%':'-'} <span style="color:var(--text3);font-size:10px;">(${t.redSideGames||0}g)</span></span></div>
-      <div class="team-stat-row"><span class="team-stat-label">Pool Depth</span><span class="team-stat-val">${t.poolDepth||0} heroes</span></div>
-      ${t.turtleCtrl!==null?`<div class="team-stat-row"><span class="team-stat-label">Turtle Ctrl</span><span class="team-stat-val" style="color:var(--neon);">${t.turtleCtrl}% <span style="color:var(--text3);font-size:10px;">(${t.turtleTotal})</span></span></div>`:''}
-      ${t.lordCtrl!==null?`<div class="team-stat-row"><span class="team-stat-label">Lord Ctrl</span><span class="team-stat-val" style="color:var(--gold);">${t.lordCtrl}% <span style="color:var(--text3);font-size:10px;">(${t.lordTotal})</span></span></div>`:''}
-      ${Object.keys(t.mapStats||{}).length?`<div class="team-stat-row" style="align-items:flex-start;"><span class="team-stat-label" style="padding-top:1px;">Maps</span><span class="team-stat-val" style="display:flex;flex-direction:column;gap:2px;">${Object.entries(t.mapStats).map(([mp,s])=>`<span style="font-size:10px;"><span style="color:var(--text3);">${mp.split(' ').pop()}</span> <span style="color:${s.wr>=60?'var(--green)':s.wr>=50?'var(--gold)':'var(--red)'};">${s.wr}%</span> <span style="color:var(--text3);font-size:9px;">(${s.games}g)</span></span>`).join('')}</span></div>`:''}
-      ${tpc ? `<div style="font-size:8px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-top:8px;margin-bottom:4px;">TOP PICKS</div><div class="hero-chips">${tpc}</div>` : ''}
-      ${tbc ? `<div style="font-size:8px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-top:6px;margin-bottom:4px;">TOP BANS</div><div class="hero-chips">${tbc}</div>` : ''}
-      ${t.coachNotes ? `<div style="margin-top:8px;padding-top:7px;border-top:1px solid var(--border);font-size:10px;color:var(--text3);font-style:italic;line-height:1.5;">${t.coachNotes.slice(0,90)}${t.coachNotes.length>90?'…':''}</div>` : ''}
-      <button class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%;font-size:10px;" onclick="event.stopPropagation();openH2H('${t.name}')">⚔ H2H Compare</button>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:2px;">${lb}</div>
+
+      <div class="team-kpi-row">
+        <div class="team-kpi">
+          <div class="team-kpi-val" style="color:${wrc};">${wr}%</div>
+          <div class="team-kpi-label">Win Rate</div>
+        </div>
+        <div class="team-kpi">
+          <div class="team-kpi-val">${t.wins||0}W ${t.losses||0}L</div>
+          <div class="team-kpi-label">Record</div>
+        </div>
+        <div class="team-kpi">
+          <div class="team-kpi-val" style="color:${bwrc};">${t.blueSideWR!==null?t.blueSideWR+'%':'—'}</div>
+          <div class="team-kpi-label">Blue Side</div>
+        </div>
+        <div class="team-kpi">
+          <div class="team-kpi-val" style="color:${rwrc};">${t.redSideWR!==null?t.redSideWR+'%':'—'}</div>
+          <div class="team-kpi-label">Red Side</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:16px;">
+        ${t.turtleCtrl!==null?`<div class="team-stat-row" style="flex-direction:column;align-items:flex-start;gap:1px;margin:0;"><span class="team-stat-label">Turtle Ctrl</span><span class="team-stat-val" style="color:var(--neon);">${t.turtleCtrl}% <span style="color:var(--text3);font-size:10px;font-weight:400;">${t.turtleTotal}g</span></span></div>`:''}
+        ${t.lordCtrl!==null?`<div class="team-stat-row" style="flex-direction:column;align-items:flex-start;gap:1px;margin:0;"><span class="team-stat-label">Lord Ctrl</span><span class="team-stat-val" style="color:var(--gold);">${t.lordCtrl}% <span style="color:var(--text3);font-size:10px;font-weight:400;">${t.lordTotal}g</span></span></div>`:''}
+        <div class="team-stat-row" style="flex-direction:column;align-items:flex-start;gap:1px;margin:0;"><span class="team-stat-label">Hero Pool</span><span class="team-stat-val">${t.poolDepth||0}</span></div>
+      </div>
+
+      ${mapRows ? `<div class="team-section">
+        <div class="team-section-label">Map Win Rates</div>
+        ${mapRows}
+      </div>` : ''}
+
+      ${tpc ? `<div class="team-section">
+        <div class="team-section-label">Top Picks</div>
+        <div class="hero-chips">${tpc}</div>
+      </div>` : ''}
+
+      ${tbc ? `<div class="team-section">
+        <div class="team-section-label">Top Bans</div>
+        <div class="hero-chips">${tbc}</div>
+      </div>` : ''}
+
+      ${t.coachNotes ? `<div class="team-section" style="font-size:10.5px;color:var(--text3);font-style:italic;line-height:1.6;">${t.coachNotes.slice(0,120)}${t.coachNotes.length>120?'…':''}</div>` : ''}
+
+      <div class="team-section" style="padding-top:8px;">
+        <button class="btn btn-ghost btn-sm" style="width:100%;font-size:10px;" onclick="event.stopPropagation();openH2H('${t.name}')">H2H Compare</button>
+      </div>
     </div>`;
   }).join('');
 }
