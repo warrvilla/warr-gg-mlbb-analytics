@@ -2791,31 +2791,38 @@ function openTeamReport(teamName) {
           const oppPicks = isBlue ? (g.redPicks||[]) : (g.bluePicks||[]);
           const ourBans  = isBlue ? (g.blueBans||[])  : (g.redBans||[]);
           const oppBans  = isBlue ? (g.redBans||[])   : (g.blueBans||[]);
-          const ourColor = isBlue ? 'var(--accent)' : 'var(--red)';
-          const oppColor = isBlue ? 'var(--red)' : 'var(--accent)';
-          const mapStr   = g.map ? `<span style="font-size:9px;color:var(--text3);">${g.map}</span>` : '';
+          // Blue side is always blueTeam, red side is always redTeam
+          const blueTeamName = g.blueTeam;
+          const redTeamName  = g.redTeam;
+          const bluePicks    = g.bluePicks||[];
+          const redPicks     = g.redPicks||[];
+          const blueBans     = g.blueBans||[];
+          const redBans      = g.redBans||[];
+          const mapStr       = g.map ? `<span style="font-size:9px;color:var(--text3);">${g.map}</span>` : '';
+          const sidePill     = (label, bg, color) => `<span style="font-size:8px;font-weight:800;font-family:var(--font-head);padding:1px 6px;border-radius:6px;background:${bg};color:${color};flex-shrink:0;">${label}</span>`;
 
           return `<div style="padding:8px 12px;border-top:1px solid var(--border);background:${won?'rgba(52,209,122,0.03)':'rgba(240,82,82,0.03)'}">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
               <span style="font-size:9px;font-weight:700;font-family:var(--font-mono);color:var(--text3);">G${g.gameNum||1}</span>
               ${mapStr}
               <span style="margin-left:auto;font-size:10px;font-weight:700;padding:1px 7px;border-radius:8px;background:${won?'rgba(52,209,122,.12)':'rgba(240,82,82,.1)'};color:${won?'var(--green)':'var(--red)'};">${won?'WIN':'LOSS'}</span>
-              <span style="font-size:9px;color:var(--text3);">${isBlue?'Blue':'Red'} side</span>
             </div>
             <div style="margin-bottom:3px;">
               <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;">
-                <span style="font-size:9px;font-weight:700;color:${ourColor};width:72px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${teamName}</span>
-                <div style="display:flex;gap:2px;">${ourPicks.map(p=>img(p.name||p)).join('')}</div>
+                ${sidePill('BLUE','rgba(94,160,216,0.15)','#5EA0D8')}
+                <span style="font-size:9px;font-weight:700;color:#5EA0D8;width:66px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${blueTeamName}</span>
+                <div style="display:flex;gap:2px;">${bluePicks.map(p=>img(p.name||p)).join('')}</div>
                 <div style="width:1px;height:20px;background:var(--border2);margin:0 3px;flex-shrink:0;"></div>
                 <span style="font-size:7px;color:var(--text4);flex-shrink:0;">BANS</span>
-                <div style="display:flex;gap:2px;opacity:.5;">${ourBans.map(b=>img(typeof b==='string'?b:(b.name||b),18)).join('')}</div>
+                <div style="display:flex;gap:2px;opacity:.5;">${blueBans.map(b=>img(typeof b==='string'?b:(b.name||b),18)).join('')}</div>
               </div>
               <div style="display:flex;align-items:center;gap:5px;">
-                <span style="font-size:9px;font-weight:700;color:${oppColor};width:72px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.opponent}</span>
-                <div style="display:flex;gap:2px;">${oppPicks.map(p=>img(p.name||p)).join('')}</div>
+                ${sidePill('RED','rgba(216,120,128,0.15)','#D87880')}
+                <span style="font-size:9px;font-weight:700;color:#D87880;width:66px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${redTeamName}</span>
+                <div style="display:flex;gap:2px;">${redPicks.map(p=>img(p.name||p)).join('')}</div>
                 <div style="width:1px;height:20px;background:var(--border2);margin:0 3px;flex-shrink:0;"></div>
                 <span style="font-size:7px;color:var(--text4);flex-shrink:0;">BANS</span>
-                <div style="display:flex;gap:2px;opacity:.5;">${oppBans.map(b=>img(typeof b==='string'?b:(b.name||b),18)).join('')}</div>
+                <div style="display:flex;gap:2px;opacity:.5;">${redBans.map(b=>img(typeof b==='string'?b:(b.name||b),18)).join('')}</div>
               </div>
             </div>
           </div>`;
