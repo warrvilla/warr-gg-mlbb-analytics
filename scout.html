@@ -2656,20 +2656,26 @@ function deleteTeam(name) {
 
 async function generateTeamImage(teamName) {
   const btn = document.getElementById('pdfBtn');
-  if (btn) { btn.textContent = 'Capturing…'; btn.disabled = true; }
+  if (btn) { btn.textContent = 'Generating…'; btn.disabled = true; }
 
   try {
-    // Lazy-load html2canvas only when needed
+    // Lazy-load html2canvas + jsPDF only when needed
     if (!window.html2canvas) {
-      await new Promise((res, rej) => {
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        s.onload = res; s.onerror = rej; document.head.appendChild(s);
-      });
+      await Promise.all([
+        new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+          s.onload = res; s.onerror = rej; document.head.appendChild(s);
+        }),
+        new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+          s.onload = res; s.onerror = rej; document.head.appendChild(s);
+        }),
+      ]);
     }
 
     const el = document.getElementById('reportBody');
-    // Expand all collapsed series before capture
     el.querySelectorAll('.series-games.hidden').forEach(g => g.classList.remove('hidden'));
 
     const canvas = await html2canvas(el, {
@@ -2680,16 +2686,33 @@ async function generateTeamImage(teamName) {
       logging: false,
     });
 
-    const a = document.createElement('a');
-    a.href = canvas.toDataURL('image/png');
-    a.download = `${teamName.replace(/[^a-z0-9]/gi, '_')}_Scout_Report.png`;
-    a.click();
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+    const margin  = 10;
+    const usableW = pdf.internal.pageSize.getWidth()  - margin * 2;
+    const usableH = pdf.internal.pageSize.getHeight() - margin * 2;
+    const pxPerMm = canvas.width / usableW;
+    const pageHpx = usableH * pxPerMm;
+    const pages   = Math.ceil(canvas.height / pageHpx);
+
+    for (let i = 0; i < pages; i++) {
+      if (i > 0) pdf.addPage();
+      const sliceH = Math.min(pageHpx, canvas.height - i * pageHpx);
+      const slice  = document.createElement('canvas');
+      slice.width  = canvas.width;
+      slice.height = sliceH;
+      slice.getContext('2d').drawImage(canvas, 0, -i * pageHpx);
+      pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin, usableW, sliceH / pxPerMm);
+    }
+
+    pdf.save(`${teamName.replace(/[^a-z0-9]/gi, '_')}_Scout_Report.pdf`);
   } catch(e) {
     console.error('Export error:', e);
     toast('Export failed — try again');
   }
 
-  if (btn) { btn.textContent = '📷 Export Image'; btn.disabled = false; }
+  if (btn) { btn.textContent = '🖨 Export PDF'; btn.disabled = false; }
 }
 
 function openTeamReport(teamName) {
@@ -2953,7 +2976,7 @@ function openTeamReport(teamName) {
         <div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0;">
           <button class="btn btn-ghost btn-sm" onclick="openTeamEditor('${teamName}');document.getElementById('teamReportModal').remove();">Edit</button>
           <button class="btn btn-ghost btn-sm" onclick="openH2H('${teamName}')">H2H</button>
-          <button class="btn btn-accent btn-sm" id="pdfBtn" onclick="generateTeamImage('${teamName}')">📷 Export Image</button>
+          <button class="btn btn-accent btn-sm" id="pdfBtn" onclick="generateTeamImage('${teamName}')">🖨 Export PDF</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('teamReportModal').remove()">✕</button>
         </div>
       </div>
