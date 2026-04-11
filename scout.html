@@ -885,6 +885,8 @@ body {
   .print-only { display: block !important; }
   /* Avoid breaking inside a series card or draft row */
   .series-games > div { page-break-inside: avoid; break-inside: avoid; }
+  /* Avoid breaking inside any grid or flex section in the report */
+  #teamReportContent .modal-body > div { page-break-inside: avoid; break-inside: avoid; }
 }
 
 /* ═══════════ APPLE LIQUID GLASS PATCH ═══════════ */
@@ -2862,7 +2864,7 @@ function openTeamReport(teamName) {
 
   // ── Section helper ──
   const sec = (title, content, color='var(--text3)') => `
-    <div style="margin-bottom:18px;">
+    <div style="margin-bottom:18px;break-inside:avoid;page-break-inside:avoid;">
       <div style="font-size:9px;font-weight:800;font-family:var(--font-head);letter-spacing:1.5px;text-transform:uppercase;color:${color};margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid var(--border);">${title}</div>
       ${content}
     </div>`;
@@ -2970,7 +2972,7 @@ function openTeamReport(teamName) {
 
         <!-- MAP WR + SIDE HEATMAP -->
         ${(mapWRHTML || heatmapHTML) ? `
-        <div style="display:grid;grid-template-columns:${mapWRHTML&&heatmapHTML?'1fr 1fr':'1fr'};gap:16px;margin-bottom:18px;">
+        <div style="display:grid;grid-template-columns:${mapWRHTML&&heatmapHTML?'1fr 1fr':'1fr'};gap:16px;margin-bottom:18px;break-inside:avoid;page-break-inside:avoid;">
           ${mapWRHTML ? `<div>${sec('Map Win Rates', mapWRHTML)}</div>` : ''}
           ${heatmapHTML ? `<div>${sec('Side Heatmap', `
             <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;font-size:10px;color:var(--text3);">
