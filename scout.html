@@ -2675,8 +2675,24 @@ async function generateTeamImage(teamName) {
       ]);
     }
 
-    const el = document.getElementById('reportBody');
+    const el      = document.getElementById('reportBody');
+    const modalEl = document.getElementById('teamReportContent');
+
+    // Expand all collapsed series before capture
     el.querySelectorAll('.series-games.hidden').forEach(g => g.classList.remove('hidden'));
+
+    // Temporarily remove scroll constraints so html2canvas captures the full height
+    const prevModalMaxH  = modalEl.style.maxHeight;
+    const prevModalOvf   = modalEl.style.overflow;
+    const prevBodyMaxH   = el.style.maxHeight;
+    const prevBodyOvf    = el.style.overflow;
+    const prevBodyH      = el.style.height;
+    modalEl.style.maxHeight = 'none';
+    modalEl.style.overflow  = 'visible';
+    el.style.maxHeight = 'none';
+    el.style.overflow  = 'visible';
+    el.style.height    = 'auto';
+    await new Promise(r => setTimeout(r, 80)); // let layout settle
 
     const canvas = await html2canvas(el, {
       scale: 2,
@@ -2684,7 +2700,16 @@ async function generateTeamImage(teamName) {
       allowTaint: true,
       backgroundColor: '#07070C',
       logging: false,
+      scrollX: 0,
+      scrollY: 0,
     });
+
+    // Restore
+    modalEl.style.maxHeight = prevModalMaxH;
+    modalEl.style.overflow  = prevModalOvf;
+    el.style.maxHeight = prevBodyMaxH;
+    el.style.overflow  = prevBodyOvf;
+    el.style.height    = prevBodyH;
 
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
