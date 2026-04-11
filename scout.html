@@ -2712,24 +2712,16 @@ async function generateTeamImage(teamName) {
     el.style.height    = prevBodyH;
 
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-    const margin  = 10;
-    const usableW = pdf.internal.pageSize.getWidth()  - margin * 2;
-    const usableH = pdf.internal.pageSize.getHeight() - margin * 2;
-    const pxPerMm = canvas.width / usableW;
-    const pageHpx = usableH * pxPerMm;
-    const pages   = Math.ceil(canvas.height / pageHpx);
+    const margin   = 10;
+    const pageW    = 210; // A4 width in mm
+    const usableW  = pageW - margin * 2;
+    const pxPerMm  = canvas.width / usableW;
+    const contentH = canvas.height / pxPerMm;  // total height in mm
+    const pageH    = contentH + margin * 2;     // custom page height fits everything
 
-    for (let i = 0; i < pages; i++) {
-      if (i > 0) pdf.addPage();
-      const sliceH = Math.min(pageHpx, canvas.height - i * pageHpx);
-      const slice  = document.createElement('canvas');
-      slice.width  = canvas.width;
-      slice.height = sliceH;
-      slice.getContext('2d').drawImage(canvas, 0, -i * pageHpx);
-      pdf.addImage(slice.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin, usableW, sliceH / pxPerMm);
-    }
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [pageW, pageH] });
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin, usableW, contentH);
 
     pdf.save(`${teamName.replace(/[^a-z0-9]/gi, '_')}_Scout_Report.pdf`);
   } catch(e) {
