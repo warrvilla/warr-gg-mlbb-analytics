@@ -93,6 +93,22 @@ def activate_and_screenshot(win):
     img = ImageGrab.grab(bbox=(x, y, x + w, y + h))
     return img, (x, y, w, h)
 
+def img_to_screen(bounds, img, img_x, img_y):
+    """
+    Convert coordinates returned by Claude (in image/physical-pixel space)
+    back to screen coordinates that pyautogui can click.
+
+    Windows DPI scaling means ImageGrab captures at physical resolution
+    while pygetwindow reports logical (scaled-down) window dimensions.
+    We compute the ratio and divide so the click lands on the right spot.
+    """
+    win_x, win_y, win_w, win_h = bounds
+    scale_x = img.width  / win_w
+    scale_y = img.height / win_h
+    abs_x = win_x + int(img_x / scale_x)
+    abs_y = win_y + int(img_y / scale_y)
+    return abs_x, abs_y
+
 # ── VISION ────────────────────────────────────────────────────────────────────
 def to_b64(img):
     buf = io.BytesIO()
@@ -160,10 +176,8 @@ def navigate_to_leaderboard(win):
             print(f"    Step {step}: stuck on '{screen}' — cannot find path")
             return False
 
-        win_x, win_y = bounds[0], bounds[1]
-        abs_x = win_x + tap["x"]
-        abs_y = win_y + tap["y"]
-        print(f"    Step {step}: '{screen}' → tapping '{label}' at ({tap['x']},{tap['y']})")
+        abs_x, abs_y = img_to_screen(bounds, img, tap["x"], tap["y"])
+        print(f"    Step {step}: '{screen}' → tapping '{label}' at img({tap['x']},{tap['y']}) → screen({abs_x},{abs_y})")
         pyautogui.click(abs_x, abs_y)
         time.sleep(2.5)
 
@@ -216,8 +230,10 @@ def find_next_button(img):
     except Exception:
         return {"found": False}
 
-def click_at(bounds, rx, ry):
-    pyautogui.click(bounds[0] + rx, bounds[1] + ry)
+def click_at(bounds, img, rx, ry):
+    """Click at image-space coords (rx, ry), correcting for DPI scaling."""
+    abs_x, abs_y = img_to_screen(bounds, img, rx, ry)
+    pyautogui.click(abs_x, abs_y)
 
 # ── AGGREGATION ───────────────────────────────────────────────────────────────
 def aggregate(entries):
@@ -354,7 +370,7 @@ def main():
             print("  ✓ Last page reached.")
             break
 
-        click_at(bounds, nav["x"], nav["y"])
+        click_at(bounds, img, nav["x"], nav["y"])
         time.sleep(PAGE_DELAY)
         page += 1
 
