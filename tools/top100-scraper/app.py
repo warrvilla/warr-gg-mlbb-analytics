@@ -353,45 +353,49 @@ class MappingWizard(tk.Toplevel):
     """
 
     STEPS = [
+        ("player_row",
+         "Step 1 — PLAYER ROW\n\n"
+         "Make sure you are on the Global Leaderboard in MLBB.\n"
+         "You should see a list of ranked players.\n\n"
+         "Click Capture, then click anywhere on one of the player rows."),
+
         ("check_button",
-         "Step 1 — CHECK BUTTON\n\n"
-         "On the leaderboard, click any player row so the mini profile panel\n"
-         "opens on the right side of the screen.\n\n"
+         "Step 2 — CHECK BUTTON\n\n"
+         "Clicking the player row opened a mini profile panel on the right side.\n\n"
          "Click Capture, then click the blue CHECK button in that panel."),
 
         ("history_tab",
-         "Step 2 — HISTORY TAB\n\n"
-         "The Check button took you to the player's full profile page.\n"
-         "You should see a left sidebar: Profile / Album / Collection / History / ...\n\n"
-         "Click Capture, then click HISTORY in that sidebar."),
+         "Step 3 — HISTORY TAB\n\n"
+         "The Check button took you to the player's full profile page.\n\n"
+         "Click Capture, then click the HISTORY tab on this page."),
 
         ("match_card_0",
-         "Step 3 — MATCH CARD  (1st from left)\n\n"
+         "Step 4 — MATCH CARD  (1st from left)\n\n"
          "You are now on the player's History page showing horizontal match cards.\n\n"
          "Click Capture, then click the CENTER of the 1st (leftmost) match card."),
 
         ("match_card_1",
-         "Step 4 — MATCH CARD  (2nd from left)\n\n"
+         "Step 5 — MATCH CARD  (2nd from left)\n\n"
          "Stay on the same History page.\n\n"
          "Click Capture, then click the CENTER of the 2nd match card."),
 
         ("match_card_2",
-         "Step 5 — MATCH CARD  (3rd from left)\n\n"
+         "Step 6 — MATCH CARD  (3rd from left)\n\n"
          "Stay on the same History page.\n\n"
          "Click Capture, then click the CENTER of the 3rd match card."),
 
         ("match_card_3",
-         "Step 6 — MATCH CARD  (4th from left)\n\n"
+         "Step 7 — MATCH CARD  (4th from left)\n\n"
          "Stay on the same History page.\n\n"
          "Click Capture, then click the CENTER of the 4th match card."),
 
         ("quit_button",
-         "Step 7 — QUIT BUTTON\n\n"
+         "Step 8 — QUIT BUTTON\n\n"
          "Click any match card to open the full match result / scoreboard screen.\n\n"
          "Click Capture, then click the QUIT button at the bottom-right."),
 
         ("back_arrow",
-         "Step 8 — BACK ARROW  (←)\n\n"
+         "Step 9 — BACK ARROW  (←)\n\n"
          "The Quit button returned you to the History page.\n"
          "You should see the ← back arrow at the top-left of the screen.\n\n"
          "Click Capture, then click the ← arrow."),

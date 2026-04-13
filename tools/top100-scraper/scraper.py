@@ -450,8 +450,13 @@ def collect_player_matches(win, player_name, rank):
     matches = []
 
     # ── Step 1: click player row ──────────────────────────────────────────────
+    # Row Y varies per player so we always use Claude Vision.
+    # If player_row is mapped, pass the mapped x_pct as a hint in the prompt.
     print(f"    [1] Finding row for {player_name} (#{rank})")
-    if not click_element(win, make_find_player_prompt(player_name, rank),
+    row_x_hint = ""
+    if "player_row" in COORD_MAP:
+        row_x_hint = f" The player rows are roughly at x={COORD_MAP['player_row']['x_pct']:.0%} of the screen width."
+    if not click_element(win, make_find_player_prompt(player_name, rank) + row_x_hint,
                          label=f"row:{player_name}", delay=1.5):
         return []
 
