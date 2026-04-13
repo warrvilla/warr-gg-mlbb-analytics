@@ -340,14 +340,7 @@ class ScraperApp(tk.Tk):
         self._state_chip.config(text=text, fg=color)
 
     def _open_mapper(self):
-        self.iconify()   # minimize main app so BlueStacks is accessible
-        wizard = MappingWizard(self)
-        wizard.protocol("WM_DELETE_WINDOW", lambda: self._close_mapper(wizard))
-        wizard.bind("<Destroy>", lambda e: self.deiconify() if e.widget is wizard else None)
-
-    def _close_mapper(self, wizard):
-        wizard.destroy()
-        self.deiconify()
+        MappingWizard(self)
 
 
 # ── MAPPING WIZARD ────────────────────────────────────────────────────────────
@@ -413,8 +406,7 @@ class MappingWizard(tk.Toplevel):
         self.geometry("1140x780")
         self.resizable(True, True)
         self.configure(bg=DARK_BG)
-        self.transient(parent)  # attach to parent — no separate taskbar entry
-        self.grab_set()         # modal
+        self.grab_set()
 
         self._step      = 0
         self._coord_map = {}
@@ -663,7 +655,6 @@ class MappingWizard(tk.Toplevel):
                             f"coord_map.json saved with {len(self._coord_map)} mapped positions.\n"
                             "The scraper will now use these exact coordinates.",
                             parent=self)
-        self.master.deiconify()
         self.destroy()
 
 
