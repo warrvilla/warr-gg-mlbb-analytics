@@ -518,10 +518,9 @@ class MappingWizard(tk.Toplevel):
 
     def _capture(self):
         """
-        Take a FULL SCREEN screenshot and show it on the canvas.
-        A cyan rectangle marks the BlueStacks window so you know where to click.
-        Coordinates are stored relative to the BlueStacks window so they
-        work correctly regardless of where on screen BlueStacks sits.
+        Hide this window, screenshot the full screen (so BlueStacks is visible),
+        then restore. A cyan rectangle marks BlueStacks so you know where to click.
+        Coordinates are stored relative to the BlueStacks window.
         """
         win = find_bluestacks()
         if not win:
@@ -532,10 +531,18 @@ class MappingWizard(tk.Toplevel):
             return
 
         import time
-        time.sleep(0.3)   # let any hover effects settle
+
+        # Hide the wizard so it doesn't appear in the screenshot
+        self.withdraw()
+        self.update_idletasks()
+        time.sleep(0.5)   # let the window fully disappear
 
         # Full screen screenshot (physical pixels)
         shot = ImageGrab.grab()
+
+        # Restore the wizard
+        self.deiconify()
+        self.lift()
 
         # Logical screen size from Tkinter (matches pygetwindow's coordinate space)
         logical_screen_w = self.winfo_screenwidth()
