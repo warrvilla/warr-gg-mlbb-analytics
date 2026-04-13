@@ -266,6 +266,7 @@ class ScraperApp(tk.Tk):
                     env=env,
                     cwd=SCRIPT_DIR,
                     bufsize=1,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
                 )
                 for line in self._proc.stdout:
                     line = line.rstrip("\n")
@@ -316,7 +317,8 @@ class ScraperApp(tk.Tk):
             env["SUPABASE_URL"]         = self._cfg.get("supabase_url", "")
             env["SUPABASE_SERVICE_KEY"] = self._cfg.get("supabase_key", "")
             try:
-                subprocess.run(["cmd", "/c", bat], env=env, cwd=SCRIPT_DIR, check=True)
+                subprocess.run(["cmd", "/c", bat], env=env, cwd=SCRIPT_DIR, check=True,
+                               creationflags=subprocess.CREATE_NO_WINDOW)
                 messagebox.showinfo("Done", "Daily schedule created!\nThe scraper will run at 3:00 AM every night.")
                 self._log_line("Daily schedule registered with Task Scheduler.", "ok")
             except Exception as e:
