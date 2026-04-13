@@ -16,11 +16,24 @@ import sys
 import os
 import json
 import datetime
+from PIL import Image, ImageDraw, ImageTk
+import pygetwindow as gw
+from PIL import ImageGrab
 
 # ── Config file lives next to this script ────────────────────────────────────
-SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(SCRIPT_DIR, "config.json")
-SCRAPER_PY  = os.path.join(SCRIPT_DIR, "scraper.py")
+SCRIPT_DIR   = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE  = os.path.join(SCRIPT_DIR, "config.json")
+SCRAPER_PY   = os.path.join(SCRIPT_DIR, "scraper.py")
+COORD_MAP_FILE = os.path.join(SCRIPT_DIR, "coord_map.json")
+
+BLUESTACKS_TITLES = ["BlueStacks App Player", "BlueStacks 5", "BlueStacks", "HD-Player"]
+
+def find_bluestacks():
+    for title in BLUESTACKS_TITLES:
+        wins = gw.getWindowsWithTitle(title)
+        if wins:
+            return wins[0]
+    return None
 
 DARK_BG   = "#0D0D14"
 SURFACE   = "#141420"
@@ -132,6 +145,9 @@ class ScraperApp(tk.Tk):
         self._stop_btn = self._btn(run_row, "Stop", self._stop, color=RED, width=6)
         self._stop_btn.pack(side="left", padx=(8, 0))
         self._stop_btn.config(state="disabled")
+
+        self._map_btn = self._btn(run_row, "Map Clicks", self._open_mapper, color=ACCENT)
+        self._map_btn.pack(side="left", padx=(8, 0))
 
         self._sched_btn = self._btn(run_row, "Schedule Daily (3 AM)", self._schedule, color=GOLD)
         self._sched_btn.pack(side="right")
@@ -320,6 +336,297 @@ class ScraperApp(tk.Tk):
 
     def _set_state(self, text, color):
         self._state_chip.config(text=text, fg=color)
+
+    def _open_mapper(self):
+        MappingWizard(self)
+
+
+# ── MAPPING WIZARD ────────────────────────────────────────────────────────────
+class MappingWizard(tk.Toplevel):
+    """
+    Step-by-step coordinate mapper.
+    For each UI element, you navigate BlueStacks to the right screen,
+    click Capture, then click the element in the screenshot preview.
+    Saves percentages to coord_map.json so the scraper never guesses.
+    """
+
+    STEPS = [
+        ("back_arrow",
+         "BACK ARROW  (←)\n\n"
+         "Navigate BlueStacks to any screen that shows the back arrow at the top-left\n"
+         "(e.g. a player's profile page).\n\n"
+         "Then click Capture, and click the ← arrow in the screenshot."),
+
+        ("check_button",
+         "CHECK BUTTON\n\n"
+         "On the leaderboard, click a player row so the mini profile panel\n"
+         "appears on the right side.\n\n"
+         "Then click Capture, and click the blue CHECK button in that panel."),
+
+        ("history_tab",
+         "HISTORY TAB\n\n"
+         "From the mini panel, click Check to open the player's full profile.\n"
+         "You should see the left sidebar with Profile / Album / History / etc.\n\n"
+         "Then click Capture, and click the HISTORY tab in the sidebar."),
+
+        ("match_card_0",
+         "MATCH CARD  —  1st from left\n\n"
+         "You should now be on the player's History page showing match cards.\n\n"
+         "Click Capture, then click the CENTER of the 1st (leftmost) match card."),
+
+        ("match_card_1",
+         "MATCH CARD  —  2nd from left\n\n"
+         "Stay on the same History page.\n\n"
+         "Click Capture, then click the CENTER of the 2nd match card."),
+
+        ("match_card_2",
+         "MATCH CARD  —  3rd from left\n\n"
+         "Stay on the same History page.\n\n"
+         "Click Capture, then click the CENTER of the 3rd match card."),
+
+        ("match_card_3",
+         "MATCH CARD  —  4th from left\n\n"
+         "Stay on the same History page.\n\n"
+         "Click Capture, then click the CENTER of the 4th match card."),
+
+        ("quit_button",
+         "QUIT BUTTON\n\n"
+         "Click any match card to open the full match result screen.\n"
+         "You should see the scoreboard and a QUIT button at the bottom-right.\n\n"
+         "Click Capture, then click the QUIT button."),
+    ]
+
+    CANVAS_W = 820
+    CANVAS_H = 480
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("Click Mapper — warr.gg Scraper")
+        self.geometry("900x780")
+        self.resizable(False, False)
+        self.configure(bg=DARK_BG)
+        self.grab_set()   # modal
+
+        self._step      = 0
+        self._coord_map = {}
+        self._photo     = None   # keep reference so Tkinter doesn't GC it
+        self._scale     = 1.0   # screenshot → canvas scale
+        self._pending   = False  # waiting for a canvas click
+
+        # Load existing map if present
+        if os.path.exists(COORD_MAP_FILE):
+            try:
+                with open(COORD_MAP_FILE) as f:
+                    self._coord_map = json.load(f)
+            except Exception:
+                pass
+
+        self._build_ui()
+        self._show_step()
+
+    # ── UI ────────────────────────────────────────────────────────────────────
+    def _build_ui(self):
+        # Header
+        hdr = tk.Frame(self, bg=SURFACE, pady=10)
+        hdr.pack(fill="x")
+        tk.Label(hdr, text="Click Mapper", font=("Segoe UI", 14, "bold"),
+                 bg=SURFACE, fg=TEXT).pack()
+        tk.Label(hdr, text="Map each UI element once — the scraper will click exactly here every run.",
+                 font=("Segoe UI", 9), bg=SURFACE, fg=TEXT3).pack(pady=(2, 0))
+
+        tk.Frame(self, bg=BORDER, height=1).pack(fill="x")
+
+        body = tk.Frame(self, bg=DARK_BG, padx=16, pady=12)
+        body.pack(fill="both", expand=True)
+
+        # Step indicator
+        self._step_lbl = tk.Label(body, text="", font=("Segoe UI", 8, "bold"),
+                                  bg=DARK_BG, fg=TEXT3)
+        self._step_lbl.pack(anchor="w")
+
+        # Instruction text
+        self._instr = tk.Label(body, text="", font=("Segoe UI", 10),
+                               bg=DARK_BG, fg=TEXT, justify="left", wraplength=860)
+        self._instr.pack(anchor="w", pady=(4, 10))
+
+        # Canvas (screenshot preview)
+        canvas_frame = tk.Frame(body, bg=BORDER, padx=1, pady=1)
+        canvas_frame.pack()
+        self._canvas = tk.Canvas(canvas_frame, width=self.CANVAS_W, height=self.CANVAS_H,
+                                 bg="#0A0A10", highlightthickness=0, cursor="crosshair")
+        self._canvas.pack()
+        self._canvas.bind("<Button-1>", self._on_canvas_click)
+
+        self._hint_lbl = tk.Label(body, text="Click Capture to take a screenshot first.",
+                                  font=("Segoe UI", 9, "italic"), bg=DARK_BG, fg=TEXT3)
+        self._hint_lbl.pack(pady=(6, 0))
+
+        # Buttons row
+        btn_row = tk.Frame(body, bg=DARK_BG)
+        btn_row.pack(pady=(10, 0))
+
+        self._cap_btn = tk.Button(btn_row, text="Capture Screenshot", command=self._capture,
+                                  font=("Segoe UI", 9, "bold"), bg=ACCENT, fg=DARK_BG,
+                                  relief="flat", padx=14, pady=6, cursor="hand2")
+        self._cap_btn.pack(side="left", padx=(0, 8))
+
+        self._skip_btn = tk.Button(btn_row, text="Skip this step", command=self._next_step,
+                                   font=("Segoe UI", 9), bg=SURFACE2, fg=TEXT2,
+                                   relief="flat", padx=14, pady=6, cursor="hand2")
+        self._skip_btn.pack(side="left", padx=(0, 8))
+
+        self._done_btn = tk.Button(btn_row, text="Save & Close", command=self._save_and_close,
+                                   font=("Segoe UI", 9, "bold"), bg=GREEN, fg=DARK_BG,
+                                   relief="flat", padx=14, pady=6, cursor="hand2",
+                                   state="disabled")
+        self._done_btn.pack(side="left")
+
+        # Progress dots
+        dot_row = tk.Frame(body, bg=DARK_BG)
+        dot_row.pack(pady=(14, 0))
+        self._dots = []
+        for i in range(len(self.STEPS)):
+            d = tk.Label(dot_row, text="o", font=("Segoe UI", 10), bg=DARK_BG, fg=TEXT3)
+            d.pack(side="left", padx=3)
+            self._dots.append(d)
+
+    # ── Steps ─────────────────────────────────────────────────────────────────
+    def _show_step(self):
+        if self._step >= len(self.STEPS):
+            self._finish()
+            return
+
+        key, instr = self.STEPS[self._step]
+        mapped     = key in self._coord_map
+
+        self._step_lbl.config(
+            text=f"Step {self._step + 1} of {len(self.STEPS)}  —  {key}"
+                 + ("  [already mapped]" if mapped else ""))
+        self._instr.config(text=instr)
+        self._hint_lbl.config(text="Click Capture to take a screenshot, then click the element.",
+                              fg=TEXT3)
+        self._canvas.delete("all")
+        self._pending = False
+
+        # Update dots
+        for i, d in enumerate(self._dots):
+            if i < self._step:
+                d.config(text="•", fg=GREEN)
+            elif i == self._step:
+                d.config(text="•", fg=ACCENT)
+            else:
+                d.config(text="o", fg=TEXT3)
+
+    def _capture(self):
+        """Take a screenshot of the BlueStacks window and show it on the canvas."""
+        win = find_bluestacks()
+        if not win:
+            messagebox.showerror("BlueStacks not found",
+                                 "BlueStacks is not running.\nOpen BlueStacks and navigate to the correct screen first.",
+                                 parent=self)
+            return
+
+        try:
+            win.activate()
+        except Exception:
+            pass
+        import time; time.sleep(0.4)
+
+        # Capture
+        x, y, w, h = win.left, win.top, win.width, win.height
+        shot = ImageGrab.grab(bbox=(x, y, x + w, y + h))
+
+        # Store window info for percentage calculation
+        self._win_bounds = (x, y, w, h)
+        self._shot_size  = shot.size   # (physical_w, physical_h)
+
+        # Scale to canvas
+        scale = min(self.CANVAS_W / shot.width, self.CANVAS_H / shot.height)
+        self._scale = scale
+        dw = int(shot.width * scale)
+        dh = int(shot.height * scale)
+        display = shot.resize((dw, dh), Image.LANCZOS)
+
+        self._photo = ImageTk.PhotoImage(display)
+        self._canvas.delete("all")
+        cx = (self.CANVAS_W - dw) // 2
+        cy = (self.CANVAS_H - dh) // 2
+        self._canvas_offset = (cx, cy)
+        self._canvas.create_image(cx, cy, anchor="nw", image=self._photo)
+
+        self._pending = True
+        self._hint_lbl.config(
+            text="Screenshot captured. Now click the element in the image above.",
+            fg=GOLD)
+
+    def _on_canvas_click(self, event):
+        if not self._pending:
+            return
+
+        ox, oy = self._canvas_offset
+        # Canvas click → image coords (physical pixels)
+        ix = (event.x - ox) / self._scale
+        iy = (event.y - oy) / self._scale
+
+        # Clamp to image bounds
+        sw, sh = self._shot_size
+        ix = max(0, min(ix, sw - 1))
+        iy = max(0, min(iy, sh - 1))
+
+        # Store as percentage of screenshot size
+        # When used: ax = win.left + int(win.width * x_pct)
+        # This correctly handles DPI since screenshot may be at physical scale
+        x_pct = ix / sw
+        y_pct = iy / sh
+
+        key = self.STEPS[self._step][0]
+        self._coord_map[key] = {"x_pct": round(x_pct, 4), "y_pct": round(y_pct, 4)}
+
+        # Draw marker on canvas
+        cx = event.x
+        cy = event.y
+        r = 10
+        self._canvas.create_oval(cx-r, cy-r, cx+r, cy+r, outline="red",  width=3)
+        self._canvas.create_oval(cx-3, cy-3, cx+3, cy+3, fill="red")
+        self._canvas.create_text(cx + r + 4, cy, text=f"{key}  ({x_pct:.3f}, {y_pct:.3f})",
+                                 fill="red", anchor="w", font=("Consolas", 9))
+
+        self._pending = False
+        self._hint_lbl.config(
+            text=f"Mapped  {key}  at ({x_pct:.3f}, {y_pct:.3f}).  Click Next Step or capture again.",
+            fg=GREEN)
+
+        # Auto-advance after short delay
+        self.after(800, self._next_step)
+
+    def _next_step(self):
+        self._step += 1
+        if self._step >= len(self.STEPS):
+            self._finish()
+        else:
+            self._show_step()
+
+    def _finish(self):
+        self._instr.config(
+            text="All steps complete!\n\n"
+                 f"Mapped {len(self._coord_map)} of {len(self.STEPS)} elements.\n"
+                 "Click Save & Close to write coord_map.json.\n"
+                 "The scraper will use these exact positions on every run.")
+        self._step_lbl.config(text="Done")
+        self._cap_btn.config(state="disabled")
+        self._skip_btn.config(state="disabled")
+        self._done_btn.config(state="normal")
+        for d in self._dots:
+            d.config(text="•", fg=GREEN)
+
+    def _save_and_close(self):
+        with open(COORD_MAP_FILE, "w") as f:
+            json.dump(self._coord_map, f, indent=2)
+        messagebox.showinfo("Saved",
+                            f"coord_map.json saved with {len(self._coord_map)} mapped positions.\n"
+                            "The scraper will now use these exact coordinates.",
+                            parent=self)
+        self.destroy()
 
 
 if __name__ == "__main__":

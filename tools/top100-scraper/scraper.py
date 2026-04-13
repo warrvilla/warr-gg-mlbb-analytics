@@ -62,10 +62,18 @@ CLICK_DELAY        = 0.6
 NAV_MAX_STEPS      = 10
 
 # ── DEBUG ─────────────────────────────────────────────────────────────────────
-# Set DEBUG_CLICKS = True to save an annotated PNG before every click.
-# Open the saved debug_*.png files to see exactly where the red dot lands.
-# Set back to False once clicks are calibrated.
 DEBUG_CLICKS = _cfg.get("debug_clicks", False)
+
+# ── COORD MAP ─────────────────────────────────────────────────────────────────
+# Pre-mapped click positions from the Map Clicks wizard in app.py.
+# Each entry: {"x_pct": float, "y_pct": float} — percentage of screenshot size.
+# When used: screen_x = win.left + int(win.width * x_pct)  (handles DPI correctly)
+_map_path  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "coord_map.json")
+COORD_MAP  = {}
+if os.path.exists(_map_path):
+    with open(_map_path, encoding="utf-8") as _mf:
+        COORD_MAP = json.load(_mf)
+    print(f"  Coord map loaded: {list(COORD_MAP.keys())}")
 BLUESTACKS_EXE     = (os.environ.get("BLUESTACKS_EXE") or _cfg.get("bluestacks_exe")
                       or r"C:\Program Files\BlueStacks_nxt\HD-Player.exe")
 
@@ -196,6 +204,34 @@ def click_element(win, prompt, label="element", model="claude-haiku-4-5-20251001
         print(f"      [{label} error: {e}]")
     print(f"      [{label}] not found")
     return False
+
+def mapped_click(win, map_key, label=None, delay=1.5):
+    """
+    Click a pre-mapped coordinate from coord_map.json.
+    Percentages are stored relative to screenshot size, which naturally
+    handles Windows DPI scaling when applied to logical window size.
+    Returns True if the key exists in the map and was clicked.
+    """
+    entry = COORD_MAP.get(map_key)
+    if not entry:
+        return False
+    ax = win.left + int(win.width  * entry["x_pct"])
+    ay = win.top  + int(win.height * entry["y_pct"])
+    print(f"      [{label or map_key}] mapped({entry['x_pct']:.3f},{entry['y_pct']:.3f}) -> screen({ax},{ay})")
+    pyautogui.click(ax, ay)
+    time.sleep(delay)
+    return True
+
+def smart_click(win, map_key, prompt, label=None, model="claude-haiku-4-5-20251001", delay=1.5):
+    """
+    Try mapped coordinate first; fall back to Claude Vision if not mapped.
+    This means: after running Map Clicks wizard, no Claude calls for known elements.
+    """
+    lbl = label or map_key
+    if mapped_click(win, map_key, label=lbl, delay=delay):
+        return True
+    print(f"      [{lbl}] no map entry — using Claude Vision")
+    return click_element(win, prompt, label=lbl, model=model, delay=delay)
 
 # ── GESTURE HELPERS ───────────────────────────────────────────────────────────
 def _gesture(win, x1, y1, x2, y2, duration=0.5, settle=1.2):
@@ -362,8 +398,8 @@ def navigate_to_leaderboard(win):
     return False
 
 def go_back(win):
-    """Step 8: Click the ← back button."""
-    return click_element(win, FIND_BACK_PROMPT, label="back", delay=2.0)
+    """Step 8: Click the ← back button (uses map if available)."""
+    return smart_click(win, "back_arrow", FIND_BACK_PROMPT, label="back", delay=2.0)
 
 def return_to_leaderboard(win):
     """
@@ -421,14 +457,13 @@ def collect_player_matches(win, player_name, rank):
 
     # ── Step 2: click Check ───────────────────────────────────────────────────
     print(f"    [2] Clicking Check")
-    if not click_element(win, FIND_CHECK_PROMPT, label="Check", delay=2.5):
-        # mini panel may be open but Check not found — dismiss
+    if not smart_click(win, "check_button", FIND_CHECK_PROMPT, label="Check", delay=2.5):
         return_to_leaderboard(win)
         return []
 
     # ── Step 3: click History ─────────────────────────────────────────────────
     print(f"    [3] Clicking History")
-    if not click_element(win, FIND_HISTORY_PROMPT, label="History", delay=2.0):
+    if not smart_click(win, "history_tab", FIND_HISTORY_PROMPT, label="History", delay=2.0):
         return_to_leaderboard(win)
         return []
 
@@ -447,7 +482,7 @@ def collect_player_matches(win, player_name, rank):
             break
 
         print(f"    [4] Clicking leftmost card (collected {len(matches)}/{MATCHES_PER_PLAYER})")
-        if not click_element(win, make_match_card_prompt(0), label="card", delay=2.5):
+        if not smart_click(win, "match_card_0", make_match_card_prompt(0), label="card", delay=2.5):
             print(f"      no card found — stopping")
             break
 
@@ -460,7 +495,7 @@ def collect_player_matches(win, player_name, rank):
             # Duplicate — swipe further to skip past it
             dupe_streak += 1
             print(f"        DUPE BID:{bid} (streak {dupe_streak}/{MAX_DUPES})")
-            click_element(win, FIND_QUIT_PROMPT, label="Quit-dupe", delay=1.5) or go_back(win)
+            smart_click(win, "quit_button", FIND_QUIT_PROMPT, label="Quit-dupe", delay=1.5) or go_back(win)
             if dupe_streak >= MAX_DUPES:
                 print(f"      History exhausted after {len(matches)} matches")
                 break
@@ -480,7 +515,7 @@ def collect_player_matches(win, player_name, rank):
 
         # Step 6: Quit → back to history cards
         print(f"    [6] Clicking Quit")
-        if not click_element(win, FIND_QUIT_PROMPT, label="Quit", delay=2.0):
+        if not smart_click(win, "quit_button", FIND_QUIT_PROMPT, label="Quit", delay=2.0):
             go_back(win)
 
         # Step 7: swipe left ONE card to advance (skip if last match)
