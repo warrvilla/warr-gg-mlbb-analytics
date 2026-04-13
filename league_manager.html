@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>League Manager — Warr.GG</title>
+<link rel="stylesheet" href="warr-styles.css">
+<style>
+:root { --nav-h: 52px; }
+body { background: var(--bg); min-height: 100vh; }
+.page-wrap { max-width: 960px; margin: 0 auto; padding: calc(var(--nav-h) + 32px) 20px 80px; }
+
+.page-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 32px; gap: 16px; flex-wrap: wrap;
+}
+.page-title { font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -.01em; }
+.page-sub   { font-size: 13px; color: var(--text3); margin-top: 3px; }
+
+.admin-only-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--gold-dim); border: 1px solid var(--gold-border);
+  border-radius: var(--r2); padding: 12px 16px; margin-bottom: 24px;
+  font-size: 13px; color: var(--gold);
+}
+
+.card {
+  background: var(--surface); border: 1px solid var(--glass-border2);
+  border-radius: var(--r2); padding: 24px; margin-bottom: 20px;
+}
+.card-title {
+  font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+}
+
+/* ── Form ── */
+.form-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.form-input {
+  flex: 1; min-width: 160px; padding: 9px 13px;
+  background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: var(--r); color: var(--text); font-size: 13px;
+  font-family: var(--font-body); outline: none;
+}
+.form-input:focus { border-color: var(--accent); }
+.form-input::placeholder { color: var(--text3); }
+
+/* ── Buttons ── */
+.btn {
+  padding: 9px 18px; border-radius: var(--r); font-size: 12px; font-weight: 700;
+  border: 1px solid transparent; cursor: pointer; font-family: var(--font-head);
+  letter-spacing: .03em; transition: opacity .15s;
+}
+.btn:hover { opacity: .85; }
+.btn-accent { background: var(--accent-dim); color: var(--accent); border-color: var(--accent-border); }
+.btn-green  { background: var(--neon-dim);   color: var(--neon);   border-color: var(--neon-border);   }
+.btn-red    { background: var(--red-dim);    color: var(--red);    border-color: var(--red-border);    }
+.btn-gold   { background: var(--gold-dim);   color: var(--gold);   border-color: var(--gold-border);   }
+.btn-ghost  { background: var(--surface3);   color: var(--text2);  border-color: var(--border2);       }
+.btn-sm { padding: 5px 12px; font-size: 11px; }
+
+/* ── Leagues list ── */
+.league-list { display: flex; flex-direction: column; gap: 12px; }
+.league-row {
+  background: var(--surface2); border: 1px solid var(--glass-border);
+  border-radius: var(--r2); overflow: hidden;
+}
+.league-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; gap: 12px; flex-wrap: wrap; cursor: pointer;
+}
+.league-header:hover { background: var(--surface3); }
+.league-name { font-size: 15px; font-weight: 700; color: var(--text); }
+.league-region { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.league-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+.active-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: var(--pill);
+  font-size: 10px; font-weight: 700; letter-spacing: .05em;
+  background: var(--neon-dim); color: var(--neon); border: 1px solid var(--neon-border);
+}
+.active-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--neon); }
+
+/* ── Seasons panel ── */
+.seasons-panel {
+  border-top: 1px solid var(--glass-border);
+  padding: 16px; display: none;
+}
+.seasons-panel.open { display: block; }
+
+.season-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.season-item {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: var(--r); padding: 10px 14px; gap: 10px;
+}
+.season-info { flex: 1; }
+.season-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.season-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.season-active-badge {
+  padding: 2px 8px; border-radius: var(--pill);
+  font-size: 10px; font-weight: 700;
+  background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border);
+}
+
+.add-season-form {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;
+  padding-top: 12px; border-top: 1px solid var(--border);
+}
+
+/* ── Empty state ── */
+.empty-state {
+  text-align: center; padding: 40px 20px;
+  color: var(--text3); font-size: 13px;
+}
+.empty-icon { font-size: 32px; margin-bottom: 8px; }
+
+/* ── Toast ── */
+.toast-msg {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: var(--r); padding: 10px 20px; font-size: 13px; color: var(--text);
+  transition: transform .3s ease; z-index: 9999; white-space: nowrap;
+  box-shadow: var(--shadow);
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="topnav">
+  <a class="nav-brand" href="index.html">
+    <span class="nav-brand-name">Warr.GG</span>
+    <span class="nav-brand-sub">MLBB Intel</span>
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="draft_board.html">Draft</a>
+    <a class="nav-link" href="ai_battle.html">AI Battle</a>
+    <a class="nav-link" href="scout.html">Scout</a>
+    <a class="nav-link" href="stats.html">Analysis</a>
+    <a class="nav-link" href="patch_meta.html">Patch</a>
+    <a class="nav-link" href="heroes.html">Heroes</a>
+    <a class="nav-link" href="profile.html">Profile</a>
+    <a class="nav-link active" href="league_manager.html" id="leagueNavLink" style="color:var(--gold);">Leagues</a>
+    <a class="nav-link" href="team_manager.html" id="teamNavLink" style="color:var(--gold);">Teams</a>
+  </div>
+  <div class="nav-right" id="navRight"></div>
+</nav>
+
+<div class="page-wrap">
+  <div class="page-header">
+    <div>
+      <div class="page-title">League Manager</div>
+      <div class="page-sub">Manage official competition leagues and seasons. Set which league appears by default in Scout.</div>
+    </div>
+    <button class="btn btn-accent" onclick="openAddLeague()">+ Add League</button>
+  </div>
+
+  <div class="admin-only-banner" id="adminBanner" style="display:none;">
+    <span>⚠</span>
+    <span>This page is restricted to admins only. Changes here affect all users.</span>
+  </div>
+
+  <!-- Add league form -->
+  <div class="card" id="addLeagueCard" style="display:none;">
+    <div class="card-title">NEW LEAGUE</div>
+    <div class="form-row">
+      <input class="form-input" id="newLeagueName"   placeholder="League name (e.g. MPL PH)" />
+      <input class="form-input" id="newLeagueRegion" placeholder="Region (e.g. Philippines)" style="max-width:220px;" />
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-green" onclick="saveNewLeague()">Save League</button>
+      <button class="btn btn-ghost" onclick="closeAddLeague()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Leagues list -->
+  <div class="card">
+    <div class="card-title">LEAGUES <span id="leagueCount" style="background:var(--surface3);padding:2px 8px;border-radius:var(--pill);font-size:10px;letter-spacing:0;">0</span></div>
+    <div class="league-list" id="leagueList">
+      <div class="empty-state">
+        <div class="empty-icon">🏆</div>
+        <div>Loading leagues…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toastMsg" class="toast-msg"></div>
+
+<script src="warr-lib.js"></script>
+<script src="warr-nav.js"></script>
+<script>
+// ── Auth guard ────────────────────────────────────────────────
+(async () => {
+  if (typeof WAuth !== 'undefined') {
+    await WAuth.restoreSession?.();
+    WAuth.renderAuthChip?.('navRight');
+    if (typeof WAdmin !== 'undefined') {
+      await WAdmin.loadExtraAdmins?.();
+    }
+  }
+  if (!WAdmin.isAdmin()) {
+    document.querySelector('.page-wrap').innerHTML =
+      '<div style="text-align:center;padding:80px 20px;color:var(--text3);">' +
+      '<div style="font-size:48px;margin-bottom:16px;">🔒</div>' +
+      '<div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px;">Admin Only</div>' +
+      '<div>This page is restricted to Warr.GG admins.</div>' +
+      '<a href="scout.html" style="display:inline-block;margin-top:20px;color:var(--accent);">← Back to Scout</a>' +
+      '</div>';
+    return;
+  }
+  document.getElementById('adminBanner').style.display = 'flex';
+  loadLeagues();
+})();
+
+// ── State ─────────────────────────────────────────────────────
+let leagues = [];
+let openLeagueId = null;  // which league's season panel is expanded
+
+// ── Load ──────────────────────────────────────────────────────
+async function loadLeagues() {
+  try {
+    leagues = await WDB.loadLeagues();
+    renderLeagues();
+  } catch(e) {
+    toast('Failed to load leagues: ' + e.message, 'error');
+  }
+}
+
+// ── Render ────────────────────────────────────────────────────
+function renderLeagues() {
+  const el = document.getElementById('leagueList');
+  document.getElementById('leagueCount').textContent = leagues.length;
+  if (!leagues.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">🏆</div><div>No leagues yet. Click + Add League to create one.</div></div>';
+    return;
+  }
+  el.innerHTML = leagues.map(l => leagueRowHTML(l)).join('');
+}
+
+function leagueRowHTML(l) {
+  const isOpen = openLeagueId === l.id;
+  return `
+  <div class="league-row" id="lr-${l.id}">
+    <div class="league-header" onclick="toggleSeasons('${l.id}')">
+      <div>
+        <div class="league-name">${esc(l.name)}</div>
+        <div class="league-region">${esc(l.region || 'No region set')} · ${isOpen ? '▲ hide seasons' : '▼ manage seasons'}</div>
+      </div>
+      <div class="league-actions" onclick="event.stopPropagation()">
+        ${l.is_scout_active
+          ? `<span class="active-badge"><span class="active-dot"></span>SCOUT DEFAULT</span>`
+          : `<button class="btn btn-ghost btn-sm" onclick="setActive('${l.id}')">Set as Default</button>`}
+        <button class="btn btn-red btn-sm" onclick="deleteLeague('${l.id}','${esc(l.name)}')">Delete</button>
+      </div>
+    </div>
+    <div class="seasons-panel ${isOpen ? 'open' : ''}" id="sp-${l.id}">
+      <div class="card-title" style="margin-bottom:10px;">SEASONS</div>
+      <div class="season-list" id="sl-${l.id}"><div style="color:var(--text3);font-size:12px;">Loading…</div></div>
+      <div class="add-season-form">
+        <input class="form-input" id="sname-${l.id}" placeholder="Season name (e.g. Season 15)" style="min-width:180px;" />
+        <input class="form-input" id="ssplit-${l.id}" placeholder="Split (e.g. Spring 2025)" style="max-width:180px;" />
+        <input class="form-input" id="sstart-${l.id}" type="date" style="max-width:150px;" />
+        <input class="form-input" id="send-${l.id}" type="date" style="max-width:150px;" />
+        <button class="btn btn-accent btn-sm" onclick="addSeason('${l.id}')">+ Add Season</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Seasons panel ─────────────────────────────────────────────
+async function toggleSeasons(leagueId) {
+  if (openLeagueId === leagueId) {
+    openLeagueId = null;
+    renderLeagues();
+    return;
+  }
+  openLeagueId = leagueId;
+  renderLeagues();
+  await loadSeasonsFor(leagueId);
+}
+
+async function loadSeasonsFor(leagueId) {
+  const el = document.getElementById('sl-' + leagueId);
+  if (!el) return;
+  try {
+    const seasons = await WDB.loadSeasons(leagueId);
+    if (!seasons.length) {
+      el.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:4px 0;">No seasons yet — add one below.</div>';
+      return;
+    }
+    el.innerHTML = seasons.map(s => `
+      <div class="season-item">
+        <div class="season-info">
+          <div class="season-name">${esc(s.name)} ${s.is_active ? '<span class="season-active-badge">ACTIVE</span>' : ''}</div>
+          <div class="season-meta">${esc(s.split || '')}${s.start_date ? ' · ' + s.start_date : ''}${s.end_date ? ' → ' + s.end_date : ''}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          ${!s.is_active ? `<button class="btn btn-ghost btn-sm" onclick="setSeasonActive('${s.id}','${leagueId}')">Set Active</button>` : ''}
+          <button class="btn btn-red btn-sm" onclick="deleteSeason('${s.id}','${leagueId}','${esc(s.name)}')">✕</button>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--red);font-size:12px;">${e.message}</div>`;
+  }
+}
+
+async function addSeason(leagueId) {
+  const name  = document.getElementById('sname-'  + leagueId)?.value.trim();
+  const split = document.getElementById('ssplit-' + leagueId)?.value.trim();
+  const start = document.getElementById('sstart-' + leagueId)?.value;
+  const end   = document.getElementById('send-'   + leagueId)?.value;
+  if (!name) { toast('Season name required', 'error'); return; }
+  try {
+    await WDB.saveSeason({ league_id: leagueId, name, split, start_date: start||null, end_date: end||null });
+    document.getElementById('sname-'  + leagueId).value = '';
+    document.getElementById('ssplit-' + leagueId).value = '';
+    document.getElementById('sstart-' + leagueId).value = '';
+    document.getElementById('send-'   + leagueId).value = '';
+    toast('Season added');
+    await loadSeasonsFor(leagueId);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function setSeasonActive(seasonId, leagueId) {
+  try {
+    // Clear all active seasons in this league first
+    const seasons = await WDB.loadSeasons(leagueId);
+    for (const s of seasons) {
+      if (s.is_active) await WDB.saveSeason({ ...s, is_active: false });
+    }
+    const target = seasons.find(s => s.id === seasonId);
+    if (target) await WDB.saveSeason({ ...target, is_active: true });
+    toast('Active season updated');
+    await loadSeasonsFor(leagueId);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function deleteSeason(id, leagueId, name) {
+  if (!confirm(`Delete season "${name}"? This cannot be undone.`)) return;
+  try {
+    await WDB.deleteSeason(id);
+    toast('Season deleted');
+    await loadSeasonsFor(leagueId);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── League CRUD ───────────────────────────────────────────────
+function openAddLeague() {
+  document.getElementById('addLeagueCard').style.display = 'block';
+  document.getElementById('newLeagueName').focus();
+}
+function closeAddLeague() {
+  document.getElementById('addLeagueCard').style.display = 'none';
+  document.getElementById('newLeagueName').value  = '';
+  document.getElementById('newLeagueRegion').value = '';
+}
+
+async function saveNewLeague() {
+  const name   = document.getElementById('newLeagueName').value.trim();
+  const region = document.getElementById('newLeagueRegion').value.trim();
+  if (!name) { toast('League name required', 'error'); return; }
+  try {
+    await WDB.saveLeague({ name, region });
+    toast('League created');
+    closeAddLeague();
+    await loadLeagues();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function setActive(id) {
+  try {
+    await WDB.setActiveLeague(id);
+    toast('Scout default updated');
+    await loadLeagues();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function deleteLeague(id, name) {
+  if (!confirm(`Delete league "${name}" and ALL its seasons? This cannot be undone.`)) return;
+  try {
+    await WDB.deleteLeague(id);
+    if (openLeagueId === id) openLeagueId = null;
+    toast('League deleted');
+    await loadLeagues();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Utils ─────────────────────────────────────────────────────
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function toast(msg, type) {
+  const t = document.getElementById('toastMsg');
+  t.textContent = msg;
+  if (type === 'error') t.style.borderColor = 'rgba(216,120,128,.4)';
+  else t.style.borderColor = 'rgba(76,184,122,.35)';
+  t.style.transform = 'translateX(-50%) translateY(0)';
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => { t.style.transform = 'translateX(-50%) translateY(80px)'; }, 2800);
+}
+</script>
+</body>
+</html>

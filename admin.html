@@ -238,6 +238,9 @@ table.users-table {
     <a class="nav-link" href="stats.html">Analysis</a>
     <a class="nav-link" href="patch_meta.html">Patch</a>
     <a class="nav-link" href="profile.html">Profile</a>
+    <a class="nav-link" href="heroes.html">Heroes</a>
+    <a class="nav-link" href="team_manager.html">Teams</a>
+    <a class="nav-link" id="adminNav_leagues" href="league_manager.html" style="display:none;color:var(--gold);">Leagues</a>
   </div>
   <div class="nav-right">
     <div id="authChip"></div>
@@ -254,6 +257,8 @@ table.users-table {
   <a class="mobile-nav-link" href="stats.html">Analysis</a>
   <a class="mobile-nav-link" href="patch_meta.html">Patch</a>
   <a class="mobile-nav-link" href="profile.html">Profile</a>
+  <a class="mobile-nav-link" href="heroes.html">Heroes</a>
+  <a class="mobile-nav-link" href="team_manager.html">Teams</a>
 </nav>
 
 <div class="page-wrap">
@@ -471,6 +476,7 @@ DELETE FROM auth.users WHERE id = 'USER_UUID';</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="warr-lib.js"></script>
+<script src="warr-nav.js"></script>
 <script>
 // ── State ──
 let _allUsers = [];

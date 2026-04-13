@@ -206,6 +206,83 @@ CREATE TRIGGER profiles_updated_at
 -- This cascades to profiles, teams, scrims automatically (ON DELETE CASCADE).
 -- Matches they created will have created_by set to NULL (they remain, just unlinked).
 
+-- ── LEAGUES ───────────────────────────────────────────────────
+-- Official competition leagues (MPL PH, MPL ID, etc.)
+-- Managed by admin. One league may be marked active for Scout default view.
+CREATE TABLE IF NOT EXISTS public.leagues (
+  id              uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  name            text NOT NULL UNIQUE,
+  region          text,
+  is_scout_active boolean DEFAULT false,  -- only 1 should be true at a time (enforced by app)
+  created_at      timestamptz DEFAULT now(),
+  created_by      uuid REFERENCES auth.users(id)
+);
+
+ALTER TABLE public.leagues ENABLE ROW LEVEL SECURITY;
+
+-- Public read, only admin can write (admin check enforced at app layer)
+CREATE POLICY "leagues_public_read"  ON public.leagues FOR SELECT USING (true);
+CREATE POLICY "leagues_auth_write"   ON public.leagues FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "leagues_auth_update"  ON public.leagues FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "leagues_auth_delete"  ON public.leagues FOR DELETE USING (auth.role() = 'authenticated');
+
+-- ── SEASONS ───────────────────────────────────────────────────
+-- Seasons belong to a league. e.g. MPL PH → Season 15 (Spring 2025)
+CREATE TABLE IF NOT EXISTS public.seasons (
+  id              uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  league_id       uuid NOT NULL REFERENCES public.leagues(id) ON DELETE CASCADE,
+  name            text NOT NULL,   -- e.g. "Season 15"
+  split           text,            -- e.g. "Spring 2025"
+  start_date      date,
+  end_date        date,
+  is_active       boolean DEFAULT false,
+  created_at      timestamptz DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS seasons_league_idx ON public.seasons(league_id);
+
+ALTER TABLE public.seasons ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "seasons_public_read"  ON public.seasons FOR SELECT USING (true);
+CREATE POLICY "seasons_auth_write"   ON public.seasons FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "seasons_auth_update"  ON public.seasons FOR UPDATE USING (auth.role() = 'authenticated');
+CREATE POLICY "seasons_auth_delete"  ON public.seasons FOR DELETE USING (auth.role() = 'authenticated');
+
+-- ── PLAYERS ───────────────────────────────────────────────────
+-- Players on a team. No role stored here — role comes from match pick lane.
+-- team_name links to matches.blue_team / red_team text field for stat lookups.
+CREATE TABLE IF NOT EXISTS public.players (
+  id              uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  ign             text NOT NULL,          -- in-game name
+  real_name       text,
+  team_name       text NOT NULL,          -- matches teams.team_name and match records
+  is_active       boolean DEFAULT true,   -- false = former/benched player (history preserved)
+  created_at      timestamptz DEFAULT now(),
+  updated_at      timestamptz DEFAULT now(),
+  created_by      uuid REFERENCES auth.users(id)
+);
+
+CREATE INDEX IF NOT EXISTS players_team_name_idx ON public.players(team_name);
+CREATE INDEX IF NOT EXISTS players_ign_idx        ON public.players(ign);
+
+ALTER TABLE public.players ENABLE ROW LEVEL SECURITY;
+
+-- Anyone can read players (hero pool scouting is public info)
+CREATE POLICY "players_public_read"   ON public.players FOR SELECT USING (true);
+-- Auth users can insert their own team's players (app enforces team ownership)
+CREATE POLICY "players_auth_insert"   ON public.players FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+-- Can update if you created the record OR you are admin
+CREATE POLICY "players_own_update"    ON public.players FOR UPDATE USING (
+  created_by = auth.uid() OR auth.email() = 'wrrenvillapando@gmail.com'
+);
+CREATE POLICY "players_own_delete"    ON public.players FOR DELETE USING (
+  created_by = auth.uid() OR auth.email() = 'wrrenvillapando@gmail.com'
+);
+
+CREATE TRIGGER players_updated_at
+  BEFORE UPDATE ON public.players
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
+
 -- ── SAMPLE DATA CHECK ─────────────────────────────────────────
 -- After setup, verify with:
 -- SELECT * FROM public.profiles LIMIT 10;
@@ -214,3 +291,11 @@ CREATE TRIGGER profiles_updated_at
 -- SELECT * FROM public.teams LIMIT 5;
 -- SELECT * FROM public.matches LIMIT 5;
 -- SELECT * FROM public.scrims LIMIT 5; -- (requires auth)
+-- SELECT * FROM public.leagues;
+-- SELECT * FROM public.seasons ORDER BY league_id;
+-- SELECT * FROM public.players WHERE team_name = 'ECHO';
+
+-- ── MIGRATION: run these if upgrading an existing database ─────
+-- ALTER TABLE public.leagues ...; (table is new — no migration needed)
+-- ALTER TABLE public.seasons ...; (table is new — no migration needed)
+-- ALTER TABLE public.players ...; (table is new — no migration needed)

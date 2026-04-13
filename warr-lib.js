@@ -957,3 +957,221 @@ function warrToast(msg, type = '') {
   clearTimeout(t._tid);
   t._tid = setTimeout(() => { t.style.transform = 'translateX(-50%) translateY(80px)'; }, 2800);
 }
+
+// ═══════════════════════════════════════════════════════════════
+// LEAGUES — admin-managed official competition leagues
+// ═══════════════════════════════════════════════════════════════
+
+/** Load all leagues (public) */
+WDB.loadLeagues = async function() {
+  const { data, error } = await _sbClient
+    .from('leagues')
+    .select('*')
+    .order('name');
+  if (error) throw error;
+  return data || [];
+};
+
+/** Save (upsert) a league. Admin only — caller must check WAdmin.isAdmin() */
+WDB.saveLeague = async function(league) {
+  const user = WAuth.getUser();
+  const row = { name: league.name, region: league.region || null,
+                is_scout_active: !!league.is_scout_active, created_by: user?.id };
+  if (league.id) row.id = league.id;
+  const { data, error } = await _sbClient.from('leagues').upsert(row, { onConflict: 'id' }).select().single();
+  if (error) throw error;
+  return data;
+};
+
+/** Delete a league and all its seasons. Admin only. */
+WDB.deleteLeague = async function(id) {
+  const { error } = await _sbClient.from('leagues').delete().eq('id', id);
+  if (error) throw error;
+};
+
+/**
+ * Set one league as the active scout default.
+ * Clears is_scout_active on all others, sets it on the given id.
+ */
+WDB.setActiveLeague = async function(id) {
+  // Clear all first
+  await _sbClient.from('leagues').update({ is_scout_active: false }).neq('id', '00000000-0000-0000-0000-000000000000');
+  if (id) {
+    const { error } = await _sbClient.from('leagues').update({ is_scout_active: true }).eq('id', id);
+    if (error) throw error;
+  }
+};
+
+/** Get the currently active league (or null) */
+WDB.getActiveLeague = async function() {
+  const { data } = await _sbClient.from('leagues').select('*').eq('is_scout_active', true).limit(1).single();
+  return data || null;
+};
+
+// ═══════════════════════════════════════════════════════════════
+// SEASONS — per-league seasons/splits
+// ═══════════════════════════════════════════════════════════════
+
+/** Load seasons for a specific league (or all if leagueId omitted) */
+WDB.loadSeasons = async function(leagueId) {
+  let q = _sbClient.from('seasons').select('*').order('start_date', { ascending: false });
+  if (leagueId) q = q.eq('league_id', leagueId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+};
+
+/** Save (upsert) a season. Admin only. */
+WDB.saveSeason = async function(season) {
+  const row = {
+    league_id: season.league_id,
+    name: season.name,
+    split: season.split || null,
+    start_date: season.start_date || null,
+    end_date: season.end_date || null,
+    is_active: !!season.is_active,
+  };
+  if (season.id) row.id = season.id;
+  const { data, error } = await _sbClient.from('seasons').upsert(row, { onConflict: 'id' }).select().single();
+  if (error) throw error;
+  return data;
+};
+
+/** Delete a season. Admin only. */
+WDB.deleteSeason = async function(id) {
+  const { error } = await _sbClient.from('seasons').delete().eq('id', id);
+  if (error) throw error;
+};
+
+// ═══════════════════════════════════════════════════════════════
+// PLAYERS — team rosters
+// ═══════════════════════════════════════════════════════════════
+
+/** Load players. Pass teamName to filter to one team. */
+WDB.loadPlayers = async function(teamName) {
+  let q = _sbClient.from('players').select('*').order('ign');
+  if (teamName) q = q.eq('team_name', teamName);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+};
+
+/** Save (upsert) a player. */
+WDB.savePlayer = async function(player) {
+  const user = WAuth.getUser();
+  const row = {
+    ign: player.ign,
+    real_name: player.real_name || null,
+    team_name: player.team_name,
+    is_active: player.is_active !== false,
+    created_by: user?.id,
+  };
+  if (player.id) row.id = player.id;
+  const { data, error } = await _sbClient.from('players').upsert(row, { onConflict: 'id' }).select().single();
+  if (error) throw error;
+  return data;
+};
+
+/** Delete a player record. */
+WDB.deletePlayer = async function(id) {
+  const { error } = await _sbClient.from('players').delete().eq('id', id);
+  if (error) throw error;
+};
+
+// ═══════════════════════════════════════════════════════════════
+// PLAYER HERO POOL — compute from tagged match data
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Compute a player's hero pool stats from an array of matches.
+ *
+ * @param {Array}  matches   — array of match objects (from WDB.loadMatches())
+ * @param {string} playerIgn — the player's IGN to look up in pick.player fields
+ * @param {Object} filters   — optional { league, season, source: 'official'|'scrims'|'all' }
+ *
+ * @returns {Object} {
+ *   byRole: { EXP: { Chou: { games:14, wins:10 } }, ... },
+ *   total:  { Chou: { games:14, wins:10 }, ... },
+ *   games:  number  (total tagged games)
+ * }
+ */
+WDB.computePlayerHeroPool = function(matches, playerIgn, filters = {}) {
+  const { league, season, source = 'all' } = filters;
+
+  const isScrimSource = m => m.league === 'Scrims' || m._source === 'scrim';
+  const isOfficialSource = m => !isScrimSource(m);
+
+  const filtered = matches.filter(m => {
+    if (source === 'official' && !isOfficialSource(m)) return false;
+    if (source === 'scrims'   && !isScrimSource(m))   return false;
+    if (league  && m.league  !== league)  return false;
+    if (season  && m.season  !== season)  return false;
+    return true;
+  });
+
+  const byRole = {};
+  const total  = {};
+  let totalGames = 0;
+
+  filtered.forEach(m => {
+    const sides = [
+      { picks: m.bluePicks || [], won: m.winner === 'blue' },
+      { picks: m.redPicks  || [], won: m.winner === 'red'  },
+    ];
+    sides.forEach(({ picks, won }) => {
+      picks.forEach(p => {
+        if (!p.player || p.player.toLowerCase() !== playerIgn.toLowerCase()) return;
+        const hero = p.name;
+        const lane = p.lane || 'Unknown';
+
+        if (!byRole[lane])        byRole[lane] = {};
+        if (!byRole[lane][hero])  byRole[lane][hero] = { games: 0, wins: 0 };
+        if (!total[hero])         total[hero] = { games: 0, wins: 0 };
+
+        byRole[lane][hero].games++;
+        total[hero].games++;
+        if (won) { byRole[lane][hero].wins++; total[hero].wins++; }
+        totalGames++;
+      });
+    });
+  });
+
+  return { byRole, total, games: totalGames };
+};
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN HELPERS — verified team check
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Returns true if the current user is a verified (approved) official team.
+ * Reads from the cached profile in localStorage.
+ */
+WAdmin.isVerifiedTeam = function() {
+  if (WAdmin.isAdmin()) return true; // admin has all permissions
+  try {
+    const profile = JSON.parse(localStorage.getItem('warr_user_profile') || '{}');
+    return profile.team_status === 'approved';
+  } catch(e) { return false; }
+};
+
+/**
+ * Returns the team_name of the current user (from cached profile).
+ * Used to enforce "can only edit own team" for verified teams.
+ */
+WAdmin.myTeamName = function() {
+  try {
+    const profile = JSON.parse(localStorage.getItem('warr_user_profile') || '{}');
+    return profile.team_name || null;
+  } catch(e) { return null; }
+};
+
+/**
+ * Check if the current user can manage players/roster for the given teamName.
+ * Admin: any team. Verified team: own team only.
+ */
+WAdmin.canManageTeam = function(teamName) {
+  if (WAdmin.isAdmin()) return true;
+  if (WAdmin.isVerifiedTeam() && WAdmin.myTeamName() === teamName) return true;
+  return false;
+};

@@ -116,6 +116,9 @@ body { background: var(--bg); min-height: 100vh; }
     <a class="nav-link" href="scout.html">Scout</a>
     <a class="nav-link" href="draft_board.html">Draft</a>
     <a class="nav-link" href="profile.html">Profile</a>
+    <a class="nav-link" href="heroes.html">Heroes</a>
+    <a class="nav-link" href="team_manager.html">Teams</a>
+    <a class="nav-link" id="adminNav_leagues" href="league_manager.html" style="display:none;color:var(--gold);">Leagues</a>
   </div>
   <button class="mobile-menu-btn" onclick="document.querySelector('.mobile-nav').classList.toggle('open')" aria-label="Menu">
     <span></span><span></span><span></span>
@@ -265,6 +268,7 @@ body { background: var(--bg); min-height: 100vh; }
 <div id="toast" class="toast"></div>
 
 <script src="warr-lib.js"></script>
+<script src="warr-nav.js"></script>
 <script>
 const STORAGE_KEY = 'warr_scout_data';
 let parsedMatches = [];
