@@ -351,49 +351,48 @@ class MappingWizard(tk.Toplevel):
     """
 
     STEPS = [
-        ("back_arrow",
-         "BACK ARROW  (←)\n\n"
-         "Navigate BlueStacks to any screen that shows the back arrow at the top-left\n"
-         "(e.g. a player's profile page).\n\n"
-         "Then click Capture, and click the ← arrow in the screenshot."),
-
         ("check_button",
-         "CHECK BUTTON\n\n"
-         "On the leaderboard, click a player row so the mini profile panel\n"
-         "appears on the right side.\n\n"
-         "Then click Capture, and click the blue CHECK button in that panel."),
+         "Step 1 — CHECK BUTTON\n\n"
+         "On the leaderboard, click any player row so the mini profile panel\n"
+         "opens on the right side of the screen.\n\n"
+         "Click Capture, then click the blue CHECK button in that panel."),
 
         ("history_tab",
-         "HISTORY TAB\n\n"
-         "From the mini panel, click Check to open the player's full profile.\n"
-         "You should see the left sidebar with Profile / Album / History / etc.\n\n"
-         "Then click Capture, and click the HISTORY tab in the sidebar."),
+         "Step 2 — HISTORY TAB\n\n"
+         "The Check button took you to the player's full profile page.\n"
+         "You should see a left sidebar: Profile / Album / Collection / History / ...\n\n"
+         "Click Capture, then click HISTORY in that sidebar."),
 
         ("match_card_0",
-         "MATCH CARD  —  1st from left\n\n"
-         "You should now be on the player's History page showing match cards.\n\n"
+         "Step 3 — MATCH CARD  (1st from left)\n\n"
+         "You are now on the player's History page showing horizontal match cards.\n\n"
          "Click Capture, then click the CENTER of the 1st (leftmost) match card."),
 
         ("match_card_1",
-         "MATCH CARD  —  2nd from left\n\n"
+         "Step 4 — MATCH CARD  (2nd from left)\n\n"
          "Stay on the same History page.\n\n"
          "Click Capture, then click the CENTER of the 2nd match card."),
 
         ("match_card_2",
-         "MATCH CARD  —  3rd from left\n\n"
+         "Step 5 — MATCH CARD  (3rd from left)\n\n"
          "Stay on the same History page.\n\n"
          "Click Capture, then click the CENTER of the 3rd match card."),
 
         ("match_card_3",
-         "MATCH CARD  —  4th from left\n\n"
+         "Step 6 — MATCH CARD  (4th from left)\n\n"
          "Stay on the same History page.\n\n"
          "Click Capture, then click the CENTER of the 4th match card."),
 
         ("quit_button",
-         "QUIT BUTTON\n\n"
-         "Click any match card to open the full match result screen.\n"
-         "You should see the scoreboard and a QUIT button at the bottom-right.\n\n"
-         "Click Capture, then click the QUIT button."),
+         "Step 7 — QUIT BUTTON\n\n"
+         "Click any match card to open the full match result / scoreboard screen.\n\n"
+         "Click Capture, then click the QUIT button at the bottom-right."),
+
+        ("back_arrow",
+         "Step 8 — BACK ARROW  (←)\n\n"
+         "The Quit button returned you to the History page.\n"
+         "You should see the ← back arrow at the top-left of the screen.\n\n"
+         "Click Capture, then click the ← arrow."),
     ]
 
     CANVAS_W = 820
