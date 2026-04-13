@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Heroes — Warr.GG</title>
+<link rel="stylesheet" href="warr-styles.css">
+<style>
+:root { --nav-h: 52px; }
+body { background: var(--bg); min-height: 100vh; }
+.page-wrap { max-width: 1100px; margin: 0 auto; padding: calc(var(--nav-h) + 32px) 20px 80px; }
+
+/* ── Page header ── */
+.page-header { margin-bottom: 28px; }
+.page-title  { font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -.01em; }
+.page-sub    { font-size: 13px; color: var(--text3); margin-top: 3px; }
+
+/* ── Stat chips ── */
+.stats-row {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 24px;
+}
+@media(max-width:640px){ .stats-row { grid-template-columns: repeat(2,1fr); } }
+.stat-card {
+  background: var(--surface); border: 1px solid var(--glass-border2);
+  border-radius: var(--r2); padding: 16px 18px;
+}
+.stat-val  { font-size: 24px; font-weight: 800; color: var(--text); }
+.stat-lbl  { font-size: 10px; color: var(--text3); margin-top: 3px; text-transform: uppercase; letter-spacing: .08em; }
+.stat-sub  { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+/* ── Date tabs ── */
+.date-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+.date-tab {
+  padding: 5px 13px; font-size: 11px; font-weight: 600;
+  border: 1px solid var(--border2); border-radius: var(--pill);
+  background: var(--surface2); color: var(--text3); cursor: pointer;
+  transition: all .15s; font-family: var(--font-head);
+}
+.date-tab:hover { border-color: var(--border3); color: var(--text2); }
+.date-tab.active { border-color: var(--gold-border); background: var(--gold-dim); color: var(--gold); }
+.date-tab.latest::after {
+  content: ' LATEST'; font-size: 8px; color: var(--neon); font-weight: 800; letter-spacing: .05em;
+}
+
+/* ── Controls ── */
+.controls {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.ctrl-select, .ctrl-input {
+  padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: var(--r); color: var(--text); font-size: 12px;
+  font-family: var(--font-body); outline: none; cursor: pointer;
+}
+.ctrl-select:focus, .ctrl-input:focus { border-color: var(--accent); }
+.ctrl-input { width: 160px; }
+.count-badge {
+  padding: 4px 12px; border-radius: var(--pill);
+  background: var(--accent-dim); border: 1px solid var(--accent-border);
+  color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .03em;
+  margin-left: auto;
+}
+
+/* ── Hero table ── */
+.table-wrap { overflow-x: auto; }
+.hero-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.hero-table th {
+  text-align: left; padding: 9px 12px; font-size: 10px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--text3);
+  border-bottom: 1px solid var(--glass-border); white-space: nowrap;
+}
+.hero-table th.r { text-align: right; }
+.hero-table td {
+  padding: 10px 12px; border-bottom: 1px solid var(--border);
+  color: var(--text2); vertical-align: middle;
+}
+.hero-table td.r { text-align: right; font-family: var(--font-mono); font-size: 12px; }
+.hero-table tr:hover td { background: var(--surface2); }
+.hero-table tr.sub-row td { background: var(--surface); padding: 0; }
+
+.rank-num { font-family: var(--font-mono); font-size: 11px; color: var(--text3); }
+.rank-num.top3 { color: var(--gold); font-weight: 800; }
+.hero-cell { display: flex; align-items: center; gap: 10px; }
+.hero-portrait-sm {
+  width: 32px; height: 32px; border-radius: 8px; object-fit: cover;
+  background: var(--surface3); flex-shrink: 0;
+}
+.hero-name-text { font-weight: 700; color: var(--text); }
+.hero-role-text { font-size: 10px; color: var(--text3); margin-top: 1px; }
+
+.usage-bar { display: flex; align-items: center; gap: 8px; }
+.bar-track {
+  flex: 1; height: 5px; background: var(--surface3);
+  border-radius: var(--pill); overflow: hidden; min-width: 80px;
+}
+.bar-fill {
+  height: 100%; border-radius: var(--pill);
+  background: linear-gradient(90deg, var(--blue), var(--accent));
+  transition: width .4s;
+}
+.usage-num { font-family: var(--font-mono); font-size: 11px; color: var(--text2); flex-shrink: 0; }
+
+.wr-chip {
+  display: inline-block; padding: 2px 9px; border-radius: var(--pill);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+}
+.wr-high { background: var(--neon-dim);  color: var(--neon);  border: 1px solid var(--neon-border); }
+.wr-mid  { background: var(--gold-dim);  color: var(--gold);  border: 1px solid var(--gold-border); }
+.wr-low  { background: var(--red-dim);   color: var(--red);   border: 1px solid var(--red-border);  }
+
+/* ── Expand ── */
+.expand-btn {
+  background: none; border: none; color: var(--text3);
+  cursor: pointer; font-size: 11px; padding: 2px 6px;
+  transition: transform .15s, color .15s; border-radius: 4px;
+}
+.expand-btn:hover { color: var(--text2); background: var(--surface3); }
+.expand-btn.open { transform: rotate(90deg); }
+
+.player-sub-panel {
+  padding: 8px 12px 12px 52px;
+  display: none;
+}
+.player-sub-panel.open { display: block; }
+.player-sub-list { display: flex; flex-direction: column; gap: 4px; }
+.player-sub-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 10px; border-radius: var(--r);
+  background: var(--surface2); font-size: 12px;
+}
+.player-sub-rank  { font-family: var(--font-mono); font-size: 10px; color: var(--text3); width: 30px; flex-shrink: 0; }
+.player-sub-name  { flex: 1; font-weight: 600; color: var(--text); }
+.player-sub-games { font-family: var(--font-mono); font-size: 10px; color: var(--text3); }
+
+/* ── Empty / loading ── */
+.empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
+.empty-icon  { font-size: 40px; margin-bottom: 12px; }
+.spin {
+  display: inline-block; width: 22px; height: 22px;
+  border: 2px solid var(--border2); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin .7s linear infinite; margin-bottom: 10px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="topnav">
+  <a class="nav-brand" href="index.html">
+    <span class="nav-brand-name">Warr.GG</span>
+    <span class="nav-brand-sub">MLBB Intel</span>
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="draft_board.html">Draft</a>
+    <a class="nav-link" href="ai_battle.html">AI Battle</a>
+    <a class="nav-link" href="scout.html">Scout</a>
+    <a class="nav-link" href="stats.html">Analysis</a>
+    <a class="nav-link" href="patch_meta.html">Patch</a>
+    <a class="nav-link active" href="heroes.html">Heroes</a>
+    <a class="nav-link" href="profile.html">Profile</a>
+    <a class="nav-link" href="team_manager.html">Teams</a>
+    <a class="nav-link" id="adminNav_leagues" href="league_manager.html" style="display:none;color:var(--gold);">Leagues</a>
+  </div>
+  <div class="nav-right" id="navRight"></div>
+</nav>
+
+<!-- Mobile nav -->
+<div class="mobile-nav" id="mobileNav">
+  <a class="mobile-nav-link" href="draft_board.html">Draft</a>
+  <a class="mobile-nav-link" href="ai_battle.html">AI Battle</a>
+  <a class="mobile-nav-link" href="scout.html">Scout</a>
+  <a class="mobile-nav-link" href="stats.html">Analysis</a>
+  <a class="mobile-nav-link" href="patch_meta.html">Patch</a>
+  <a class="mobile-nav-link active" href="heroes.html">Heroes</a>
+  <a class="mobile-nav-link" href="profile.html">Profile</a>
+  <a class="mobile-nav-link" href="team_manager.html">Teams</a>
+</div>
+
+<div class="page-wrap">
+  <div class="page-header">
+    <div class="page-title">Heroes</div>
+    <div class="page-sub" id="snapshotInfo">Loading latest snapshot…</div>
+  </div>
+
+  <!-- Stats summary -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card"><div class="spin"></div></div>
+  </div>
+
+  <!-- Date picker -->
+  <div class="date-tabs" id="dateTabs"></div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <select class="ctrl-select" id="roleFilter" onchange="onFilter()">
+      <option value="">All Roles</option>
+      <option>Assassin</option><option>Fighter</option><option>Marksman</option>
+      <option>Mage</option><option>Support</option><option>Tank</option>
+    </select>
+    <select class="ctrl-select" id="sortBy" onchange="onFilter()">
+      <option value="users">Most Used</option>
+      <option value="wr">Highest WR</option>
+      <option value="games">Most Games</option>
+      <option value="name">Hero Name A–Z</option>
+    </select>
+    <input class="ctrl-input" id="searchIn" placeholder="Search hero…" oninput="onFilter()">
+    <span class="count-badge" id="countBadge">— heroes</span>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap" id="tableWrap">
+    <div class="empty-state"><div class="spin"></div><br>Loading top 100 data…</div>
+  </div>
+</div>
+
+<script src="warr-lib.js"></script>
+<script src="warr-nav.js"></script>
+<script>
+// ── Auth chip ─────────────────────────────────────────────────
+(async () => {
+  if (typeof WAuth !== 'undefined') {
+    await WAuth.restoreSession?.();
+    WAuth.renderAuthChip?.('navRight');
+  }
+})();
+
+// ── State ─────────────────────────────────────────────────────
+let snapshots  = [];
+let activeSnap = null;
+let heroRoles  = {};
+
+// Build role map from HERO_ROSTER if available
+if (typeof WDB !== 'undefined' && WDB.HERO_ROSTER) {
+  WDB.HERO_ROSTER.forEach(h => { heroRoles[h.name] = h.role || ''; });
+}
+
+// ── Load ──────────────────────────────────────────────────────
+async function loadSnapshots() {
+  if (typeof _sbClient === 'undefined') {
+    showNoData('Supabase not initialised. Check warr-lib.js config.');
+    return;
+  }
+  try {
+    const { data, error } = await _sbClient
+      .from('top100_snapshots')
+      .select('id, scraped_at, total_players, heroes')
+      .order('scraped_at', { ascending: false })
+      .limit(60);
+
+    if (error) throw error;
+    if (!data?.length) { showNoData(); return; }
+
+    snapshots = data;
+    buildDateTabs();
+    selectDate(snapshots[0].scraped_at);
+  } catch(e) {
+    showNoData('Failed to load data: ' + e.message);
+  }
+}
+
+function showNoData(msg) {
+  document.getElementById('statsRow').innerHTML = '';
+  document.getElementById('snapshotInfo').textContent = 'No data available';
+  document.getElementById('tableWrap').innerHTML = `
+    <div class="empty-state">
+      <div class="empty-icon">📭</div>
+      <div>${msg || 'No snapshots yet.'}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:8px;">Run the scraper on Windows to populate this page.</div>
+    </div>`;
+}
+
+// ── Date tabs ─────────────────────────────────────────────────
+function buildDateTabs() {
+  const tabs = document.getElementById('dateTabs');
+  tabs.innerHTML = snapshots.map((s, i) => {
+    const d = new Date(s.scraped_at + 'T00:00:00');
+    const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `<button class="date-tab ${i === 0 ? 'latest' : ''}" data-date="${s.scraped_at}" onclick="selectDate('${s.scraped_at}')">${label}</button>`;
+  }).join('');
+}
+
+function selectDate(date) {
+  activeSnap = snapshots.find(s => s.scraped_at === date) || null;
+  document.querySelectorAll('.date-tab').forEach(b => b.classList.toggle('active', b.dataset.date === date));
+  if (activeSnap) renderSnapshot(activeSnap);
+}
+
+// ── Render ────────────────────────────────────────────────────
+function renderSnapshot(snap) {
+  const d = new Date(snap.scraped_at + 'T00:00:00');
+  document.getElementById('snapshotInfo').textContent =
+    `Snapshot · ${d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' })} · ${snap.total_players || '?'} players scanned`;
+
+  const heroes = snap.heroes || [];
+  const topHero = heroes[0];
+  const topWR   = [...heroes].filter(h => h.avg_win_rate && h.top100_users >= 2).sort((a,b) => b.avg_win_rate - a.avg_win_rate)[0];
+  const totalGames = heroes.reduce((s, h) => s + (h.avg_games || 0) * (h.top100_users || 0), 0);
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-val">${snap.total_players || '—'}</div>
+      <div class="stat-lbl">Players Scanned</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">${heroes.length}</div>
+      <div class="stat-lbl">Distinct Heroes</div>
+      <div class="stat-sub">Used in top 100</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">${topHero ? topHero.hero : '—'}</div>
+      <div class="stat-lbl">Most Popular</div>
+      <div class="stat-sub">${topHero ? topHero.top100_users + ' players' : ''}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">${topWR ? (Math.round(topWR.avg_win_rate * 1000) / 10) + '%' : '—'}</div>
+      <div class="stat-lbl">Highest Avg WR</div>
+      <div class="stat-sub">${topWR ? topWR.hero : ''}</div>
+    </div>`;
+
+  renderTable(heroes);
+}
+
+function onFilter() {
+  if (activeSnap) renderTable(activeSnap.heroes || []);
+}
+
+function getFiltered(heroes) {
+  const role = document.getElementById('roleFilter').value;
+  const sort = document.getElementById('sortBy').value;
+  const q    = document.getElementById('searchIn').value.trim().toLowerCase();
+
+  let list = [...heroes];
+  if (role) list = list.filter(h => (heroRoles[h.hero] || '') === role);
+  if (q)    list = list.filter(h => h.hero.toLowerCase().includes(q));
+
+  list.sort((a, b) => {
+    if (sort === 'wr')    return (b.avg_win_rate || 0) - (a.avg_win_rate || 0);
+    if (sort === 'games') return (b.avg_games || 0) - (a.avg_games || 0);
+    if (sort === 'name')  return a.hero.localeCompare(b.hero);
+    return b.top100_users - a.top100_users;
+  });
+  return list;
+}
+
+function renderTable(allHeroes) {
+  const list     = getFiltered(allHeroes);
+  const maxUsers = allHeroes[0]?.top100_users || 1;
+
+  document.getElementById('countBadge').textContent = `${list.length} hero${list.length !== 1 ? 's' : ''}`;
+
+  if (!list.length) {
+    document.getElementById('tableWrap').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">🔍</div><div>No heroes match your filters.</div></div>';
+    return;
+  }
+
+  const rows = list.map((h, i) => {
+    const rank    = i + 1;
+    const wr      = h.avg_win_rate != null ? h.avg_win_rate : null;
+    const wrPct   = wr != null ? (Math.round(wr * 1000) / 10) : null;
+    const wrChip  = wr == null ? '<span style="color:var(--text3);">—</span>'
+      : wr >= 0.65 ? `<span class="wr-chip wr-high">${wrPct}%</span>`
+      : wr >= 0.55 ? `<span class="wr-chip wr-mid">${wrPct}%</span>`
+      : `<span class="wr-chip wr-low">${wrPct}%</span>`;
+    const barW    = Math.round(h.top100_users / maxUsers * 100);
+    const role    = heroRoles[h.hero] || '';
+    const players = h.players || [];
+    const pid     = `pl_${i}`;
+    const heroId  = h.hero.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    return `
+      <tr>
+        <td><span class="rank-num ${rank <= 3 ? 'top3' : ''}">${rank}</span></td>
+        <td>
+          <div class="hero-cell">
+            <img class="hero-portrait-sm" src="./portraits/${heroId}.png" onerror="this.style.display='none'" alt="">
+            <div>
+              <div class="hero-name-text">${h.hero}</div>
+              ${role ? `<div class="hero-role-text">${role}</div>` : ''}
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="usage-bar">
+            <div class="bar-track"><div class="bar-fill" style="width:${barW}%"></div></div>
+            <span class="usage-num">${h.top100_users} <span style="color:var(--text4)">/ 100</span></span>
+          </div>
+        </td>
+        <td class="r">${wrChip}</td>
+        <td class="r">${h.avg_games != null ? Math.round(h.avg_games).toLocaleString() : '—'}</td>
+        <td style="width:40px;">
+          ${players.length ? `<button class="expand-btn" id="ebtn_${pid}" onclick="togglePlayers('${pid}')">▶</button>` : ''}
+        </td>
+      </tr>
+      <tr class="sub-row" id="subrow_${pid}" style="display:none;">
+        <td colspan="6">
+          <div class="player-sub-panel open" id="panel_${pid}">
+            <div class="player-sub-list">
+              ${players.map(p => `
+                <div class="player-sub-row">
+                  <span class="player-sub-rank">#${p.rank || '?'}</span>
+                  <span class="player-sub-name">${p.name || 'Unknown'}</span>
+                  ${p.wr != null ? `<span class="wr-chip ${p.wr >= 0.65 ? 'wr-high' : p.wr >= 0.55 ? 'wr-mid' : 'wr-low'}">${Math.round(p.wr * 1000) / 10}%</span>` : ''}
+                  <span class="player-sub-games">${p.games != null ? p.games.toLocaleString() + ' games' : ''}</span>
+                </div>`).join('')}
+            </div>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+
+  document.getElementById('tableWrap').innerHTML = `
+    <table class="hero-table">
+      <thead><tr>
+        <th style="width:40px;">#</th>
+        <th>Hero</th>
+        <th>Usage in Top 100</th>
+        <th class="r">Avg WR</th>
+        <th class="r">Avg Games</th>
+        <th style="width:40px;"></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function togglePlayers(pid) {
+  const row = document.getElementById('subrow_' + pid);
+  const btn = document.getElementById('ebtn_' + pid);
+  const open = row.style.display !== 'none';
+  row.style.display = open ? 'none' : '';
+  btn?.classList.toggle('open', !open);
+}
+
+// ── Init ──────────────────────────────────────────────────────
+loadSnapshots();
+</script>
+</body>
+</html>

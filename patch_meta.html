@@ -6,6 +6,7 @@
 <title>Patch Meta — Warr.GG</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="warr-lib.js"></script>
+<script src="warr-nav.js"></script>
 <link rel="stylesheet" href="warr-styles.css">
 <style>
 :root {
@@ -503,6 +504,9 @@ input:focus, select:focus {
     <a class="nav-link" href="stats.html">Analysis</a>
     <a class="nav-link active" href="patch_meta.html">Patch</a>
     <a class="nav-link" href="profile.html">Profile</a>
+    <a class="nav-link" href="heroes.html">Heroes</a>
+    <a class="nav-link" href="team_manager.html">Teams</a>
+    <a class="nav-link" id="adminNav_leagues" href="league_manager.html" style="display:none;color:var(--gold);">Leagues</a>
   </div>
   <div class="nav-right">
   <div class="theme-switcher" title="Switch theme">
@@ -529,6 +533,8 @@ input:focus, select:focus {
   <a class="mobile-nav-link" href="stats.html">Analysis</a>
   <a class="mobile-nav-link active" href="patch_meta.html">Patch</a>
   <a class="mobile-nav-link" href="profile.html">Profile</a>
+  <a class="mobile-nav-link" href="heroes.html">Heroes</a>
+  <a class="mobile-nav-link" href="team_manager.html">Teams</a>
 </div>
 
 <div class="page-body">
