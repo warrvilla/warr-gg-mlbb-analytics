@@ -60,6 +60,12 @@ MAX_SCROLL_MISSES  = 5   # stop if this many leaderboard scrolls reveal no new p
 PAGE_DELAY         = 2.5
 CLICK_DELAY        = 0.6
 NAV_MAX_STEPS      = 10
+
+# ── DEBUG ─────────────────────────────────────────────────────────────────────
+# Set DEBUG_CLICKS = True to save an annotated PNG before every click.
+# Open the saved debug_*.png files to see exactly where the red dot lands.
+# Set back to False once clicks are calibrated.
+DEBUG_CLICKS = _cfg.get("debug_clicks", False)
 BLUESTACKS_EXE     = (os.environ.get("BLUESTACKS_EXE") or _cfg.get("bluestacks_exe")
                       or r"C:\Program Files\BlueStacks_nxt\HD-Player.exe")
 
@@ -147,19 +153,42 @@ def parse_json(text):
     text = re.sub(r"```\s*$",          "", text, flags=re.MULTILINE)
     return json.loads(text.strip())
 
+def _save_debug_click(img, ix, iy, label):
+    """Save an annotated screenshot with a red dot at the Claude-detected click position."""
+    from PIL import ImageDraw, ImageFont
+    try:
+        d = img.copy().convert("RGB")
+        draw = ImageDraw.Draw(d)
+        r = 14
+        draw.ellipse([ix - r, iy - r, ix + r, iy + r], outline="red",  width=4)
+        draw.ellipse([ix - 4,  iy - 4,  ix + 4,  iy + 4],  fill="red")
+        draw.text((ix + r + 4, iy - 10), label, fill="red")
+        fname = f"debug_{label}_{int(time.time())}.png"
+        d.save(fname)
+        print(f"      [debug] saved {fname}")
+    except Exception as e:
+        print(f"      [debug save error: {e}]")
+
 def click_element(win, prompt, label="element", model="claude-haiku-4-5-20251001", delay=1.5):
     """
     Ask Claude to locate an element and click it.
     Prompt must return: {"found": true/false, "x": int, "y": int}
     Returns True if clicked successfully.
+
+    When DEBUG_CLICKS=True (set in config.json: "debug_clicks": true), saves an
+    annotated PNG before every click so you can verify the red dot is on the
+    right element. Check the debug_*.png files in the scraper folder.
     """
     img, bounds = activate_and_screenshot(win)
     try:
         raw  = ask_claude(img, prompt, model=model)
         data = parse_json(raw)
         if data.get("found"):
-            ax, ay = img_to_screen(bounds, img, data["x"], data["y"])
-            print(f"      [{label}] img({data['x']},{data['y']}) -> screen({ax},{ay})")
+            ix, iy = data["x"], data["y"]
+            ax, ay = img_to_screen(bounds, img, ix, iy)
+            print(f"      [{label}] img({ix},{iy}) -> screen({ax},{ay})")
+            if DEBUG_CLICKS:
+                _save_debug_click(img, ix, iy, label)
             pyautogui.click(ax, ay)
             time.sleep(delay)
             return True

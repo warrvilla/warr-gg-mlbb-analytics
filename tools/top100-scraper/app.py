@@ -89,11 +89,21 @@ class ScraperApp(tk.Tk):
         self._supa_url   = tk.StringVar()
         self._supa_key   = tk.StringVar()
         self._bs_exe     = tk.StringVar()
+        self._debug_var  = tk.BooleanVar()
 
         self._field(body, "Anthropic API Key",    self._anth_var,  show="*")
         self._field(body, "Supabase URL",         self._supa_url)
         self._field(body, "Supabase Service Key", self._supa_key,  show="*")
         self._field(body, "BlueStacks .exe Path", self._bs_exe)
+
+        dbg_row = tk.Frame(body, bg=DARK_BG)
+        dbg_row.pack(fill="x", pady=(2, 4))
+        tk.Checkbutton(
+            dbg_row, text="Debug clicks (saves annotated PNG before each click — use to diagnose wrong clicks)",
+            variable=self._debug_var, font=("Segoe UI", 9),
+            bg=DARK_BG, fg=TEXT2, selectcolor=SURFACE2,
+            activebackground=DARK_BG, activeforeground=TEXT,
+        ).pack(side="left")
 
         btn_row = tk.Frame(body, bg=DARK_BG)
         btn_row.pack(fill="x", pady=(6, 0))
@@ -193,12 +203,14 @@ class ScraperApp(tk.Tk):
         self._supa_url.set(self._cfg.get("supabase_url", ""))
         self._supa_key.set(self._cfg.get("supabase_key", ""))
         self._bs_exe.set(self._cfg.get("bluestacks_exe", r"C:\Program Files\BlueStacks_nxt\HD-Player.exe"))
+        self._debug_var.set(bool(self._cfg.get("debug_clicks", False)))
 
     def _save_cfg(self):
         self._cfg["anthropic_key"]  = self._anth_var.get().strip()
         self._cfg["supabase_url"]   = self._supa_url.get().strip()
         self._cfg["supabase_key"]   = self._supa_key.get().strip()
         self._cfg["bluestacks_exe"] = self._bs_exe.get().strip()
+        self._cfg["debug_clicks"]   = self._debug_var.get()
         save_config(self._cfg)
         self._status_label.config(text="Saved!", fg=GREEN)
         self.after(2000, lambda: self._status_label.config(text=""))
