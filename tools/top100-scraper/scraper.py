@@ -33,10 +33,24 @@ from PIL import ImageGrab, Image
 import anthropic
 import urllib.request, urllib.error
 
+# Prevent crashes if mouse drifts to screen corner; we manage our own delays
+pyautogui.FAILSAFE = False
+pyautogui.PAUSE    = 0
+
 # ── CONFIG ────────────────────────────────────────────────────────────────────
-ANTHROPIC_API_KEY    = os.environ.get("ANTHROPIC_API_KEY",    "YOUR_ANTHROPIC_KEY")
-SUPABASE_URL         = os.environ.get("SUPABASE_URL",         "YOUR_SUPABASE_URL")
-SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "YOUR_SERVICE_ROLE_KEY")
+# Priority: env var (set by app.py) > config.json (standalone use) > placeholder
+def _load_cfg_file():
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+_cfg = _load_cfg_file()
+
+ANTHROPIC_API_KEY    = (os.environ.get("ANTHROPIC_API_KEY")    or _cfg.get("anthropic_key")  or "YOUR_ANTHROPIC_KEY")
+SUPABASE_URL         = (os.environ.get("SUPABASE_URL")         or _cfg.get("supabase_url")   or "YOUR_SUPABASE_URL")
+SUPABASE_SERVICE_KEY = (os.environ.get("SUPABASE_SERVICE_KEY") or _cfg.get("supabase_key")   or "YOUR_SERVICE_ROLE_KEY")
 
 OUTPUT_FILE        = "top100_meta.json"
 MATCHES_PER_PLAYER = int(os.environ.get("MATCHES_PER_PLAYER", "20"))  # up to 20 per player
@@ -46,11 +60,13 @@ MAX_SCROLL_MISSES  = 5   # stop if this many leaderboard scrolls reveal no new p
 PAGE_DELAY         = 2.5
 CLICK_DELAY        = 0.6
 NAV_MAX_STEPS      = 10
-BLUESTACKS_EXE     = os.environ.get("BLUESTACKS_EXE", r"C:\Program Files\BlueStacks_nxt\HD-Player.exe")
+BLUESTACKS_EXE     = (os.environ.get("BLUESTACKS_EXE") or _cfg.get("bluestacks_exe")
+                      or r"C:\Program Files\BlueStacks_nxt\HD-Player.exe")
 
 BLUESTACKS_TITLES = ["BlueStacks App Player", "BlueStacks 5", "BlueStacks", "HD-Player"]
 
 # ── CLIENTS ───────────────────────────────────────────────────────────────────
+# Initialised after config is loaded so the API key is always correct
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 # ── WINDOW ────────────────────────────────────────────────────────────────────
@@ -153,47 +169,42 @@ def click_element(win, prompt, label="element", model="claude-haiku-4-5-20251001
     return False
 
 # ── GESTURE HELPERS ───────────────────────────────────────────────────────────
-def swipe_history_cards(win):
+def _gesture(win, x1, y1, x2, y2, duration=0.5, settle=1.2):
     """
-    Step 7: Swipe left on history cards to reveal the next group.
-    Drags from right-center to left-center of the BlueStacks window.
-    History cards scroll horizontally; swipe left reveals older matches.
+    Generic drag gesture using pyautogui.dragTo.
+    All coordinates are in logical screen pixels (already DPI-corrected by caller).
     """
     try:
         win.activate()
     except Exception:
         pass
-    time.sleep(0.4)
-    # Use logical window coords — pyautogui works in logical pixels
-    x_start = win.left + int(win.width * 0.75)
-    x_end   = win.left + int(win.width * 0.25)
+    time.sleep(0.3)
+    pyautogui.moveTo(x1, y1, duration=0.1)
+    pyautogui.dragTo(x2, y2, duration=duration, button="left")
+    time.sleep(settle)
+
+def swipe_history_cards(win):
+    """
+    Step 7: Swipe left on history cards to reveal the next group of 4 cards.
+    Wide sweep (80% → 12%) to guarantee moving a full card-width batch.
+    History cards are horizontal; swiping left scrolls right to older matches.
+    """
+    x_start = win.left + int(win.width * 0.80)
+    x_end   = win.left + int(win.width * 0.12)
     y       = win.top  + int(win.height * 0.48)
     print(f"      [swipe-left] ({x_start},{y}) -> ({x_end},{y})")
-    pyautogui.mouseDown(x_start, y)
-    time.sleep(0.1)
-    pyautogui.moveTo(x_end, y, duration=0.6)
-    pyautogui.mouseUp()
-    time.sleep(1.2)
+    _gesture(win, x_start, y, x_end, y, duration=0.5, settle=1.2)
 
 def scroll_leaderboard_down(win):
     """
     Step 9: Scroll down on the leaderboard to reveal the next batch of players.
     Drags from lower-center to upper-center of the player list area.
     """
-    try:
-        win.activate()
-    except Exception:
-        pass
-    time.sleep(0.4)
     x       = win.left + int(win.width  * 0.65)
-    y_start = win.top  + int(win.height * 0.65)
-    y_end   = win.top  + int(win.height * 0.30)
+    y_start = win.top  + int(win.height * 0.68)
+    y_end   = win.top  + int(win.height * 0.28)
     print(f"      [scroll-down] ({x},{y_start}) -> ({x},{y_end})")
-    pyautogui.mouseDown(x, y_start)
-    time.sleep(0.1)
-    pyautogui.moveTo(x, y_end, duration=0.6)
-    pyautogui.mouseUp()
-    time.sleep(1.5)
+    _gesture(win, x, y_start, x, y_end, duration=0.5, settle=1.5)
 
 # ── NAVIGATION PROMPTS ────────────────────────────────────────────────────────
 NAV_TO_LEADERBOARD_PROMPT = """
