@@ -1,6 +1,5 @@
 @echo off
-:: Quick launcher — runs the GUI app directly with Python.
-:: Use this if you have Python installed and don't need the .exe
+:: Quick launcher — runs the GUI app with no terminal window.
 
 python --version >nul 2>&1
 if errorlevel 1 (
@@ -9,8 +8,8 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Install deps silently on first run
+:: Install deps silently on first run (needs a visible window briefly)
 pip install -r requirements.txt -q
 
-:: Launch the GUI
-python app.py
+:: Launch the GUI without a terminal window (pythonw = no console)
+start "" pythonw app.py

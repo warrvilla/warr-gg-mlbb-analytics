@@ -406,7 +406,8 @@ class MappingWizard(tk.Toplevel):
         self.geometry("1140x780")
         self.resizable(True, True)
         self.configure(bg=DARK_BG)
-        self.grab_set()   # modal
+        self.transient(parent)  # attach to parent — no separate taskbar entry
+        self.grab_set()         # modal
 
         self._step      = 0
         self._coord_map = {}
