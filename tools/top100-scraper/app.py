@@ -395,14 +395,14 @@ class MappingWizard(tk.Toplevel):
          "Click Capture, then click the ← arrow."),
     ]
 
-    CANVAS_W = 820
+    CANVAS_W = 1080
     CANVAS_H = 480
 
     def __init__(self, parent):
         super().__init__(parent)
         self.title("Click Mapper — warr.gg Scraper")
-        self.geometry("900x780")
-        self.resizable(False, False)
+        self.geometry("1140x780")
+        self.resizable(True, True)
         self.configure(bg=DARK_BG)
         self.grab_set()   # modal
 
@@ -517,85 +517,106 @@ class MappingWizard(tk.Toplevel):
                 d.config(text="o", fg=TEXT3)
 
     def _capture(self):
-        """Take a screenshot of the BlueStacks window and show it on the canvas."""
+        """
+        Take a FULL SCREEN screenshot and show it on the canvas.
+        A cyan rectangle marks the BlueStacks window so you know where to click.
+        Coordinates are stored relative to the BlueStacks window so they
+        work correctly regardless of where on screen BlueStacks sits.
+        """
         win = find_bluestacks()
         if not win:
             messagebox.showerror("BlueStacks not found",
-                                 "BlueStacks is not running.\nOpen BlueStacks and navigate to the correct screen first.",
+                                 "BlueStacks is not running.\n"
+                                 "Open BlueStacks and navigate to the correct screen first.",
                                  parent=self)
             return
 
-        try:
-            win.activate()
-        except Exception:
-            pass
-        import time; time.sleep(0.4)
+        import time
+        time.sleep(0.3)   # let any hover effects settle
 
-        # Capture
-        x, y, w, h = win.left, win.top, win.width, win.height
-        shot = ImageGrab.grab(bbox=(x, y, x + w, y + h))
+        # Full screen screenshot (physical pixels)
+        shot = ImageGrab.grab()
 
-        # Store window info for percentage calculation
-        self._win_bounds = (x, y, w, h)
-        self._shot_size  = shot.size   # (physical_w, physical_h)
+        # Logical screen size from Tkinter (matches pygetwindow's coordinate space)
+        logical_screen_w = self.winfo_screenwidth()
+        logical_screen_h = self.winfo_screenheight()
 
-        # Scale to canvas
+        # DPI scale factors: how many physical pixels per logical pixel
+        self._dpi_x = shot.width  / logical_screen_w
+        self._dpi_y = shot.height / logical_screen_h
+
+        # BlueStacks window bounds in logical pixels (from pygetwindow)
+        self._win_bounds = (win.left, win.top, win.width, win.height)
+
+        # Scale full screenshot to fit canvas
         scale = min(self.CANVAS_W / shot.width, self.CANVAS_H / shot.height)
         self._scale = scale
-        dw = int(shot.width * scale)
+        dw = int(shot.width  * scale)
         dh = int(shot.height * scale)
         display = shot.resize((dw, dh), Image.LANCZOS)
 
+        # Draw cyan outline around BlueStacks window so user can see it
+        draw = ImageDraw.Draw(display)
+        bx1 = int(win.left  * self._dpi_x * scale)
+        by1 = int(win.top   * self._dpi_y * scale)
+        bx2 = int((win.left + win.width)  * self._dpi_x * scale)
+        by2 = int((win.top  + win.height) * self._dpi_y * scale)
+        draw.rectangle([bx1, by1, bx2, by2], outline="cyan", width=2)
+        draw.text((bx1 + 6, by1 + 6), "BlueStacks — click inside here", fill="cyan")
+
         self._photo = ImageTk.PhotoImage(display)
         self._canvas.delete("all")
-        cx = (self.CANVAS_W - dw) // 2
-        cy = (self.CANVAS_H - dh) // 2
-        self._canvas_offset = (cx, cy)
-        self._canvas.create_image(cx, cy, anchor="nw", image=self._photo)
+        off_x = (self.CANVAS_W - dw) // 2
+        off_y = (self.CANVAS_H - dh) // 2
+        self._canvas_offset = (off_x, off_y)
+        self._canvas.create_image(off_x, off_y, anchor="nw", image=self._photo)
 
         self._pending = True
         self._hint_lbl.config(
-            text="Screenshot captured. Now click the element in the image above.",
+            text="Full screen captured. Click the element inside the cyan BlueStacks outline.",
             fg=GOLD)
 
     def _on_canvas_click(self, event):
         if not self._pending:
             return
 
-        ox, oy = self._canvas_offset
-        # Canvas click → image coords (physical pixels)
-        ix = (event.x - ox) / self._scale
-        iy = (event.y - oy) / self._scale
+        off_x, off_y = self._canvas_offset
 
-        # Clamp to image bounds
-        sw, sh = self._shot_size
-        ix = max(0, min(ix, sw - 1))
-        iy = max(0, min(iy, sh - 1))
+        # Canvas pixel → full-screen physical pixel
+        phys_x = (event.x - off_x) / self._scale
+        phys_y = (event.y - off_y) / self._scale
 
-        # Store as percentage of screenshot size
-        # When used: ax = win.left + int(win.width * x_pct)
-        # This correctly handles DPI since screenshot may be at physical scale
-        x_pct = ix / sw
-        y_pct = iy / sh
+        # Physical pixel → logical screen coordinate (same space as pygetwindow)
+        log_x = phys_x / self._dpi_x
+        log_y = phys_y / self._dpi_y
+
+        # Logical → position relative to BlueStacks window
+        win_x, win_y, win_w, win_h = self._win_bounds
+        rel_x = log_x - win_x
+        rel_y = log_y - win_y
+
+        # Store as percentage of BlueStacks window size (clamped to [0, 1])
+        x_pct = max(0.0, min(rel_x / win_w, 1.0))
+        y_pct = max(0.0, min(rel_y / win_h, 1.0))
 
         key = self.STEPS[self._step][0]
         self._coord_map[key] = {"x_pct": round(x_pct, 4), "y_pct": round(y_pct, 4)}
 
-        # Draw marker on canvas
-        cx = event.x
-        cy = event.y
+        # Draw red dot marker at click position
         r = 10
-        self._canvas.create_oval(cx-r, cy-r, cx+r, cy+r, outline="red",  width=3)
-        self._canvas.create_oval(cx-3, cy-3, cx+3, cy+3, fill="red")
-        self._canvas.create_text(cx + r + 4, cy, text=f"{key}  ({x_pct:.3f}, {y_pct:.3f})",
-                                 fill="red", anchor="w", font=("Consolas", 9))
+        self._canvas.create_oval(event.x-r, event.y-r, event.x+r, event.y+r,
+                                  outline="red", width=3)
+        self._canvas.create_oval(event.x-3, event.y-3, event.x+3, event.y+3,
+                                  fill="red")
+        self._canvas.create_text(event.x + r + 4, event.y,
+                                  text=f"{key}  ({x_pct:.3f}, {y_pct:.3f})",
+                                  fill="red", anchor="w", font=("Consolas", 9))
 
         self._pending = False
         self._hint_lbl.config(
-            text=f"Mapped  {key}  at ({x_pct:.3f}, {y_pct:.3f}).  Click Next Step or capture again.",
+            text=f"Mapped  {key}  at ({x_pct:.3f}, {y_pct:.3f}).  Advancing to next step...",
             fg=GREEN)
 
-        # Auto-advance after short delay
         self.after(800, self._next_step)
 
     def _next_step(self):
