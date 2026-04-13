@@ -183,17 +183,17 @@ def _gesture(win, x1, y1, x2, y2, duration=0.5, settle=1.2):
     pyautogui.dragTo(x2, y2, duration=duration, button="left")
     time.sleep(settle)
 
-def swipe_history_cards(win):
+def swipe_one_card(win):
     """
-    Step 7: Swipe left on history cards to reveal the next group of 4 cards.
-    Wide sweep (80% → 12%) to guarantee moving a full card-width batch.
-    History cards are horizontal; swiping left scrolls right to older matches.
+    Step 7: Swipe left by approximately one card width to advance to the next match.
+    4 cards are visible across ~80% of window width, so 1 card ≈ 20%.
+    We use 22% to ensure we advance at least one card without skipping two.
     """
-    x_start = win.left + int(win.width * 0.80)
-    x_end   = win.left + int(win.width * 0.12)
+    x_start = win.left + int(win.width * 0.72)
+    x_end   = win.left + int(win.width * 0.50)   # 22% shift ≈ 1 card
     y       = win.top  + int(win.height * 0.48)
-    print(f"      [swipe-left] ({x_start},{y}) -> ({x_end},{y})")
-    _gesture(win, x_start, y, x_end, y, duration=0.5, settle=1.2)
+    print(f"      [swipe-1-card] ({x_start},{y}) -> ({x_end},{y})")
+    _gesture(win, x_start, y, x_end, y, duration=0.4, settle=0.9)
 
 def scroll_leaderboard_down(win):
     """
@@ -403,35 +403,61 @@ def collect_player_matches(win, player_name, rank):
         return_to_leaderboard(win)
         return []
 
-    # ── Steps 4-7: collect up to MATCHES_PER_PLAYER matches ──────────────────
-    for i in range(MATCHES_PER_PLAYER):
-        # Step 7: swipe left to reveal the next group of cards
-        if i > 0 and i % CARDS_PER_SWIPE == 0:
-            print(f"    [7] Swiping left to reveal more cards (match {i + 1})")
-            swipe_history_cards(win)
+    # ── Steps 4-7: collect up to MATCHES_PER_PLAYER unique matches ──────────
+    # Strategy:
+    #   • Always click the LEFTMOST card (position 0)
+    #   • Swipe left by ONE card width after each match to advance
+    #   • De-duplicate by battle_id — guarantees no duplicates
+    #   • 3 consecutive duplicate battle_ids → history exhausted, stop early
+    seen_ids    = set()   # battle_ids already collected
+    dupe_streak = 0       # consecutive duplicates in a row
+    MAX_DUPES   = 3       # stop when we keep seeing the same match
 
-        card_pos = i % CARDS_PER_SWIPE  # position within the currently visible group
-        print(f"    [4] Clicking match card {i + 1}/{MATCHES_PER_PLAYER} (pos {card_pos})")
-        if not click_element(win, make_match_card_prompt(card_pos),
-                             label=f"card-{i}", delay=2.5):
-            print(f"      no more cards at position {card_pos} — stopping")
+    for i in range(MATCHES_PER_PLAYER * 2):   # allow extra iterations to handle dupes
+        if len(matches) >= MATCHES_PER_PLAYER:
             break
 
-        # Step 5: extract match data
+        print(f"    [4] Clicking leftmost card (collected {len(matches)}/{MATCHES_PER_PLAYER})")
+        if not click_element(win, make_match_card_prompt(0), label="card", delay=2.5):
+            print(f"      no card found — stopping")
+            break
+
+        # Step 5: extract
         print(f"    [5] Extracting")
         match_data = extract_match(win, player_name)
-        if match_data:
-            hero   = match_data.get("hero",     "?")
-            result = match_data.get("result",    "?")
-            bid    = match_data.get("battle_id", "?")
-            print(f"        {result} | {hero} | BID:{bid}")
-            matches.append(match_data)
+        bid = (match_data or {}).get("battle_id", "").strip()
 
-        # Step 6: click Quit to return to history cards
+        if bid and bid in seen_ids:
+            # Duplicate — swipe further to skip past it
+            dupe_streak += 1
+            print(f"        DUPE BID:{bid} (streak {dupe_streak}/{MAX_DUPES})")
+            click_element(win, FIND_QUIT_PROMPT, label="Quit-dupe", delay=1.5) or go_back(win)
+            if dupe_streak >= MAX_DUPES:
+                print(f"      History exhausted after {len(matches)} matches")
+                break
+            # Extra swipe to push past the stuck card
+            swipe_one_card(win)
+            swipe_one_card(win)
+            continue
+
+        dupe_streak = 0
+        if match_data:
+            if bid:
+                seen_ids.add(bid)
+            matches.append(match_data)
+            hero   = match_data.get("hero",   "?")
+            result = match_data.get("result",  "?")
+            print(f"        NEW [{len(matches)}] {result} | {hero} | BID:{bid or '?'}")
+
+        # Step 6: Quit → back to history cards
         print(f"    [6] Clicking Quit")
         if not click_element(win, FIND_QUIT_PROMPT, label="Quit", delay=2.0):
-            # fallback: try the back arrow
             go_back(win)
+
+        # Step 7: swipe left ONE card to advance (skip if last match)
+        if len(matches) < MATCHES_PER_PLAYER:
+            print(f"    [7] Swiping to next card")
+            swipe_one_card(win)
 
     # ── Step 8: return to leaderboard ─────────────────────────────────────────
     print(f"    [8] Returning to leaderboard")
@@ -452,10 +478,24 @@ def list_players_on_screen(win):
     return []
 
 # ── AGGREGATION ───────────────────────────────────────────────────────────────
+def dedup_matches(matches):
+    """Remove duplicate matches by battle_id (last-write-wins for empty ids)."""
+    seen, result = set(), []
+    for m in matches:
+        bid = (m.get("battle_id") or "").strip()
+        if bid:
+            if bid not in seen:
+                seen.add(bid)
+                result.append(m)
+        else:
+            result.append(m)   # no battle_id — keep it, can't de-dupe
+    return result
+
 def aggregate(player_records):
     """Build per-hero stats from collected match history."""
     hero_stats = {}
     for pr in player_records:
+        pr["matches"] = dedup_matches(pr.get("matches", []))  # final safety dedup
         seen_heroes = set()
         for m in pr.get("matches", []):
             hero = (m.get("hero") or "").strip()
