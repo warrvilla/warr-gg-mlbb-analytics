@@ -1604,7 +1604,24 @@ function initBattle(){
 function rc(r){const m={'MM':'#f59e0b','Mage':'#a855f7','Tank':'#3b82f6','Fighter':'#f97316','Assassin':'#ef4444','Support':'#22c55e'};for(const k of Object.keys(m))if(r.includes(k))return m[k];return'#94a3b8';}
 function tc(t){return{S:'#f59e0b',A:'#9ca3af',B:'#b45309',C:'#4b5563'}[t]||'#4b5563';}
 function lane(h){if(TIER_LIST[h.name]?.lane)return TIER_LIST[h.name].lane;return LANES_MAP[h.name]||'Flex';}
-function needs(picks){const cl=picks.map(p=>lane(p)).filter(l=>l!=='Flex');return{cl,needed:['Gold','Jungle','Mid','EXP','Roam'].filter(l=>!cl.includes(l))};}
+// Effective lane = manual/auto-assigned override (laneAssignmentsAB) → else primary lane.
+// All composition checks must use this, NOT lane(), so that flex reassignments are respected.
+function effectiveLaneAB(h){if(!h)return'Flex';return laneAssignmentsAB[h.id]||lane(h);}
+function needs(picks){const cl=picks.map(p=>effectiveLaneAB(p)).filter(l=>l!=='Flex');return{cl,needed:['Gold','Jungle','Mid','EXP','Roam'].filter(l=>!cl.includes(l))};}
+// Pick the best concrete lane this hero should occupy given the teammates already locked in.
+function pickLaneForHero(h,myPicks){
+  const taken=new Set(myPicks.map(p=>effectiveLaneAB(p)).filter(l=>l!=='Flex'));
+  const opts=getHeroLanesAB(h);
+  return opts.find(l=>l!=='Flex'&&!taken.has(l))||opts[0]||'Flex';
+}
+// STRICT: can this hero join the team without duplicating an already-covered lane?
+function canPickHero(h,myPicks){
+  if(myPicks.length>=5)return false;
+  const taken=new Set(myPicks.map(p=>effectiveLaneAB(p)).filter(l=>l!=='Flex'));
+  const opts=getHeroLanesAB(h);
+  if(!opts.length||opts[0]==='Flex')return taken.size<5;
+  return opts.some(l=>l==='Flex'||!taken.has(l));
+}
 function iu(h){return`./portraits/${h.id}.png`;}
 function iun(h){const n=(h.name||'').replace(/ /g,'_').replace(/[^a-zA-Z0-9_.]/g,'');return`./portraits/${n}.png`;}
 function fb(h){const c=encodeURIComponent(h.color||'#3b82f6'),t=encodeURIComponent((h.name||'?').substring(0,2).toUpperCase());return`data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128'><circle cx='64' cy='64' r='64' fill='%231e2028'/><circle cx='64' cy='64' r='62' fill='none' stroke='${c}' stroke-width='3'/><text x='64' y='76' text-anchor='middle' fill='${c}' font-size='36' font-weight='700' font-family='Arial'>${t}</text></svg>`;}
@@ -1640,9 +1657,17 @@ function cycleLaneAB(heroId,event){
   event.stopPropagation();
   const order=['Gold','Jungle','Mid','EXP','Roam','Flex'];
   const h=HEROES.find(x=>x.id===heroId)||{};
+  // Find which team this hero is on so we can skip past lanes already occupied by teammates.
+  const myTeam=ST.bp.some(x=>x.id===heroId)?ST.bp:(ST.rp.some(x=>x.id===heroId)?ST.rp:[]);
+  const taken=new Set(myTeam.filter(x=>x.id!==heroId).map(p=>effectiveLaneAB(p)).filter(l=>l!=='Flex'));
   const cur=laneAssignmentsAB[heroId]||lane(h);
-  const idx=order.indexOf(cur);
-  laneAssignmentsAB[heroId]=order[(idx+1)%order.length];
+  let idx=(order.indexOf(cur)+1)%order.length;
+  // Skip any lane already claimed by a teammate. Flex is always allowed as an escape hatch.
+  for(let i=0;i<order.length;i++){
+    if(order[idx]==='Flex'||!taken.has(order[idx]))break;
+    idx=(idx+1)%order.length;
+  }
+  laneAssignmentsAB[heroId]=order[idx];
   renderSlots();
 }
 function psl(h,active,side,lbl){
@@ -1760,12 +1785,26 @@ function pick(id){
 
 function commit(h){
   const s=DRAFT_ORDER[ST.step];
-  ST.hist.push({step:ST.step,hero:h,type:s.type,team:s.team});
+  const prevLaneAssign=laneAssignmentsAB[h.id];
+  ST.hist.push({step:ST.step,hero:h,type:s.type,team:s.team,prevLaneAssign});
   if(s.type==='ban'){s.team==='blue'?ST.bb.push(h):ST.rb.push(h);}
-  else{s.team==='blue'?ST.bp.push(h):ST.rp.push(h);}
-  // Track AI's first ban for variety in future games
-  if(s.type==='ban'&&s.team===aiSide&&(aiSide==='blue'?ST.bb.length:ST.rb.length)===1){
-    try{const bh=JSON.parse(localStorage.getItem('warr_ab_ban_history')||'[]');bh.unshift(h.name);localStorage.setItem('warr_ab_ban_history',JSON.stringify(bh.slice(0,5)));}catch(e){}
+  else{
+    // ── STRICT AUTO-LANE ASSIGNMENT ──
+    // Lock this hero into the first available lane from its options that a teammate
+    // doesn't already own — guarantees the 5-role composition (EXP/Jungle/Mid/Gold/Roam).
+    const sameTeam=s.team==='blue'?ST.bp:ST.rp;
+    const chosenLane=pickLaneForHero(h,sameTeam);
+    if(chosenLane&&chosenLane!=='Flex')laneAssignmentsAB[h.id]=chosenLane;
+    s.team==='blue'?ST.bp.push(h):ST.rp.push(h);
+  }
+  // Track EVERY AI ban across recent matches so future games diversify ban pools.
+  if(s.type==='ban'&&s.team===aiSide){
+    try{
+      const bh=JSON.parse(localStorage.getItem('warr_ab_ban_history')||'[]');
+      bh.unshift(h.name);
+      const uniq=[...new Set(bh)].slice(0,15);
+      localStorage.setItem('warr_ab_ban_history',JSON.stringify(uniq));
+    }catch(e){}
   }
   ST.step++;
   document.getElementById('anaBtn').disabled=(ST.bp.length+ST.rp.length)<6;
@@ -1779,7 +1818,14 @@ function undoPick(){
   while(ST.hist.length&&cnt<2){
     const l=ST.hist.pop();ST.step=l.step;
     if(l.type==='ban'){l.team==='blue'?ST.bb.pop():ST.rb.pop();}
-    else{l.team==='blue'?ST.bp.pop():ST.rp.pop();}
+    else{
+      l.team==='blue'?ST.bp.pop():ST.rp.pop();
+      // Restore the hero's lane state before commit() auto-assigned it.
+      if(l.hero){
+        if(l.prevLaneAssign)laneAssignmentsAB[l.hero.id]=l.prevLaneAssign;
+        else delete laneAssignmentsAB[l.hero.id];
+      }
+    }
     cnt++;if(cnt===1&&DRAFT_ORDER[l.step]?.team===pSide)break;
   }
   done=false;document.getElementById('anaBtn').disabled=(ST.bp.length+ST.rp.length)<6;
@@ -2082,7 +2128,7 @@ function _simBestPick(myPicks,oppPicks,bannedSet,forOpp,humanFavsArr){
       const heroLanes=getHeroLanesAB(h);
       const eff=heroLanes.find(l=>needed.includes(l))||heroLanes[0]||'Flex';
       const prev=forOpp?oppPicks:myPicks;
-      if(eff!=='Flex'&&prev.filter(p=>lane(p)===eff).length>0)return null;
+      if(eff!=='Flex'&&prev.filter(p=>effectiveLaneAB(p)===eff).length>0)return null;
       const fills=eff!=='Flex'&&needed.includes(eff)?45:0;
       const fav=forOpp&&humanFavsArr?(humanFavsArr.find(f=>f.name===h.name)?.score||0)*12:0;
       return{hero:h,score:ts+fills+fav};
@@ -2324,9 +2370,12 @@ function localAI(step){
     const ln=effectiveLane;
     const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
     const ts={S:100,A:78,B:55,C:30}[t]||30;
-    // Hard lane block
-    const laneCount=myP.filter(p=>lane(p)===ln).length;
-    if(ln!=='Flex'&&laneCount>0)return null;
+    // ── STRICT HARD LANE BLOCK ──
+    // Reject a hero whose effective lane is already occupied by a teammate, OR whose only
+    // options are already-covered lanes (no flex path into an open slot).
+    const takenLanes=new Set(myP.map(p=>effectiveLaneAB(p)).filter(l=>l!=='Flex'));
+    if(ln!=='Flex'&&takenLanes.has(ln))return null;
+    if(myNeeded.length>0&&!heroLanes.some(l=>l==='Flex'||myNeeded.includes(l)))return null;
 
     // ── ENEMY TEAM MODE ──────────────────────────────────────────────────
     if(ep){
@@ -2502,13 +2551,31 @@ async function claudeAI(step){
   const oppP=step.team==='blue'?ST.rp:ST.bp;
   const myB=step.team==='blue'?ST.bb:ST.rb;
   const oppB=step.team==='blue'?ST.rb:ST.bb;
-  const {needed}=needs(myP);
-  const {needed:oppNeeded}=needs(oppP);
+  const {needed,cl:myCovered}=needs(myP);
+  const {needed:oppNeeded,cl:oppCovered}=needs(oppP);
   const mem=loadMem();
+  // Annotate each hero with primary|flex lanes so the model sees every playable slot.
   const topA=avail.filter(h=>h.mp!=='off'||['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier)).slice(0,42).map(h=>{
     const d=mem[h.name];const wr=d&&d.wins+d.losses>0?`,WR:${Math.round(d.wins/(d.wins+d.losses)*100)}%`:'';
-    return`${h.name}(${lane(h)},${_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier}${wr})`;
+    const lns=getHeroLanesAB(h);const primary=lns[0]||'Flex';
+    const flex=lns.slice(1).filter(l=>l!=='Flex').join('/');
+    const laneStr=flex?`${primary}|${flex}`:primary;
+    const tier=_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
+    return`${h.name}(${laneStr},${tier}${wr})`;
   }).join(', ');
+  // Strictly-filtered pick candidates: only heroes that can legally fill a needed lane right now.
+  const takenMine=new Set(myP.map(p=>effectiveLaneAB(p)).filter(l=>l!=='Flex'));
+  const pickCandidates=step.type==='pick'?avail.filter(h=>{
+    const lns=getHeroLanesAB(h);
+    if(!lns.length)return false;
+    if(lns[0]==='Flex')return needed.length===0;
+    return lns.some(l=>l!=='Flex'&&!takenMine.has(l)&&needed.includes(l));
+  }).slice(0,30).map(h=>{
+    const lns=getHeroLanesAB(h);
+    const fits=lns.filter(l=>l!=='Flex'&&needed.includes(l)&&!takenMine.has(l)).join('/')||lns[0];
+    const tier=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
+    return`${h.name}[${fits}|${tier}]`;
+  }).join(', '):'';
   const humanFavsGM=getHumanTendencies().slice(0,5);
   const humanCombosGM=getHumanComboThreats().slice(0,3);
   const tendencyStr=humanFavsGM.length?`Human comfort picks: ${humanFavsGM.map(f=>f.name+'('+Math.round(f.wr*100)+'%WR,'+f.count+'g)').join(', ')}`:''
@@ -2531,18 +2598,28 @@ async function claudeAI(step){
 META: ${buildMeta()}${aiScout?'\n'+aiScout:''}
 
 DRAFT STATE:
-You(${step.team}): picks=[${myP.map(h=>h.name+'('+lane(h)+')').join(',')||'None'}] bans=[${myB.map(h=>h.name).join(',')||'None'}] lanes_needed=[${needed.join(',')||'none'}]
-Human(${step.team==='blue'?'red':'blue'}): picks=[${oppP.map(h=>h.name+'('+lane(h)+')').join(',')||'None'}] bans=[${oppB.map(h=>h.name).join(',')||'None'}] lanes_needed=[${oppNeeded.join(',')||'none'}]
+You(${step.team}): picks=[${myP.map(h=>h.name+'('+effectiveLaneAB(h)+')').join(',')||'None'}] bans=[${myB.map(h=>h.name).join(',')||'None'}]
+  lanes_covered=[${myCovered.join(',')||'none'}] lanes_needed=[${needed.join(',')||'TEAM COMPLETE'}]
+Human(${step.team==='blue'?'red':'blue'}): picks=[${oppP.map(h=>h.name+'('+effectiveLaneAB(h)+')').join(',')||'None'}] bans=[${oppB.map(h=>h.name).join(',')||'None'}]
+  lanes_covered=[${oppCovered.join(',')||'none'}] lanes_needed=[${oppNeeded.join(',')||'none'}]
 ${myCounterTargets?'Counter opportunities: '+myCounterTargets:''}
 ${theyCounter?'Threats to our picks: '+theyCounter:''}
-Available (top): ${topA}
+Available (format Hero(primary|flex,tier[,WR])): ${topA}${step.type==='pick'&&pickCandidates?`
+VALID pick candidates — heroes that can fill a currently-needed lane — YOU MUST CHOOSE FROM THIS LIST: ${pickCandidates}`:''}
 ${gmEx}
 
-${step.type==='ban'
-  ?`BAN RULES: (1) Must-bans first. (2) Ban S/A heroes that counter YOUR existing picks. (3) Ban strong heroes in lanes the HUMAN still needs [${oppNeeded.join('/')||'none'}]. (4) Do NOT ban heroes that fill YOUR needed lanes [${needed.join('/')||'none'}] unless must-ban. Pick the single best ban given these rules.`
-  :`PICK RULES: (1) Fill your needed lanes [${needed.join('/')||'none'}]. (2) Counter-pick opponent heroes where possible. (3) Pick high-tier heroes that synergize with your existing picks. (4) Avoid heroes your opponent already counters. Pick the single best hero.`}
+ROLE COMPOSITION RULES (HARD — non-negotiable):
+• Every MLBB team MUST field EXACTLY ONE of each: EXP, Jungle, Mid, Gold, Roam. Five roles, no duplicates, no gaps.
+• Your lanes_covered=[${myCovered.join(',')||'none'}]. Your lanes_needed=[${needed.join(',')||'none'}].
+• NEVER pick a hero whose only playable lane(s) are already in lanes_covered.
+• A flex hero is valid ONLY if at least one of its listed lanes is in lanes_needed.
+• NEVER ban a hero whose lane is already filled on BOTH teams unless they are must-ban.
 
-JSON only: {"hero":"ExactName","reason":"<20 words, specific — name the hero and why>","confidence":"high|medium|low"}`;
+${step.type==='ban'
+  ?`BAN PRIORITY: (1) Must-bans first. (2) Ban S/A heroes that counter YOUR existing picks. (3) Ban strong heroes in lanes the HUMAN still needs [${oppNeeded.join('/')||'none'}]. (4) DO NOT ban heroes that fill YOUR needed lanes [${needed.join('/')||'none'}] unless must-ban. (5) Diversify — avoid repeating the same bans every match.`
+  :`PICK PRIORITY: (1) Fill your lanes_needed [${needed.join('/')||'none'}] — ANY pick that does NOT fill a needed lane is invalid. (2) Counter-pick opponent heroes. (3) Prefer high-tier heroes that synergize. (4) Avoid heroes your opponent already counters. Choose ONLY from the VALID pick candidates list above.`}
+
+Return ONLY JSON: {"hero":"ExactName","reason":"<20 words, specific — name the hero and why>","confidence":"high|medium|low"}`;
 
   // ── enemy mode prompt override ──
   if(aiMode==='enemy'&&enemyProfile){
@@ -2567,14 +2644,48 @@ ${step.type==='ban'
 JSON only: {"hero":"ExactName","reason":"<12 words>","confidence":"high|medium|low"}`;
   }
 
-  try{
-    const d=await callClaude({model:'claude-sonnet-4-6',max_tokens:150,messages:[{role:'user',content:prompt}]});
+  // ── STRICT VALIDATOR: enforce 5-role composition on Claude's output ──
+  // Returns {ok:true, hero} if valid, or {ok:false, reason} if it violates lane rules.
+  const validateClaudePick=(h)=>{
+    if(!h)return{ok:false,reason:'not found'};
+    if(usedIds.includes(h.id))return{ok:false,reason:'already used'};
+    if(step.type==='pick'){
+      if(needed.length>0&&!canPickHero(h,myP))return{ok:false,reason:`${h.name} cannot fill any needed lane`};
+      const heroLanes=getHeroLanesAB(h);
+      const takenSet=new Set(myP.map(pp=>effectiveLaneAB(pp)).filter(l=>l!=='Flex'));
+      const effLane=heroLanes.find(l=>l!=='Flex'&&!takenSet.has(l)&&needed.includes(l))
+                 ||heroLanes.find(l=>l!=='Flex'&&!takenSet.has(l))
+                 ||heroLanes[0]||'Flex';
+      if(needed.length>0&&(effLane==='Flex'||takenSet.has(effLane)||!needed.includes(effLane)))
+        return{ok:false,reason:`${h.name} would duplicate ${effLane} (needed: ${needed.join('/')})`};
+    } else if(step.type==='ban'){
+      const ln=lane(h);
+      const bothFilled=ln!=='Flex'&&!needed.includes(ln)&&!oppNeeded.includes(ln);
+      if(bothFilled&&h.mp!=='mustban')return{ok:false,reason:`${h.name} ${ln} lane already filled on both sides`};
+    }
+    return{ok:true,hero:h};
+  };
+
+  const parseClaudeOnce=async(extraHint)=>{
+    const finalPrompt=extraHint?`${prompt}\n\nCORRECTION: ${extraHint} Pick again — respect the composition rules strictly.`:prompt;
+    const d=await callClaude({model:'claude-sonnet-4-6',max_tokens:160,messages:[{role:'user',content:finalPrompt}]});
     const raw=(d.content||[]).map(x=>x.text||'').join('');
-    const m=raw.match(/\{[\s\S]*?\}/);if(!m)return localAI(step);
-    let p;try{p=JSON.parse(m[0]);}catch(e){return localAI(step);}
+    const m=raw.match(/\{[\s\S]*?\}/);if(!m)return{ok:false,reason:'no JSON'};
+    let p;try{p=JSON.parse(m[0]);}catch(e){return{ok:false,reason:'bad JSON'};}
     const h=HEROES.find(hh=>hh.name.toLowerCase()===(p.hero||'').toLowerCase());
-    if(!h||usedIds.includes(h.id))return localAI(step);
-    h._r=p.reason||'';h._c=p.confidence||'medium';return h;
+    const v=validateClaudePick(h);
+    if(!v.ok)return v;
+    h._r=p.reason||'';h._c=p.confidence||'medium';return{ok:true,hero:h};
+  };
+
+  try{
+    let res=await parseClaudeOnce();
+    // One re-prompt attempt if Claude broke the lane rules.
+    if(!res.ok&&res.reason&&res.reason.length<200){
+      res=await parseClaudeOnce(`Your previous answer was rejected: ${res.reason}.`);
+    }
+    if(res.ok)return res.hero;
+    return localAI(step);
   }catch(e){
     return localAI(step); // silent fallback — no key or API error
   }
@@ -2809,9 +2920,28 @@ function localAnalysis(bp,rp,bb,rb,bt,rt){
     if(picks.filter(h=>['Fighter','Tank'].some(x=>(h.role||'').includes(x))).length>=3)return'Frontline Heavy';
     return'Flexible Mixed';
   };
-  const lanesOf=picks=>['EXP','Gold','Mid','Jungle','Roam'].map(l=>{
-    return{lane:l,hero:picks.find(h=>(laneAssignmentsAB[h.id]||lane(h))===l)||picks.find(h=>(laneAssignmentsAB[h.id]||lane(h))==='Flex')};
-  });
+  // STRICT 1-hero-per-lane assignment. Three passes: explicit assignment → concrete primary → flex.
+  // Prevents two heroes from silently mapping to the same lane (which hid comp errors before).
+  const lanesOf=picks=>{
+    const order=['EXP','Gold','Mid','Jungle','Roam'];
+    const assigned={};const used=new Set();
+    picks.forEach(h=>{
+      const a=laneAssignmentsAB[h.id];
+      if(a&&order.includes(a)&&!assigned[a]){assigned[a]=h;used.add(h.id);}
+    });
+    picks.forEach(h=>{
+      if(used.has(h.id))return;
+      const p=lane(h);
+      if(p!=='Flex'&&order.includes(p)&&!assigned[p]){assigned[p]=h;used.add(h.id);}
+    });
+    picks.forEach(h=>{
+      if(used.has(h.id))return;
+      const opts=getHeroLanesAB(h);
+      const slot=opts.find(l=>order.includes(l)&&!assigned[l])||order.find(l=>!assigned[l]);
+      if(slot){assigned[slot]=h;used.add(h.id);}
+    });
+    return order.map(l=>({lane:l,hero:assigned[l]||null}));
+  };
   const laneStr=ls=>{
     const keys=['exp','gold','mid','jungle','roam'],lanes=['EXP','Gold','Mid','Jungle','Roam'],obj={};
     keys.forEach((k,i)=>{const h=ls.find(l=>l.lane===lanes[i])?.hero;obj[k]=h?`${h.name} (${(h.role||'').split('/')[0]}) — ${({S:'Strong',A:'Good',B:'Decent',C:'Weak'}[_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier]||'Decent')} tier`:`No clear ${lanes[i]} laner`;});
