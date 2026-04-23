@@ -447,6 +447,8 @@ body::before {
 </style>
 </head>
 <body>
+<div id="warr-nav-root"></div>
+
 
 <div class="page">
 
@@ -953,5 +955,8 @@ const observer = new IntersectionObserver(entries => {
 }, { threshold: 0.4 });
 document.querySelectorAll('[id]').forEach(el => observer.observe(el));
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="warr-lib.js"></script>
+<script src="warr-nav.js"></script>
 </body>
 </html>

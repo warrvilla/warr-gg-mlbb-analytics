@@ -182,46 +182,8 @@
 <body>
 
 <!-- TOP NAV -->
-<nav class="topnav">
-  <a class="nav-brand" href="index.html">
-    <span class="nav-brand-name">Warr.GG</span>
-    <span class="nav-brand-sub">MLBB Intel</span>
-  </a>
-  <div class="nav-links">
-    <a class="nav-link" href="draft_board.html">Draft</a>
-    <a class="nav-link" href="ai_battle.html">AI Battle</a>
-    <a class="nav-link" href="scout.html">Scout</a>
-    <a class="nav-link" href="stats.html">Analysis</a>
-    <a class="nav-link" href="patch_meta.html">Patch</a>
-    <a class="nav-link" href="profile.html">Profile</a>
-  </div>
-  <div class="nav-right">
-    <div class="theme-switcher" title="Switch theme">
-      <button class="theme-btn" data-t="dark" title="Dark">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
-      </button>
-      <button class="theme-btn" data-t="light" title="Light">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
-      </button>
-      <button class="theme-btn" data-t="neon" title="Neon">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z"/></svg>
-      </button>
-    </div>
-  </div>
-  <button class="mobile-menu-btn" onclick="document.getElementById('mobileNav').classList.toggle('open')" aria-label="Menu">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-  </button>
-</nav>
+<div id="warr-nav-root"></div><!-- MOBILE NAV -->
 
-<!-- MOBILE NAV -->
-<div id="mobileNav" class="mobile-nav">
-  <a class="mobile-nav-link" href="draft_board.html">Draft Board</a>
-  <a class="mobile-nav-link" href="ai_battle.html">AI Battle</a>
-  <a class="mobile-nav-link" href="scout.html">Scout</a>
-  <a class="mobile-nav-link" href="stats.html">Analysis</a>
-  <a class="mobile-nav-link" href="patch_meta.html">Patch</a>
-  <a class="mobile-nav-link" href="profile.html">Profile</a>
-</div>
 
 <div class="page-body">
 
@@ -899,5 +861,8 @@ function initDragScroll() {
 
 init();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="warr-lib.js"></script>
+<script src="warr-nav.js"></script>
 </body>
 </html>

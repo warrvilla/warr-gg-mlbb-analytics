@@ -107,25 +107,7 @@ body { background: var(--bg); min-height: 100vh; }
 </head>
 <body>
 
-<nav class="topnav">
-  <a class="nav-brand" href="index.html">
-    <span class="nav-brand-name">Warr.GG</span>
-    <span class="nav-brand-sub">MLBB Intel</span>
-  </a>
-  <div class="nav-links">
-    <a class="nav-link" href="scout.html">Scout</a>
-    <a class="nav-link" href="draft_board.html">Draft</a>
-    <a class="nav-link" href="profile.html">Profile</a>
-    <a class="nav-link" href="heroes.html">Heroes</a>
-    <a class="nav-link" href="team_manager.html">Teams</a>
-
-  </div>
-  <button class="mobile-menu-btn" onclick="document.querySelector('.mobile-nav').classList.toggle('open')" aria-label="Menu">
-    <span></span><span></span><span></span>
-  </button>
-</nav>
-
-<div class="page-wrap" id="mainContent" style="display:none;">
+<div id="warr-nav-root"></div><div class="page-wrap" id="mainContent" style="display:none;">
   <div class="page-title">Season Import</div>
   <div class="page-sub">
     Admin-only tool — bulk import historical MPL, MSC, M-Series season data to train the AI scout engine.
@@ -267,6 +249,7 @@ body { background: var(--bg); min-height: 100vh; }
 
 <div id="toast" class="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="warr-lib.js"></script>
 <script src="warr-nav.js"></script>
 <script>

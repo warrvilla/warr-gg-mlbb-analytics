@@ -6,6 +6,7 @@
 <title>Top 100 Global — Warr.GG</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="warr-lib.js"></script>
+<script src="warr-nav.js"></script>
 <link rel="stylesheet" href="warr-styles.css">
 <style>
 :root{
@@ -104,8 +105,9 @@ select.ctrl-sel:focus,input.ctrl-in:focus{border-color:var(--blue);}
 </style>
 </head>
 <body>
-<div class="topbar">
-  <a href="index.html" class="logo"><div class="logo-mark">W</div>Warr.GG</a>
+<div id="warr-nav-root"></div>
+
+Warr.GG</a>
   <div class="topbar-right">
     <a href="draft_board.html" class="tab-btn">Draft</a>
     <a href="scout.html" class="tab-btn">Scout</a>

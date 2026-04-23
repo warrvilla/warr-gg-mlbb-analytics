@@ -378,36 +378,7 @@ body { background: var(--bg); min-height: 100vh; }
 <body>
 
 <!-- NAV -->
-<nav class="topnav">
-  <a class="nav-brand" href="index.html">
-    <span class="nav-brand-name">Warr.GG</span>
-    <span class="nav-brand-sub">MLBB Intel</span>
-  </a>
-  <div class="nav-links">
-    <a class="nav-link" href="draft_board.html">Draft</a>
-    <a class="nav-link" href="ai_battle.html">AI Battle</a>
-    <a class="nav-link" href="scout.html">Scout</a>
-    <a class="nav-link" href="stats.html">Analysis</a>
-    <a class="nav-link" href="patch_meta.html">Patch</a>
-    <a class="nav-link active" href="profile.html">Profile</a>
-  </div>
-  <div class="nav-right">
-    <div id="authChip"><a href="auth.html" class="cta-secondary" style="padding:7px 18px;font-size:13px;">Sign In</a></div>
-  </div>
-  <button class="mobile-menu-btn" onclick="document.querySelector('.mobile-nav').classList.toggle('open')" aria-label="Menu">
-    <span></span><span></span><span></span>
-  </button>
-</nav>
-
-<nav class="mobile-nav">
-  <a class="mobile-nav-link" href="draft_board.html">Draft</a>
-  <a class="mobile-nav-link" href="ai_battle.html">AI Battle</a>
-  <a class="mobile-nav-link" href="scout.html">Scout</a>
-  <a class="mobile-nav-link" href="stats.html">Analysis</a>
-  <a class="mobile-nav-link" href="patch_meta.html">Patch</a>
-  <a class="mobile-nav-link active" href="profile.html">Profile</a>
-  <a class="mobile-nav-link" href="auth.html">Sign In</a>
-</nav>
+<div id="warr-nav-root"></div>
 
 <div class="page-wrap" id="pageWrap">
 
