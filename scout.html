@@ -576,6 +576,33 @@ body {
   border-radius: 8px;
   color: var(--text2);
 }
+/* Full-history draft analysis (picks / bans / bans received).
+   Uses CSS multi-column so long lists flow into 2+ columns rather than
+   becoming a tall skinny scroll. Fully visible in print — no scroll cap. */
+.draft-chiplist {
+  column-width: 220px;
+  column-gap: 14px;
+  column-fill: balance;
+}
+.draft-chiprow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 0;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+  break-inside: avoid;
+  page-break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+}
+.draft-chiprow--pick { gap: 8px; }
+.draft-chiprow:last-child { border-bottom: none; }
+.draft-chipcount {
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 6px;
+  font-family: var(--font-mono);
+}
 /* Form indicator dots */
 .form-dots { display: flex; gap: 3px; }
 .form-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
@@ -902,6 +929,26 @@ body {
   .series-games.hidden { display: block !important; }
   /* Series game rows don't break mid-card */
   .series-games > div { break-inside: avoid; page-break-inside: avoid; }
+  /* Draft analysis: show full history, multi-column, no scroll cap */
+  .draft-chiplist {
+    column-count: 2 !important;
+    column-width: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .draft-chiprow {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  /* Any inline scroll container inside the report unwinds on paper */
+  #reportBody [style*="overflow-y:auto"],
+  #reportBody [style*="overflow-y: auto"],
+  #reportBody [style*="max-height"] {
+    max-height: none !important;
+    overflow: visible !important;
+  }
   /* UI toggles */
   .no-print { display: none !important; }
   .print-only { display: block !important; }
@@ -954,7 +1001,7 @@ body::after {
     <a class="nav-link" href="profile.html">Profile</a>
     <a class="nav-link" href="heroes.html">Heroes</a>
     <a class="nav-link" href="team_manager.html">Teams</a>
-    <a class="nav-link" id="adminNav_leagues" href="league_manager.html" style="display:none;color:var(--gold);">Leagues</a>
+
     <a class="nav-link" id="adminImportLink" href="season_import.html" style="display:none;color:var(--gold);">⚙ Import</a>
   </div>
   <div class="nav-right">
@@ -1106,9 +1153,57 @@ const SCHEMA_VERSION = 3;
 const STORAGE_KEY = 'warr_scout_data';
 const DRAFT_KEY = 'mlbb_draft_data';
 
-const LEAGUES = ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series','Scrims','Other'];
+// LEAGUES is mutable — extended at runtime by loadCustomLeagues() with admin-added leagues from Supabase.
+let LEAGUES = ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series','Scrims','Other'];
 const LEAGUE_CSS = {'MPL PH':'lg-mplph','MPL MY':'lg-mplmy','MPL ID':'lg-mplid','MPL SG':'lg-mplsg','MSC':'lg-msc','M-Series':'lg-mseries','Scrims':'lg-scrims','Other':'lg-other'};
 const LEAGUE_COLOR = {'MPL PH':'#60a5fa','MPL MY':'#c084fc','MPL ID':'#f87171','MPL SG':'#4ade80','MSC':'#fbbf24','M-Series':'#22d3ee','Scrims':'#fb923c','Other':'#4f5d78'};
+
+// Fallback palette used for admin-added leagues (in rotation)
+const _CUSTOM_LEAGUE_PALETTE = ['#f472b6','#a3e635','#fde047','#38bdf8','#f97316','#10b981','#e879f9','#94a3b8'];
+let _customLeaguesLoaded = false;
+/** Load admin-added leagues from Supabase and inject them into LEAGUES array,
+ *  the sidebar filter buttons, and the mobile dropdown so they're usable everywhere. */
+async function loadCustomLeagues() {
+  if (_customLeaguesLoaded) return;
+  if (typeof WDB === 'undefined' || !WDB.loadLeagues) return;
+  try {
+    const rows = await WDB.loadLeagues();
+    const sidebar = document.querySelector('.sidebar');
+    const mobileSel = document.getElementById('mobileLeagueSelect');
+    // Find the "Import" section header so we can insert new buttons before it
+    const importHeader = sidebar ? [...sidebar.querySelectorAll('.sidebar-section')].find(el => el.textContent.trim() === 'Import') : null;
+    (rows || []).forEach((l, i) => {
+      const name = l.name;
+      if (!name || LEAGUES.includes(name)) return; // already in hardcoded list
+      LEAGUES.push(name);
+      const color = _CUSTOM_LEAGUE_PALETTE[i % _CUSTOM_LEAGUE_PALETTE.length];
+      LEAGUE_COLOR[name] = color;
+      LEAGUE_CSS[name]   = 'lg-other'; // use generic styling
+
+      // Add sidebar button (desktop)
+      if (sidebar && importHeader) {
+        const btn = document.createElement('button');
+        btn.className = 'sidebar-btn desktop-only';
+        btn.id = 'sb-' + name;
+        btn.setAttribute('onclick', `setLeagueFilter('${name.replace(/'/g,"\\'")}')`);
+        btn.innerHTML = `<div class="league-dot" style="background:${color};box-shadow:0 0 5px ${color}66;"></div> ${name}`;
+        sidebar.insertBefore(btn, importHeader);
+      }
+
+      // Add mobile dropdown option
+      if (mobileSel) {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        mobileSel.appendChild(opt);
+      }
+    });
+    _customLeaguesLoaded = true;
+  } catch (e) {
+    // Fail silently — hardcoded leagues still work
+    console.warn('[scout] Failed to load custom leagues:', e.message);
+  }
+}
 const LANES = ['Gold','Jungle','Mid','EXP','Roam'];
 const LANE_COLORS = {Gold:'#f4a534',Mid:'#a855f7',Roam:'#34d17a',Jungle:'#f05252',EXP:'#38bdf8',Flex:'#8b97b0'};
 const LANE_ICONS = {Gold:'GLD',Mid:'MID',Roam:'RMG',Jungle:'JGL',EXP:'EXP',Flex:'FLX'};
@@ -1374,11 +1469,12 @@ const DB_MODULE = (() => {
         oppBans.forEach(b => { const n=b.name||b; banRecC[n]=(banRecC[n]||0)+1; });
       });
 
-      t.topPicks = Object.entries(pickC).sort((a,b)=>b[1]-a[1]).slice(0,10)
+      // Keep full history, sorted by frequency descending. Views decide how much to show.
+      t.topPicks = Object.entries(pickC).sort((a,b)=>b[1]-a[1])
         .map(([n,c])=>({name:n,count:c,wr:pickW[n]?Math.round(pickW[n]/c*100):0}));
-      t.topBans = Object.entries(banC).sort((a,b)=>b[1]-a[1]).slice(0,8)
+      t.topBans = Object.entries(banC).sort((a,b)=>b[1]-a[1])
         .map(([n,c])=>({name:n,count:c}));
-      t.bansReceived = Object.entries(banRecC).sort((a,b)=>b[1]-a[1]).slice(0,8)
+      t.bansReceived = Object.entries(banRecC).sort((a,b)=>b[1]-a[1])
         .map(([n,c])=>({name:n,count:c}));
 
       // Pool depth: unique heroes picked with >=2 games
@@ -1534,6 +1630,8 @@ let _searchDebounce = null;
   } catch(e) { /* fail silently */ }
 })();
 WAuth.renderAuthChip('authChip');
+// Pull admin-added leagues (from Profile → Admin — Leagues) into the sidebar + dropdowns
+loadCustomLeagues().catch(() => {});
 // Auto-load from Supabase on page load
 loadFromSupabase().catch(() => {});
 
@@ -2633,17 +2731,17 @@ function openTeamEditor(teamName) {
               </div>
             </div>` : ''}
             <div style="display:flex;gap:16px;flex-wrap:wrap;">
-              <div>
-                <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">TOP PICKS</div>
-                <div class="hero-chips">${(t.topPicks||[]).map(p=>`<span class="hero-chip">${p.name} ×${p.count} <span style="color:${p.wr>=50?'var(--green)':'var(--text3)'};">${p.wr}%</span></span>`).join('')}</div>
+              <div style="flex:1;min-width:220px;">
+                <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">TOP PICKS <span style="color:var(--text4);font-weight:600;">(${(t.topPicks||[]).length})</span></div>
+                <div class="hero-chips" style="max-height:150px;overflow-y:auto;padding-right:4px;">${(t.topPicks||[]).map(p=>`<span class="hero-chip">${p.name} ×${p.count} <span style="color:${p.wr>=50?'var(--green)':'var(--text3)'};">${p.wr}%</span></span>`).join('')}</div>
               </div>
-              <div>
-                <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">TOP BANS</div>
-                <div class="hero-chips">${(t.topBans||[]).map(b=>`<span class="hero-chip" style="color:#f87171;border-color:rgba(240,82,82,.25);">${b.name} ×${b.count}</span>`).join('')}</div>
+              <div style="flex:1;min-width:220px;">
+                <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">TOP BANS <span style="color:var(--text4);font-weight:600;">(${(t.topBans||[]).length})</span></div>
+                <div class="hero-chips" style="max-height:150px;overflow-y:auto;padding-right:4px;">${(t.topBans||[]).map(b=>`<span class="hero-chip" style="color:#f87171;border-color:rgba(240,82,82,.25);">${b.name} ×${b.count}</span>`).join('')}</div>
               </div>
-              ${(t.bansReceived||[]).length ? `<div>
-                <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">BANS RECEIVED</div>
-                <div class="hero-chips">${(t.bansReceived||[]).map(b=>`<span class="hero-chip" style="color:var(--gold);border-color:rgba(244,165,52,.25);">${b.name} ×${b.count}</span>`).join('')}</div>
+              ${(t.bansReceived||[]).length ? `<div style="flex:1;min-width:220px;">
+                <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">BANS RECEIVED <span style="color:var(--text4);font-weight:600;">(${(t.bansReceived||[]).length})</span></div>
+                <div class="hero-chips" style="max-height:150px;overflow-y:auto;padding-right:4px;">${(t.bansReceived||[]).map(b=>`<span class="hero-chip" style="color:var(--gold);border-color:rgba(244,165,52,.25);">${b.name} ×${b.count}</span>`).join('')}</div>
               </div>` : ''}
               ${(t.topFirstPick||[]).length ? `<div>
                 <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">FIRST PICK</div>
@@ -2964,10 +3062,10 @@ function openTeamReport(teamName) {
         </div>`;
       }).join('');
 
-  // ── Pick/Ban Analysis ──
-  const pickAnalysisHTML = (t.topPicks||[]).slice(0,12).map(p => {
+  // ── Pick/Ban Analysis (full history — onscreen scrolls/columns; print expands) ──
+  const _pickRow = p => {
     const pw = wrc(p.wr);
-    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
+    return `<div class="draft-chiprow draft-chiprow--pick">
       ${img(p.name, 30)}
       <div style="flex:1;min-width:0;">
         <div style="font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</div>
@@ -2980,21 +3078,28 @@ function openTeamReport(teamName) {
       </div>
       <span style="font-size:10px;color:var(--text3);font-family:var(--font-mono);">×${p.count}</span>
     </div>`;
-  }).join('');
+  };
+  const pickAnalysisHTML = (t.topPicks||[]).length
+    ? `<div class="draft-chiplist">${(t.topPicks||[]).map(_pickRow).join('')}</div>
+       <div class="draft-chipcount">${(t.topPicks||[]).length} distinct heroes picked</div>`
+    : '';
 
-  const banAnalysisHTML = (t.topBans||[]).slice(0,8).map(b => `
-    <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;">
+  const _banRow = (b, color) => `
+    <div class="draft-chiprow">
       ${img(b.name, 28)}
       <span style="font-size:11px;flex:1;">${b.name}</span>
-      <span style="font-size:10px;font-weight:700;color:var(--red);font-family:var(--font-mono);">×${b.count}</span>
-    </div>`).join('');
+      <span style="font-size:10px;font-weight:700;color:${color};font-family:var(--font-mono);">×${b.count}</span>
+    </div>`;
 
-  const banReceivedHTML = (t.bansReceived||[]).slice(0,8).map(b => `
-    <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;">
-      ${img(b.name, 28)}
-      <span style="font-size:11px;flex:1;">${b.name}</span>
-      <span style="font-size:10px;font-weight:700;color:var(--gold);font-family:var(--font-mono);">×${b.count}</span>
-    </div>`).join('');
+  const banAnalysisHTML = (t.topBans||[]).length
+    ? `<div class="draft-chiplist">${(t.topBans||[]).map(b=>_banRow(b,'var(--red)')).join('')}</div>
+       <div class="draft-chipcount">${(t.topBans||[]).length} distinct heroes banned</div>`
+    : '';
+
+  const banReceivedHTML = (t.bansReceived||[]).length
+    ? `<div class="draft-chiplist">${(t.bansReceived||[]).map(b=>_banRow(b,'var(--gold)')).join('')}</div>
+       <div class="draft-chipcount">${(t.bansReceived||[]).length} distinct heroes banned vs them</div>`
+    : '';
 
   const firstPickHTML = (t.topFirstPick||[]).slice(0,6).map(p => `
     <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;">
@@ -3124,17 +3229,24 @@ function openTeamReport(teamName) {
           </div>` : ''}
         </div>` : ''}
 
-        <!-- DRAFT ANALYSIS: 3 COLUMNS -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:18px;">
-          <div>
+        <!-- DRAFT ANALYSIS: full-width chip lists (multi-column flow) + compact supplementary row -->
+        <div style="display:block;margin-bottom:18px;">
+          <div style="margin-bottom:14px;break-inside:avoid;page-break-inside:avoid;">
             ${sec('Top Picks', pickAnalysisHTML || '<div style="color:var(--text3);font-size:11px;">No data</div>')}
           </div>
-          <div>
-            ${sec('Ban Priority', banAnalysisHTML || '<div style="color:var(--text3);font-size:11px;">No data</div>', '#f87171')}
-            ${sec('Bans Received vs Them', banReceivedHTML || '<div style="color:var(--text3);font-size:11px;">No data</div>', 'var(--gold)')}
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+            <div style="break-inside:avoid;page-break-inside:avoid;">
+              ${sec('Ban Priority', banAnalysisHTML || '<div style="color:var(--text3);font-size:11px;">No data</div>', '#f87171')}
+            </div>
+            <div style="break-inside:avoid;page-break-inside:avoid;">
+              ${sec('Bans Received vs Them', banReceivedHTML || '<div style="color:var(--text3);font-size:11px;">No data</div>', 'var(--gold)')}
+            </div>
           </div>
-          <div>
-            ${sec('First Pick Tendencies', firstPickHTML || '<div style="color:var(--text3);font-size:11px;">No data</div>', 'var(--blue)')}
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+            <div style="break-inside:avoid;page-break-inside:avoid;">
+              ${sec('First Pick Tendencies', firstPickHTML || '<div style="color:var(--text3);font-size:11px;">No data</div>', 'var(--blue)')}
+            </div>
+            <div style="break-inside:avoid;page-break-inside:avoid;">
             ${(t.turtleCtrl!==null || t.lordCtrl!==null) ? sec('Objective Control', `
               ${t.turtleCtrl!==null ? `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
                 <span style="font-size:14px;">🐢</span>
@@ -3148,6 +3260,7 @@ function openTeamReport(teamName) {
                 <span style="font-size:13px;font-weight:700;color:${wrc(t.lordCtrl)};font-family:var(--font-mono);">${t.lordCtrl}%</span>
                 <span style="font-size:9px;color:var(--text3);">${t.lordTotal}g</span>
               </div>` : ''}`) : ''}
+            </div>
           </div>
         </div>
 

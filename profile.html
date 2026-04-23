@@ -304,6 +304,75 @@ body { background: var(--bg); min-height: 100vh; }
   background: var(--gold); color: #000; font-size: 12px; font-weight: 800;
   letter-spacing: .06em; text-decoration: none; text-transform: uppercase;
 }
+
+/* ── Admin management cards (leagues + teams) ── */
+.admin-mgmt-card {
+  background: var(--surface);
+  border: 1px solid var(--gold-border);
+  border-radius: 16px; padding: 20px 24px; margin-bottom: 20px;
+  display: none;
+}
+.admin-mgmt-card h4 {
+  font-size: 13px; font-weight: 700; color: var(--gold);
+  letter-spacing: .06em; text-transform: uppercase; margin-bottom: 4px;
+}
+.admin-mgmt-card .mgmt-sub {
+  font-size: 11px; color: var(--text3); margin-bottom: 14px;
+}
+.admin-mgmt-form {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;
+  padding-bottom: 14px; border-bottom: 1px solid var(--glass-border);
+}
+.admin-mgmt-input {
+  flex: 1; min-width: 140px; padding: 8px 12px;
+  background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: 8px; color: var(--text); font-size: 12px;
+  font-family: var(--font-body); outline: none;
+}
+.admin-mgmt-input:focus { border-color: var(--gold); }
+.admin-mgmt-btn {
+  padding: 8px 16px; border-radius: 8px; border: 1px solid var(--gold-border);
+  background: var(--gold-dim); color: var(--gold);
+  font-size: 12px; font-weight: 700; letter-spacing: .04em;
+  cursor: pointer; white-space: nowrap;
+}
+.admin-mgmt-btn:hover { background: rgba(200,144,80,.2); }
+.admin-mgmt-btn.danger { background: var(--red-dim); color: var(--red); border-color: var(--red-border); }
+.admin-mgmt-btn.ghost  { background: var(--surface3); color: var(--text2); border-color: var(--border2); }
+.admin-mgmt-btn.sm { padding: 5px 12px; font-size: 11px; }
+
+.admin-list { display: flex; flex-direction: column; gap: 8px; }
+.admin-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 14px; background: var(--surface2);
+  border: 1px solid var(--glass-border); border-radius: 10px;
+}
+.admin-row-main {
+  display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;
+}
+.admin-row-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.admin-row-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.admin-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.admin-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700;
+  background: var(--neon-dim); color: var(--neon); border: 1px solid var(--neon-border);
+}
+.admin-empty {
+  padding: 18px; text-align: center; font-size: 12px;
+  color: var(--text3); background: var(--surface2);
+  border: 1px dashed var(--border); border-radius: 10px;
+}
+.admin-toast {
+  position: fixed; bottom: 24px; right: 24px;
+  padding: 10px 16px; border-radius: 10px; font-size: 12px;
+  background: var(--surface2); border: 1px solid var(--gold-border);
+  color: var(--text); box-shadow: var(--shadow);
+  transform: translateY(80px); opacity: 0; transition: all .3s; z-index: 9999;
+  pointer-events: none; max-width: 360px;
+}
+.admin-toast.show { transform: translateY(0); opacity: 1; }
+.admin-toast.error { border-color: var(--red-border); }
 </style>
 </head>
 <body>
@@ -550,12 +619,44 @@ body { background: var(--bg); min-height: 100vh; }
       <button class="pool-save-btn" onclick="saveHeroPool()">Save Hero Pool</button>
     </div>
 
+    <!-- ADMIN: LEAGUE MANAGEMENT (admin-only) -->
+    <div class="admin-mgmt-card" id="adminLeaguesCard">
+      <h4>🏆 Admin — Leagues</h4>
+      <div class="mgmt-sub">Add official competition leagues. Added leagues automatically appear in Scout league filters and draft match entry forms.</div>
+      <div class="admin-mgmt-form">
+        <input class="admin-mgmt-input" id="adminNewLeagueName"   placeholder="League name (e.g. MPL PH)" />
+        <input class="admin-mgmt-input" id="adminNewLeagueRegion" placeholder="Region (e.g. Philippines)" style="max-width:200px;" />
+        <button class="admin-mgmt-btn" onclick="adminSaveLeague()">+ Add League</button>
+      </div>
+      <div class="admin-list" id="adminLeagueList">
+        <div class="admin-empty">Loading leagues…</div>
+      </div>
+    </div>
+
+    <!-- ADMIN: TEAM/PLAYER MANAGEMENT (admin-only) -->
+    <div class="admin-mgmt-card" id="adminTeamsCard">
+      <h4>👥 Admin — Teams & Players</h4>
+      <div class="mgmt-sub">Register official team rosters. Added teams appear in scout team pickers and enable player-tagged hero pool stats. For deeper roster edits, open the full <a href="team_manager.html" style="color:var(--gold);">Team Manager</a>.</div>
+      <div class="admin-mgmt-form">
+        <input class="admin-mgmt-input" id="adminNewPlayerIgn"  placeholder="Player IGN (e.g. Sanford)" />
+        <input class="admin-mgmt-input" id="adminNewPlayerReal" placeholder="Real name (optional)" />
+        <input class="admin-mgmt-input" id="adminNewPlayerTeam" placeholder="Team name (e.g. ECHO)" />
+        <button class="admin-mgmt-btn" onclick="adminSavePlayer()">+ Add Player</button>
+      </div>
+      <div class="admin-list" id="adminTeamList">
+        <div class="admin-empty">Loading teams…</div>
+      </div>
+    </div>
+
     <!-- ADMIN PANEL CARD (only visible for wrrenvillapando@gmail.com) -->
     <div class="admin-access-card" id="adminAccessCard">
       <h4>⚙ Admin Panel</h4>
       <p>Approve team affiliations, assign subscription plans, manage users, and handle hard-delete requests.</p>
       <a href="admin.html" class="admin-go-btn">Open Admin Panel →</a>
     </div>
+
+    <!-- Admin toast -->
+    <div id="adminToast" class="admin-toast"></div>
 
     <!-- SIGN OUT + DANGER ZONE -->
     <div class="profile-card" style="margin-top:20px;">
@@ -1052,9 +1153,22 @@ async function init() {
   }
 
   // Show admin card on profile only (no nav link exposed)
-  if (typeof WAdmin !== 'undefined' && WAdmin.isAdmin && WAdmin.isAdmin()) {
-    const ac = document.getElementById('adminAccessCard');
-    if (ac) ac.style.display = 'block';
+  if (typeof WAdmin !== 'undefined' && WAdmin.isAdmin) {
+    // Load extra-admins cache (async — don't block core render)
+    if (WAdmin.loadExtraAdmins) {
+      try { await WAdmin.loadExtraAdmins(); } catch(e) { /* silent */ }
+    }
+    if (WAdmin.isAdmin()) {
+      const ac = document.getElementById('adminAccessCard');
+      if (ac) ac.style.display = 'block';
+      const lc = document.getElementById('adminLeaguesCard');
+      if (lc) lc.style.display = 'block';
+      const tc = document.getElementById('adminTeamsCard');
+      if (tc) tc.style.display = 'block';
+      // Load data for admin panels (async)
+      if (typeof loadAdminLeagues === 'function') loadAdminLeagues();
+      if (typeof loadAdminTeams   === 'function') loadAdminTeams();
+    }
   }
 
   // Update auth chip
@@ -1085,6 +1199,197 @@ async function init() {
     } else {
       loadHeroPool();
     }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// ADMIN PANELS — Leagues + Teams/Players management (admin-only)
+// ══════════════════════════════════════════════════════════════════════════
+
+function _adminEsc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function _adminToast(msg, type) {
+  const t = document.getElementById('adminToast');
+  if (!t) return;
+  t.textContent = msg;
+  t.className = 'admin-toast show' + (type === 'error' ? ' error' : '');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => { t.className = 'admin-toast'; }, 2800);
+}
+
+function _adminCheckReady() {
+  if (typeof WDB === 'undefined' || !WDB.loadLeagues) {
+    _adminToast('Database not ready — reload the page', 'error');
+    return false;
+  }
+  if (!WAdmin || !WAdmin.isAdmin()) {
+    _adminToast('Admin only', 'error');
+    return false;
+  }
+  return true;
+}
+
+// ── LEAGUES ──────────────────────────────────────────────────────────────
+let _adminLeagueCache = [];
+
+async function loadAdminLeagues() {
+  if (!_adminCheckReady()) return;
+  const el = document.getElementById('adminLeagueList');
+  if (!el) return;
+  try {
+    _adminLeagueCache = await WDB.loadLeagues();
+    renderAdminLeagues();
+  } catch (e) {
+    el.innerHTML = `<div class="admin-empty" style="color:var(--red);">Failed to load: ${_adminEsc(e.message)}</div>`;
+  }
+}
+
+function renderAdminLeagues() {
+  const el = document.getElementById('adminLeagueList');
+  if (!el) return;
+  if (!_adminLeagueCache.length) {
+    el.innerHTML = '<div class="admin-empty">No leagues yet — add one above.</div>';
+    return;
+  }
+  el.innerHTML = _adminLeagueCache.map(l => `
+    <div class="admin-row">
+      <div class="admin-row-main">
+        <div>
+          <div class="admin-row-name">${_adminEsc(l.name)}</div>
+          <div class="admin-row-meta">${_adminEsc(l.region || 'No region')}</div>
+        </div>
+        ${l.is_scout_active ? '<span class="admin-badge">SCOUT DEFAULT</span>' : ''}
+      </div>
+      <div class="admin-row-actions">
+        ${l.is_scout_active
+          ? ''
+          : `<button class="admin-mgmt-btn ghost sm" onclick="adminSetActiveLeague('${_adminEsc(l.id)}')">Set Default</button>`}
+        <button class="admin-mgmt-btn danger sm" onclick="adminDeleteLeague('${_adminEsc(l.id)}','${_adminEsc(l.name)}')">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function adminSaveLeague() {
+  if (!_adminCheckReady()) return;
+  const name   = document.getElementById('adminNewLeagueName').value.trim();
+  const region = document.getElementById('adminNewLeagueRegion').value.trim();
+  if (!name) { _adminToast('League name required', 'error'); return; }
+  try {
+    await WDB.saveLeague({ name, region });
+    document.getElementById('adminNewLeagueName').value = '';
+    document.getElementById('adminNewLeagueRegion').value = '';
+    _adminToast('League added ✓');
+    await loadAdminLeagues();
+  } catch (e) {
+    _adminToast('Save failed: ' + e.message, 'error');
+  }
+}
+
+async function adminDeleteLeague(id, name) {
+  if (!_adminCheckReady()) return;
+  if (!confirm(`Delete league "${name}" and ALL its seasons? This cannot be undone.`)) return;
+  try {
+    await WDB.deleteLeague(id);
+    _adminToast('League deleted');
+    await loadAdminLeagues();
+  } catch (e) {
+    _adminToast('Delete failed: ' + e.message, 'error');
+  }
+}
+
+async function adminSetActiveLeague(id) {
+  if (!_adminCheckReady()) return;
+  try {
+    await WDB.setActiveLeague(id);
+    _adminToast('Scout default updated');
+    await loadAdminLeagues();
+  } catch (e) {
+    _adminToast('Update failed: ' + e.message, 'error');
+  }
+}
+
+// ── TEAMS / PLAYERS ───────────────────────────────────────────────────────
+let _adminPlayerCache = [];
+
+async function loadAdminTeams() {
+  if (!_adminCheckReady()) return;
+  const el = document.getElementById('adminTeamList');
+  if (!el) return;
+  try {
+    _adminPlayerCache = await WDB.loadPlayers();
+    renderAdminTeams();
+  } catch (e) {
+    el.innerHTML = `<div class="admin-empty" style="color:var(--red);">Failed to load: ${_adminEsc(e.message)}</div>`;
+  }
+}
+
+function renderAdminTeams() {
+  const el = document.getElementById('adminTeamList');
+  if (!el) return;
+  if (!_adminPlayerCache.length) {
+    el.innerHTML = '<div class="admin-empty">No players yet — add one above. Teams are derived from the team_name column.</div>';
+    return;
+  }
+  // Group by team_name
+  const teamMap = {};
+  _adminPlayerCache.forEach(p => {
+    const t = p.team_name || 'Unassigned';
+    if (!teamMap[t]) teamMap[t] = [];
+    teamMap[t].push(p);
+  });
+  const teams = Object.entries(teamMap).sort((a, b) => a[0].localeCompare(b[0]));
+  el.innerHTML = teams.map(([team, players]) => `
+    <div class="admin-row" style="flex-direction:column;align-items:stretch;gap:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div>
+          <div class="admin-row-name">${_adminEsc(team)}</div>
+          <div class="admin-row-meta">${players.length} player${players.length === 1 ? '' : 's'}</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        ${players.map(p => `
+          <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:20px;font-size:11px;">
+            <span style="color:var(--text);font-weight:600;">${_adminEsc(p.ign)}</span>
+            ${p.real_name ? `<span style="color:var(--text3);">(${_adminEsc(p.real_name)})</span>` : ''}
+            <button style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;line-height:1;padding:0 2px;" onclick="adminDeletePlayer('${_adminEsc(p.id)}','${_adminEsc(p.ign)}')" title="Remove player">×</button>
+          </span>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function adminSavePlayer() {
+  if (!_adminCheckReady()) return;
+  const ign      = document.getElementById('adminNewPlayerIgn').value.trim();
+  const realName = document.getElementById('adminNewPlayerReal').value.trim();
+  const teamName = document.getElementById('adminNewPlayerTeam').value.trim();
+  if (!ign)      { _adminToast('Player IGN required', 'error'); return; }
+  if (!teamName) { _adminToast('Team name required', 'error'); return; }
+  try {
+    await WDB.savePlayer({ ign, real_name: realName, team_name: teamName, is_active: true });
+    document.getElementById('adminNewPlayerIgn').value  = '';
+    document.getElementById('adminNewPlayerReal').value = '';
+    document.getElementById('adminNewPlayerTeam').value = '';
+    _adminToast('Player added ✓');
+    await loadAdminTeams();
+  } catch (e) {
+    _adminToast('Save failed: ' + e.message, 'error');
+  }
+}
+
+async function adminDeletePlayer(id, ign) {
+  if (!_adminCheckReady()) return;
+  if (!confirm(`Remove player "${ign}"?`)) return;
+  try {
+    await WDB.deletePlayer(id);
+    _adminToast('Player removed');
+    await loadAdminTeams();
+  } catch (e) {
+    _adminToast('Delete failed: ' + e.message, 'error');
   }
 }
 

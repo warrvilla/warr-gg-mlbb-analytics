@@ -4,6 +4,16 @@ const WARR_CONFIG = {
 };
 
 // Initialize Supabase client (requires @supabase/supabase-js CDN)
+// Fail loud with a clear message if the CDN script wasn't loaded before this file.
+if (!window.supabase || !window.supabase.createClient) {
+  const _msg = '[warr-lib] Supabase CDN script missing — include <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script> BEFORE warr-lib.js. WDB/WAuth will not work.';
+  console.error(_msg);
+  // Don't throw — let the rest of warr-lib.js define stubs so calling code can report the error cleanly
+  window.supabase = window.supabase || { createClient: () => ({
+    from: () => ({ select: () => Promise.reject(new Error('Supabase CDN not loaded')), insert: () => Promise.reject(new Error('Supabase CDN not loaded')), upsert: () => Promise.reject(new Error('Supabase CDN not loaded')), delete: () => Promise.reject(new Error('Supabase CDN not loaded')), update: () => Promise.reject(new Error('Supabase CDN not loaded')), eq: function(){return this;}, neq: function(){return this;}, order: function(){return this;}, limit: function(){return this;}, single: function(){return this;} }),
+    auth: { getUser: () => Promise.resolve({ data: { user: null } }), signInWithPassword: () => Promise.reject(new Error('Supabase CDN not loaded')), signOut: () => Promise.resolve(), onAuthStateChange: () => ({ data: { subscription: { unsubscribe(){} } } }) },
+  })};
+}
 const _sbClient = window.supabase.createClient(WARR_CONFIG.supabaseUrl, WARR_CONFIG.supabaseAnonKey);
 
 // ═══════════════════════════════════════════════════════════════
