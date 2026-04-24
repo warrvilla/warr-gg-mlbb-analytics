@@ -576,6 +576,159 @@ WDB.getCounterMap = function() {
 };
 
 // ═══════════════════════════════════════════════════════════════
+// ── HERO RELATIONS (Supabase-driven counters + synergies) ──
+// Powers the Heroes page. Two sources are blended:
+//
+//   1. Computed from scout_matches (public MPL/MSC/M-Series only,
+//      Scrims are excluded automatically because loadMatches()
+//      filters by PUBLIC_LEAGUES for non-owners, and we drop
+//      private leagues here too).
+//
+//   2. Admin overrides stored in the `hero_relations` table.
+//      If an override exists for a given (hero, type) it REPLACES
+//      the computed set for that hero so admin curation always wins.
+//
+// Per hero we expose up to 3 counters and 3 best-with (synergies).
+// ═══════════════════════════════════════════════════════════════
+
+/** For each hero → list of opposing picks that beat them most often.
+ *  vs[H][X] tracks H's record against X (wins + total games). Returned
+ *  rows show the *counter's* win rate vs H (i.e. 1 - H's wr), sorted desc.
+ *  [{ name, wr, count }]   (min 2 games, wr = counter's wr against H) */
+WDB.computeScoutCountersFromMatches = function(matches, minMatches) {
+  minMatches = minMatches == null ? 2 : minMatches;
+  const vs = {}; // vs[H][X] = { wins: H's wins vs X, count: total games together }
+  (matches || []).forEach(m => {
+    if (!m || !m.winner) return;
+    const league = m.league || '';
+    if (!WDB.PUBLIC_LEAGUES.includes(league)) return; // skip Scrims / Other
+    const blue = (m.bluePicks || []).map(p => p && (p.name || p)).filter(Boolean);
+    const red  = (m.redPicks  || []).map(p => p && (p.name || p)).filter(Boolean);
+    const winPicks  = m.winner === 'blue' ? blue : red;
+    const losePicks = m.winner === 'blue' ? red  : blue;
+    // Winning side: each H on win side has a win against each X on lose side
+    winPicks.forEach(H => {
+      if (!vs[H]) vs[H] = {};
+      losePicks.forEach(X => {
+        if (H === X) return;
+        if (!vs[H][X]) vs[H][X] = { wins: 0, count: 0 };
+        vs[H][X].wins  += 1;
+        vs[H][X].count += 1;
+      });
+    });
+    // Losing side: each H on lose side has a loss against each X on win side
+    losePicks.forEach(H => {
+      if (!vs[H]) vs[H] = {};
+      winPicks.forEach(X => {
+        if (H === X) return;
+        if (!vs[H][X]) vs[H][X] = { wins: 0, count: 0 };
+        vs[H][X].count += 1; // no win added
+      });
+    });
+  });
+  const out = {};
+  Object.keys(vs).forEach(H => {
+    // Counters of H = opponents who beat H most → highest counter wr
+    const rows = Object.entries(vs[H])
+      .filter(([_, s]) => s.count >= minMatches)
+      .map(([name, s]) => ({
+        name,
+        wr: 1 - (s.wins / s.count), // counter's win rate against H
+        count: s.count
+      }))
+      .sort((a, b) => (b.wr - a.wr) || (b.count - a.count));
+    out[H] = rows;
+  });
+  return out;
+};
+
+/** For each hero → list of same-team heroes with best win rate together.
+ *  [{ name, wr, count }]   (sorted by wr desc, min 2 games) */
+WDB.computeScoutSynergiesFromMatches = function(matches, minMatches) {
+  minMatches = minMatches == null ? 2 : minMatches;
+  const pair = {}; // pair[hero][mate] = { wins, count }
+  (matches || []).forEach(m => {
+    if (!m || !m.winner) return;
+    const league = m.league || '';
+    if (!WDB.PUBLIC_LEAGUES.includes(league)) return;
+    ['blue', 'red'].forEach(side => {
+      const picks = (m[side + 'Picks'] || []).map(p => p && (p.name || p)).filter(Boolean);
+      const won   = m.winner === side;
+      for (let i = 0; i < picks.length; i++) {
+        for (let j = 0; j < picks.length; j++) {
+          if (i === j) continue;
+          const a = picks[i], b = picks[j];
+          if (!pair[a]) pair[a] = {};
+          if (!pair[a][b]) pair[a][b] = { wins: 0, count: 0 };
+          pair[a][b].count += 1;
+          if (won) pair[a][b].wins += 1;
+        }
+      }
+    });
+  });
+  const out = {};
+  Object.keys(pair).forEach(hero => {
+    const rows = Object.entries(pair[hero])
+      .filter(([_, s]) => s.count >= minMatches)
+      .map(([name, s]) => ({ name, wr: s.wins / s.count, count: s.count }))
+      .sort((a, b) => (b.wr - a.wr) || (b.count - a.count));
+    out[hero] = rows;
+  });
+  return out;
+};
+
+/** Load all admin-curated hero_relations. Returns:
+ *    { [hero]: { counter: [names], synergy: [names] } }  */
+WDB.loadHeroRelations = async function() {
+  if (typeof _sbClient === 'undefined') return {};
+  try {
+    const { data, error } = await _sbClient
+      .from('hero_relations')
+      .select('hero, type, related_hero, slot')
+      .order('slot', { ascending: true });
+    if (error) throw error;
+    const out = {};
+    (data || []).forEach(r => {
+      if (!out[r.hero]) out[r.hero] = { counter: [], synergy: [] };
+      if (r.type === 'counter' || r.type === 'synergy') {
+        out[r.hero][r.type].push(r.related_hero);
+      }
+    });
+    return out;
+  } catch (e) {
+    console.warn('[WDB] loadHeroRelations failed:', e.message);
+    return {};
+  }
+};
+
+/** Replace the stored list for (hero, type) with the given heroes array.
+ *  Deletes any existing slot rows for that pair, then inserts up to 3 new.
+ *  Admin only — RLS will reject non-admin writes. */
+WDB.saveHeroRelation = async function(hero, type, heroes) {
+  if (typeof _sbClient === 'undefined') throw new Error('Supabase not ready');
+  if (type !== 'counter' && type !== 'synergy') throw new Error('type must be counter or synergy');
+  const list = (Array.isArray(heroes) ? heroes : []).filter(Boolean).slice(0, 3);
+
+  // Delete existing rows for this (hero, type)
+  const delRes = await _sbClient
+    .from('hero_relations')
+    .delete()
+    .eq('hero', hero)
+    .eq('type', type);
+  if (delRes.error) throw delRes.error;
+
+  if (!list.length) return { inserted: 0 };
+
+  const user = (typeof WAuth !== 'undefined' && WAuth.getUser) ? WAuth.getUser() : null;
+  const rows = list.map((related_hero, slot) => ({
+    hero, type, related_hero, slot, created_by: user?.id || null
+  }));
+  const { error } = await _sbClient.from('hero_relations').insert(rows);
+  if (error) throw error;
+  return { inserted: rows.length };
+};
+
+// ═══════════════════════════════════════════════════════════════
 // ── SUBSCRIPTION / TOKEN SYSTEM ──
 // 3-tier: free (10 tokens/mo) / pro (50/mo) / team (200/mo)
 // ═══════════════════════════════════════════════════════════════

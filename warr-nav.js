@@ -107,7 +107,6 @@
     { href: 'heroes.html',       label: 'Heroes'    },
     { href: 'profile.html',      label: 'Profile'   },
     { href: 'team_manager.html', label: 'Teams'     },
-    { href: 'season_import.html', label: '⚙ Import', adminOnly: true, id: 'adminNav_import' },
   ];
 
   // Identify current page from URL path. Falls back to 'index.html'.
