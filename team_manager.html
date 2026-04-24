@@ -114,7 +114,22 @@ body { background: var(--bg); min-height: 100vh; }
 }
 .player-status.active   { background: var(--neon-dim);  color: var(--neon);  border: 1px solid var(--neon-border); }
 .player-status.inactive { background: var(--surface3); color: var(--text3); border: 1px solid var(--border2); }
-.player-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.role-badge {
+  padding: 2px 8px; border-radius: var(--pill); font-size: 10px; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase;
+  background: var(--surface3); color: var(--text3); border: 1px solid var(--border2);
+}
+.role-badge.Gold   { background: rgba(200,144,80,.15);  color: #C89050; border-color: rgba(200,144,80,.35); }
+.role-badge.Jungle { background: rgba(76,184,122,.15);  color: #4CB87A; border-color: rgba(76,184,122,.35); }
+.role-badge.Mid    { background: rgba(168,136,204,.15); color: #A888CC; border-color: rgba(168,136,204,.35); }
+.role-badge.EXP    { background: rgba(94,160,216,.15);  color: #5EA0D8; border-color: rgba(94,160,216,.35); }
+.role-badge.Roam   { background: rgba(216,120,128,.15); color: #D87880; border-color: rgba(216,120,128,.35); }
+.role-select {
+  padding: 4px 8px; background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: var(--r); color: var(--text); font-size: 11px; font-weight: 600;
+  cursor: pointer;
+}
+.player-actions { display: flex; gap: 6px; flex-shrink: 0; align-items: center; }
 
 /* ── Hero pool table ── */
 .pool-filters {
@@ -345,6 +360,7 @@ function renderAllPlayers() {
       <thead><tr>
         <th style="text-align:left;padding:8px 10px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--glass-border);">Player</th>
         <th style="text-align:left;padding:8px 10px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--glass-border);">Team</th>
+        <th style="text-align:left;padding:8px 10px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--glass-border);">Role</th>
         <th style="text-align:left;padding:8px 10px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--glass-border);">Status</th>
         <th style="text-align:left;padding:8px 10px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--glass-border);">Top Heroes</th>
         <th style="text-align:left;padding:8px 10px;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--glass-border);">Games Tagged</th>
@@ -371,6 +387,9 @@ function renderAllPlayers() {
               ${p.real_name ? `<div style="font-size:11px;color:var(--text3);">${esc(p.real_name)}</div>` : ''}
             </td>
             <td style="padding:10px 10px;color:var(--text2);">${esc(p.team_name)}</td>
+            <td style="padding:10px 10px;">
+              ${p.role ? `<span class="role-badge ${p.role}">${p.role}</span>` : `<span style="color:var(--text3);font-size:11px;">—</span>`}
+            </td>
             <td style="padding:10px 10px;">
               <span style="padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700;
                 ${p.is_active!==false ? 'background:var(--neon-dim);color:var(--neon);border:1px solid var(--neon-border);' : 'background:var(--surface3);color:var(--text3);border:1px solid var(--border2);'}">
@@ -478,6 +497,19 @@ function renderTeamDetail(teamName) {
               <input class="form-input" id="newRealName" placeholder="e.g. Karl Gabriel" style="width:100%;box-sizing:border-box;" />
             </div>
           </div>
+          <div class="form-row">
+            <div style="flex:1;">
+              <label class="form-label">Role</label>
+              <select class="form-input" id="newRole" style="width:100%;box-sizing:border-box;">
+                <option value="">— Unassigned —</option>
+                <option value="Gold">Gold Lane</option>
+                <option value="Jungle">Jungle</option>
+                <option value="Mid">Mid Lane</option>
+                <option value="EXP">EXP Lane</option>
+                <option value="Roam">Roam</option>
+              </select>
+            </div>
+          </div>
           <div style="display:flex;gap:8px;">
             <button class="btn btn-green btn-sm" onclick="addPlayer('${esc(teamName)}')">Save Player</button>
             <button class="btn btn-ghost btn-sm" onclick="toggleAddPlayer()">Cancel</button>
@@ -509,9 +541,18 @@ function renderRosterItems(players, canManage) {
           <div class="player-ign">${esc(p.ign)}</div>
           ${p.real_name ? `<div class="player-real">${esc(p.real_name)}</div>` : ''}
         </div>
+        ${p.role ? `<span class="role-badge ${p.role}">${p.role}</span>` : (canManage ? '' : `<span class="role-badge">—</span>`)}
         <span class="player-status ${p.is_active !== false ? 'active' : 'inactive'}">${p.is_active !== false ? 'Active' : 'Former'}</span>
         ${canManage ? `
         <div class="player-actions">
+          <select class="role-select" onchange="setPlayerRole('${p.id}', this.value)" title="Assign role">
+            <option value="" ${!p.role?'selected':''}>— Role —</option>
+            <option value="Gold"   ${p.role==='Gold'?'selected':''}>Gold</option>
+            <option value="Jungle" ${p.role==='Jungle'?'selected':''}>Jungle</option>
+            <option value="Mid"    ${p.role==='Mid'?'selected':''}>Mid</option>
+            <option value="EXP"    ${p.role==='EXP'?'selected':''}>EXP</option>
+            <option value="Roam"   ${p.role==='Roam'?'selected':''}>Roam</option>
+          </select>
           <button class="btn btn-ghost btn-sm" onclick="togglePlayerActive('${p.id}', ${p.is_active !== false})">${p.is_active !== false ? 'Bench' : 'Reactivate'}</button>
           <button class="btn btn-red btn-sm" onclick="removePlayer('${p.id}','${esc(p.ign)}')">✕</button>
         </div>` : ''}
@@ -658,14 +699,28 @@ function toggleAddPlayer() {
 async function addPlayer(teamName) {
   const ign      = document.getElementById('newIgN')?.value.trim();
   const realName = document.getElementById('newRealName')?.value.trim();
+  const role     = document.getElementById('newRole')?.value || null;
   if (!ign) { toast('IGN required', 'error'); return; }
   try {
-    const saved = await WDB.savePlayer({ ign, real_name: realName, team_name: teamName, is_active: true });
+    const saved = await WDB.savePlayer({ ign, real_name: realName, role, team_name: teamName, is_active: true });
     allPlayers.push(saved);
     buildTeamList();
     renderTeamList();
     renderTeamDetail(teamName);
-    toast(`${ign} added to ${teamName}`);
+    toast(`${ign} added to ${teamName}${role ? ` (${role})` : ''}`);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function setPlayerRole(playerId, newRole) {
+  const player = allPlayers.find(p => p.id === playerId);
+  if (!player) return;
+  const role = newRole || null;
+  try {
+    const saved = await WDB.savePlayer({ ...player, role });
+    Object.assign(player, saved);
+    renderTeamDetail(player.team_name);
+    if (document.getElementById('allPlayersView')?.style.display !== 'none') renderAllPlayers();
+    toast(role ? `${player.ign} → ${role}` : `${player.ign} role cleared`);
   } catch(e) { toast(e.message, 'error'); }
 }
 

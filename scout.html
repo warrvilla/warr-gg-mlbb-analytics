@@ -1503,6 +1503,7 @@ function renderCurrentView() {
 // ══════════════════════════════════════════════════════════════
 let currentView = 'matches';
 let leagueFilter = 'all';
+let seasonFilter = 'all';
 let matchSearch = '';
 let teamSearch = '';
 let matchSort = 'date';
@@ -1567,6 +1568,7 @@ function showView(v) {
 
 function setLeagueFilter(lf) {
   leagueFilter = lf;
+  seasonFilter = 'all'; // reset season sub-filter — different leagues have different seasons
   // Sync mobile dropdown
   const sel = document.getElementById('mobileLeagueSelect');
   if (sel) sel.value = lf;
@@ -1579,6 +1581,13 @@ function setLeagueFilter(lf) {
   const key = lf === 'all' ? 'all' : lf;
   document.getElementById('sb-'+key)?.classList.add('active');
   showView(currentView);
+}
+
+function setSeasonFilter(s) {
+  seasonFilter = s || 'all';
+  if (currentView === 'matches') renderMatchListBody();
+  else if (currentView === 'meta') renderMeta();
+  updateSidebarCounts();
 }
 
 function updateSidebarCounts() {
@@ -1594,6 +1603,7 @@ function getFilteredMatches() {
   const q = matchSearch.toLowerCase();
   return DB_MODULE.getMatches().filter(m => {
     if (leagueFilter !== 'all' && m.league !== leagueFilter) return false;
+    if (seasonFilter !== 'all' && (m.season||'') !== seasonFilter) return false;
     if (patchFilter !== 'all' && (m.patch||'') !== patchFilter) return false;
     if (q && !m.blueTeam.toLowerCase().includes(q) && !m.redTeam.toLowerCase().includes(q) && !(m.notes||'').toLowerCase().includes(q)) return false;
     return true;
@@ -1666,6 +1676,9 @@ function renderMatchList() {
             <option value="blue">Blue Team</option>
             <option value="red">Red Team</option>
           </select>
+          <select id="seasonFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="setSeasonFilter(this.value)">
+            <option value="all">All Seasons</option>
+          </select>
           <select id="patchFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="patchFilter=this.value;renderMatchListBody()">
             <option value="all">All Patches</option>
           </select>
@@ -1693,6 +1706,20 @@ function renderMatchListBody() {
   if (patchSel) {
     const patches = [...new Set(DB_MODULE.getMatches().map(m=>m.patch||'').filter(Boolean))].sort().reverse();
     patchSel.innerHTML = `<option value="all">All Patches</option>` + patches.map(p=>`<option value="${p}"${patchFilter===p?' selected':''}>${p}</option>`).join('');
+  }
+  // Update season dropdown — scoped to the currently-selected league so "MPL PH" shows only MPL PH seasons
+  const seasonSel = document.getElementById('seasonFilterSelect');
+  if (seasonSel) {
+    const pool = leagueFilter === 'all'
+      ? DB_MODULE.getMatches()
+      : DB_MODULE.getMatches().filter(m => m.league === leagueFilter);
+    const seasons = [...new Set(pool.map(m => (m.season||'').trim()).filter(Boolean))]
+      .sort((a,b) => b.localeCompare(a, undefined, {numeric:true}));
+    // If currently selected season doesn't exist in this league's pool, reset to 'all'
+    if (seasonFilter !== 'all' && !seasons.includes(seasonFilter)) seasonFilter = 'all';
+    seasonSel.innerHTML = `<option value="all">All Seasons</option>`
+      + seasons.map(s => `<option value="${s}"${seasonFilter===s?' selected':''}>${s}</option>`).join('');
+    seasonSel.disabled = seasons.length === 0;
   }
   const series = getFilteredSeries();
   const subEl = document.getElementById('matchListSub');
@@ -3334,7 +3361,7 @@ function renderMeta() {
     <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
       <div>
         <div class="page-title">Hero Meta</div>
-        <div class="page-sub">Pick & ban rates across your match log${metaLeague!=='all'?' · '+metaLeague:''}</div>
+        <div class="page-sub">Pick & ban rates across your match log${metaLeague!=='all'?' · '+metaLeague:''}${seasonFilter!=='all'?' · '+seasonFilter:''}</div>
       </div>
       <a href="meta_export.html" target="_blank"
          style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;background:rgba(168,136,204,.12);border:1px solid rgba(168,136,204,.28);color:#A888CC;font-size:11px;font-weight:700;letter-spacing:.5px;text-decoration:none;transition:all .15s;"
@@ -3356,7 +3383,8 @@ function renderMeta() {
     </div>
     <div id="metaWrap"></div>`;
 
-  const pool = metaLeague==='all' ? all : all.filter(m => m.league===metaLeague);
+  let pool = metaLeague==='all' ? all : all.filter(m => m.league===metaLeague);
+  if (seasonFilter !== 'all') pool = pool.filter(m => (m.season||'') === seasonFilter);
   document.getElementById('metaWrap').innerHTML = buildMetaTable(pool, metaRole);
 }
 

@@ -1220,12 +1220,16 @@ WDB.loadPlayers = async function(teamName) {
 };
 
 /** Save (upsert) a player. */
+WDB.PLAYER_ROLES = ['Gold','Jungle','Mid','EXP','Roam'];
 WDB.savePlayer = async function(player) {
   const user = WAuth.getUser();
+  // Normalize role: accept only valid values, otherwise store NULL
+  const role = WDB.PLAYER_ROLES.includes(player.role) ? player.role : null;
   const row = {
     ign: player.ign,
     real_name: player.real_name || null,
     team_name: player.team_name,
+    role,
     is_active: player.is_active !== false,
     created_by: user?.id,
   };
