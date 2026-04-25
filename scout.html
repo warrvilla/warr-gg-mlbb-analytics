@@ -1470,16 +1470,20 @@ const DB_MODULE = (() => {
       t.lordCtrl    = lordTotal   > 0 ? Math.round(lordWon/lordTotal*100)     : null;
       t.turtleTotal = turtleTotal;
       t.lordTotal   = lordTotal;
-      // First Turtle: % of contested-T1 games we got T1
+      // First Turtle. firstTurtleGames = contested-T1 games (any team), firstTurtleOurs = games we got T1.
+      // The conversion stat (→ Win) is backed by firstTurtleOurs, so we expose both for sample-size guards.
       t.firstTurtleGames = firstTurtleGames;
+      t.firstTurtleOurs  = firstTurtleOurs;
       t.firstTurtleRate  = firstTurtleGames ? Math.round(firstTurtleOurs/firstTurtleGames*100) : null;
       t.firstTurtleToWin = firstTurtleOurs  ? Math.round(firstTurtleWins/firstTurtleOurs*100) : null;
       // First Lord
       t.firstLordGames = firstLordGames;
+      t.firstLordOurs  = firstLordOurs;
       t.firstLordRate  = firstLordGames ? Math.round(firstLordOurs/firstLordGames*100) : null;
       t.firstLordToWin = firstLordOurs  ? Math.round(firstLordWins/firstLordOurs*100) : null;
       // First Blood
       t.fbGames = fbGames;
+      t.fbOurs  = fbOurs;
       t.fbRate  = fbGames ? Math.round(fbOurs/fbGames*100) : null;
       t.fbToWin = fbOurs  ? Math.round(fbWins/fbOurs*100)  : null;
       // Towers
@@ -3091,15 +3095,18 @@ function openTeamReport(teamName) {
     strengths.push(`Strong Turtle control (${t.turtleCtrl}%)`);
   if (t.lordCtrl !== null && t.lordCtrl >= 65)
     strengths.push(`Strong Lord control (${t.lordCtrl}%)`);
-  // First-objective + conversion strengths/weaknesses
-  if (t.firstTurtleToWin !== null && t.firstTurtleToWin >= 75 && (t.firstTurtleGames||0) >= 3)
-    strengths.push(`Snowball team — wins ${t.firstTurtleToWin}% when securing First Turtle`);
-  if (t.firstLordToWin !== null && t.firstLordToWin >= 80 && (t.firstLordGames||0) >= 3)
-    strengths.push(`Closes with Lord — ${t.firstLordToWin}% wins after taking First Lord`);
-  if (t.fbToWin !== null && t.fbToWin >= 70 && (t.fbGames||0) >= 3)
-    strengths.push(`Punishes early — ${t.fbToWin}% wins after First Blood`);
-  if (t.firstLordToWin !== null && t.firstLordToWin <= 35 && (t.firstLordGames||0) >= 3)
-    weaknesses.push(`Loses with Lord lead — only ${t.firstLordToWin}% wins after First Lord`);
+  // First-objective + conversion strengths/weaknesses.
+  // → Win % is a CONVERSION ("of games we got X, % we won") so its sample-size guard
+  //   uses firstTurtleOurs / firstLordOurs / fbOurs (not the contested-games count).
+  // The plain rate (X%) is computed over contested games, so its guard uses *Games.
+  if (t.firstTurtleToWin !== null && t.firstTurtleToWin >= 75 && (t.firstTurtleOurs||0) >= 3)
+    strengths.push(`Snowball team — wins ${t.firstTurtleToWin}% when securing First Turtle (${t.firstTurtleOurs}g)`);
+  if (t.firstLordToWin !== null && t.firstLordToWin >= 80 && (t.firstLordOurs||0) >= 3)
+    strengths.push(`Closes with Lord — ${t.firstLordToWin}% wins after taking First Lord (${t.firstLordOurs}g)`);
+  if (t.fbToWin !== null && t.fbToWin >= 70 && (t.fbOurs||0) >= 3)
+    strengths.push(`Punishes early — ${t.fbToWin}% wins after First Blood (${t.fbOurs}g)`);
+  if (t.firstLordToWin !== null && t.firstLordToWin <= 35 && (t.firstLordOurs||0) >= 3)
+    weaknesses.push(`Loses with Lord lead — only ${t.firstLordToWin}% wins after First Lord (${t.firstLordOurs}g)`);
   if (t.fbRate !== null && t.fbRate <= 30 && (t.fbGames||0) >= 4)
     weaknesses.push(`Slow start — First Blood only ${t.fbRate}%`);
   if (t.avgTowers !== null && t.towerDiff !== null && t.towerDiff >= 3 && (t.towerGames||0) >= 3)
