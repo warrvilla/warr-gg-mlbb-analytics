@@ -408,6 +408,15 @@ select:focus, input:focus {
 /* ── SPINNER ── */
 .spinner { border-color: rgba(255,255,255,0.07) !important; border-top-color: var(--accent) !important; }
 
+/* ── PRINT — hide chrome, render report only ── */
+@media print {
+  body * { visibility: hidden; }
+  #reportBody, #reportBody * { visibility: visible; }
+  #reportBody { position: absolute; left: 0; top: 0; width: 100%; }
+  .no-print, .topbar, #leagueFilterPills, #apiKeyCard, .key-card { display: none !important; }
+  .card-hdr, .setup-grid { display: none !important; }
+}
+
 /* ═══════════════════════════════════════════════════════ */
 </style>
 <script src="warr-theme.js"></script>
@@ -837,10 +846,15 @@ function statBar(label, val, max, color) {
 }
 
 // ══════ GENERATE REPORT ══════
+// Track current report identity so the Export PDF button can name the file.
+let _reportContext = { blueName: '', redName: '' };
+
 async function generateReport() {
   const blueName = document.getElementById('blueTeamSel').value;
   const redName  = document.getElementById('redTeamSel').value;
   if (!blueName || !redName) return;
+
+  _reportContext = { blueName, redName };
 
   const blueStats = getTeamStats(blueName, redName);
   const redStats  = getTeamStats(redName, blueName);
@@ -849,7 +863,14 @@ async function generateReport() {
   const out = document.getElementById('reportOutput');
   out.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:20px;color:var(--text3);font-size:12px;"><div class="spinner"></div> Building scouting report…</div>`;
 
-  out.innerHTML = buildStaticReport(blueName, redName, blueStats, redStats, h2h);
+  out.innerHTML = `
+    <div id="reportToolbar" class="no-print" style="display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
+      <span style="font-size:11px;font-weight:700;color:var(--text2);font-family:var(--font-head);letter-spacing:.4px;">SCOUTING REPORT · ${blueName} vs ${redName}</span>
+      <span style="margin-left:auto;display:flex;gap:6px;">
+        <button class="btn btn-accent btn-sm" id="analysisPdfBtn" onclick="exportAnalysisPDF()">🖨 Export PDF</button>
+      </span>
+    </div>
+    <div id="reportBody">${buildStaticReport(blueName, redName, blueStats, redStats, h2h)}</div>`;
 
   const key = (typeof WDB!=='undefined'&&WDB.getAdminApiKeySync)?WDB.getAdminApiKeySync():'';
   if (!key) {
@@ -1378,6 +1399,75 @@ function applyPatchTiers() {
   localStorage.setItem(DRAFT_KEY, JSON.stringify(dd));
   toast(`✓ Applied ${applied} hero tiers to Draft Simulator`);
   closePatchModal();
+}
+
+// ══════ EXPORT PDF ══════
+// Same lazy-load + html2canvas + jsPDF approach Scout uses, so the visual
+// styling and PDF density stay consistent across the two reports.
+async function exportAnalysisPDF() {
+  const btn = document.getElementById('analysisPdfBtn');
+  if (btn) { btn.textContent = 'Generating…'; btn.disabled = true; }
+  try {
+    if (!window.html2canvas) {
+      await Promise.all([
+        new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+          s.onload = res; s.onerror = rej; document.head.appendChild(s);
+        }),
+        new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+          s.onload = res; s.onerror = rej; document.head.appendChild(s);
+        }),
+      ]);
+    }
+    const el = document.getElementById('reportBody');
+    if (!el) { toast('Generate a report first'); return; }
+
+    // Wait for fonts so html2canvas captures them with correct metrics
+    await document.fonts.ready;
+
+    const canvas = await html2canvas(el, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#07070C',
+      logging: false,
+      scrollX: 0,
+      scrollY: 0,
+      onclone: (_doc, cloned) => {
+        // Strip overflow:hidden so text isn't clipped in the rendered PDF
+        cloned.querySelectorAll('*').forEach(node => {
+          const cs = window.getComputedStyle(node);
+          if (cs.overflow === 'hidden' || cs.overflowX === 'hidden') {
+            node.style.overflow  = 'visible';
+            node.style.overflowX = 'visible';
+            node.style.overflowY = 'visible';
+            node.style.textOverflow = 'clip';
+            node.style.whiteSpace   = 'normal';
+          }
+        });
+      },
+    });
+
+    const { jsPDF } = window.jspdf;
+    const margin   = 10;
+    const pageW    = 210;
+    const usableW  = pageW - margin * 2;
+    const pxPerMm  = canvas.width / usableW;
+    const contentH = canvas.height / pxPerMm;
+    const pageH    = contentH + margin * 2;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [pageW, pageH] });
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, margin, usableW, contentH);
+
+    const safe = s => (s||'').replace(/[^a-z0-9]/gi, '_');
+    pdf.save(`Warr.GG_Analysis_${safe(_reportContext.blueName)}_vs_${safe(_reportContext.redName)}.pdf`);
+  } catch(e) {
+    console.error('Analysis export error:', e);
+    toast('Export failed — try again');
+  }
+  if (btn) { btn.textContent = '🖨 Export PDF'; btn.disabled = false; }
 }
 
 // ══════ INIT ══════
