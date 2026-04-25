@@ -380,80 +380,224 @@ body {
 .obj-red  { background:var(--red-dim);  color:var(--red);  border-color:var(--red-border); }
 .obj-none { color:var(--text4); }
 
-/* ── OBJ FORM BUTTONS ── */
-.obj-btn {
-  font-size:9px; font-weight:700; font-family:var(--font-head);
-  padding:3px 10px; border-radius:8px; border:1px solid var(--border2);
-  cursor:pointer; background:transparent; color:var(--text3); transition:all .12s ease;
-  min-width:42px;
-}
-.obj-btn:hover { transform:translateY(-1px); }
-.obj-btn.blue { background:var(--blue-dim); color:var(--blue); border-color:var(--blue-border); }
-.obj-btn.red  { background:var(--red-dim);  color:var(--red);  border-color:var(--red-border); }
-
 /* ── KILL TALLIES & STAT INPUTS ── strip native spinners, type-only ── */
 input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
+
+/* ── APPLE GLASS LANGUAGE for match-entry ── */
+/* Sub-section title above each cluster of inputs */
+.entry-section-title {
+  font-family: var(--font-body);
+  font-size: 11px; font-weight: 500; letter-spacing: -0.01em;
+  color: var(--text2);
+  margin-bottom: 8px;
+  display: flex; align-items: baseline; gap: 8px;
 }
-input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+.entry-section-title .hint {
+  font-size: 10.5px; color: var(--text4); font-weight: 400;
+}
+
+/* Glass numeric input — Towers and similar */
+.glass-input {
+  font-family: var(--font-mono);
+  font-size: 13px; font-weight: 500;
+  color: var(--text);
+  background: rgba(255,255,255,0.04);
+  border: 0.5px solid var(--border2);
+  border-radius: 10px;
+  padding: 7px 12px;
+  text-align: center;
+  outline: none;
+  width: 60px;
+  transition: all 0.18s ease;
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  backdrop-filter: blur(12px) saturate(120%);
+}
+.glass-input:hover { border-color: var(--border3); background: rgba(255,255,255,0.06); }
+.glass-input:focus { border-color: rgba(168,136,204,.55); background: rgba(255,255,255,0.07); }
+.glass-input::placeholder { color: var(--text4); font-weight: 400; }
+.tower-side-label {
+  font-family: var(--font-body); font-size: 11px; font-weight: 500;
+  letter-spacing: -0.01em; color: var(--text3);
+}
+
+/* Segment control — used for First Blood. iOS-style 3-way picker. */
+.seg-ctrl {
+  display: inline-flex; align-items: stretch;
+  background: rgba(255,255,255,0.04);
+  border: 0.5px solid var(--border2);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  backdrop-filter: blur(12px) saturate(120%);
+}
+.seg-ctrl > button {
+  font-family: var(--font-body);
+  font-size: 11.5px; font-weight: 500; letter-spacing: -0.01em;
+  padding: 5px 14px;
+  border: 0; border-radius: 7px;
+  background: transparent;
+  color: var(--text3);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  min-width: 48px;
+}
+.seg-ctrl > button:hover { color: var(--text2); }
+.seg-ctrl > button.active { color: var(--text); background: rgba(255,255,255,0.08); }
+.seg-ctrl > button.active.blue { background: rgba(96,165,250,.16); color: #60a5fa; }
+.seg-ctrl > button.active.red  { background: rgba(248,113,113,.16); color: #f87171; }
 
 /* Inline KDA trio attached to each draft pick slot */
 .kda-trio {
-  display:inline-flex; align-items:center; gap:0;
-  margin-left:auto;
-  background:var(--surface3); border:1px solid var(--border2);
-  border-radius:7px; padding:1px; overflow:hidden;
+  display: inline-flex; align-items: center;
+  margin-left: auto;
+  background: rgba(255,255,255,0.04);
+  border: 0.5px solid var(--border2);
+  border-radius: 8px;
+  padding: 1px 2px;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  transition: border-color 0.18s ease;
 }
+.kda-trio:hover { border-color: var(--border3); }
 .kda-trio input {
-  width:30px; padding:3px 0; font-size:10.5px; font-family:var(--font-mono);
-  text-align:center; border:0; background:transparent; color:var(--text);
-  outline:none; transition:background .12s ease;
+  width: 30px; padding: 3px 0;
+  font-family: var(--font-mono); font-size: 10.5px; font-weight: 500;
+  text-align: center; border: 0; background: transparent;
+  color: var(--text); outline: none;
 }
-.kda-trio input:hover { background:rgba(255,255,255,0.04); }
-.kda-trio input:focus { background:rgba(255,255,255,0.08); }
-.kda-trio input.k { color:var(--green); }
-.kda-trio input.d { color:var(--red); }
-.kda-trio input.a { color:var(--blue); }
-.kda-trio input::placeholder { color:var(--text4); font-weight:400; }
-.kda-sep { font-size:11px; color:var(--text4); user-select:none; padding:0 1px; }
+.kda-trio input.k::placeholder { color: rgba(52,209,122,.45); }
+.kda-trio input.d::placeholder { color: rgba(240,82,82,.45);  }
+.kda-trio input.a::placeholder { color: rgba(96,165,250,.45); }
+.kda-trio input.k:not(:placeholder-shown) { color: var(--green); }
+.kda-trio input.d:not(:placeholder-shown) { color: var(--red);   }
+.kda-trio input.a:not(:placeholder-shown) { color: var(--blue);  }
+.kda-sep { font-size: 11px; color: var(--text4); user-select: none; }
 
-/* Compact stat number inputs (towers, etc.) */
-.stat-num {
-  width:54px; padding:5px 8px; font-size:12.5px; font-weight:700;
-  font-family:var(--font-mono); text-align:center;
-  background:var(--surface3); border:1px solid var(--border2);
-  color:var(--text); border-radius:7px; outline:none; transition:all .12s ease;
+/* Glass objective pill — Turtle / Lord ordered chips */
+.obj-row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
 }
-.stat-num:hover { border-color:var(--border); }
-.stat-num:focus { border-color:var(--accent); background:var(--surface2); }
-.stat-num.blue:focus { border-color:#60a5fa; }
-.stat-num.red:focus  { border-color:#f87171; }
-.stat-num::placeholder { color:var(--text4); font-weight:400; }
+.obj-header {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-body);
+  font-size: 11.5px; font-weight: 500; letter-spacing: -0.01em;
+  color: var(--text2);
+  padding-right: 6px;
+  margin-right: 2px;
+  border-right: 0.5px solid var(--border2);
+}
+.obj-header .o-icon { font-size: 13px; }
+.obj-header .o-label { color: var(--text2); }
+.obj-header .o-cnt-blue { color: #60a5fa; font-family: var(--font-mono); font-weight: 500; }
+.obj-header .o-cnt-red  { color: #f87171; font-family: var(--font-mono); font-weight: 500; }
+.obj-header .o-first { color: var(--text3); font-weight: 400; font-size: 11px; }
+.obj-header .o-dot { font-size: 8px; vertical-align: middle; margin-right: 2px; }
+.obj-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+}
+.obj-num {
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 500;
+  color: var(--text4); letter-spacing: .3px;
+  min-width: 16px; text-align: right;
+}
+.obj-pill {
+  font-family: var(--font-body);
+  font-size: 11px; font-weight: 500; letter-spacing: -0.01em;
+  padding: 4px 14px;
+  border-radius: 9px;
+  background: rgba(255,255,255,0.04);
+  border: 0.5px solid var(--border2);
+  color: var(--text3);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  min-width: 56px;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.obj-pill:hover { border-color: var(--border3); color: var(--text2); }
+.obj-pill.blue { background: rgba(96,165,250,.14); border-color: rgba(96,165,250,.4); color: #60a5fa; }
+.obj-pill.red  { background: rgba(248,113,113,.14); border-color: rgba(248,113,113,.4); color: #f87171; }
+.obj-x {
+  background: transparent; border: 0; color: var(--text4); cursor: pointer;
+  font-size: 10px; padding: 0 3px; line-height: 1;
+  transition: color .15s ease;
+}
+.obj-x:hover { color: var(--text2); }
+.obj-add {
+  font-family: var(--font-body); font-size: 11px; font-weight: 500;
+  letter-spacing: -0.01em;
+  padding: 4px 12px; border-radius: 9px;
+  background: transparent;
+  border: 0.5px dashed var(--border2);
+  color: var(--text4);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.obj-add:hover { border-color: var(--border3); color: var(--text2); border-style: solid; }
 
-/* First Blood pill picker */
-.fb-pill {
-  font-size:10px; font-weight:700; font-family:var(--font-head); letter-spacing:.4px;
-  padding:6px 14px; border-radius:8px; cursor:pointer;
-  background:transparent; color:var(--text3); border:1px solid var(--border2);
-  transition:all .12s ease;
+/* ── LANE POOL list rows (used in scout report) ── */
+.lp-section {
+  background: var(--glass, rgba(16,16,26,0.6));
+  border: 0.5px solid var(--glass-border, rgba(255,255,255,0.07));
+  border-radius: var(--r3, 14px);
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+  backdrop-filter: blur(20px) saturate(130%);
+  break-inside: avoid; page-break-inside: avoid;
 }
-.fb-pill:hover { transform:translateY(-1px); border-color:var(--border); color:var(--text2); }
-.fb-pill.active.blue { background:rgba(96,165,250,.15); color:#60a5fa; border-color:rgba(96,165,250,.55); }
-.fb-pill.active.red  { background:rgba(248,113,113,.15); color:#f87171; border-color:rgba(248,113,113,.55); }
-.fb-pill.active.none { background:var(--surface2); color:var(--text2); border-color:var(--border); }
-
-/* Premium card section header used inside the match modal */
-.entry-section-title {
-  font-size:9px; font-weight:800; font-family:var(--font-head);
-  letter-spacing:1.4px; text-transform:uppercase;
-  color:var(--text3); margin-bottom:8px;
-  display:flex; align-items:center; gap:7px;
+.lp-section-head {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 0.5px solid var(--border2);
 }
-.entry-section-title::before {
-  content:''; display:inline-block; width:3px; height:11px;
-  background:var(--accent); border-radius:2px;
+.lp-lane-name {
+  font-family: var(--font-body);
+  font-size: 11.5px; font-weight: 600; letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.lp-lane-meta {
+  font-family: var(--font-mono);
+  font-size: 10.5px; color: var(--text3); font-weight: 400;
+}
+.lp-lane-player {
+  margin-left: auto;
+  font-family: var(--font-body);
+  font-size: 11px; font-weight: 500; color: var(--text2);
+  background: rgba(255,255,255,0.04);
+  border: 0.5px solid var(--border2);
+  border-radius: 6px;
+  padding: 2px 9px;
+}
+.lp-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 0;
+}
+.lp-row + .lp-row { border-top: 0.5px solid rgba(255,255,255,0.04); }
+.lp-row .lp-name {
+  flex: 1; min-width: 0;
+  font-family: var(--font-body);
+  font-size: 12px; font-weight: 500; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lp-row .lp-games {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 400;
+  color: var(--text3);
+  width: 32px; text-align: right;
+}
+.lp-row .lp-wr {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+  width: 42px; text-align: right;
+}
+.lp-row.has-kda { cursor: help; }
+.lp-row .lp-kda-hint {
+  font-size: 10px; color: var(--text4);
+  font-family: var(--font-mono); font-weight: 400;
+  margin-left: -4px;
 }
 
 /* ── DRAFT BOARD ── */
@@ -2202,32 +2346,32 @@ function _openMatchModal(m) {
               <textarea class="form-textarea" id="mf-notes" placeholder="Game notes, observations…">${m.notes||''}</textarea>
             </div>
           </div>
-          <div class="form-row" style="margin-top:6px;">
+          <div class="form-row" style="margin-top:8px;">
             <div style="flex:1;">
-              <div class="entry-section-title">Objectives <span style="font-weight:400;color:var(--text4);text-transform:none;letter-spacing:0;font-size:10px;margin-left:4px;">click each chip to cycle team · order matters (T1 = first turtle)</span></div>
-              <div id="obj-turtle-row" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:5px;">
+              <div class="entry-section-title">Objectives <span class="hint">click a chip to cycle · order matters (T1 = first turtle)</span></div>
+              <div id="obj-turtle-row" class="obj-row" style="margin-bottom:6px;">
                 ${_buildObjRowHTML('turtle', _readObjArr(m,'turtle'))}
               </div>
-              <div id="obj-lord-row" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+              <div id="obj-lord-row" class="obj-row">
                 ${_buildObjRowHTML('lord', _readObjArr(m,'lord'))}
               </div>
             </div>
           </div>
-          <div class="form-row" style="margin-top:10px;align-items:flex-end;gap:18px;flex-wrap:wrap;">
+          <div class="form-row" style="margin-top:14px;align-items:flex-end;gap:24px;flex-wrap:wrap;">
             <div style="flex-shrink:0;">
-              <div class="entry-section-title">First Blood <span style="font-weight:400;color:var(--text4);text-transform:none;letter-spacing:0;font-size:10px;margin-left:4px;">optional</span></div>
-              <div id="fb-row" data-value="${m.firstBlood||''}" style="display:flex;gap:5px;">
+              <div class="entry-section-title">First Blood <span class="hint">optional</span></div>
+              <div id="fb-row" data-value="${m.firstBlood||''}" class="seg-ctrl">
                 ${_buildFirstBloodHTML(m.firstBlood||'')}
               </div>
             </div>
             <div style="flex-shrink:0;">
               <div class="entry-section-title">Towers Destroyed</div>
               <div style="display:flex;align-items:center;gap:8px;">
-                <span style="font-size:9.5px;font-weight:800;color:#60a5fa;letter-spacing:1.2px;font-family:var(--font-head);">BLUE</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" class="stat-num blue" id="mf-towers-blue" value="${m.towers?.blue ?? ''}" placeholder="—">
-                <span style="font-size:14px;color:var(--text4);font-weight:300;">·</span>
-                <span style="font-size:9.5px;font-weight:800;color:#f87171;letter-spacing:1.2px;font-family:var(--font-head);">RED</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" class="stat-num red" id="mf-towers-red" value="${m.towers?.red ?? ''}" placeholder="—">
+                <span class="tower-side-label" style="color:#60a5fa;">Blue</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" class="glass-input" id="mf-towers-blue" value="${m.towers?.blue ?? ''}" placeholder="—">
+                <span style="color:var(--text4);font-size:11px;">·</span>
+                <span class="tower-side-label" style="color:#f87171;">Red</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" class="glass-input" id="mf-towers-red" value="${m.towers?.red ?? ''}" placeholder="—">
               </div>
             </div>
           </div>
@@ -3183,21 +3327,22 @@ function openTeamReport(teamName) {
   // → Win % is a CONVERSION ("of games we got X, % we won") so its sample-size guard
   //   uses firstTurtleOurs / firstLordOurs / fbOurs (not the contested-games count).
   // The plain rate (X%) is computed over contested games, so its guard uses *Games.
+  // Conversion stats — phrased neutrally as plain facts (no editorial labels).
   if (t.firstTurtleToWin !== null && t.firstTurtleToWin >= 75 && (t.firstTurtleOurs||0) >= 3)
-    strengths.push(`Snowball team — wins ${t.firstTurtleToWin}% when securing First Turtle (${t.firstTurtleOurs}g)`);
+    strengths.push(`Wins ${t.firstTurtleToWin}% after securing First Turtle (${t.firstTurtleOurs}g)`);
   if (t.firstLordToWin !== null && t.firstLordToWin >= 80 && (t.firstLordOurs||0) >= 3)
-    strengths.push(`Closes with Lord — ${t.firstLordToWin}% wins after taking First Lord (${t.firstLordOurs}g)`);
+    strengths.push(`Wins ${t.firstLordToWin}% after taking First Lord (${t.firstLordOurs}g)`);
   if (t.fbToWin !== null && t.fbToWin >= 70 && (t.fbOurs||0) >= 3)
-    strengths.push(`Punishes early — ${t.fbToWin}% wins after First Blood (${t.fbOurs}g)`);
+    strengths.push(`Wins ${t.fbToWin}% after First Blood (${t.fbOurs}g)`);
   if (t.firstLordToWin !== null && t.firstLordToWin <= 35 && (t.firstLordOurs||0) >= 3)
-    weaknesses.push(`Loses with Lord lead — only ${t.firstLordToWin}% wins after First Lord (${t.firstLordOurs}g)`);
+    weaknesses.push(`Only ${t.firstLordToWin}% wins after taking First Lord (${t.firstLordOurs}g)`);
   if (t.fbRate !== null && t.fbRate <= 30 && (t.fbGames||0) >= 4)
-    weaknesses.push(`Slow start — First Blood only ${t.fbRate}%`);
+    weaknesses.push(`First Blood rate only ${t.fbRate}% (${t.fbGames}g)`);
   if (t.avgTowers !== null && t.towerDiff !== null && t.towerDiff >= 3 && (t.towerGames||0) >= 3)
-    strengths.push(`Push-heavy — +${t.towerDiff} avg tower diff (${t.avgTowers}/game)`);
+    strengths.push(`+${t.towerDiff} avg tower diff · ${t.avgTowers} towers/game (${t.towerGames}g)`);
   if (t.avgTowers !== null && t.towerDiff !== null && t.towerDiff <= -3 && (t.towerGames||0) >= 3)
-    weaknesses.push(`Weak siege — ${t.towerDiff} avg tower diff`);
-  // Carry detection from playerKDA
+    weaknesses.push(`${t.towerDiff} avg tower diff · ${t.avgTowers} towers/game (${t.towerGames}g)`);
+  // Per-player KDA insights (also factual, no editorial labels).
   if (t.playerKDA) {
     const kdaRatios = Object.entries(t.playerKDA)
       .filter(([_,pk]) => pk.games >= 3)
@@ -3210,11 +3355,11 @@ function openTeamReport(teamName) {
       const sorted = [...kdaRatios].sort((a,b) => b.ratio - a.ratio);
       const top = sorted[0], next = sorted[1];
       if (top.ratio >= 4 && top.ratio >= next.ratio + 1.5) {
-        strengths.push(`Carry-dependent — ${top.player} has ${top.ratio.toFixed(1)} KDA vs next ${next.ratio.toFixed(1)}`);
+        strengths.push(`${top.player} carries with ${top.ratio.toFixed(1)} KDA (next ${next.ratio.toFixed(1)})`);
       }
       const tilters = kdaRatios.filter(p => p.deaths >= 4.5);
       if (tilters.length) {
-        weaknesses.push(`Death-prone — ${tilters.map(p=>`${p.player} (${p.deaths.toFixed(1)} d/g)`).join(', ')}`);
+        weaknesses.push(`High deaths — ${tilters.map(p=>`${p.player} (${p.deaths.toFixed(1)} d/g)`).join(', ')}`);
       }
     }
   }
@@ -3500,40 +3645,41 @@ function openTeamReport(teamName) {
     }).join('');
     return items;
   }).join('') : '';
+  // Lane Pool — clean stacked-list. WR color is the at-a-glance "performance" signal.
+  // KDA is shown via hover tooltip ('KDA' label + title attribute) so the list stays scannable.
+  // Deeper KDA detail per player lives in the Player Performance section below.
   const lanePoolHTML = LANE_ORDER.map(L => {
     const heroes = Object.entries(laneStats[L])
-      .sort((a,b) => b[1].games - a[1].games || b[1].wins - a[1].wins)
-      .slice(0, 6);
+      .sort((a,b) => b[1].games - a[1].games || b[1].wins - a[1].wins);
     const playerArr = Object.entries(lanePlayers[L]).sort((a,b) => b[1] - a[1]);
     const primaryPlayer = playerArr.length ? playerArr[0][0] : null;
     const lc = LANE_COLORS[L];
-    if (!heroes.length) return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;opacity:.5;">
-      <div style="font-size:9.5px;font-weight:800;letter-spacing:1.2px;color:${lc};margin-bottom:4px;">${L.toUpperCase()}</div>
-      <div style="font-size:10px;color:var(--text3);">No data</div>
+    if (!heroes.length) return `<div class="lp-section" style="opacity:.5;">
+      <div class="lp-section-head" style="border-bottom:0;padding-bottom:0;margin-bottom:0;">
+        <span class="lp-lane-name" style="color:${lc};">${L}</span>
+        <span class="lp-lane-meta">No data</span>
+      </div>
     </div>`;
     const heroRows = heroes.map(([h, s]) => {
       const wr = Math.round(s.wins/s.games*100);
-      // Show avg K/D/A under the hero name when we have at least 1 game with kda entered.
       const hasKda = s.kdaGames > 0;
-      const ak = hasKda ? (s.k/s.kdaGames).toFixed(1) : null;
-      const ad = hasKda ? (s.d/s.kdaGames).toFixed(1) : null;
-      const aa = hasKda ? (s.a/s.kdaGames).toFixed(1) : null;
-      return `<div style="display:flex;align-items:center;gap:5px;padding:2.5px 0;">
-        ${img(h, 20)}
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:10px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h}</div>
-          ${hasKda ? `<div style="font-size:8.5px;color:var(--text3);font-family:var(--font-mono);line-height:1.2;">${ak}/${ad}/${aa}</div>` : ''}
-        </div>
-        <span style="font-size:8.5px;color:var(--text3);font-family:var(--font-mono);">${s.games}g</span>
-        <span style="font-size:10px;font-weight:800;font-family:var(--font-mono);color:${wrc(wr)};width:30px;text-align:right;">${wr}%</span>
+      const tooltip = hasKda
+        ? `Avg KDA ${(s.k/s.kdaGames).toFixed(1)}/${(s.d/s.kdaGames).toFixed(1)}/${(s.a/s.kdaGames).toFixed(1)} over ${s.kdaGames} game${s.kdaGames!==1?'s':''}`
+        : '';
+      return `<div class="lp-row${hasKda?' has-kda':''}" ${hasKda?`title="${tooltip}"`:''}>
+        ${img(h, 24)}
+        <span class="lp-name">${h}</span>
+        ${hasKda ? `<span class="lp-kda-hint" title="${tooltip}">KDA ›</span>` : ''}
+        <span class="lp-games">${s.games}g</span>
+        <span class="lp-wr" style="color:${wrc(wr)};">${wr}%</span>
       </div>`;
     }).join('');
-    return `<div style="background:var(--surface2);border:1px solid ${lc}33;border-radius:8px;padding:9px 10px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid ${lc}22;">
-        <span style="font-size:9.5px;font-weight:800;letter-spacing:1.2px;color:${lc};">${L.toUpperCase()}</span>
-        <span style="font-size:9px;color:var(--text3);font-family:var(--font-mono);">${laneTotals[L]}g</span>
+    return `<div class="lp-section">
+      <div class="lp-section-head">
+        <span class="lp-lane-name" style="color:${lc};">${L}</span>
+        <span class="lp-lane-meta">${laneTotals[L]}g · ${heroes.length} hero${heroes.length!==1?'es':''}</span>
+        ${primaryPlayer ? `<span class="lp-lane-player" title="Primary player on ${L}">▸ ${primaryPlayer}</span>` : ''}
       </div>
-      ${primaryPlayer ? `<div style="font-size:9px;color:var(--text3);margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${primaryPlayer}">▸ ${primaryPlayer}</div>` : ''}
       ${heroRows}
     </div>`;
   }).join('');
@@ -3723,11 +3869,8 @@ function openTeamReport(teamName) {
 
         <!-- LANE POOL -->
         ${anyLaneData ? `
-        <div style="margin-bottom:18px;break-inside:avoid;page-break-inside:avoid;">
-          ${sec('Lane Pool · Heroes by Lane', `
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">
-              ${lanePoolHTML}
-            </div>`)}
+        <div style="margin-bottom:18px;">
+          ${sec('Lane Pool · Heroes by Lane', `<div>${lanePoolHTML}</div>`)}
         </div>` : ''}
 
         <!-- PLAYER PERFORMANCE (only when KDA + player data exists) -->
@@ -4144,40 +4287,42 @@ function _readObjArr(m, type) {
   return obj.lord || [obj.l1, obj.l2, obj.l3].filter(Boolean);
 }
 
-/* Build the inner HTML for one objective row (turtle or lord) */
-/* Header summary: 🐢 Turtle · Blue 2 · Red 1 · First: 🔵 — followed by labeled chips T1/T2/T3 */
+/* Build the inner HTML for one objective row (turtle or lord). */
+/* Header summary 🐢 Turtle · 2 · 1 · First ● Blue   then labeled chips T1/T2/T3. */
 function _buildObjRowHTML(type, values) {
   const icon = type === 'turtle' ? '🐢' : '👑';
   const labelShort = type === 'turtle' ? 'T' : 'L';
   const label = type === 'turtle' ? 'Turtle' : 'Lord';
-  // Summary stats from current values
-  const blueCnt = values.filter(v => v === 'blue').length;
-  const redCnt  = values.filter(v => v === 'red').length;
-  const firstNonEmpty = values.find(v => v === 'blue' || v === 'red') || '';
-  const firstDot = firstNonEmpty === 'blue' ? '<span style="color:#60a5fa;">●</span> Blue'
-                 : firstNonEmpty === 'red'  ? '<span style="color:#f87171;">●</span> Red'
-                 : '<span style="color:var(--text4);">—</span>';
-  let html = `<span class="obj-header" data-obj-header="${type}" style="display:inline-flex;align-items:center;gap:7px;font-size:10px;font-weight:700;color:var(--text2);min-width:0;margin-right:4px;">
-    <span style="font-size:11px;">${icon}</span>
-    <span style="color:var(--text2);">${label}</span>
-    <span style="color:var(--text4);">·</span>
-    <span style="color:#60a5fa;font-family:var(--font-mono);">${blueCnt}</span>
-    <span style="color:var(--text4);">·</span>
-    <span style="color:#f87171;font-family:var(--font-mono);">${redCnt}</span>
-    <span style="color:var(--text4);">·</span>
-    <span style="color:var(--text3);font-weight:500;">First ${firstDot}</span>
-  </span>`;
+  let html = _objHeaderHTML(type, icon, label, values);
   values.forEach((v, i) => {
     const cls = v === 'blue' ? 'blue' : v === 'red' ? 'red' : '';
     const txt = v === 'blue' ? 'Blue' : v === 'red' ? 'Red' : '—';
-    html += `<span style="display:inline-flex;align-items:center;gap:2px;">
-      <span style="font-size:8px;color:var(--text4);font-weight:700;letter-spacing:.5px;">${labelShort}${i + 1}</span>
-      <button class="obj-btn ${cls}" data-type="${type}" data-val="${v}" onclick="cycleObj(this)" type="button">${txt}</button>
-      <button onclick="removeObj('${type}',${i})" type="button" title="Remove" style="background:none;border:none;color:var(--text4);cursor:pointer;font-size:9px;padding:0 1px;line-height:1;">✕</button>
+    html += `<span class="obj-chip">
+      <span class="obj-num">${labelShort}${i + 1}</span>
+      <button class="obj-pill ${cls}" data-type="${type}" data-val="${v}" onclick="cycleObj(this)" type="button">${txt}</button>
+      <button class="obj-x" onclick="removeObj('${type}',${i})" type="button" title="Remove">✕</button>
     </span>`;
   });
-  html += `<button onclick="addObj('${type}')" type="button" style="font-size:9px;padding:2px 8px;border-radius:6px;border:1px dashed var(--border2);background:transparent;color:var(--text3);cursor:pointer;white-space:nowrap;">+ ${label}</button>`;
+  html += `<button class="obj-add" onclick="addObj('${type}')" type="button">+ ${label}</button>`;
   return html;
+}
+
+/* Header markup factored out so both initial render and refresh use the same source of truth. */
+function _objHeaderHTML(type, icon, label, values) {
+  const blueCnt = values.filter(v => v === 'blue').length;
+  const redCnt  = values.filter(v => v === 'red').length;
+  const firstNonEmpty = values.find(v => v === 'blue' || v === 'red') || '';
+  const firstHTML = firstNonEmpty === 'blue' ? '<span class="o-dot" style="color:#60a5fa;">●</span>Blue'
+                  : firstNonEmpty === 'red'  ? '<span class="o-dot" style="color:#f87171;">●</span>Red'
+                  : '—';
+  return `<span class="obj-header" data-obj-header="${type}">
+    <span class="o-icon">${icon}</span>
+    <span class="o-label">${label}</span>
+    <span class="o-cnt-blue">${blueCnt}</span>
+    <span style="color:var(--text4);">·</span>
+    <span class="o-cnt-red">${redCnt}</span>
+    <span class="o-first">First ${firstHTML}</span>
+  </span>`;
 }
 
 /* Refresh just the header summary of an objective row (called after a cycle click). */
@@ -4187,23 +4332,10 @@ function _refreshObjHeader(type) {
   const values = [...row.querySelectorAll('[data-type="' + type + '"]')].map(b => b.dataset.val || '');
   const header = row.querySelector('[data-obj-header="' + type + '"]');
   if (!header) return;
-  const blueCnt = values.filter(v => v === 'blue').length;
-  const redCnt  = values.filter(v => v === 'red').length;
-  const firstNonEmpty = values.find(v => v === 'blue' || v === 'red') || '';
-  const firstDot = firstNonEmpty === 'blue' ? '<span style="color:#60a5fa;">●</span> Blue'
-                 : firstNonEmpty === 'red'  ? '<span style="color:#f87171;">●</span> Red'
-                 : '<span style="color:var(--text4);">—</span>';
   const icon = type === 'turtle' ? '🐢' : '👑';
   const label = type === 'turtle' ? 'Turtle' : 'Lord';
-  header.innerHTML = `
-    <span style="font-size:11px;">${icon}</span>
-    <span style="color:var(--text2);">${label}</span>
-    <span style="color:var(--text4);">·</span>
-    <span style="color:#60a5fa;font-family:var(--font-mono);">${blueCnt}</span>
-    <span style="color:var(--text4);">·</span>
-    <span style="color:#f87171;font-family:var(--font-mono);">${redCnt}</span>
-    <span style="color:var(--text4);">·</span>
-    <span style="color:var(--text3);font-weight:500;">First ${firstDot}</span>`;
+  // Re-emit only the header's inner; outer wrapper kept stable.
+  header.outerHTML = _objHeaderHTML(type, icon, label, values);
 }
 
 /* Re-render one objective row from current button values + add new empty slot */
@@ -4231,23 +4363,23 @@ function cycleObj(btn) {
   const next = states[(states.indexOf(cur) + 1) % states.length];
   btn.dataset.val = next;
   btn.textContent = next === 'blue' ? 'Blue' : next === 'red' ? 'Red' : '—';
-  btn.className = 'obj-btn' + (next ? ' ' + next : '');
+  btn.className = 'obj-pill' + (next ? ' ' + next : '');
   // If this button is part of the first chip in its row, refresh the header summary.
   const row = btn.closest('[id^="obj-"]');
   if (row) _refreshObjHeader(row.id.includes('turtle') ? 'turtle' : 'lord');
 }
 
-/* Three-state First Blood picker: Blue / Red / — */
+/* Three-state First Blood picker — iOS-style segment control. Blue / Red / — */
 function _buildFirstBloodHTML(current) {
   const opts = [
     { v: 'blue', label: 'Blue', cls: 'blue' },
     { v: 'red',  label: 'Red',  cls: 'red' },
-    { v: '',     label: '—',    cls: 'none' },
+    { v: '',     label: '—',    cls: '' },
   ];
   return opts.map(o => {
     const active = (current||'') === o.v;
     return `<button type="button" data-fb="${o.v}" onclick="setFirstBlood('${o.v}')"
-      class="fb-pill ${active ? 'active ' + o.cls : ''}">${o.label}</button>`;
+      class="${active ? 'active ' + o.cls : ''}">${o.label}</button>`;
   }).join('');
 }
 
