@@ -149,6 +149,15 @@
 .relation-item .wr.high { color: var(--neon); background: var(--neon-dim); }
 .relation-item .wr.mid  { color: var(--gold); background: var(--gold-dim); }
 .relation-item .wr.low  { color: var(--red);  background: var(--red-dim); }
+/* Low sample size — visually de-emphasize so the eye trusts well-sampled entries first.
+   Hover over the badge or tooltip to see the actual game count. */
+.relation-item.low-sample {
+  opacity: 0.55;
+  border-style: dashed;
+}
+.relation-item.low-sample .wr {
+  filter: saturate(0.6);
+}
 .relation-empty {
   font-size: 11px; color: var(--text4); font-style: italic;
   letter-spacing: -0.01em;
@@ -271,10 +280,18 @@
 
     <!-- Controls -->
     <div class="controls">
-      <select class="ctrl-select" id="roleFilter" onchange="onFilter()">
+      <select class="ctrl-select" id="roleFilter" onchange="onFilter()" title="Filter by hero class">
         <option value="">All roles</option>
         <option>Assassin</option><option>Fighter</option><option>Marksman</option>
         <option>Mage</option><option>Support</option><option>Tank</option>
+      </select>
+      <select class="ctrl-select" id="laneFilter" onchange="onFilter()" title="Filter by primary lane observed in Scout matches">
+        <option value="">All lanes</option>
+        <option value="Gold">Gold</option>
+        <option value="Jungle">Jungle</option>
+        <option value="Mid">Mid</option>
+        <option value="EXP">EXP</option>
+        <option value="Roam">Roam</option>
       </select>
       <select class="ctrl-select" id="sortBy" onchange="onFilter()">
         <option value="games">Most played</option>
@@ -307,7 +324,12 @@ let _countersMap    = {};
 let _synergiesMap   = {};
 let _overrides      = {};
 let _playCounts     = {};
+let _heroLaneMap    = {}; // { heroName: 'Gold'|'Jungle'|'Mid'|'EXP'|'Roam' } — primary observed lane
 let _adminMode      = false;
+
+// Sample-size threshold: relations computed from fewer than this many games
+// are dimmed and labeled "low confidence" in the UI.
+const LOW_SAMPLE_THRESHOLD = 5;
 
 const HEROES = (typeof WDB !== 'undefined' && WDB.HERO_ROSTER) ? WDB.HERO_ROSTER : [];
 
@@ -340,6 +362,22 @@ async function loadAll() {
 
   _countersMap  = WDB.computeScoutCountersFromMatches(publicMatches);
   _synergiesMap = WDB.computeScoutSynergiesFromMatches(publicMatches);
+
+  // Build hero → primary lane map from observed picks, so the lane filter works
+  // (heroes that were never picked have no lane and won't match a lane filter).
+  const laneCounts = {};
+  publicMatches.forEach(m => {
+    [...(m.bluePicks || []), ...(m.redPicks || [])].forEach(p => {
+      if (!p || !p.name || !p.lane) return;
+      laneCounts[p.name] = laneCounts[p.name] || {};
+      laneCounts[p.name][p.lane] = (laneCounts[p.name][p.lane] || 0) + 1;
+    });
+  });
+  _heroLaneMap = {};
+  Object.entries(laneCounts).forEach(([hero, lanes]) => {
+    const sorted = Object.entries(lanes).sort((a, b) => b[1] - a[1]);
+    if (sorted[0][1] >= 2) _heroLaneMap[hero] = sorted[0][0]; // ≥2 observations → reliable
+  });
 
   _playCounts = {};
   publicMatches.forEach(m => {
@@ -419,6 +457,7 @@ function onFilter() { renderGrid(); }
 
 function getFilteredHeroes() {
   const role   = document.getElementById('roleFilter').value;
+  const lane   = document.getElementById('laneFilter')?.value || '';
   const sort   = document.getElementById('sortBy').value;
   const onlyD  = document.getElementById('dataOnly').value === 'yes';
   const q      = document.getElementById('searchIn').value.trim().toLowerCase();
@@ -426,9 +465,11 @@ function getFilteredHeroes() {
   let list = HEROES.map(h => ({
     name: h.name || h.n,
     role: h.role || h.r || '',
+    lane: _heroLaneMap[h.name || h.n] || '',
   }));
 
   if (role)  list = list.filter(h => h.role.includes(role));
+  if (lane)  list = list.filter(h => h.lane === lane);
   if (q)     list = list.filter(h => h.name.toLowerCase().includes(q));
   if (onlyD) list = list.filter(h => _playCounts[h.name] > 0);
 
@@ -503,25 +544,25 @@ function heroCardHTML(h) {
              onerror="this.style.background='var(--surface3)';this.removeAttribute('src')">
         <div class="hero-meta">
           <div class="hero-name">${escHtml(h.name)}</div>
-          <div class="hero-role">${escHtml((h.role || '—').toUpperCase())}</div>
+          <div class="hero-role">${escHtml((h.role || '—').toUpperCase())}${h.lane ? ` · ${escHtml(h.lane.toUpperCase())}` : ''}</div>
           <div class="hero-gamecount">${games} game${games !== 1 ? 's' : ''} scouted</div>
         </div>
       </div>
 
       <div class="relation-block">
-        <div class="relation-label">
+        <div class="relation-label" title="Heroes that beat ${escHtml(h.name)} most often. % shown is the counter's win rate against ${escHtml(h.name)}.">
           <span>Counters</span>
           ${counterBadge}
         </div>
-        <div class="relation-row">${relationItemsHTML(counters)}</div>
+        <div class="relation-row">${relationItemsHTML(counters, 'counter', h.name)}</div>
       </div>
 
       <div class="relation-block">
-        <div class="relation-label">
+        <div class="relation-label" title="Heroes drafted on the same team as ${escHtml(h.name)} that won most often. % shown is the pair's win rate together.">
           <span>Best with</span>
           ${synergyBadge}
         </div>
-        <div class="relation-row">${relationItemsHTML(synergies)}</div>
+        <div class="relation-row">${relationItemsHTML(synergies, 'synergy', h.name)}</div>
       </div>
 
       <div class="edit-panel" id="edit_${heroSlug}">
@@ -542,7 +583,7 @@ function heroCardHTML(h) {
     </div>`;
 }
 
-function relationItemsHTML(items) {
+function relationItemsHTML(items, kind, heroName) {
   if (!items || !items.length) {
     return '<span class="relation-empty">—</span>';
   }
@@ -552,13 +593,27 @@ function relationItemsHTML(items) {
       ? WDB.heroPortrait(name)
       : 'portraits/' + name.replace(/[^A-Za-z0-9]/g, '') + '.png';
     let wrHTML = '';
+    let lowSample = false;
+    let tooltip = name;
     if (!it._admin && typeof it.wr === 'number') {
       const pct = Math.round(it.wr * 100);
       const cls = it.wr >= 0.60 ? 'high' : it.wr >= 0.50 ? 'mid' : 'low';
-      wrHTML = `<span class="wr ${cls}">${pct}% · ${it.count}g</span>`;
+      lowSample = (it.count || 0) < LOW_SAMPLE_THRESHOLD;
+      const sampleNote = lowSample ? ' ⚠' : '';
+      wrHTML = `<span class="wr ${cls}">${pct}% · ${it.count}g${sampleNote}</span>`;
+      // Honest tooltip — different sentence for counter vs synergy because the WR means different things
+      if (kind === 'counter') {
+        tooltip = `${name} won ${pct}% vs ${heroName || 'this hero'} across ${it.count} game${it.count===1?'':'s'}` +
+                  (lowSample ? ` (low sample — only ${it.count} game${it.count===1?'':'s'})` : '');
+      } else if (kind === 'synergy') {
+        tooltip = `${heroName || 'This hero'} + ${name} won ${pct}% across ${it.count} game${it.count===1?'':'s'} together` +
+                  (lowSample ? ` (low sample — only ${it.count} game${it.count===1?'':'s'})` : '');
+      }
+    } else if (it._admin) {
+      tooltip = `${name} (admin pick)`;
     }
     return `
-      <span class="relation-item" title="${escHtml(name)}">
+      <span class="relation-item${lowSample ? ' low-sample' : ''}" title="${escHtml(tooltip)}">
         <img src="${portrait}" alt="" onerror="this.style.background='var(--surface3)';this.removeAttribute('src')">
         ${escHtml(name)}
         ${wrHTML}

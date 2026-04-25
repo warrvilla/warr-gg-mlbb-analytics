@@ -1075,6 +1075,9 @@ const LEAGUE_COLOR = {'MPL PH':'#60a5fa','MPL MY':'#c084fc','MPL ID':'#f87171','
 // Fallback palette used for admin-added leagues (in rotation)
 const _CUSTOM_LEAGUE_PALETTE = ['#f472b6','#a3e635','#fde047','#38bdf8','#f97316','#10b981','#e879f9','#94a3b8'];
 let _customLeaguesLoaded = false;
+// Cache of admin-marked current season per league name. Filled by loadCustomLeagues().
+// Read by setLeagueFilter() to auto-apply the right season when you click a league button.
+const LEAGUE_CURRENT_SEASON = Object.create(null);
 /** Load admin-added leagues from Supabase and inject them into LEAGUES array,
  *  the sidebar filter buttons, and the mobile dropdown so they're usable everywhere. */
 async function loadCustomLeagues() {
@@ -1087,7 +1090,10 @@ async function loadCustomLeagues() {
     // Append custom league buttons at the end of the sidebar (after the AI Battle button)
     (rows || []).forEach((l, i) => {
       const name = l.name;
-      if (!name || LEAGUES.includes(name)) return; // already in hardcoded list
+      if (!name) return;
+      // Cache current_season for ALL leagues — including hardcoded ones that have a row
+      if (l.current_season) LEAGUE_CURRENT_SEASON[name] = l.current_season;
+      if (LEAGUES.includes(name)) return; // already in hardcoded list — skip the UI inject
       LEAGUES.push(name);
       const color = _CUSTOM_LEAGUE_PALETTE[i % _CUSTOM_LEAGUE_PALETTE.length];
       LEAGUE_COLOR[name] = color;
@@ -1393,21 +1399,97 @@ const DB_MODULE = (() => {
       // Pool depth: unique heroes picked with >=2 games
       t.poolDepth = Object.values(pickC).filter(c=>c>=2).length;
 
-      // Objective control: turtle & lord
+      // ─── Objective control + first-objective rates + conversion to wins ───
       let turtleTotal=0, turtleWon=0, lordTotal=0, lordWon=0;
+      let firstTurtleGames=0, firstTurtleOurs=0, firstTurtleWins=0;   // games where T1 was contested
+      let firstLordGames=0,   firstLordOurs=0,   firstLordWins=0;     // games where L1 was contested
+      // First Blood
+      let fbGames=0, fbOurs=0, fbWins=0;
+      // Towers
+      let towerGamesCount=0, towerSum=0, oppTowerSum=0;
+      // KDA aggregations
+      const playerKDA = {}; // { player: {games, k, d, a, heroes:{hero:{games,k,d,a,wins}}} }
+      const heroKDA   = {}; // { hero:   {games, k, d, a, wins} }
       games.forEach(m => {
         const isBlue = m.blueTeam === name;
         const side = isBlue ? 'blue' : 'red';
+        const won = (isBlue && m.winner === 'blue') || (!isBlue && m.winner === 'red');
         const obj = m.objectives || {};
         const tArr = obj.turtle || [obj.t1,obj.t2,obj.t3].filter(Boolean) || [];
         const lArr = obj.lord   || [obj.l1,obj.l2,obj.l3].filter(Boolean) || [];
         tArr.forEach(v => { if (v) { turtleTotal++; if (v===side) turtleWon++; } });
         lArr.forEach(v => { if (v) { lordTotal++;   if (v===side) lordWon++;   } });
+        // First turtle / first lord (T1/L1 = the FIRST contested kill)
+        const firstT = tArr.find(v => v === 'blue' || v === 'red');
+        if (firstT) {
+          firstTurtleGames++;
+          if (firstT === side) { firstTurtleOurs++; if (won) firstTurtleWins++; }
+        }
+        const firstL = lArr.find(v => v === 'blue' || v === 'red');
+        if (firstL) {
+          firstLordGames++;
+          if (firstL === side) { firstLordOurs++; if (won) firstLordWins++; }
+        }
+        // First Blood
+        if (m.firstBlood === 'blue' || m.firstBlood === 'red') {
+          fbGames++;
+          if (m.firstBlood === side) { fbOurs++; if (won) fbWins++; }
+        }
+        // Towers
+        if (m.towers && (m.towers.blue != null || m.towers.red != null)) {
+          const ours = isBlue ? m.towers.blue : m.towers.red;
+          const opp  = isBlue ? m.towers.red  : m.towers.blue;
+          if (ours != null) { towerGamesCount++; towerSum += Number(ours)||0; oppTowerSum += Number(opp)||0; }
+        }
+        // KDA — walk our picks
+        const picks = isBlue ? (m.bluePicks||[]) : (m.redPicks||[]);
+        picks.forEach(p => {
+          if (!p || !p.kda) return;
+          const k = Number(p.kda.k)||0, d = Number(p.kda.d)||0, a = Number(p.kda.a)||0;
+          const hero = p.name;
+          if (hero) {
+            if (!heroKDA[hero]) heroKDA[hero] = { games:0, k:0, d:0, a:0, wins:0 };
+            heroKDA[hero].games++; heroKDA[hero].k+=k; heroKDA[hero].d+=d; heroKDA[hero].a+=a;
+            if (won) heroKDA[hero].wins++;
+          }
+          if (p.player) {
+            if (!playerKDA[p.player]) playerKDA[p.player] = { games:0, k:0, d:0, a:0, lane:p.lane||null, heroes:{} };
+            const pk = playerKDA[p.player];
+            pk.games++; pk.k+=k; pk.d+=d; pk.a+=a;
+            if (p.lane && !pk.lane) pk.lane = p.lane;
+            if (hero) {
+              if (!pk.heroes[hero]) pk.heroes[hero] = { games:0, k:0, d:0, a:0, wins:0 };
+              const hh = pk.heroes[hero];
+              hh.games++; hh.k+=k; hh.d+=d; hh.a+=a;
+              if (won) hh.wins++;
+            }
+          }
+        });
       });
       t.turtleCtrl  = turtleTotal > 0 ? Math.round(turtleWon/turtleTotal*100) : null;
       t.lordCtrl    = lordTotal   > 0 ? Math.round(lordWon/lordTotal*100)     : null;
       t.turtleTotal = turtleTotal;
       t.lordTotal   = lordTotal;
+      // First Turtle: % of contested-T1 games we got T1
+      t.firstTurtleGames = firstTurtleGames;
+      t.firstTurtleRate  = firstTurtleGames ? Math.round(firstTurtleOurs/firstTurtleGames*100) : null;
+      t.firstTurtleToWin = firstTurtleOurs  ? Math.round(firstTurtleWins/firstTurtleOurs*100) : null;
+      // First Lord
+      t.firstLordGames = firstLordGames;
+      t.firstLordRate  = firstLordGames ? Math.round(firstLordOurs/firstLordGames*100) : null;
+      t.firstLordToWin = firstLordOurs  ? Math.round(firstLordWins/firstLordOurs*100) : null;
+      // First Blood
+      t.fbGames = fbGames;
+      t.fbRate  = fbGames ? Math.round(fbOurs/fbGames*100) : null;
+      t.fbToWin = fbOurs  ? Math.round(fbWins/fbOurs*100)  : null;
+      // Towers
+      t.towerGames    = towerGamesCount;
+      t.avgTowers     = towerGamesCount ? +(towerSum/towerGamesCount).toFixed(1) : null;
+      t.avgOppTowers  = towerGamesCount ? +(oppTowerSum/towerGamesCount).toFixed(1) : null;
+      t.towerDiff     = towerGamesCount ? +((towerSum-oppTowerSum)/towerGamesCount).toFixed(1) : null;
+      // KDA tables (only kept when at least one entry exists)
+      t.playerKDA = Object.keys(playerKDA).length ? playerKDA : null;
+      t.heroKDA   = Object.keys(heroKDA).length   ? heroKDA   : null;
 
       // First pick tendencies
       const fpC = {};
@@ -1568,7 +1650,12 @@ function showView(v) {
 
 function setLeagueFilter(lf) {
   leagueFilter = lf;
-  seasonFilter = 'all'; // reset season sub-filter — different leagues have different seasons
+  // Reset season sub-filter, then auto-apply this league's admin-marked current season if one is set.
+  // (Cached in LEAGUE_CURRENT_SEASON by loadCustomLeagues at startup.)
+  seasonFilter = 'all';
+  if (lf !== 'all' && LEAGUE_CURRENT_SEASON[lf]) {
+    seasonFilter = LEAGUE_CURRENT_SEASON[lf];
+  }
   // Sync mobile dropdown
   const sel = document.getElementById('mobileLeagueSelect');
   if (sel) sel.value = lf;
@@ -1717,8 +1804,13 @@ function renderMatchListBody() {
       .sort((a,b) => b.localeCompare(a, undefined, {numeric:true}));
     // If currently selected season doesn't exist in this league's pool, reset to 'all'
     if (seasonFilter !== 'all' && !seasons.includes(seasonFilter)) seasonFilter = 'all';
+    // Tag the admin-marked current season so the user can see at a glance which one is "now"
+    const currentMark = (leagueFilter !== 'all') ? LEAGUE_CURRENT_SEASON[leagueFilter] : null;
     seasonSel.innerHTML = `<option value="all">All Seasons</option>`
-      + seasons.map(s => `<option value="${s}"${seasonFilter===s?' selected':''}>${s}</option>`).join('');
+      + seasons.map(s => {
+          const label = (s === currentMark) ? `${s} (current)` : s;
+          return `<option value="${s}"${seasonFilter===s?' selected':''}>${label}</option>`;
+        }).join('');
     seasonSel.disabled = seasons.length === 0;
   }
   const series = getFilteredSeries();
@@ -1897,7 +1989,20 @@ function openEditMatch(id) {
       const arr = step.team==='blue' ? m.bluePicks : m.redPicks;
       const idx = step.team==='blue' ? bpi++ : rpi++;
       const pick = arr && arr[idx];
-      if (pick) { const _h = heroByName(pick.name); const _autoLane = pick.lane || (_h ? heroLanes(_h)[0] : null) || null; draftSlots[i] = {heroName:pick.name, heroId:_h?.id||pick.name, lane:_autoLane, type:'pick', team:step.team}; draftStepIndex = i+1; }
+      if (pick) {
+        const _h = heroByName(pick.name);
+        const _autoLane = pick.lane || (_h ? heroLanes(_h)[0] : null) || null;
+        draftSlots[i] = {
+          heroName: pick.name,
+          heroId: _h?.id || pick.name,
+          lane: _autoLane,
+          type: 'pick',
+          team: step.team,
+          player: pick.player || null,
+          kda: pick.kda ? { k:pick.kda.k, d:pick.kda.d, a:pick.kda.a } : null,
+        };
+        draftStepIndex = i+1;
+      }
     }
   });
 
@@ -2012,12 +2117,30 @@ function _openMatchModal(m) {
           </div>
           <div class="form-row" style="margin-top:6px;">
             <div style="flex:1;">
-              <div class="form-label" style="margin-bottom:6px;">Objectives — click to cycle team &nbsp;<span style="font-weight:400;color:var(--text3);">(supports unlimited kills)</span></div>
+              <div class="form-label" style="margin-bottom:6px;">Objectives — click each kill chip to cycle team &nbsp;<span style="font-weight:400;color:var(--text3);">(order matters · T1 = first turtle, etc.)</span></div>
               <div id="obj-turtle-row" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:5px;">
                 ${_buildObjRowHTML('turtle', _readObjArr(m,'turtle'))}
               </div>
               <div id="obj-lord-row" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
                 ${_buildObjRowHTML('lord', _readObjArr(m,'lord'))}
+              </div>
+            </div>
+          </div>
+          <div class="form-row" style="margin-top:6px;align-items:flex-end;gap:14px;">
+            <div style="flex-shrink:0;">
+              <div class="form-label" style="margin-bottom:6px;">First Blood &nbsp;<span style="font-weight:400;color:var(--text3);">(optional)</span></div>
+              <div id="fb-row" data-value="${m.firstBlood||''}" style="display:flex;gap:4px;">
+                ${_buildFirstBloodHTML(m.firstBlood||'')}
+              </div>
+            </div>
+            <div style="flex-shrink:0;">
+              <div class="form-label" style="margin-bottom:6px;">Towers Destroyed</div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span style="font-size:9px;font-weight:700;color:#60a5fa;letter-spacing:1px;">BLUE</span>
+                <input type="number" min="0" max="11" id="mf-towers-blue" value="${m.towers?.blue ?? ''}" placeholder="—" style="width:50px;padding:4px 6px;font-size:12px;font-family:var(--font-mono);text-align:center;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.25);color:var(--text);border-radius:6px;">
+                <span style="font-size:11px;color:var(--text4);">·</span>
+                <span style="font-size:9px;font-weight:700;color:#f87171;letter-spacing:1px;">RED</span>
+                <input type="number" min="0" max="11" id="mf-towers-red" value="${m.towers?.red ?? ''}" placeholder="—" style="width:50px;padding:4px 6px;font-size:12px;font-family:var(--font-mono);text-align:center;background:rgba(248,113,113,0.07);border:1px solid rgba(248,113,113,0.25);color:var(--text);border-radius:6px;">
               </div>
             </div>
           </div>
@@ -2092,12 +2215,22 @@ function renderDraftBoard() {
       const playerBtn = !isBan ? `<span class="lane-pill ${sl.player?'assigned':''}"
         style="${sl.player ? 'background:rgba(168,136,204,0.12);color:var(--accent);border-color:rgba(168,136,204,0.4);' : ''}"
         onclick="showPlayerPicker(${i},this,'${step.team}')" title="Tag player">${sl.player || '+ player'}</span>` : '';
+      // Inline K · D · A inputs for picks. Optional — empty fields produce no kda.
+      const kda = sl.kda || {};
+      const kdaInputs = !isBan ? `<span class="kda-trio" style="display:inline-flex;align-items:center;gap:2px;margin-left:auto;">
+        <input type="number" min="0" inputmode="numeric" data-kda-slot="${i}" data-kda-key="k" value="${kda.k ?? ''}" placeholder="K" onchange="setKda(${i},'k',this.value)" title="Kills" style="width:30px;padding:2px 0;font-size:10px;font-family:var(--font-mono);text-align:center;background:rgba(52,209,122,0.07);border:1px solid rgba(52,209,122,0.25);color:var(--green);border-radius:4px;">
+        <span style="font-size:9px;color:var(--text4);">/</span>
+        <input type="number" min="0" inputmode="numeric" data-kda-slot="${i}" data-kda-key="d" value="${kda.d ?? ''}" placeholder="D" onchange="setKda(${i},'d',this.value)" title="Deaths" style="width:30px;padding:2px 0;font-size:10px;font-family:var(--font-mono);text-align:center;background:rgba(240,82,82,0.07);border:1px solid rgba(240,82,82,0.25);color:var(--red);border-radius:4px;">
+        <span style="font-size:9px;color:var(--text4);">/</span>
+        <input type="number" min="0" inputmode="numeric" data-kda-slot="${i}" data-kda-key="a" value="${kda.a ?? ''}" placeholder="A" onchange="setKda(${i},'a',this.value)" title="Assists" style="width:30px;padding:2px 0;font-size:10px;font-family:var(--font-mono);text-align:center;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.25);color:var(--blue);border-radius:4px;">
+      </span>` : '';
       return `<div class="${cls}" data-step="${i}">
         ${label}
         <img src="./portraits/${sl.heroId}.png" onerror="this.style.display='none'" style="width:26px;height:26px;border-radius:8px;object-fit:cover;flex-shrink:0;">
         <span class="step-name">${sl.heroName}</span>
         ${laneBtn}
         ${playerBtn}
+        ${kdaInputs}
         <button onclick="clearDraftSlot(${i})" style="background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:10px;padding:0 2px;flex-shrink:0;line-height:1;">✕</button>
       </div>`;
     }
@@ -2389,6 +2522,19 @@ function setPlayerFromPicker(idx, ign) {
   renderDraftBoard();
 }
 
+// Inline K/D/A handler — writes to draftSlots[i].kda. Empty input = clear field.
+// We do NOT re-render here; that would steal focus mid-typing.
+function setKda(idx, key, raw) {
+  if (!draftSlots[idx]) return;
+  const v = raw === '' || raw == null ? null : Math.max(0, Number(raw)|0);
+  if (!draftSlots[idx].kda) draftSlots[idx].kda = {};
+  if (v == null) delete draftSlots[idx].kda[key];
+  else draftSlots[idx].kda[key] = v;
+  // Drop the kda object entirely if all fields are empty (keeps saved data clean).
+  const k = draftSlots[idx].kda;
+  if (k && k.k == null && k.d == null && k.a == null) draftSlots[idx].kda = null;
+}
+
 // ══════════════════════════════════════════════════════════════
 // SAVE MATCH
 // ══════════════════════════════════════════════════════════════
@@ -2408,7 +2554,15 @@ function saveMatch() {
   DRAFT_STEPS.forEach((step,i) => {
     const sl = draftSlots[i]; if (!sl) return;
     if (step.type==='ban') { if (step.team==='blue') blueBans.push(sl.heroName); else redBans.push(sl.heroName); }
-    else { const pick={name:sl.heroName,lane:sl.lane}; if(sl.player) pick.player=sl.player; if (step.team==='blue') bluePicks.push(pick); else redPicks.push(pick); }
+    else {
+      const pick = { name: sl.heroName, lane: sl.lane };
+      if (sl.player) pick.player = sl.player;
+      // Persist KDA only if at least one of K/D/A was entered. Missing fields default to 0.
+      if (sl.kda && (sl.kda.k != null || sl.kda.d != null || sl.kda.a != null)) {
+        pick.kda = { k: sl.kda.k || 0, d: sl.kda.d || 0, a: sl.kda.a || 0 };
+      }
+      if (step.team==='blue') bluePicks.push(pick); else redPicks.push(pick);
+    }
   });
 
   const stage  = (document.getElementById('mf-stage')?.value||'').trim();
@@ -2437,6 +2591,15 @@ function saveMatch() {
     turtle: _readObjRow('turtle'),
     lord:   _readObjRow('lord'),
   };
+  // First Blood — empty string means "not entered", which we omit from the saved record.
+  const firstBlood = _readFirstBlood();
+  // Towers — only persist if at least one side was entered. Missing field saves as null on that side.
+  const _tb = document.getElementById('mf-towers-blue')?.value;
+  const _tr = document.getElementById('mf-towers-red')?.value;
+  const towers = (_tb !== '' || _tr !== '') ? {
+    blue: _tb !== '' ? Math.max(0, Number(_tb)|0) : null,
+    red:  _tr !== '' ? Math.max(0, Number(_tr)|0) : null,
+  } : null;
 
   const match = {
     id: editingMatchId || 'match_' + Date.now(),
@@ -2453,6 +2616,9 @@ function saveMatch() {
     blueBans, redBans, bluePicks, redPicks,
     objectives,
     map: document.getElementById('mf-map')?.value || '',
+    // Phase-2 optional fields. Saved only when entered; report sections check before rendering.
+    ...(firstBlood ? { firstBlood } : {}),
+    ...(towers     ? { towers }     : {}),
     savedAt: Date.now(),
   };
 
@@ -2689,30 +2855,51 @@ function openTeamEditor(teamName) {
               </div>` : ''}
             </div>
             ${(() => {
-              const blueC={}, redC={};
+              // Side Drafts (per-side hero counts + per-side WR).
+              const blueS = {}, redS = {};
               DB_MODULE.getMatches().filter(m=>m.blueTeam===teamName||m.redTeam===teamName).forEach(m=>{
-                const isBlue=m.blueTeam===teamName;
-                const picks=isBlue?(m.bluePicks||[]):(m.redPicks||[]);
-                picks.forEach(p=>{const n=p.name||p;if(isBlue)blueC[n]=(blueC[n]||0)+1;else redC[n]=(redC[n]||0)+1;});
+                const isBlue = m.blueTeam===teamName;
+                const won = (isBlue && m.winner==='blue') || (!isBlue && m.winner==='red');
+                const picks = isBlue ? (m.bluePicks||[]) : (m.redPicks||[]);
+                const target = isBlue ? blueS : redS;
+                picks.forEach(p => {
+                  const n = p.name||p; if(!n) return;
+                  if (!target[n]) target[n] = { games:0, wins:0 };
+                  target[n].games += 1;
+                  if (won) target[n].wins += 1;
+                });
               });
-              const all=[...new Set([...Object.keys(blueC),...Object.keys(redC)])];
-              const sorted=all.sort((a,b)=>((blueC[b]||0)+(redC[b]||0))-((blueC[a]||0)+(redC[a]||0))).slice(0,12);
-              if(!sorted.length) return '';
+              const wrcLocal = wr => wr >= 60 ? 'var(--green)' : wr >= 50 ? 'var(--gold)' : 'var(--red)';
+              const rowHTML = (h, s) => {
+                const wr = Math.round(s.wins/s.games*100);
+                return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">
+                  <span style="flex:1;min-width:0;font-size:10.5px;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h}</span>
+                  <span style="font-size:9px;color:var(--text3);font-family:var(--font-mono);">${s.games}g</span>
+                  <span style="font-size:10.5px;font-weight:700;font-family:var(--font-mono);color:${wrcLocal(wr)};width:30px;text-align:right;">${wr}%</span>
+                </div>`;
+              };
+              const blueRows = Object.entries(blueS).sort((a,b)=>b[1].games-a[1].games).slice(0,6).map(([h,s])=>rowHTML(h,s)).join('');
+              const redRows = Object.entries(redS).sort((a,b)=>b[1].games-a[1].games).slice(0,6).map(([h,s])=>rowHTML(h,s)).join('');
+              if(!blueRows && !redRows) return '';
+              const bw = t.blueSideWR, rw = t.redSideWR;
               return `<div style="margin-top:10px;">
-                <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">SIDE HEATMAP</div>
-                <div style="display:flex;flex-direction:column;gap:4px;">${sorted.map(h=>{
-                  const b=blueC[h]||0,r=redC[h]||0,tot=b+r;
-                  const bPct=Math.round(b/tot*100);
-                  return `<div style="display:flex;align-items:center;gap:6px;">
-                    <div style="width:80px;font-size:10px;color:var(--text1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h}</div>
-                    <div style="flex:1;display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--surface3);">
-                      <div style="width:${bPct}%;background:#60a5fa;"></div>
-                      <div style="width:${100-bPct}%;background:#f87171;"></div>
+                <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">SIDE DRAFTS</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                  <div style="background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.22);border-radius:8px;padding:8px 10px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;padding-bottom:4px;border-bottom:1px solid rgba(96,165,250,.18);">
+                      <span style="font-size:9px;font-weight:800;color:#60a5fa;letter-spacing:1px;">◆ BLUE</span>
+                      <span style="font-size:9.5px;font-family:var(--font-mono);font-weight:700;color:${bw!==null?wrcLocal(bw):'var(--text3)'};">${bw!==null?bw+'%':'—'}</span>
                     </div>
-                    <div style="font-size:9px;color:#60a5fa;width:20px;text-align:right;">B${b}</div>
-                    <div style="font-size:9px;color:#f87171;width:20px;">R${r}</div>
-                  </div>`;
-                }).join('')}</div>
+                    ${blueRows || '<div style="font-size:10px;color:var(--text3);">No data</div>'}
+                  </div>
+                  <div style="background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.22);border-radius:8px;padding:8px 10px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;padding-bottom:4px;border-bottom:1px solid rgba(248,113,113,.18);">
+                      <span style="font-size:9px;font-weight:800;color:#f87171;letter-spacing:1px;">◆ RED</span>
+                      <span style="font-size:9.5px;font-family:var(--font-mono);font-weight:700;color:${rw!==null?wrcLocal(rw):'var(--text3)'};">${rw!==null?rw+'%':'—'}</span>
+                    </div>
+                    ${redRows || '<div style="font-size:10px;color:var(--text3);">No data</div>'}
+                  </div>
+                </div>
               </div>`;
             })()}
           </div>` : ''}
@@ -2904,6 +3091,42 @@ function openTeamReport(teamName) {
     strengths.push(`Strong Turtle control (${t.turtleCtrl}%)`);
   if (t.lordCtrl !== null && t.lordCtrl >= 65)
     strengths.push(`Strong Lord control (${t.lordCtrl}%)`);
+  // First-objective + conversion strengths/weaknesses
+  if (t.firstTurtleToWin !== null && t.firstTurtleToWin >= 75 && (t.firstTurtleGames||0) >= 3)
+    strengths.push(`Snowball team — wins ${t.firstTurtleToWin}% when securing First Turtle`);
+  if (t.firstLordToWin !== null && t.firstLordToWin >= 80 && (t.firstLordGames||0) >= 3)
+    strengths.push(`Closes with Lord — ${t.firstLordToWin}% wins after taking First Lord`);
+  if (t.fbToWin !== null && t.fbToWin >= 70 && (t.fbGames||0) >= 3)
+    strengths.push(`Punishes early — ${t.fbToWin}% wins after First Blood`);
+  if (t.firstLordToWin !== null && t.firstLordToWin <= 35 && (t.firstLordGames||0) >= 3)
+    weaknesses.push(`Loses with Lord lead — only ${t.firstLordToWin}% wins after First Lord`);
+  if (t.fbRate !== null && t.fbRate <= 30 && (t.fbGames||0) >= 4)
+    weaknesses.push(`Slow start — First Blood only ${t.fbRate}%`);
+  if (t.avgTowers !== null && t.towerDiff !== null && t.towerDiff >= 3 && (t.towerGames||0) >= 3)
+    strengths.push(`Push-heavy — +${t.towerDiff} avg tower diff (${t.avgTowers}/game)`);
+  if (t.avgTowers !== null && t.towerDiff !== null && t.towerDiff <= -3 && (t.towerGames||0) >= 3)
+    weaknesses.push(`Weak siege — ${t.towerDiff} avg tower diff`);
+  // Carry detection from playerKDA
+  if (t.playerKDA) {
+    const kdaRatios = Object.entries(t.playerKDA)
+      .filter(([_,pk]) => pk.games >= 3)
+      .map(([player,pk]) => ({
+        player,
+        ratio: pk.games ? ((pk.k+pk.a)/Math.max(1,pk.d)) : 0,
+        deaths: pk.d/pk.games,
+      }));
+    if (kdaRatios.length >= 2) {
+      const sorted = [...kdaRatios].sort((a,b) => b.ratio - a.ratio);
+      const top = sorted[0], next = sorted[1];
+      if (top.ratio >= 4 && top.ratio >= next.ratio + 1.5) {
+        strengths.push(`Carry-dependent — ${top.player} has ${top.ratio.toFixed(1)} KDA vs next ${next.ratio.toFixed(1)}`);
+      }
+      const tilters = kdaRatios.filter(p => p.deaths >= 4.5);
+      if (tilters.length) {
+        weaknesses.push(`Death-prone — ${tilters.map(p=>`${p.player} (${p.deaths.toFixed(1)} d/g)`).join(', ')}`);
+      }
+    }
+  }
   if ((t.poolDepth||0) >= 12)
     strengths.push(`Deep hero pool (${t.poolDepth} heroes)`);
 
@@ -3061,32 +3284,186 @@ function openTeamReport(teamName) {
     </div>`;
   }).join('');
 
-  // ── Side Heatmap ──
-  const blueC={}, redC={};
+  // ── Side Drafts (replaces Side Heatmap) ─────────────────────────
+  // For each hero, count games + wins on each side so the report
+  // surfaces *what they pick by side* AND *whether they win on it*.
+  const blueStats = {}, redStats = {};
   teamGames.forEach(m => {
     const isBlue = m.blueTeam === teamName;
-    (isBlue ? (m.bluePicks||[]) : (m.redPicks||[])).forEach(p => {
+    const won = (isBlue && m.winner === 'blue') || (!isBlue && m.winner === 'red');
+    const picks = isBlue ? (m.bluePicks||[]) : (m.redPicks||[]);
+    const target = isBlue ? blueStats : redStats;
+    picks.forEach(p => {
       const n = p.name||p;
-      if (isBlue) blueC[n]=(blueC[n]||0)+1;
-      else redC[n]=(redC[n]||0)+1;
+      if (!n) return;
+      if (!target[n]) target[n] = { games:0, wins:0 };
+      target[n].games += 1;
+      if (won) target[n].wins += 1;
     });
   });
-  const heatmapHeroes = [...new Set([...Object.keys(blueC),...Object.keys(redC)])]
-    .sort((a,b) => ((blueC[b]||0)+(redC[b]||0)) - ((blueC[a]||0)+(redC[a]||0))).slice(0,14);
-  const heatmapHTML = heatmapHeroes.map(h => {
-    const b=blueC[h]||0, r=redC[h]||0, tot=b+r;
-    const bPct=Math.round(b/tot*100);
-    return `<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;">
-      ${img(h, 22)}
-      <span style="font-size:10px;width:74px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h}</span>
-      <div style="flex:1;display:flex;height:7px;border-radius:4px;overflow:hidden;background:var(--surface3);">
-        <div style="width:${bPct}%;background:#60a5fa;"></div>
-        <div style="width:${100-bPct}%;background:#f87171;"></div>
+  const sideRowHTML = (h, s) => {
+    const wr = Math.round(s.wins/s.games*100);
+    const wrCol = wrc(wr);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
+      ${img(h, 24)}
+      <span style="font-size:11px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);">${h}</span>
+      <span style="font-size:9.5px;color:var(--text3);font-family:var(--font-mono);">${s.games}g</span>
+      <span style="font-size:11px;font-weight:800;color:${wrCol};font-family:var(--font-mono);width:34px;text-align:right;">${wr}%</span>
+    </div>`;
+  };
+  const blueTopHTML = Object.entries(blueStats)
+    .sort((a,b) => b[1].games - a[1].games || b[1].wins - a[1].wins)
+    .slice(0,7).map(([h,s]) => sideRowHTML(h,s)).join('');
+  const redTopHTML = Object.entries(redStats)
+    .sort((a,b) => b[1].games - a[1].games || b[1].wins - a[1].wins)
+    .slice(0,7).map(([h,s]) => sideRowHTML(h,s)).join('');
+  const blueRecord = (t.blueSideGames||0) ? `${t.blueWins||0}W-${(t.blueSideGames||0)-(t.blueWins||0)}L` : '—';
+  const redRecord  = (t.redSideGames||0)  ? `${t.redWins||0}W-${(t.redSideGames||0)-(t.redWins||0)}L`   : '—';
+  // ── Lane Pool (per-lane hero usage with WR + player attribution) ──
+  // Works on existing data: every pick already has p.lane.
+  const LANE_ORDER = ['Gold','Jungle','Mid','EXP','Roam'];
+  const LANE_COLORS = {
+    Gold:   '#f4a534',
+    Jungle: '#a78bfa',
+    Mid:    '#60a5fa',
+    EXP:    '#f87171',
+    Roam:   '#34d17a',
+  };
+  const laneStats = {};   // { lane: { hero: {games, wins} } }
+  const laneTotals = {};  // { lane: gamesCount }
+  const lanePlayers = {}; // { lane: { player: gamesCount } }
+  LANE_ORDER.forEach(L => { laneStats[L] = {}; laneTotals[L] = 0; lanePlayers[L] = {}; });
+  teamGames.forEach(m => {
+    const isBlue = m.blueTeam === teamName;
+    const won = (isBlue && m.winner === 'blue') || (!isBlue && m.winner === 'red');
+    const picks = isBlue ? (m.bluePicks||[]) : (m.redPicks||[]);
+    picks.forEach(p => {
+      const hero = p.name, lane = p.lane;
+      if (!hero || !lane) return;
+      if (!LANE_ORDER.includes(lane)) return; // skip Flex / Unknown
+      if (!laneStats[lane][hero]) laneStats[lane][hero] = { games:0, wins:0, k:0, d:0, a:0, kdaGames:0 };
+      laneStats[lane][hero].games += 1;
+      if (won) laneStats[lane][hero].wins += 1;
+      // Aggregate KDA per hero on this lane (only for picks that have kda entered).
+      if (p.kda) {
+        laneStats[lane][hero].k += Number(p.kda.k)||0;
+        laneStats[lane][hero].d += Number(p.kda.d)||0;
+        laneStats[lane][hero].a += Number(p.kda.a)||0;
+        laneStats[lane][hero].kdaGames += 1;
+      }
+      laneTotals[lane] += 1;
+      if (p.player) lanePlayers[lane][p.player] = (lanePlayers[lane][p.player]||0) + 1;
+    });
+  });
+  const anyLaneData = LANE_ORDER.some(L => laneTotals[L] > 0);
+
+  // ── Player Performance (only renders when player+kda data exists) ──
+  // Pull each tagged player's top heroes with games/WR/avg KDA. Sort columns by lane order.
+  const playerPerfByLane = {}; // { lane: [ {player, lane, totalGames, kda{k,d,a}, heroes:[{name,games,wins,k,d,a}] } ] }
+  if (t.playerKDA) {
+    Object.entries(t.playerKDA).forEach(([player, pk]) => {
+      // Skip players with no games or no kda entries
+      if (!pk.games) return;
+      const lane = pk.lane || 'Unknown';
+      if (!playerPerfByLane[lane]) playerPerfByLane[lane] = [];
+      const heroArr = Object.entries(pk.heroes || {})
+        .map(([n, hs]) => ({
+          name: n, games: hs.games, wins: hs.wins,
+          k: hs.k, d: hs.d, a: hs.a,
+          wr: hs.games ? Math.round(hs.wins/hs.games*100) : 0,
+        }))
+        .sort((a,b) => b.games - a.games || b.wins - a.wins)
+        .slice(0, 4);
+      playerPerfByLane[lane].push({
+        player, lane,
+        totalGames: pk.games,
+        avgK: (pk.k/pk.games).toFixed(1),
+        avgD: (pk.d/pk.games).toFixed(1),
+        avgA: (pk.a/pk.games).toFixed(1),
+        heroes: heroArr,
+      });
+    });
+  }
+  const anyPlayerPerf = Object.keys(playerPerfByLane).length > 0;
+  const playerPerfHTML = anyPlayerPerf ? LANE_ORDER.concat(['Unknown']).filter(L => playerPerfByLane[L]?.length).map(L => {
+    const lc = LANE_COLORS[L] || 'var(--text2)';
+    const items = playerPerfByLane[L].map(pp => {
+      const heroChips = pp.heroes.map(h =>
+        `<div style="display:flex;align-items:center;gap:5px;padding:2px 0;">
+          ${img(h.name, 18)}
+          <span style="font-size:10px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.name}</span>
+          <span style="font-size:8.5px;color:var(--text3);font-family:var(--font-mono);">${h.games}g</span>
+          <span style="font-size:9.5px;font-weight:800;font-family:var(--font-mono);color:${wrc(h.wr)};width:28px;text-align:right;">${h.wr}%</span>
+        </div>`
+      ).join('');
+      return `<div style="background:var(--surface2);border:1px solid ${lc}33;border-radius:8px;padding:9px 10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+          <span style="font-size:10.5px;font-weight:800;color:var(--text);">${pp.player}</span>
+          <span style="font-size:9px;color:${lc};font-weight:700;letter-spacing:.8px;">${L.toUpperCase()}</span>
+        </div>
+        <div style="font-size:9.5px;color:var(--text3);font-family:var(--font-mono);margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid ${lc}22;">
+          ${pp.totalGames}g · <span style="color:var(--green);">${pp.avgK}</span>/<span style="color:var(--red);">${pp.avgD}</span>/<span style="color:var(--blue);">${pp.avgA}</span> avg
+        </div>
+        ${heroChips || '<div style="font-size:10px;color:var(--text3);">—</div>'}
+      </div>`;
+    }).join('');
+    return items;
+  }).join('') : '';
+  const lanePoolHTML = LANE_ORDER.map(L => {
+    const heroes = Object.entries(laneStats[L])
+      .sort((a,b) => b[1].games - a[1].games || b[1].wins - a[1].wins)
+      .slice(0, 6);
+    const playerArr = Object.entries(lanePlayers[L]).sort((a,b) => b[1] - a[1]);
+    const primaryPlayer = playerArr.length ? playerArr[0][0] : null;
+    const lc = LANE_COLORS[L];
+    if (!heroes.length) return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;opacity:.5;">
+      <div style="font-size:9.5px;font-weight:800;letter-spacing:1.2px;color:${lc};margin-bottom:4px;">${L.toUpperCase()}</div>
+      <div style="font-size:10px;color:var(--text3);">No data</div>
+    </div>`;
+    const heroRows = heroes.map(([h, s]) => {
+      const wr = Math.round(s.wins/s.games*100);
+      // Show avg K/D/A under the hero name when we have at least 1 game with kda entered.
+      const hasKda = s.kdaGames > 0;
+      const ak = hasKda ? (s.k/s.kdaGames).toFixed(1) : null;
+      const ad = hasKda ? (s.d/s.kdaGames).toFixed(1) : null;
+      const aa = hasKda ? (s.a/s.kdaGames).toFixed(1) : null;
+      return `<div style="display:flex;align-items:center;gap:5px;padding:2.5px 0;">
+        ${img(h, 20)}
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:10px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h}</div>
+          ${hasKda ? `<div style="font-size:8.5px;color:var(--text3);font-family:var(--font-mono);line-height:1.2;">${ak}/${ad}/${aa}</div>` : ''}
+        </div>
+        <span style="font-size:8.5px;color:var(--text3);font-family:var(--font-mono);">${s.games}g</span>
+        <span style="font-size:10px;font-weight:800;font-family:var(--font-mono);color:${wrc(wr)};width:30px;text-align:right;">${wr}%</span>
+      </div>`;
+    }).join('');
+    return `<div style="background:var(--surface2);border:1px solid ${lc}33;border-radius:8px;padding:9px 10px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid ${lc}22;">
+        <span style="font-size:9.5px;font-weight:800;letter-spacing:1.2px;color:${lc};">${L.toUpperCase()}</span>
+        <span style="font-size:9px;color:var(--text3);font-family:var(--font-mono);">${laneTotals[L]}g</span>
       </div>
-      <span style="font-size:9px;color:#60a5fa;width:22px;text-align:right;">B${b}</span>
-      <span style="font-size:9px;color:#f87171;width:20px;">R${r}</span>
+      ${primaryPlayer ? `<div style="font-size:9px;color:var(--text3);margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${primaryPlayer}">▸ ${primaryPlayer}</div>` : ''}
+      ${heroRows}
     </div>`;
   }).join('');
+
+  const heatmapHTML = (blueTopHTML || redTopHTML) ? `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div style="background:rgba(96,165,250,.06);border:1px solid rgba(96,165,250,.22);border-radius:10px;padding:10px 12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(96,165,250,.18);">
+          <span style="font-size:9.5px;font-weight:800;color:#60a5fa;letter-spacing:1.2px;text-transform:uppercase;">◆ Blue Side</span>
+          <span style="font-size:10px;font-family:var(--font-mono);font-weight:700;color:${bsWr!==null?wrc(bsWr):'var(--text3)'};">${blueRecord}${bsWr!==null?` · ${bsWr}%`:''}</span>
+        </div>
+        ${blueTopHTML || '<div style="font-size:10.5px;color:var(--text3);padding:6px 0;">No blue-side games</div>'}
+      </div>
+      <div style="background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.22);border-radius:10px;padding:10px 12px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid rgba(248,113,113,.18);">
+          <span style="font-size:9.5px;font-weight:800;color:#f87171;letter-spacing:1.2px;text-transform:uppercase;">◆ Red Side</span>
+          <span style="font-size:10px;font-family:var(--font-mono);font-weight:700;color:${rsWr!==null?wrc(rsWr):'var(--text3)'};">${redRecord}${rsWr!==null?` · ${rsWr}%`:''}</span>
+        </div>
+        ${redTopHTML || '<div style="font-size:10.5px;color:var(--text3);padding:6px 0;">No red-side games</div>'}
+      </div>
+    </div>` : '';
 
   // ── Section helper ──
   const sec = (title, content, color='var(--text3)') => `
@@ -3135,11 +3512,20 @@ function openTeamReport(teamName) {
               ${t.streak?.count > 1 ? `<span style="font-size:10px;font-weight:700;color:${t.streak.type==='W'?'var(--green)':'var(--red)'};">${t.streak.type}${t.streak.count} streak</span>` : ''}
             </div>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
-            ${kpiBox(wr+'%', 'Win Rate', wrc(wr))}
-            ${kpiBox((t.wins||0)+'W '+(t.losses||0)+'L', 'Record')}
-            ${kpiBox(bsWr!==null?bsWr+'%':'—', 'Blue Side', bsWr!==null?wrc(bsWr):'var(--text3)')}
-            ${kpiBox(rsWr!==null?rsWr+'%':'—', 'Red Side', rsWr!==null?wrc(rsWr):'var(--text3)')}
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+              ${kpiBox(wr+'%', 'Win Rate', wrc(wr))}
+              ${kpiBox((t.wins||0)+'W '+(t.losses||0)+'L', 'Record')}
+              ${kpiBox(bsWr!==null?bsWr+'%':'—', 'Blue Side', bsWr!==null?wrc(bsWr):'var(--text3)')}
+              ${kpiBox(rsWr!==null?rsWr+'%':'—', 'Red Side', rsWr!==null?wrc(rsWr):'var(--text3)')}
+            </div>
+            ${(t.fbRate!==null || t.avgTowers!==null || t.firstTurtleRate!==null || t.firstLordRate!==null) ? `
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+              ${kpiBox(t.fbRate!==null?t.fbRate+'%':'—', 'First Blood', t.fbRate!==null?wrc(t.fbRate):'var(--text3)')}
+              ${kpiBox(t.avgTowers!==null?t.avgTowers:'—', 'Avg Towers', t.avgTowers!==null?'var(--accent)':'var(--text3)')}
+              ${kpiBox(t.firstTurtleRate!==null?t.firstTurtleRate+'%':'—', 'First Turtle', t.firstTurtleRate!==null?wrc(t.firstTurtleRate):'var(--text3)')}
+              ${kpiBox(t.firstLordRate!==null?t.firstLordRate+'%':'—', 'First Lord', t.firstLordRate!==null?wrc(t.firstLordRate):'var(--text3)')}
+            </div>` : ''}
           </div>
         </div>
 
@@ -3187,33 +3573,79 @@ function openTeamReport(teamName) {
               ${sec('First Pick Tendencies', firstPickHTML || '<div style="color:var(--text3);font-size:11px;">No data</div>', 'var(--blue)')}
             </div>
             <div style="break-inside:avoid;page-break-inside:avoid;">
-            ${(t.turtleCtrl!==null || t.lordCtrl!==null) ? sec('Objective Control', `
-              ${t.turtleCtrl!==null ? `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
-                <span style="font-size:14px;">🐢</span>
-                <span style="font-size:11px;flex:1;">Turtle</span>
-                <span style="font-size:13px;font-weight:700;color:${wrc(t.turtleCtrl)};font-family:var(--font-mono);">${t.turtleCtrl}%</span>
-                <span style="font-size:9px;color:var(--text3);">${t.turtleTotal}g</span>
-              </div>` : ''}
-              ${t.lordCtrl!==null ? `<div style="display:flex;align-items:center;gap:8px;">
-                <span style="font-size:14px;">👁️</span>
-                <span style="font-size:11px;flex:1;">Lord</span>
-                <span style="font-size:13px;font-weight:700;color:${wrc(t.lordCtrl)};font-family:var(--font-mono);">${t.lordCtrl}%</span>
-                <span style="font-size:9px;color:var(--text3);">${t.lordTotal}g</span>
-              </div>` : ''}`) : ''}
+            ${(() => {
+              // Tempo & Conversion: control %, first-objective %, conversion-to-win %.
+              // Each metric only renders when its underlying data exists.
+              const _line = (icon, label, ctrl, ctrlGames, firstRate, firstGames, toWin, toWinGames) => {
+                const ctrlHTML = ctrl !== null ? `<span style="font-size:12px;font-weight:700;color:${wrc(ctrl)};font-family:var(--font-mono);">${ctrl}%</span><span style="font-size:8.5px;color:var(--text4);">·${ctrlGames}g</span>` : '';
+                const firstHTML = firstRate !== null ? `<span style="font-size:11px;color:var(--text3);">First</span><span style="font-size:12px;font-weight:700;color:${wrc(firstRate)};font-family:var(--font-mono);">${firstRate}%</span><span style="font-size:8.5px;color:var(--text4);">·${firstGames}g</span>` : '';
+                const toWinHTML = toWin !== null ? `<span style="font-size:11px;color:var(--text3);">→ Win</span><span style="font-size:12px;font-weight:700;color:${wrc(toWin)};font-family:var(--font-mono);">${toWin}%</span><span style="font-size:8.5px;color:var(--text4);">·${toWinGames}g</span>` : '';
+                if (!ctrlHTML && !firstHTML && !toWinHTML) return '';
+                return `<div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;flex-wrap:wrap;">
+                  <span style="font-size:14px;">${icon}</span>
+                  <span style="font-size:11px;font-weight:700;width:48px;flex-shrink:0;">${label}</span>
+                  ${ctrlHTML ? `<span style="display:inline-flex;align-items:center;gap:3px;">${ctrlHTML}</span>` : ''}
+                  ${firstHTML ? `<span style="color:var(--border2);">·</span><span style="display:inline-flex;align-items:center;gap:3px;">${firstHTML}</span>` : ''}
+                  ${toWinHTML ? `<span style="color:var(--border2);">·</span><span style="display:inline-flex;align-items:center;gap:3px;">${toWinHTML}</span>` : ''}
+                </div>`;
+              };
+              const turtleLine = _line('🐢', 'Turtle', t.turtleCtrl, t.turtleTotal||0, t.firstTurtleRate, t.firstTurtleGames||0, t.firstTurtleToWin, (t.firstTurtleRate!==null?Math.round((t.firstTurtleRate/100)*(t.firstTurtleGames||0)):0));
+              const lordLine   = _line('👑', 'Lord',   t.lordCtrl,   t.lordTotal||0,   t.firstLordRate,   t.firstLordGames||0,   t.firstLordToWin,   (t.firstLordRate!==null?Math.round((t.firstLordRate/100)*(t.firstLordGames||0)):0));
+              const fbLine = (t.fbRate!==null) ? `<div style="display:flex;align-items:center;gap:7px;margin-bottom:0;flex-wrap:wrap;">
+                <span style="font-size:14px;">🩸</span>
+                <span style="font-size:11px;font-weight:700;width:48px;flex-shrink:0;">First Blood</span>
+                <span style="display:inline-flex;align-items:center;gap:3px;">
+                  <span style="font-size:12px;font-weight:700;color:${wrc(t.fbRate)};font-family:var(--font-mono);">${t.fbRate}%</span>
+                  <span style="font-size:8.5px;color:var(--text4);">·${t.fbGames||0}g</span>
+                </span>
+                ${t.fbToWin!==null ? `<span style="color:var(--border2);">·</span><span style="display:inline-flex;align-items:center;gap:3px;">
+                  <span style="font-size:11px;color:var(--text3);">→ Win</span>
+                  <span style="font-size:12px;font-weight:700;color:${wrc(t.fbToWin)};font-family:var(--font-mono);">${t.fbToWin}%</span>
+                </span>` : ''}
+              </div>` : '';
+              const towerLine = (t.avgTowers!==null) ? `<div style="display:flex;align-items:center;gap:7px;margin-top:8px;flex-wrap:wrap;">
+                <span style="font-size:14px;">🏯</span>
+                <span style="font-size:11px;font-weight:700;width:48px;flex-shrink:0;">Towers</span>
+                <span style="display:inline-flex;align-items:center;gap:3px;">
+                  <span style="font-size:12px;font-weight:700;color:var(--accent);font-family:var(--font-mono);">${t.avgTowers}</span>
+                  <span style="font-size:9px;color:var(--text3);">avg</span>
+                </span>
+                ${t.towerDiff!==null ? `<span style="color:var(--border2);">·</span><span style="display:inline-flex;align-items:center;gap:3px;">
+                  <span style="font-size:11px;color:var(--text3);">Diff</span>
+                  <span style="font-size:12px;font-weight:700;color:${t.towerDiff>=0?'var(--green)':'var(--red)'};font-family:var(--font-mono);">${t.towerDiff>=0?'+':''}${t.towerDiff}</span>
+                </span>` : ''}
+                <span style="font-size:8.5px;color:var(--text4);">·${t.towerGames||0}g</span>
+              </div>` : '';
+              const inner = (turtleLine||'') + (lordLine||'') + (fbLine||'') + (towerLine||'');
+              return inner ? sec('Tempo & Conversion', inner) : '';
+            })()}
             </div>
           </div>
         </div>
 
-        <!-- MAP WR + SIDE HEATMAP -->
+        <!-- MAP WR + SIDE DRAFTS -->
         ${(mapWRHTML || heatmapHTML) ? `
         <div style="display:grid;grid-template-columns:${mapWRHTML&&heatmapHTML?'1fr 1fr':'1fr'};gap:16px;margin-bottom:18px;break-inside:avoid;page-break-inside:avoid;">
           ${mapWRHTML ? `<div>${sec('Map Win Rates', mapWRHTML)}</div>` : ''}
-          ${heatmapHTML ? `<div>${sec('Side Heatmap', `
-            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;font-size:10px;color:var(--text3);">
-              <span style="display:inline-block;width:10px;height:10px;background:#60a5fa;border-radius:2px;"></span> Blue side
-              <span style="display:inline-block;width:10px;height:10px;background:#f87171;border-radius:2px;"></span> Red side
-            </div>
-            ${heatmapHTML}`)}</div>` : ''}
+          ${heatmapHTML ? `<div>${sec('Side Drafts · Picks & WR by Side', heatmapHTML)}</div>` : ''}
+        </div>` : ''}
+
+        <!-- LANE POOL -->
+        ${anyLaneData ? `
+        <div style="margin-bottom:18px;break-inside:avoid;page-break-inside:avoid;">
+          ${sec('Lane Pool · Heroes by Lane', `
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">
+              ${lanePoolHTML}
+            </div>`)}
+        </div>` : ''}
+
+        <!-- PLAYER PERFORMANCE (only when KDA + player data exists) -->
+        ${anyPlayerPerf ? `
+        <div style="margin-bottom:18px;break-inside:avoid;page-break-inside:avoid;">
+          ${sec('Player Performance · K/D/A by Lane', `
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;">
+              ${playerPerfHTML}
+            </div>`)}
         </div>` : ''}
 
         <!-- MATCH HISTORY -->
@@ -3622,19 +4054,65 @@ function _readObjArr(m, type) {
 }
 
 /* Build the inner HTML for one objective row (turtle or lord) */
+/* Header summary: 🐢 Turtle · Blue 2 · Red 1 · First: 🔵 — followed by labeled chips T1/T2/T3 */
 function _buildObjRowHTML(type, values) {
   const icon = type === 'turtle' ? '🐢' : '👑';
+  const labelShort = type === 'turtle' ? 'T' : 'L';
   const label = type === 'turtle' ? 'Turtle' : 'Lord';
-  let html = `<span style="font-size:9px;color:var(--text3);font-weight:700;min-width:18px;">${icon}</span>`;
+  // Summary stats from current values
+  const blueCnt = values.filter(v => v === 'blue').length;
+  const redCnt  = values.filter(v => v === 'red').length;
+  const firstNonEmpty = values.find(v => v === 'blue' || v === 'red') || '';
+  const firstDot = firstNonEmpty === 'blue' ? '<span style="color:#60a5fa;">●</span> Blue'
+                 : firstNonEmpty === 'red'  ? '<span style="color:#f87171;">●</span> Red'
+                 : '<span style="color:var(--text4);">—</span>';
+  let html = `<span class="obj-header" data-obj-header="${type}" style="display:inline-flex;align-items:center;gap:7px;font-size:10px;font-weight:700;color:var(--text2);min-width:0;margin-right:4px;">
+    <span style="font-size:11px;">${icon}</span>
+    <span style="color:var(--text2);">${label}</span>
+    <span style="color:var(--text4);">·</span>
+    <span style="color:#60a5fa;font-family:var(--font-mono);">${blueCnt}</span>
+    <span style="color:var(--text4);">·</span>
+    <span style="color:#f87171;font-family:var(--font-mono);">${redCnt}</span>
+    <span style="color:var(--text4);">·</span>
+    <span style="color:var(--text3);font-weight:500;">First ${firstDot}</span>
+  </span>`;
   values.forEach((v, i) => {
     const cls = v === 'blue' ? 'blue' : v === 'red' ? 'red' : '';
     const txt = v === 'blue' ? 'Blue' : v === 'red' ? 'Red' : '—';
-    html += `<span style="font-size:8px;color:var(--text4);">${i + 1}</span>` +
-      `<button class="obj-btn ${cls}" data-type="${type}" data-val="${v}" onclick="cycleObj(this)" type="button">${txt}</button>` +
-      `<button onclick="removeObj('${type}',${i})" type="button" title="Remove" style="background:none;border:none;color:var(--text4);cursor:pointer;font-size:9px;padding:0 1px;line-height:1;">✕</button>`;
+    html += `<span style="display:inline-flex;align-items:center;gap:2px;">
+      <span style="font-size:8px;color:var(--text4);font-weight:700;letter-spacing:.5px;">${labelShort}${i + 1}</span>
+      <button class="obj-btn ${cls}" data-type="${type}" data-val="${v}" onclick="cycleObj(this)" type="button">${txt}</button>
+      <button onclick="removeObj('${type}',${i})" type="button" title="Remove" style="background:none;border:none;color:var(--text4);cursor:pointer;font-size:9px;padding:0 1px;line-height:1;">✕</button>
+    </span>`;
   });
   html += `<button onclick="addObj('${type}')" type="button" style="font-size:9px;padding:2px 8px;border-radius:6px;border:1px dashed var(--border2);background:transparent;color:var(--text3);cursor:pointer;white-space:nowrap;">+ ${label}</button>`;
   return html;
+}
+
+/* Refresh just the header summary of an objective row (called after a cycle click). */
+function _refreshObjHeader(type) {
+  const row = document.getElementById('obj-' + type + '-row');
+  if (!row) return;
+  const values = [...row.querySelectorAll('[data-type="' + type + '"]')].map(b => b.dataset.val || '');
+  const header = row.querySelector('[data-obj-header="' + type + '"]');
+  if (!header) return;
+  const blueCnt = values.filter(v => v === 'blue').length;
+  const redCnt  = values.filter(v => v === 'red').length;
+  const firstNonEmpty = values.find(v => v === 'blue' || v === 'red') || '';
+  const firstDot = firstNonEmpty === 'blue' ? '<span style="color:#60a5fa;">●</span> Blue'
+                 : firstNonEmpty === 'red'  ? '<span style="color:#f87171;">●</span> Red'
+                 : '<span style="color:var(--text4);">—</span>';
+  const icon = type === 'turtle' ? '🐢' : '👑';
+  const label = type === 'turtle' ? 'Turtle' : 'Lord';
+  header.innerHTML = `
+    <span style="font-size:11px;">${icon}</span>
+    <span style="color:var(--text2);">${label}</span>
+    <span style="color:var(--text4);">·</span>
+    <span style="color:#60a5fa;font-family:var(--font-mono);">${blueCnt}</span>
+    <span style="color:var(--text4);">·</span>
+    <span style="color:#f87171;font-family:var(--font-mono);">${redCnt}</span>
+    <span style="color:var(--text4);">·</span>
+    <span style="color:var(--text3);font-weight:500;">First ${firstDot}</span>`;
 }
 
 /* Re-render one objective row from current button values + add new empty slot */
@@ -3663,6 +4141,37 @@ function cycleObj(btn) {
   btn.dataset.val = next;
   btn.textContent = next === 'blue' ? 'Blue' : next === 'red' ? 'Red' : '—';
   btn.className = 'obj-btn' + (next ? ' ' + next : '');
+  // If this button is part of the first chip in its row, refresh the header summary.
+  const row = btn.closest('[id^="obj-"]');
+  if (row) _refreshObjHeader(row.id.includes('turtle') ? 'turtle' : 'lord');
+}
+
+/* Three-state First Blood picker: Blue / Red / — */
+function _buildFirstBloodHTML(current) {
+  const opts = [
+    { v: 'blue', label: 'Blue', col: '#60a5fa' },
+    { v: 'red',  label: 'Red',  col: '#f87171' },
+    { v: '',     label: '—',    col: 'var(--text3)' },
+  ];
+  return opts.map(o => {
+    const active = (current||'') === o.v;
+    return `<button type="button" data-fb="${o.v}" onclick="setFirstBlood('${o.v}')"
+      style="font-size:10px;font-weight:700;padding:5px 12px;border-radius:6px;cursor:pointer;
+      ${active ? `background:${o.col}26;color:${o.col};border:1px solid ${o.col};` : `background:transparent;color:var(--text3);border:1px solid var(--border2);`}
+      ">${o.label}</button>`;
+  }).join('');
+}
+
+function setFirstBlood(v) {
+  const row = document.getElementById('fb-row');
+  if (!row) return;
+  row.dataset.value = v || '';
+  row.innerHTML = _buildFirstBloodHTML(v);
+}
+
+function _readFirstBlood() {
+  const row = document.getElementById('fb-row');
+  return row?.dataset.value || '';
 }
 
 // ══════════════════════════════════════════════════════════════

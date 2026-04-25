@@ -1204,13 +1204,30 @@ function _adminCheckReady() {
 
 // ── LEAGUES ──────────────────────────────────────────────────────────────
 let _adminLeagueCache = [];
+let _adminSeasonsByLeague = {}; // { [leagueName]: string[] } sorted desc
 
 async function loadAdminLeagues() {
   if (!_adminCheckReady()) return;
   const el = document.getElementById('adminLeagueList');
   if (!el) return;
   try {
-    _adminLeagueCache = await WDB.loadLeagues();
+    // Load leagues + matches in parallel; matches feed the per-league season dropdown
+    const [leagues, matches] = await Promise.all([
+      WDB.loadLeagues(),
+      WDB.loadMatches().catch(() => [])
+    ]);
+    _adminLeagueCache = leagues;
+    _adminSeasonsByLeague = {};
+    matches.forEach(m => {
+      const lg = (m.league || '').trim();
+      const ss = (m.season || '').trim();
+      if (!lg || !ss) return;
+      (_adminSeasonsByLeague[lg] = _adminSeasonsByLeague[lg] || new Set()).add(ss);
+    });
+    Object.keys(_adminSeasonsByLeague).forEach(k => {
+      _adminSeasonsByLeague[k] = [..._adminSeasonsByLeague[k]]
+        .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+    });
     renderAdminLeagues();
   } catch (e) {
     el.innerHTML = `<div class="admin-empty" style="color:var(--red);">Failed to load: ${_adminEsc(e.message)}</div>`;
@@ -1224,23 +1241,52 @@ function renderAdminLeagues() {
     el.innerHTML = '<div class="admin-empty">No leagues yet — add one above.</div>';
     return;
   }
-  el.innerHTML = _adminLeagueCache.map(l => `
+  el.innerHTML = _adminLeagueCache.map(l => {
+    const seasons = _adminSeasonsByLeague[l.name] || [];
+    const cur = l.current_season || '';
+    // Keep the saved season selectable even if no matches exist for it (yet)
+    const opts = [...new Set([cur, ...seasons].filter(Boolean))];
+    const noOptions = opts.length === 0;
+    const seasonSelect = `
+      <select class="admin-mgmt-input sm"
+              style="font-size:11px;padding:4px 8px;min-width:140px;${noOptions?'opacity:.5;':''}"
+              onchange="adminSetCurrentSeason('${_adminEsc(l.id)}', this.value)"
+              ${noOptions?'disabled title="Add a match with a season first to mark it current"':'title="Pre-select this season in Scout when this league is filtered"'}>
+        <option value="">— No current —</option>
+        ${opts.map(s => `<option value="${_adminEsc(s)}" ${s===cur?'selected':''}>${_adminEsc(s)}</option>`).join('')}
+      </select>`;
+    return `
     <div class="admin-row">
       <div class="admin-row-main">
         <div>
           <div class="admin-row-name">${_adminEsc(l.name)}</div>
-          <div class="admin-row-meta">${_adminEsc(l.region || 'No region')}</div>
+          <div class="admin-row-meta">${_adminEsc(l.region || 'No region')}${cur ? ` · current: <strong style="color:var(--accent);">${_adminEsc(cur)}</strong>` : ''}</div>
         </div>
         ${l.is_scout_active ? '<span class="admin-badge">SCOUT DEFAULT</span>' : ''}
       </div>
-      <div class="admin-row-actions">
+      <div class="admin-row-actions" style="flex-wrap:wrap;">
+        ${seasonSelect}
         ${l.is_scout_active
           ? ''
           : `<button class="admin-mgmt-btn ghost sm" onclick="adminSetActiveLeague('${_adminEsc(l.id)}')">Set Default</button>`}
         <button class="admin-mgmt-btn danger sm" onclick="adminDeleteLeague('${_adminEsc(l.id)}','${_adminEsc(l.name)}')">Delete</button>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
+}
+
+async function adminSetCurrentSeason(leagueId, season) {
+  if (!_adminCheckReady()) return;
+  const league = _adminLeagueCache.find(l => l.id === leagueId);
+  if (!league) return;
+  try {
+    await WDB.saveLeague({ ...league, current_season: season || null });
+    _adminToast(season ? `Current season → ${season}` : 'Current season cleared');
+    await loadAdminLeagues();
+  } catch (e) {
+    _adminToast('Save failed: ' + e.message, 'error');
+  }
 }
 
 async function adminSaveLeague() {

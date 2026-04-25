@@ -596,7 +596,9 @@ WDB.getCounterMap = function() {
  *  rows show the *counter's* win rate vs H (i.e. 1 - H's wr), sorted desc.
  *  [{ name, wr, count }]   (min 2 games, wr = counter's wr against H) */
 WDB.computeScoutCountersFromMatches = function(matches, minMatches) {
-  minMatches = minMatches == null ? 2 : minMatches;
+  // Default raised from 2 → 3: two-game samples were producing noisy "100% counter" entries.
+  // Three games is still permissive but cuts the worst coin-flip noise.
+  minMatches = minMatches == null ? 3 : minMatches;
   const vs = {}; // vs[H][X] = { wins: H's wins vs X, count: total games together }
   (matches || []).forEach(m => {
     if (!m || !m.winner) return;
@@ -645,7 +647,8 @@ WDB.computeScoutCountersFromMatches = function(matches, minMatches) {
 /** For each hero → list of same-team heroes with best win rate together.
  *  [{ name, wr, count }]   (sorted by wr desc, min 2 games) */
 WDB.computeScoutSynergiesFromMatches = function(matches, minMatches) {
-  minMatches = minMatches == null ? 2 : minMatches;
+  // Default raised from 2 → 3 (see counters function above).
+  minMatches = minMatches == null ? 3 : minMatches;
   const pair = {}; // pair[hero][mate] = { wins, count }
   (matches || []).forEach(m => {
     if (!m || !m.winner) return;
@@ -1139,11 +1142,27 @@ WDB.loadLeagues = async function() {
 WDB.saveLeague = async function(league) {
   const user = WAuth.getUser();
   const row = { name: league.name, region: league.region || null,
-                is_scout_active: !!league.is_scout_active, created_by: user?.id };
+                is_scout_active: !!league.is_scout_active,
+                current_season: (league.current_season || null),
+                created_by: user?.id };
   if (league.id) row.id = league.id;
   const { data, error } = await _sbClient.from('leagues').upsert(row, { onConflict: 'id' }).select().single();
   if (error) throw error;
   return data;
+};
+
+/** Look up the admin-marked current season for a league name. Returns string or null. */
+WDB.getCurrentSeasonForLeague = async function(leagueName) {
+  if (!leagueName || leagueName === 'all') return null;
+  // Hardcoded MPL/MSC/M-Series leagues live in PUBLIC_LEAGUES but may have a row
+  // in the leagues table too. Match by name.
+  const { data, error } = await _sbClient
+    .from('leagues')
+    .select('current_season')
+    .eq('name', leagueName)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data.current_season || null;
 };
 
 /** Delete a league and all its seasons. Admin only. */
