@@ -383,12 +383,78 @@ body {
 /* ── OBJ FORM BUTTONS ── */
 .obj-btn {
   font-size:9px; font-weight:700; font-family:var(--font-head);
-  padding:2px 8px; border-radius:8px; border:1px solid var(--border2);
-  cursor:pointer; background:transparent; color:var(--text3); transition:all .1s;
-  min-width:36px;
+  padding:3px 10px; border-radius:8px; border:1px solid var(--border2);
+  cursor:pointer; background:transparent; color:var(--text3); transition:all .12s ease;
+  min-width:42px;
 }
+.obj-btn:hover { transform:translateY(-1px); }
 .obj-btn.blue { background:var(--blue-dim); color:var(--blue); border-color:var(--blue-border); }
 .obj-btn.red  { background:var(--red-dim);  color:var(--red);  border-color:var(--red-border); }
+
+/* ── KILL TALLIES & STAT INPUTS ── strip native spinners, type-only ── */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+/* Inline KDA trio attached to each draft pick slot */
+.kda-trio {
+  display:inline-flex; align-items:center; gap:0;
+  margin-left:auto;
+  background:var(--surface3); border:1px solid var(--border2);
+  border-radius:7px; padding:1px; overflow:hidden;
+}
+.kda-trio input {
+  width:30px; padding:3px 0; font-size:10.5px; font-family:var(--font-mono);
+  text-align:center; border:0; background:transparent; color:var(--text);
+  outline:none; transition:background .12s ease;
+}
+.kda-trio input:hover { background:rgba(255,255,255,0.04); }
+.kda-trio input:focus { background:rgba(255,255,255,0.08); }
+.kda-trio input.k { color:var(--green); }
+.kda-trio input.d { color:var(--red); }
+.kda-trio input.a { color:var(--blue); }
+.kda-trio input::placeholder { color:var(--text4); font-weight:400; }
+.kda-sep { font-size:11px; color:var(--text4); user-select:none; padding:0 1px; }
+
+/* Compact stat number inputs (towers, etc.) */
+.stat-num {
+  width:54px; padding:5px 8px; font-size:12.5px; font-weight:700;
+  font-family:var(--font-mono); text-align:center;
+  background:var(--surface3); border:1px solid var(--border2);
+  color:var(--text); border-radius:7px; outline:none; transition:all .12s ease;
+}
+.stat-num:hover { border-color:var(--border); }
+.stat-num:focus { border-color:var(--accent); background:var(--surface2); }
+.stat-num.blue:focus { border-color:#60a5fa; }
+.stat-num.red:focus  { border-color:#f87171; }
+.stat-num::placeholder { color:var(--text4); font-weight:400; }
+
+/* First Blood pill picker */
+.fb-pill {
+  font-size:10px; font-weight:700; font-family:var(--font-head); letter-spacing:.4px;
+  padding:6px 14px; border-radius:8px; cursor:pointer;
+  background:transparent; color:var(--text3); border:1px solid var(--border2);
+  transition:all .12s ease;
+}
+.fb-pill:hover { transform:translateY(-1px); border-color:var(--border); color:var(--text2); }
+.fb-pill.active.blue { background:rgba(96,165,250,.15); color:#60a5fa; border-color:rgba(96,165,250,.55); }
+.fb-pill.active.red  { background:rgba(248,113,113,.15); color:#f87171; border-color:rgba(248,113,113,.55); }
+.fb-pill.active.none { background:var(--surface2); color:var(--text2); border-color:var(--border); }
+
+/* Premium card section header used inside the match modal */
+.entry-section-title {
+  font-size:9px; font-weight:800; font-family:var(--font-head);
+  letter-spacing:1.4px; text-transform:uppercase;
+  color:var(--text3); margin-bottom:8px;
+  display:flex; align-items:center; gap:7px;
+}
+.entry-section-title::before {
+  content:''; display:inline-block; width:3px; height:11px;
+  background:var(--accent); border-radius:2px;
+}
 
 /* ── DRAFT BOARD ── */
 .draft-layout {
@@ -1965,12 +2031,29 @@ function openNewMatch() {
   draftLaneFilter = 'All';
   draftHeroSearch = '';
   draftFilterMode = 'lane';
+  // Pre-pick the user's most recently filtered league when possible — feels like a smart default.
+  const seedLeague = (leagueFilter !== 'all' && LEAGUES.includes(leagueFilter)) ? leagueFilter : 'MPL PH';
+  // Pre-fill the season from that league's admin-marked current_season.
+  // Each league has its OWN current_season — MPL PH could be S17 while MPL ID is S15.
+  const seedSeason = LEAGUE_CURRENT_SEASON[seedLeague] || '';
   _openMatchModal({
-    id:'', league:'MPL PH', season:'', stage:'Regular Season', week:'',
+    id:'', league:seedLeague, season:seedSeason, stage:'Regular Season', week:'',
     seriesFormat:'BO3', gameNum:1, blueTeam:'', redTeam:'', winner:'blue',
     date: new Date().toISOString().split('T')[0], vodLink:'', notes:'',
     blueBans:[], redBans:[], bluePicks:[], redPicks:[]
   });
+}
+
+// When the League dropdown changes inside the entry modal, swap the Season field
+// to that league's current_season — but only if Season is empty OR was the previous
+// league's current_season (i.e. user hasn't typed something custom).
+function _onLeagueChangedInModal(newLeague) {
+  checkLeagueAdminLock(newLeague);
+  const sInput = document.getElementById('mf-season');
+  if (!sInput) return;
+  const cur = (sInput.value || '').trim();
+  const isAutoFilled = cur === '' || Object.values(LEAGUE_CURRENT_SEASON).includes(cur);
+  if (isAutoFilled) sInput.value = LEAGUE_CURRENT_SEASON[newLeague] || '';
 }
 
 function openEditMatch(id) {
@@ -2040,7 +2123,7 @@ function _openMatchModal(m) {
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">League</label>
-              <select class="form-select" id="mf-league" onchange="checkLeagueAdminLock(this.value)">
+              <select class="form-select" id="mf-league" onchange="_onLeagueChangedInModal(this.value)">
                 ${LEAGUES.map(l=>`<option value="${l}" ${m.league===l?'selected':''}>${l}</option>`).join('')}
               </select>
               <div id="leagueAdminWarning" style="display:none;margin-top:5px;font-size:10px;color:var(--gold);background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:6px;padding:5px 10px;">
@@ -2049,7 +2132,7 @@ function _openMatchModal(m) {
             </div>
             <div class="form-group">
               <label class="form-label">Season</label>
-              <input class="form-input" id="mf-season" placeholder="Season 15" value="${m.season||''}">
+              <input class="form-input" id="mf-season" placeholder="e.g. Season 17" value="${m.season||''}" title="Each league has its own season — auto-fills from the league's current season set in Profile · Admin">
             </div>
             <div class="form-group">
               <label class="form-label">Stage</label>
@@ -2121,7 +2204,7 @@ function _openMatchModal(m) {
           </div>
           <div class="form-row" style="margin-top:6px;">
             <div style="flex:1;">
-              <div class="form-label" style="margin-bottom:6px;">Objectives — click each kill chip to cycle team &nbsp;<span style="font-weight:400;color:var(--text3);">(order matters · T1 = first turtle, etc.)</span></div>
+              <div class="entry-section-title">Objectives <span style="font-weight:400;color:var(--text4);text-transform:none;letter-spacing:0;font-size:10px;margin-left:4px;">click each chip to cycle team · order matters (T1 = first turtle)</span></div>
               <div id="obj-turtle-row" style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:5px;">
                 ${_buildObjRowHTML('turtle', _readObjArr(m,'turtle'))}
               </div>
@@ -2130,21 +2213,21 @@ function _openMatchModal(m) {
               </div>
             </div>
           </div>
-          <div class="form-row" style="margin-top:6px;align-items:flex-end;gap:14px;">
+          <div class="form-row" style="margin-top:10px;align-items:flex-end;gap:18px;flex-wrap:wrap;">
             <div style="flex-shrink:0;">
-              <div class="form-label" style="margin-bottom:6px;">First Blood &nbsp;<span style="font-weight:400;color:var(--text3);">(optional)</span></div>
-              <div id="fb-row" data-value="${m.firstBlood||''}" style="display:flex;gap:4px;">
+              <div class="entry-section-title">First Blood <span style="font-weight:400;color:var(--text4);text-transform:none;letter-spacing:0;font-size:10px;margin-left:4px;">optional</span></div>
+              <div id="fb-row" data-value="${m.firstBlood||''}" style="display:flex;gap:5px;">
                 ${_buildFirstBloodHTML(m.firstBlood||'')}
               </div>
             </div>
             <div style="flex-shrink:0;">
-              <div class="form-label" style="margin-bottom:6px;">Towers Destroyed</div>
-              <div style="display:flex;align-items:center;gap:6px;">
-                <span style="font-size:9px;font-weight:700;color:#60a5fa;letter-spacing:1px;">BLUE</span>
-                <input type="number" min="0" max="11" id="mf-towers-blue" value="${m.towers?.blue ?? ''}" placeholder="—" style="width:50px;padding:4px 6px;font-size:12px;font-family:var(--font-mono);text-align:center;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.25);color:var(--text);border-radius:6px;">
-                <span style="font-size:11px;color:var(--text4);">·</span>
-                <span style="font-size:9px;font-weight:700;color:#f87171;letter-spacing:1px;">RED</span>
-                <input type="number" min="0" max="11" id="mf-towers-red" value="${m.towers?.red ?? ''}" placeholder="—" style="width:50px;padding:4px 6px;font-size:12px;font-family:var(--font-mono);text-align:center;background:rgba(248,113,113,0.07);border:1px solid rgba(248,113,113,0.25);color:var(--text);border-radius:6px;">
+              <div class="entry-section-title">Towers Destroyed</div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:9.5px;font-weight:800;color:#60a5fa;letter-spacing:1.2px;font-family:var(--font-head);">BLUE</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" class="stat-num blue" id="mf-towers-blue" value="${m.towers?.blue ?? ''}" placeholder="—">
+                <span style="font-size:14px;color:var(--text4);font-weight:300;">·</span>
+                <span style="font-size:9.5px;font-weight:800;color:#f87171;letter-spacing:1.2px;font-family:var(--font-head);">RED</span>
+                <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" class="stat-num red" id="mf-towers-red" value="${m.towers?.red ?? ''}" placeholder="—">
               </div>
             </div>
           </div>
@@ -2220,13 +2303,14 @@ function renderDraftBoard() {
         style="${sl.player ? 'background:rgba(168,136,204,0.12);color:var(--accent);border-color:rgba(168,136,204,0.4);' : ''}"
         onclick="showPlayerPicker(${i},this,'${step.team}')" title="Tag player">${sl.player || '+ player'}</span>` : '';
       // Inline K · D · A inputs for picks. Optional — empty fields produce no kda.
+      // type=text + inputmode=numeric: type-only behavior, no native spinners, mobile shows numpad.
       const kda = sl.kda || {};
-      const kdaInputs = !isBan ? `<span class="kda-trio" style="display:inline-flex;align-items:center;gap:2px;margin-left:auto;">
-        <input type="number" min="0" inputmode="numeric" data-kda-slot="${i}" data-kda-key="k" value="${kda.k ?? ''}" placeholder="K" onchange="setKda(${i},'k',this.value)" title="Kills" style="width:30px;padding:2px 0;font-size:10px;font-family:var(--font-mono);text-align:center;background:rgba(52,209,122,0.07);border:1px solid rgba(52,209,122,0.25);color:var(--green);border-radius:4px;">
-        <span style="font-size:9px;color:var(--text4);">/</span>
-        <input type="number" min="0" inputmode="numeric" data-kda-slot="${i}" data-kda-key="d" value="${kda.d ?? ''}" placeholder="D" onchange="setKda(${i},'d',this.value)" title="Deaths" style="width:30px;padding:2px 0;font-size:10px;font-family:var(--font-mono);text-align:center;background:rgba(240,82,82,0.07);border:1px solid rgba(240,82,82,0.25);color:var(--red);border-radius:4px;">
-        <span style="font-size:9px;color:var(--text4);">/</span>
-        <input type="number" min="0" inputmode="numeric" data-kda-slot="${i}" data-kda-key="a" value="${kda.a ?? ''}" placeholder="A" onchange="setKda(${i},'a',this.value)" title="Assists" style="width:30px;padding:2px 0;font-size:10px;font-family:var(--font-mono);text-align:center;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.25);color:var(--blue);border-radius:4px;">
+      const kdaInputs = !isBan ? `<span class="kda-trio">
+        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" class="k" data-kda-slot="${i}" data-kda-key="k" value="${kda.k ?? ''}" placeholder="K" onchange="setKda(${i},'k',this.value)" title="Kills">
+        <span class="kda-sep">/</span>
+        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" class="d" data-kda-slot="${i}" data-kda-key="d" value="${kda.d ?? ''}" placeholder="D" onchange="setKda(${i},'d',this.value)" title="Deaths">
+        <span class="kda-sep">/</span>
+        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" class="a" data-kda-slot="${i}" data-kda-key="a" value="${kda.a ?? ''}" placeholder="A" onchange="setKda(${i},'a',this.value)" title="Assists">
       </span>` : '';
       return `<div class="${cls}" data-step="${i}">
         ${label}
@@ -4156,16 +4240,14 @@ function cycleObj(btn) {
 /* Three-state First Blood picker: Blue / Red / — */
 function _buildFirstBloodHTML(current) {
   const opts = [
-    { v: 'blue', label: 'Blue', col: '#60a5fa' },
-    { v: 'red',  label: 'Red',  col: '#f87171' },
-    { v: '',     label: '—',    col: 'var(--text3)' },
+    { v: 'blue', label: 'Blue', cls: 'blue' },
+    { v: 'red',  label: 'Red',  cls: 'red' },
+    { v: '',     label: '—',    cls: 'none' },
   ];
   return opts.map(o => {
     const active = (current||'') === o.v;
     return `<button type="button" data-fb="${o.v}" onclick="setFirstBlood('${o.v}')"
-      style="font-size:10px;font-weight:700;padding:5px 12px;border-radius:6px;cursor:pointer;
-      ${active ? `background:${o.col}26;color:${o.col};border:1px solid ${o.col};` : `background:transparent;color:var(--text3);border:1px solid var(--border2);`}
-      ">${o.label}</button>`;
+      class="fb-pill ${active ? 'active ' + o.cls : ''}">${o.label}</button>`;
   }).join('');
 }
 
