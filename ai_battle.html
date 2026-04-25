@@ -1223,10 +1223,22 @@ function recordOutcome(picks,bans,won,isHuman=false,oppPicks=[]){
 const LANE_COLORS_AB = { Gold:'#f59e0b', Mid:'#a855f7', Roam:'#22c55e', Jungle:'#ef4444', EXP:'#38bdf8', Flex:'#94a3b8' };
 const LANE_ICONS_AB  = { Gold:'GLD', Mid:'MID', Roam:'RMG', Jungle:'JGL', EXP:'EXP', Flex:'FLX' };
 
+// Heroes whose lanes are confirmed from scout match data.
+// Populated at startup from WDB.computeHeroLaneSets in the boot block below.
+const SCOUT_CONFIRMED_LANES = {};
+
 function getHeroLanesAB(h) {
+  // 1. Scout-confirmed lanes are authoritative — return ONLY observed lanes,
+  //    no role-based speculation. Fixes Phoveus-as-Jungle (he's an EXP fighter).
+  if (SCOUT_CONFIRMED_LANES[h.name]) return SCOUT_CONFIRMED_LANES[h.name];
+  // 2. Static hardcoded defaults from warr-lib (curated per real MLBB usage).
+  if (typeof WDB !== 'undefined' && WDB.HERO_LANE_DEFAULTS && WDB.HERO_LANE_DEFAULTS[h.name]) {
+    return WDB.HERO_LANE_DEFAULTS[h.name];
+  }
+  // 3. Tier-list / LANES_MAP fallback for heroes with curated meta data.
   const primary = TIER_LIST[h.name]?.lane || LANES_MAP[h.name] || null;
+  // 4. Final fallback: role-based heuristic.
   const r = h.role;
-  // Role-based secondary lanes (ordered by likelihood)
   const sec = [];
   if (r.includes('Support')) sec.push('Roam');
   if (r === 'MM' || r.startsWith('MM/')) sec.push('Gold');
@@ -1234,7 +1246,6 @@ function getHeroLanesAB(h) {
   if (r.includes('Mage') && !r.includes('Support')) { sec.push('Mid'); sec.push('Roam'); }
   if (r.includes('Tank') && !r.includes('Fighter')) { sec.push('Roam'); sec.push('EXP'); }
   if (r.includes('Fighter')) { sec.push('EXP'); sec.push('Jungle'); }
-  // Primary first, then secondaries (deduped)
   const all = primary ? [primary, ...sec.filter(l=>l!==primary)] : (sec.length ? sec : ['Flex']);
   return [...new Set(all)];
 }
@@ -3170,12 +3181,16 @@ updateMemChip();
 (async () => {
   const ok = await WAuth.requireAuth();
   if (!ok) return;
-  // Patch LANES_MAP with observed lanes from scout match data
+  // Patch LANES_MAP with observed lanes from scout match data, and capture the
+  // FULL set of observed lanes (not just the primary) into SCOUT_CONFIRMED_LANES.
+  // The latter takes priority in getHeroLanesAB so we don't append speculative
+  // role-based secondaries for heroes that scout data has already classified.
   try {
-    const scoutRoles = await WDB.computeHeroRoles(1);
-    Object.entries(scoutRoles).forEach(([hero, primaryLane]) => {
-      LANES_MAP[hero] = primaryLane;
-      if (TIER_LIST[hero]) TIER_LIST[hero].lane = primaryLane; // scout data beats stale meta sheet lane
+    const laneSets = WDB.computeHeroLaneSets ? await WDB.computeHeroLaneSets(1) : {};
+    Object.entries(laneSets).forEach(([hero, lanes]) => {
+      SCOUT_CONFIRMED_LANES[hero] = lanes;
+      LANES_MAP[hero] = lanes[0]; // most common lane
+      if (TIER_LIST[hero]) TIER_LIST[hero].lane = lanes[0]; // scout data beats stale meta sheet lane
     });
   } catch(e) { /* fail silently — defaults still apply */ }
 })();

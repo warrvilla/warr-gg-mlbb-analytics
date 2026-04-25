@@ -974,6 +974,100 @@ WDB.getPoolByRole = function(roleKw) {
 };
 
 // ═══════════════════════════════════════════════════════════════
+// HERO LANE DEFAULTS (single source of truth shared across pages)
+// ───────────────────────────────────────────────────────────────
+// Static lane mapping based on real MLBB role usage. Used as fallback
+// when scout match data has no observation for a hero. Heroes with
+// scout-observed lanes always take precedence over these defaults.
+// ═══════════════════════════════════════════════════════════════
+WDB.HERO_LANE_DEFAULTS = {
+  // Gold
+  'Claude':['Gold'],'Karrie':['Gold'],'Beatrix':['Gold'],'Wanwan':['Gold'],
+  'Granger':['Gold'],'Brody':['Gold'],'Miya':['Gold'],'Bruno':['Gold'],
+  'Clint':['Gold'],'Hanabi':['Gold'],'Irithel':['Gold'],'Layla':['Gold'],
+  'Lesley':['Gold'],'Melissa':['Gold'],'Moskov':['Gold'],'Natan':['Gold'],
+  'Ixia':['Gold'],'Obsidia':['Gold'],
+  'Roger':['Gold','Jungle'],'Freya':['Gold'],'Harith':['Gold'],
+  // Jungle
+  'Yi Sun-shin':['Jungle'],'Hayabusa':['Jungle'],'Lancelot':['Jungle'],
+  'Ling':['Jungle'],'Fanny':['Jungle'],'Nolan':['Jungle'],'Gusion':['Jungle'],
+  'Karina':['Jungle'],'Benedetta':['Jungle'],'Helcurt':['Jungle'],
+  'Joy':['Jungle'],'Aamon':['Jungle'],'Natalia':['Jungle'],'Saber':['Jungle'],
+  'Hanzo':['Jungle'],'Suyou':['Jungle'],'Fredrinn':['Jungle','EXP'],
+  'Phoveus':['EXP'],'Martis':['Jungle','EXP'],
+  'Aldous':['EXP','Jungle'],'Argus':['EXP','Jungle'],'Barats':['Jungle','EXP'],
+  'Leomord':['Jungle'],'Alpha':['Jungle'],'Harley':['Jungle','Mid'],
+  'Julian':['Jungle','Mid'],'Balmond':['EXP'],
+  'Sun':['EXP','Jungle'],'Baxia':['Roam','Jungle'],
+  // Mid
+  'Alice':['Mid','Roam'],
+  'Zhuxin':['Mid'],'Yve':['Mid'],'Pharsa':['Mid'],'Kagura':['Mid'],'Zetian':['Mid'],
+  'Valentina':['Mid'],'Xavier':['Mid'],'Novaria':['Mid'],'Lylia':['Mid'],
+  'Lunox':['Mid'],'Kadita':['Mid','Jungle'],'Luo Yi':['Mid'],'Odette':['Mid'],
+  'Cecilion':['Mid'],'Vale':['Mid'],'Eudora':['Mid'],'Aurora':['Mid'],
+  'Gord':['Mid'],'Cyclops':['Mid'],'Vexana':['Mid'],'Zhask':['Mid'],
+  'Nana':['Mid','Roam'],'Kimmy':['Mid'],"Chang'e":['Mid'],
+  'Selena':['Mid','Roam'],'Faramis':['Roam','Mid'],'Valir':['Mid','Roam'],
+  // EXP
+  'Aulus':['EXP'],'Guinevere':['Jungle'],
+  'Yu Zhong':['EXP'],'Arlott':['EXP'],'Cici':['EXP'],'Gatotkaca':['EXP'],
+  'Esmeralda':['EXP'],'Dyrroth':['EXP'],'Terizla':['EXP'],'Thamuz':['EXP'],
+  'Khaleed':['EXP'],'Paquito':['EXP'],'Silvanna':['EXP'],
+  'Badang':['EXP'],'Ruby':['EXP','Roam'],
+  'Hilda':['EXP','Roam'],'Masha':['EXP'],'X.Borg':['EXP'],
+  'Lapu-Lapu':['EXP'],'Zilong':['EXP'],'Alucard':['EXP'],'Yin':['EXP'],
+  'Lukas':['EXP','Jungle'],'Sora':['EXP'],'Bane':['EXP'],
+  'Jawhead':['Roam'],'Uranus':['EXP'],'Minsitthar':['Roam','EXP'],
+  // Roam
+  'Hylos':['Roam'],'Atlas':['Roam'],'Khufra':['Roam'],
+  'Gloo':['Roam'],'Chip':['Roam'],'Kalea':['Roam'],'Mathilda':['Roam'],
+  'Angela':['Roam'],'Floryn':['Roam'],'Franco':['Roam'],'Tigreal':['Roam'],
+  'Johnson':['Roam'],'Akai':['Roam'],'Minotaur':['Roam'],'Lolita':['Roam'],
+  'Grock':['Roam'],'Belerick':['Roam'],'Carmilla':['Roam'],
+  'Kaja':['Roam'],'Diggie':['Roam'],'Estes':['Roam'],'Rafaela':['Roam'],
+  'Edith':['Roam'],'Marcel':['Roam'],'Chou':['Roam','Gold'],
+  'Popol & Kupa':['Roam'],
+};
+
+/** Return the array of likely lanes for a hero. Looks up the hardcoded map first;
+ *  falls back to a role-based heuristic for any hero not in the map. Always returns
+ *  at least one lane label (or ['Flex'] if role doesn't disambiguate). */
+WDB.getHeroLanes = function(name, role) {
+  if (WDB.HERO_LANE_DEFAULTS[name]) return WDB.HERO_LANE_DEFAULTS[name];
+  const r = role || '';
+  if (r.includes('Support')) return ['Roam'];
+  if (r.startsWith('MM') || r === 'MM') return ['Gold'];
+  if (r.includes('Assassin') && !r.includes('Fighter')) return ['Jungle'];
+  if (r.includes('Mage') && !r.includes('Support')) return ['Mid'];
+  if (r.includes('Tank') && !r.includes('Fighter')) return ['Roam'];
+  if (r.includes('Fighter')) return ['EXP'];
+  return ['Flex'];
+};
+
+/** Compute hero → ALL observed lanes from scout data, ordered by frequency.
+ *  Returns { heroName: ['PrimaryLane', 'SecondaryLane', ...] }.
+ *  Multi-lane heroes get multiple entries; single-lane heroes get a one-element array. */
+WDB.computeHeroLaneSets = async function(minSamples = 2) {
+  let matches;
+  try { matches = await WDB.loadMatches(); } catch(e) { return {}; }
+  const counts = {};
+  matches.forEach(m => {
+    [...(m.bluePicks || []), ...(m.redPicks || [])].forEach(p => {
+      if (!p || !p.name || !p.lane) return;
+      if (!counts[p.name]) counts[p.name] = {};
+      counts[p.name][p.lane] = (counts[p.name][p.lane] || 0) + 1;
+    });
+  });
+  const result = {};
+  Object.entries(counts).forEach(([hero, laneCounts]) => {
+    const total = Object.values(laneCounts).reduce((a,b) => a+b, 0);
+    if (total < minSamples) return;
+    result[hero] = Object.entries(laneCounts).sort((a,b) => b[1]-a[1]).map(([l]) => l);
+  });
+  return result;
+};
+
+// ═══════════════════════════════════════════════════════════════
 // ADMIN HELPERS
 // ═══════════════════════════════════════════════════════════════
 /** Check if a given email should have admin access (only wrrenvillapando@gmail.com by default).

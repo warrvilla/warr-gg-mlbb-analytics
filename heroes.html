@@ -462,14 +462,21 @@ function getFilteredHeroes() {
   const onlyD  = document.getElementById('dataOnly').value === 'yes';
   const q      = document.getElementById('searchIn').value.trim().toLowerCase();
 
-  let list = HEROES.map(h => ({
-    name: h.name || h.n,
-    role: h.role || h.r || '',
-    lane: _heroLaneMap[h.name || h.n] || '',
-  }));
+  let list = HEROES.map(h => {
+    const name = h.name || h.n;
+    const heroRole = h.role || h.r || '';
+    // Scout-observed lane wins; otherwise fall back to the static default lanes
+    // from warr-lib so heroes that haven't been picked yet still appear under
+    // their natural lane filter (Phoveus → EXP, Lancelot → Jungle, etc.).
+    const observedLane = _heroLaneMap[name] || '';
+    const defaultLanes = (typeof WDB !== 'undefined' && WDB.getHeroLanes)
+      ? WDB.getHeroLanes(name, heroRole) : [];
+    const allLanes = observedLane ? [observedLane] : defaultLanes;
+    return { name, role: heroRole, lane: observedLane, allLanes };
+  });
 
   if (role)  list = list.filter(h => h.role.includes(role));
-  if (lane)  list = list.filter(h => h.lane === lane);
+  if (lane)  list = list.filter(h => h.allLanes.includes(lane));
   if (q)     list = list.filter(h => h.name.toLowerCase().includes(q));
   if (onlyD) list = list.filter(h => _playCounts[h.name] > 0);
 

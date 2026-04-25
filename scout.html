@@ -2601,79 +2601,43 @@ function renderHeroPool() {
   };
 }
 
-// ── Correct per-hero lane map (sourced from draft_board + ai_battle) ──
-const HERO_LANES_MAP = {
-  // Gold
-  'Claude':['Gold'],'Karrie':['Gold'],'Beatrix':['Gold'],'Wanwan':['Gold'],
-  'Granger':['Gold'],'Brody':['Gold'],'Miya':['Gold'],'Bruno':['Gold'],
-  'Clint':['Gold'],'Hanabi':['Gold'],'Irithel':['Gold'],'Layla':['Gold'],
-  'Lesley':['Gold'],'Melissa':['Gold'],'Moskov':['Gold'],'Natan':['Gold'],
-  'Ixia':['Gold'],'Obsidia':['Gold'],
-  'Roger':['Gold','Jungle'],'Freya':['Gold'],'Harith':['Gold'],
-  // Jungle
-  'Yi Sun-shin':['Jungle'],'Hayabusa':['Jungle'],'Lancelot':['Jungle'],
-  'Ling':['Jungle'],'Fanny':['Jungle'],'Nolan':['Jungle'],'Gusion':['Jungle'],
-  'Karina':['Jungle'],'Benedetta':['Jungle'],'Helcurt':['Jungle'],
-  'Joy':['Jungle'],'Aamon':['Jungle'],'Natalia':['Jungle'],'Saber':['Jungle'],
-  'Hanzo':['Jungle'],'Suyou':['Jungle'],'Fredrinn':['Jungle','EXP'],
-  'Phoveus':['EXP'],'Martis':['Jungle','EXP'],
-  'Aldous':['EXP','Jungle'],'Argus':['EXP','Jungle'],'Barats':['Jungle','EXP'],
-  'Leomord':['Jungle'],'Alpha':['Jungle'],'Harley':['Jungle','Mid'],
-  'Julian':['Jungle','Mid'],'Balmond':['EXP'],
-  'Sun':['EXP','Jungle'],'Baxia':['Roam','Jungle'],
-  // Mid
-  'Alice':['Mid','Roam'],
-  'Zhuxin':['Mid'],'Yve':['Mid'],'Pharsa':['Mid'],'Kagura':['Mid'],'Zetian':['Mid'],
-  'Valentina':['Mid'],'Xavier':['Mid'],'Novaria':['Mid'],'Lylia':['Mid'],
-  'Lunox':['Mid'],'Kadita':['Mid','Jungle'],'Luo Yi':['Mid'],'Odette':['Mid'],
-  'Cecilion':['Mid'],'Vale':['Mid'],'Eudora':['Mid'],'Aurora':['Mid'],
-  'Gord':['Mid'],'Cyclops':['Mid'],'Vexana':['Mid'],'Zhask':['Mid'],
-  'Nana':['Mid','Roam'],'Kimmy':['Mid'],"Chang'e":['Mid'],
-  'Selena':['Mid','Roam'],'Faramis':['Roam','Mid'],'Valir':['Mid','Roam'],
-  // EXP
-  'Aulus':['EXP'],'Guinevere':['Jungle'],
-  'Yu Zhong':['EXP'],'Arlott':['EXP'],'Cici':['EXP'],'Gatotkaca':['EXP'],
-  'Esmeralda':['EXP'],'Dyrroth':['EXP'],'Terizla':['EXP'],'Thamuz':['EXP'],
-  'Khaleed':['EXP'],'Paquito':['EXP'],'Silvanna':['EXP'],
-  'Badang':['EXP'],'Ruby':['EXP','Roam'],
-  'Hilda':['EXP','Roam'],'Masha':['EXP'],'X.Borg':['EXP'],
-  'Lapu-Lapu':['EXP'],'Zilong':['EXP'],'Alucard':['EXP'],'Yin':['EXP'],
-  'Lukas':['EXP','Jungle'],'Sora':['EXP'],'Bane':['EXP'],
-  'Jawhead':['Roam'],'Uranus':['EXP'],'Minsitthar':['Roam','EXP'],
-  // Roam
-  'Hylos':['Roam'],'Atlas':['Roam'],'Khufra':['Roam'],
-  'Gloo':['Roam'],'Chip':['Roam'],'Kalea':['Roam'],'Mathilda':['Roam'],
-  'Angela':['Roam'],'Floryn':['Roam'],'Franco':['Roam'],'Tigreal':['Roam'],
-  'Johnson':['Roam'],'Akai':['Roam'],'Minotaur':['Roam'],'Lolita':['Roam'],
-  'Grock':['Roam'],'Belerick':['Roam'],'Carmilla':['Roam'],
-  'Kaja':['Roam'],'Diggie':['Roam'],'Estes':['Roam'],'Rafaela':['Roam'],
-  'Edith':['Roam'],'Marcel':['Roam'],'Chou':['Roam','Gold'],
-  'Popol & Kupa':['Roam'],
-};
-
+// Hero → likely lanes is now sourced from WDB.HERO_LANE_DEFAULTS in warr-lib.js
+// (single source of truth shared with heroes.html and ai_battle.html). If WDB
+// hasn't loaded yet for any reason, fall back to a Flex placeholder.
 function heroLanes(h) {
-  if (HERO_LANES_MAP[h.name]) return HERO_LANES_MAP[h.name];
-  // Fallback by role for any hero not in map
-  const r = h.role;
-  if (r.includes('Support')) return ['Roam'];
-  if (r.startsWith('MM') || r === 'MM') return ['Gold'];
-  if (r.includes('Assassin') && !r.includes('Fighter')) return ['Jungle'];
-  if (r.includes('Mage') && !r.includes('Support')) return ['Mid'];
-  if (r.includes('Tank') && !r.includes('Fighter')) return ['Roam'];
-  if (r.includes('Fighter')) return ['EXP'];
+  if (typeof WDB !== 'undefined' && WDB.getHeroLanes) return WDB.getHeroLanes(h.name, h.role);
   return ['Flex'];
 }
+
+// HERO_LANES_MAP kept as a lazy alias for any legacy callers that read it directly.
+const HERO_LANES_MAP = (typeof WDB !== 'undefined' ? WDB.HERO_LANE_DEFAULTS : {});
 
 function pickHero(name) {
   if (draftStepIndex >= DRAFT_STEPS.length) { toast('Draft complete — all 20 steps filled'); return; }
   const step = DRAFT_STEPS[draftStepIndex];
   const h = heroByName(name);
   if (!h) return;
-  // Auto-assign primary lane from HERO_LANES_MAP; bans always null
+  // Auto-assign primary lane from WDB.HERO_LANE_DEFAULTS; bans always null.
   const autoLane = step.type === 'pick' ? (heroLanes(h)[0] || null) : null;
-  draftSlots[draftStepIndex] = {heroName:name, heroId:h.id, lane:autoLane, type:step.type, team:step.team};
+  // Auto-assign the team's main player at that lane (if known). Subs can still
+  // be set manually via the player picker; we only pre-fill, never overwrite.
+  const autoPlayer = step.type === 'pick' ? _defaultPlayerForLane(step.team, autoLane) : null;
+  draftSlots[draftStepIndex] = {
+    heroName:name, heroId:h.id, lane:autoLane, type:step.type, team:step.team,
+    ...(autoPlayer ? { player:autoPlayer } : {}),
+  };
   draftStepIndex++;
   renderDraftBoard();
+}
+
+// Find the team's main player whose role matches the given lane.
+// Uses _scoutPlayers (loaded by loadScoutPlayers when team names are entered).
+function _defaultPlayerForLane(team, lane) {
+  if (!lane) return null;
+  const roster = _scoutPlayers && _scoutPlayers[team];
+  if (!Array.isArray(roster) || !roster.length) return null;
+  const match = roster.find(p => p.role === lane && p.is_active !== false);
+  return match ? match.ign : null;
 }
 
 function setDraftStep(i)  { draftStepIndex = i; renderDraftBoard(); }
@@ -2703,7 +2667,20 @@ function showLanePicker(idx, el) {
   }, 0);
 }
 function setLaneFromPicker(idx, l) {
-  if (draftSlots[idx]) draftSlots[idx].lane = l || null;
+  const sl = draftSlots[idx];
+  if (sl) {
+    const prevLane = sl.lane;
+    sl.lane = l || null;
+    // Auto-update the player tag if it's empty or was the previous lane's default.
+    // This way changing Mid → Roam swaps the player to the Roam main automatically,
+    // but if you manually picked a sub, the sub stays.
+    const prevDefault = prevLane ? _defaultPlayerForLane(sl.team, prevLane) : null;
+    const newDefault  = l ? _defaultPlayerForLane(sl.team, l) : null;
+    if (!sl.player || sl.player === prevDefault) {
+      if (newDefault) sl.player = newDefault;
+      else if (sl.player === prevDefault) sl.player = null;
+    }
+  }
   document.querySelectorAll('.lane-picker-pop').forEach(p => p.remove());
   renderDraftBoard();
 }
@@ -2721,6 +2698,17 @@ async function loadScoutPlayers() {
     const all = await WDB.loadPlayers();
     if (blueTeam) _scoutPlayers.blue = all.filter(p => p.team_name === blueTeam && p.is_active !== false);
     if (redTeam)  _scoutPlayers.red  = all.filter(p => p.team_name === redTeam  && p.is_active !== false);
+    // Backfill default players on any existing picks that don't have one yet.
+    // Covers the case where user assigned heroes before the roster finished loading.
+    let dirty = false;
+    if (Array.isArray(draftSlots)) {
+      draftSlots.forEach(sl => {
+        if (!sl || sl.type !== 'pick' || sl.player || !sl.lane) return;
+        const def = _defaultPlayerForLane(sl.team, sl.lane);
+        if (def) { sl.player = def; dirty = true; }
+      });
+    }
+    if (dirty && document.getElementById('draftBoard')) renderDraftBoard();
   } catch(e) {}
 }
 
