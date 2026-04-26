@@ -629,11 +629,13 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
   padding: 1px 6px; border-radius: 4px;
 }
 .lp-kda-mono {
-  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
-  color: var(--text2); white-space: nowrap;
-  width: 70px; text-align: right;
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 400;
+  color: var(--text3); white-space: nowrap;
+  letter-spacing: -0.01em;
 }
-.lp-kda-mono.lp-kda-empty { color: var(--text4); }
+.lp-row .lp-kda-mono { width: 64px; text-align: right; opacity: .7; }
+.lp-row .lp-kda-mono.lp-kda-empty { display: none; }
+.lp-row.has-kda .lp-kda-mono { opacity: 1; }
 
 /* ── DRAFT BOARD ── */
 .draft-layout {
@@ -2121,9 +2123,9 @@ function renderMatchListBody() {
       const lords   = obj.lord   || [obj.l1,obj.l2,obj.l3].filter(Boolean);
       const hasObj  = turtles.length || lords.length;
       const objRow  = hasObj ? `<div class="obj-row">
-        ${turtles.length ? `<span style="font-size:8px;color:var(--text3);">🐢</span>${turtles.map((v,i)=>`<span style="font-size:7px;color:var(--text4);">T${i+1}</span>${objTeamLabel(v,g.blueTeam,g.redTeam)}`).join('')}` : ''}
+        ${turtles.length ? `<span style="font-size:8.5px;font-weight:600;color:var(--text3);letter-spacing:.5px;">TUR</span>${turtles.map((v,i)=>`<span style="font-size:7px;color:var(--text4);">T${i+1}</span>${objTeamLabel(v,g.blueTeam,g.redTeam)}`).join('')}` : ''}
         ${turtles.length && lords.length ? `<div style="width:1px;height:10px;background:var(--border2);"></div>` : ''}
-        ${lords.length   ? `<span style="font-size:8px;color:var(--text3);">👑</span>${lords.map((v,i)=>`<span style="font-size:7px;color:var(--text4);">L${i+1}</span>${objTeamLabel(v,g.blueTeam,g.redTeam)}`).join('')}` : ''}
+        ${lords.length   ? `<span style="font-size:8.5px;font-weight:600;color:var(--text3);letter-spacing:.5px;">LRD</span>${lords.map((v,i)=>`<span style="font-size:7px;color:var(--text4);">L${i+1}</span>${objTeamLabel(v,g.blueTeam,g.redTeam)}`).join('')}` : ''}
       </div>` : '';
 
       return `<div class="game-row" onclick="openEditMatch('${g.id}')">
@@ -2364,10 +2366,10 @@ function _openMatchModal(m) {
               <label class="form-label">Map</label>
               <select class="form-select" id="mf-map">
                 <option value="">— Any —</option>
-                <option value="Dangerous Grass" ${m.map==='Dangerous Grass'?'selected':''}>🌿 Dangerous Grass</option>
-                <option value="Broken Walls"    ${m.map==='Broken Walls'   ?'selected':''}>🏚️ Broken Walls</option>
-                <option value="Flying Cloud"    ${m.map==='Flying Cloud'   ?'selected':''}>☁️ Flying Cloud</option>
-                <option value="Expanding River" ${m.map==='Expanding River'?'selected':''}>🌊 Expanding River</option>
+                <option value="Dangerous Grass" ${m.map==='Dangerous Grass'?'selected':''}>Dangerous Grass</option>
+                <option value="Broken Walls"    ${m.map==='Broken Walls'   ?'selected':''}>Broken Walls</option>
+                <option value="Flying Cloud"    ${m.map==='Flying Cloud'   ?'selected':''}>Flying Cloud</option>
+                <option value="Expanding River" ${m.map==='Expanding River'?'selected':''}>Expanding River</option>
               </select>
             </div>
           </div>
@@ -3082,11 +3084,10 @@ function openTeamEditor(teamName) {
               <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">MAP WIN RATES</div>
               <div style="display:flex;flex-direction:column;gap:5px;">
                 ${Object.entries(t.mapStats).map(([mp,s])=>{
-                  const emoji=mp==='Dangerous Grass'?'🌿':mp==='Broken Walls'?'🏚️':mp==='Flying Cloud'?'☁️':'🌊';
                   const wrc=s.wr>=60?'var(--green)':s.wr>=50?'var(--gold)':'var(--red)';
                   const barW=s.wr;
                   return `<div style="display:flex;align-items:center;gap:8px;">
-                    <span style="font-size:11px;width:130px;flex-shrink:0;">${emoji} ${mp}</span>
+                    <span style="font-size:11px;width:130px;flex-shrink:0;">${mp}</span>
                     <div style="flex:1;height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;">
                       <div style="width:${barW}%;height:100%;background:${wrc};border-radius:3px;"></div>
                     </div>
@@ -3287,7 +3288,7 @@ async function generateTeamImage(teamName) {
     toast('Export failed — try again');
   }
 
-  if (btn) { btn.textContent = '🖨 Export PDF'; btn.disabled = false; }
+  if (btn) { btn.textContent = 'Export PDF'; btn.disabled = false; }
 }
 
 function openTeamReport(teamName) {
@@ -3449,9 +3450,9 @@ function openTeamReport(teamName) {
           const lords   = obj.lord   || [obj.l1,obj.l2,obj.l3].filter(Boolean);
           const hasObj  = turtles.length || lords.length;
           const objRow  = hasObj ? `<div class="obj-row">
-            ${turtles.length ? `<span style="font-size:8px;color:var(--text3);">🐢</span>${turtles.map((v,i)=>`<span style="font-size:7px;color:var(--text4);">T${i+1}</span>${objTeamLabel(v,g.blueTeam,g.redTeam)}`).join('')}` : ''}
+            ${turtles.length ? `<span style="font-size:8.5px;font-weight:600;color:var(--text3);letter-spacing:.5px;">TUR</span>${turtles.map((v,i)=>`<span style="font-size:7px;color:var(--text4);">T${i+1}</span>${objTeamLabel(v,g.blueTeam,g.redTeam)}`).join('')}` : ''}
             ${turtles.length && lords.length ? `<div style="width:1px;height:10px;background:var(--border2);"></div>` : ''}
-            ${lords.length   ? `<span style="font-size:8px;color:var(--text3);">👑</span>${lords.map((v,i)=>`<span style="font-size:7px;color:var(--text4);">L${i+1}</span>${objTeamLabel(v,g.blueTeam,g.redTeam)}`).join('')}` : ''}
+            ${lords.length   ? `<span style="font-size:8.5px;font-weight:600;color:var(--text3);letter-spacing:.5px;">LRD</span>${lords.map((v,i)=>`<span style="font-size:7px;color:var(--text4);">L${i+1}</span>${objTeamLabel(v,g.blueTeam,g.redTeam)}`).join('')}` : ''}
           </div>` : '';
 
           return `<div class="game-row">
@@ -3643,12 +3644,13 @@ function openTeamReport(teamName) {
       const ak = hasKda ? (hh.k/hh.kdaGames).toFixed(1) : null;
       const ad = hasKda ? (hh.d/hh.kdaGames).toFixed(1) : null;
       const aa = hasKda ? (hh.a/hh.kdaGames).toFixed(1) : null;
-      return `<div class="lp-row">
+      // KDA shown only when entered. No placeholder column for cleaner rows.
+      return `<div class="lp-row${hasKda?' has-kda':''}">
         ${img(h, 22)}
         <span class="lp-name">${h}</span>
         <span class="lp-games">${hh.games}g</span>
         <span class="lp-wr" style="color:${wrc(wr)};">${wr}%</span>
-        ${hasKda ? `<span class="lp-kda-mono">${ak}/${ad}/${aa}</span>` : `<span class="lp-kda-mono lp-kda-empty">—</span>`}
+        ${hasKda ? `<span class="lp-kda-mono">${ak} · ${ad} · ${aa}</span>` : ''}
       </div>`;
     };
 
@@ -3726,7 +3728,7 @@ function openTeamReport(teamName) {
         <div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0;">
           <button class="btn btn-ghost btn-sm" onclick="openTeamEditor('${teamName}');document.getElementById('teamReportModal').remove();">Edit</button>
           <button class="btn btn-ghost btn-sm" onclick="openH2H('${teamName}')">H2H</button>
-          <button class="btn btn-accent btn-sm" id="pdfBtn" onclick="generateTeamImage('${teamName}')">🖨 Export PDF</button>
+          <button class="btn btn-accent btn-sm" id="pdfBtn" onclick="generateTeamImage('${teamName}')">Export PDF</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('teamReportModal').remove()">✕</button>
         </div>
       </div>
@@ -3820,18 +3822,16 @@ function openTeamReport(teamName) {
                 const toWinHTML = toWin !== null ? `<span style="font-size:11px;color:var(--text3);">→ Win</span><span style="font-size:12px;font-weight:700;color:${wrc(toWin)};font-family:var(--font-mono);">${toWin}%</span><span style="font-size:8.5px;color:var(--text4);">·${toWinGames}g</span>` : '';
                 if (!ctrlHTML && !firstHTML && !toWinHTML) return '';
                 return `<div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;flex-wrap:wrap;">
-                  <span style="font-size:14px;">${icon}</span>
-                  <span style="font-size:11px;font-weight:700;width:48px;flex-shrink:0;">${label}</span>
+                  <span style="font-size:11px;font-weight:700;width:90px;flex-shrink:0;">${label}</span>
                   ${ctrlHTML ? `<span style="display:inline-flex;align-items:center;gap:3px;">${ctrlHTML}</span>` : ''}
                   ${firstHTML ? `<span style="color:var(--border2);">·</span><span style="display:inline-flex;align-items:center;gap:3px;">${firstHTML}</span>` : ''}
                   ${toWinHTML ? `<span style="color:var(--border2);">·</span><span style="display:inline-flex;align-items:center;gap:3px;">${toWinHTML}</span>` : ''}
                 </div>`;
               };
-              const turtleLine = _line('🐢', 'Turtle', t.turtleCtrl, t.turtleTotal||0, t.firstTurtleRate, t.firstTurtleGames||0, t.firstTurtleToWin, (t.firstTurtleRate!==null?Math.round((t.firstTurtleRate/100)*(t.firstTurtleGames||0)):0));
-              const lordLine   = _line('👑', 'Lord',   t.lordCtrl,   t.lordTotal||0,   t.firstLordRate,   t.firstLordGames||0,   t.firstLordToWin,   (t.firstLordRate!==null?Math.round((t.firstLordRate/100)*(t.firstLordGames||0)):0));
+              const turtleLine = _line('', 'Turtle', t.turtleCtrl, t.turtleTotal||0, t.firstTurtleRate, t.firstTurtleGames||0, t.firstTurtleToWin, (t.firstTurtleRate!==null?Math.round((t.firstTurtleRate/100)*(t.firstTurtleGames||0)):0));
+              const lordLine   = _line('', 'Lord',   t.lordCtrl,   t.lordTotal||0,   t.firstLordRate,   t.firstLordGames||0,   t.firstLordToWin,   (t.firstLordRate!==null?Math.round((t.firstLordRate/100)*(t.firstLordGames||0)):0));
               const fbLine = (t.fbRate!==null) ? `<div style="display:flex;align-items:center;gap:7px;margin-bottom:0;flex-wrap:wrap;">
-                <span style="font-size:14px;">🩸</span>
-                <span style="font-size:11px;font-weight:700;width:48px;flex-shrink:0;">First Blood</span>
+                <span style="font-size:11px;font-weight:700;width:90px;flex-shrink:0;">First Blood</span>
                 <span style="display:inline-flex;align-items:center;gap:3px;">
                   <span style="font-size:12px;font-weight:700;color:${wrc(t.fbRate)};font-family:var(--font-mono);">${t.fbRate}%</span>
                   <span style="font-size:8.5px;color:var(--text4);">·${t.fbGames||0}g</span>
@@ -3842,8 +3842,7 @@ function openTeamReport(teamName) {
                 </span>` : ''}
               </div>` : '';
               const towerLine = (t.avgTowers!==null) ? `<div style="display:flex;align-items:center;gap:7px;margin-top:8px;flex-wrap:wrap;">
-                <span style="font-size:14px;">🏯</span>
-                <span style="font-size:11px;font-weight:700;width:48px;flex-shrink:0;">Towers</span>
+                <span style="font-size:11px;font-weight:700;width:90px;flex-shrink:0;">Towers</span>
                 <span style="display:inline-flex;align-items:center;gap:3px;">
                   <span style="font-size:12px;font-weight:700;color:var(--accent);font-family:var(--font-mono);">${t.avgTowers}</span>
                   <span style="font-size:9px;color:var(--text3);">avg</span>
@@ -4280,12 +4279,11 @@ function _readObjArr(m, type) {
 }
 
 /* Build the inner HTML for one objective row (turtle or lord). */
-/* Header summary 🐢 Turtle · 2 · 1 · First ● Blue   then labeled chips T1/T2/T3. */
+/* Header summary "Turtle · 2 · 1 · First Blue" then labeled chips T1/T2/T3. */
 function _buildObjRowHTML(type, values) {
-  const icon = type === 'turtle' ? '🐢' : '👑';
   const labelShort = type === 'turtle' ? 'T' : 'L';
   const label = type === 'turtle' ? 'Turtle' : 'Lord';
-  let html = _objHeaderHTML(type, icon, label, values);
+  let html = _objHeaderHTML(type, label, values);
   values.forEach((v, i) => {
     const cls = v === 'blue' ? 'blue' : v === 'red' ? 'red' : '';
     const txt = v === 'blue' ? 'Blue' : v === 'red' ? 'Red' : '—';
@@ -4300,7 +4298,7 @@ function _buildObjRowHTML(type, values) {
 }
 
 /* Header markup factored out so both initial render and refresh use the same source of truth. */
-function _objHeaderHTML(type, icon, label, values) {
+function _objHeaderHTML(type, label, values) {
   const blueCnt = values.filter(v => v === 'blue').length;
   const redCnt  = values.filter(v => v === 'red').length;
   const firstNonEmpty = values.find(v => v === 'blue' || v === 'red') || '';
@@ -4308,7 +4306,6 @@ function _objHeaderHTML(type, icon, label, values) {
                   : firstNonEmpty === 'red'  ? '<span class="o-dot" style="color:#f87171;">●</span>Red'
                   : '—';
   return `<span class="obj-header" data-obj-header="${type}">
-    <span class="o-icon">${icon}</span>
     <span class="o-label">${label}</span>
     <span class="o-cnt-blue">${blueCnt}</span>
     <span style="color:var(--text4);">·</span>
@@ -4324,10 +4321,9 @@ function _refreshObjHeader(type) {
   const values = [...row.querySelectorAll('[data-type="' + type + '"]')].map(b => b.dataset.val || '');
   const header = row.querySelector('[data-obj-header="' + type + '"]');
   if (!header) return;
-  const icon = type === 'turtle' ? '🐢' : '👑';
   const label = type === 'turtle' ? 'Turtle' : 'Lord';
   // Re-emit only the header's inner; outer wrapper kept stable.
-  header.outerHTML = _objHeaderHTML(type, icon, label, values);
+  header.outerHTML = _objHeaderHTML(type, label, values);
 }
 
 /* Re-render one objective row from current button values + add new empty slot */

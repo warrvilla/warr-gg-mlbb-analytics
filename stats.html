@@ -867,7 +867,7 @@ async function generateReport() {
     <div id="reportToolbar" class="no-print" style="display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
       <span style="font-size:11px;font-weight:700;color:var(--text2);font-family:var(--font-head);letter-spacing:.4px;">SCOUTING REPORT · ${blueName} vs ${redName}</span>
       <span style="margin-left:auto;display:flex;gap:6px;">
-        <button class="btn btn-accent btn-sm" id="analysisPdfBtn" onclick="exportAnalysisPDF()">🖨 Export PDF</button>
+        <button class="btn btn-accent btn-sm" id="analysisPdfBtn" onclick="exportAnalysisPDF()">Export PDF</button>
       </span>
     </div>
     <div id="reportBody">${buildStaticReport(blueName, redName, blueStats, redStats, h2h)}</div>`;
@@ -1496,7 +1496,7 @@ async function exportAnalysisPDF() {
     // Show the actual reason so it's debuggable, not just "failed"
     toast('Export failed: ' + (e?.message || e || 'unknown error'));
   }
-  if (btn) { btn.textContent = '🖨 Export PDF'; btn.disabled = false; }
+  if (btn) { btn.textContent = 'Export PDF'; btn.disabled = false; }
 }
 
 // ══════ INIT ══════
