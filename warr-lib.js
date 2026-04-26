@@ -1044,6 +1044,50 @@ WDB.getHeroLanes = function(name, role) {
   return ['Flex'];
 };
 
+/** Bulk backfill: scan all matches and tag picks with the team's main player
+ *  at each lane (when player.role matches pick.lane). Empty tags only — never
+ *  overwrites manually set values. Returns { matchesUpdated, picksTagged }. */
+WDB.backfillPlayersFromRoster = async function() {
+  const players = await WDB.loadPlayers();
+  // Group active players by team_name + role for fast lookup
+  const rosterByTeam = {};
+  players.filter(p => p.is_active !== false).forEach(p => {
+    if (!p.team_name || !p.role) return;
+    if (!rosterByTeam[p.team_name]) rosterByTeam[p.team_name] = {};
+    // Highest-priority player per (team, role) wins — first hit (loadPlayers
+    // already returns by created_at desc, so most recent main is preferred).
+    if (!rosterByTeam[p.team_name][p.role]) rosterByTeam[p.team_name][p.role] = p.ign;
+  });
+
+  const matches = await WDB.loadMatches();
+  let matchesUpdated = 0;
+  let picksTagged = 0;
+  const dirty = [];
+  matches.forEach(m => {
+    let changed = false;
+    const tagSide = (picks, teamName) => {
+      if (!Array.isArray(picks) || !teamName) return;
+      const roster = rosterByTeam[teamName];
+      if (!roster) return;
+      picks.forEach(p => {
+        if (!p || p.player) return; // skip if already tagged (manual override preserved)
+        if (!p.lane) return;
+        const ign = roster[p.lane];
+        if (ign) { p.player = ign; picksTagged++; changed = true; }
+      });
+    };
+    tagSide(m.bluePicks, m.blueTeam);
+    tagSide(m.redPicks,  m.redTeam);
+    if (changed) { matchesUpdated++; dirty.push(m); }
+  });
+
+  // Push every changed match back to Supabase. Sequential to keep row order.
+  for (const m of dirty) {
+    try { await WDB.saveMatch(m); } catch(e) { console.warn('backfill save failed', m.id, e); }
+  }
+  return { matchesUpdated, picksTagged };
+};
+
 /** Compute hero → ALL observed lanes from scout data, ordered by frequency.
  *  Returns { heroName: ['PrimaryLane', 'SecondaryLane', ...] }.
  *  Multi-lane heroes get multiple entries; single-lane heroes get a one-element array. */

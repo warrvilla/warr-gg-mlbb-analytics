@@ -619,6 +619,21 @@ body { background: var(--bg); min-height: 100vh; }
       </div>
     </div>
 
+    <!-- ADMIN: MAINTENANCE — bulk-fix tools -->
+    <div class="admin-mgmt-card" id="adminMaintCard">
+      <h4>🛠 Admin — Maintenance</h4>
+      <div class="mgmt-sub">One-click cleanups for existing match data. Safe to re-run — these only fill missing fields and never overwrite anything you've manually set.</div>
+      <div class="admin-mgmt-form" style="flex-direction:column;align-items:stretch;gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button class="admin-mgmt-btn" id="backfillPlayersBtn" onclick="adminBackfillPlayers()">Backfill player tags</button>
+          <span style="font-size:11px;color:var(--text3);flex:1;min-width:200px;">
+            Scans every match and tags picks with the team's main player at that lane (when you have one in the roster). Picks already tagged stay untouched.
+          </span>
+        </div>
+        <div id="backfillResult" style="font-size:11px;color:var(--text2);min-height:14px;"></div>
+      </div>
+    </div>
+
     <!-- ADMIN PANEL CARD (only visible for wrrenvillapando@gmail.com) -->
     <div class="admin-access-card" id="adminAccessCard">
       <h4>⚙ Admin Panel</h4>
@@ -1396,6 +1411,31 @@ async function adminSavePlayer() {
   } catch (e) {
     _adminToast('Save failed: ' + e.message, 'error');
   }
+}
+
+// Bulk-tag every match's picks with the team's main player at that lane.
+// Empty pick.player slots only — manual overrides preserved.
+async function adminBackfillPlayers() {
+  if (!_adminCheckReady()) return;
+  if (!confirm('Backfill player tags on all your matches?\n\nThis will only fill picks that don\'t have a player tagged yet. Anything you\'ve manually set stays untouched. You can still edit individual picks afterward.')) return;
+  const btn = document.getElementById('backfillPlayersBtn');
+  const out = document.getElementById('backfillResult');
+  if (btn) { btn.disabled = true; btn.textContent = 'Working…'; }
+  if (out) { out.textContent = ''; out.style.color = 'var(--text2)'; }
+  try {
+    const { matchesUpdated, picksTagged } = await WDB.backfillPlayersFromRoster();
+    if (out) {
+      out.style.color = 'var(--green)';
+      out.textContent = picksTagged
+        ? `✓ Tagged ${picksTagged} pick${picksTagged===1?'':'s'} across ${matchesUpdated} match${matchesUpdated===1?'':'es'}.`
+        : '✓ Already up to date — nothing to backfill.';
+    }
+    _adminToast(`Backfilled ${picksTagged} picks ✓`);
+  } catch(e) {
+    if (out) { out.style.color = 'var(--red)'; out.textContent = 'Failed: ' + e.message; }
+    _adminToast('Backfill failed: ' + e.message, 'error');
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'Backfill player tags'; }
 }
 
 async function adminDeletePlayer(id, ign) {
