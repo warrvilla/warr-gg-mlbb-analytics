@@ -600,6 +600,41 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
   margin-left: -4px;
 }
 
+/* Player block within a lane section — main player + their hero pool, then subs */
+.lp-player-block + .lp-player-block {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 0.5px solid var(--border);
+}
+.lp-player-line {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 4px; padding-bottom: 4px;
+  font-family: var(--font-body); font-size: 11.5px;
+}
+.lp-player-line .lp-player-ign {
+  font-weight: 600; color: var(--text);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.lp-player-line .lp-player-stats {
+  margin-left: auto;
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--text3);
+}
+.lp-player-line.lp-untagged .lp-player-ign { color: var(--text3); font-weight: 500; font-style: italic; }
+.lp-sub-badge {
+  font-family: var(--font-body); font-size: 9px; font-weight: 600;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  background: rgba(255,255,255,0.05);
+  border: 0.5px solid var(--border2);
+  color: var(--text3);
+  padding: 1px 6px; border-radius: 4px;
+}
+.lp-kda-mono {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 500;
+  color: var(--text2); white-space: nowrap;
+  width: 70px; text-align: right;
+}
+.lp-kda-mono.lp-kda-empty { color: var(--text4); }
+
 /* ── DRAFT BOARD ── */
 .draft-layout {
   display: grid;
@@ -3548,8 +3583,9 @@ function openTeamReport(teamName) {
     .slice(0,7).map(([h,s]) => sideRowHTML(h,s)).join('');
   const blueRecord = (t.blueSideGames||0) ? `${t.blueWins||0}W-${(t.blueSideGames||0)-(t.blueWins||0)}L` : '—';
   const redRecord  = (t.redSideGames||0)  ? `${t.redWins||0}W-${(t.redSideGames||0)-(t.redWins||0)}L`   : '—';
-  // ── Lane Pool (per-lane hero usage with WR + player attribution) ──
-  // Works on existing data: every pick already has p.lane.
+  // ── Per-Lane Roster (combines old Lane Pool + Player Performance into one) ──
+  // Aggregation: lane → player → heroes. Replaces both sections so each lane is
+  // a single block showing who plays it, their KDA, and their hero pool with WR.
   const LANE_ORDER = ['Gold','Jungle','Mid','EXP','Roam'];
   const LANE_COLORS = {
     Gold:   '#f4a534',
@@ -3558,10 +3594,10 @@ function openTeamReport(teamName) {
     EXP:    '#f87171',
     Roam:   '#34d17a',
   };
-  const laneStats = {};   // { lane: { hero: {games, wins} } }
-  const laneTotals = {};  // { lane: gamesCount }
-  const lanePlayers = {}; // { lane: { player: gamesCount } }
-  LANE_ORDER.forEach(L => { laneStats[L] = {}; laneTotals[L] = 0; lanePlayers[L] = {}; });
+  const UNTAGGED = '__untagged__';
+  const laneRoster = {}; // { lane: { player: { games, k, d, a, kdaGames, heroes:{ hero:{games,wins,k,d,a,kdaGames} } } } }
+  const laneTotals = {}; // { lane: gamesCount }
+  LANE_ORDER.forEach(L => { laneRoster[L] = {}; laneTotals[L] = 0; });
   teamGames.forEach(m => {
     const isBlue = m.blueTeam === teamName;
     const won = (isBlue && m.winner === 'blue') || (!isBlue && m.winner === 'red');
@@ -3569,111 +3605,83 @@ function openTeamReport(teamName) {
     picks.forEach(p => {
       const hero = p.name, lane = p.lane;
       if (!hero || !lane) return;
-      if (!LANE_ORDER.includes(lane)) return; // skip Flex / Unknown
-      if (!laneStats[lane][hero]) laneStats[lane][hero] = { games:0, wins:0, k:0, d:0, a:0, kdaGames:0 };
-      laneStats[lane][hero].games += 1;
-      if (won) laneStats[lane][hero].wins += 1;
-      // Aggregate KDA per hero on this lane (only for picks that have kda entered).
-      if (p.kda) {
-        laneStats[lane][hero].k += Number(p.kda.k)||0;
-        laneStats[lane][hero].d += Number(p.kda.d)||0;
-        laneStats[lane][hero].a += Number(p.kda.a)||0;
-        laneStats[lane][hero].kdaGames += 1;
+      if (!LANE_ORDER.includes(lane)) return;
+      const player = p.player || UNTAGGED;
+      if (!laneRoster[lane][player]) {
+        laneRoster[lane][player] = { games:0, k:0, d:0, a:0, kdaGames:0, heroes:{} };
       }
+      const pr = laneRoster[lane][player];
+      pr.games += 1;
+      if (p.kda) { pr.k += Number(p.kda.k)||0; pr.d += Number(p.kda.d)||0; pr.a += Number(p.kda.a)||0; pr.kdaGames += 1; }
+      if (!pr.heroes[hero]) pr.heroes[hero] = { games:0, wins:0, k:0, d:0, a:0, kdaGames:0 };
+      const hh = pr.heroes[hero];
+      hh.games += 1; if (won) hh.wins += 1;
+      if (p.kda) { hh.k += Number(p.kda.k)||0; hh.d += Number(p.kda.d)||0; hh.a += Number(p.kda.a)||0; hh.kdaGames += 1; }
       laneTotals[lane] += 1;
-      if (p.player) lanePlayers[lane][p.player] = (lanePlayers[lane][p.player]||0) + 1;
     });
   });
   const anyLaneData = LANE_ORDER.some(L => laneTotals[L] > 0);
 
-  // ── Player Performance (only renders when player+kda data exists) ──
-  // Pull each tagged player's top heroes with games/WR/avg KDA. Sort columns by lane order.
-  const playerPerfByLane = {}; // { lane: [ {player, lane, totalGames, kda{k,d,a}, heroes:[{name,games,wins,k,d,a}] } ] }
-  if (t.playerKDA) {
-    Object.entries(t.playerKDA).forEach(([player, pk]) => {
-      // Skip players with no games or no kda entries
-      if (!pk.games) return;
-      const lane = pk.lane || 'Unknown';
-      if (!playerPerfByLane[lane]) playerPerfByLane[lane] = [];
-      const heroArr = Object.entries(pk.heroes || {})
-        .map(([n, hs]) => ({
-          name: n, games: hs.games, wins: hs.wins,
-          k: hs.k, d: hs.d, a: hs.a,
-          wr: hs.games ? Math.round(hs.wins/hs.games*100) : 0,
-        }))
-        .sort((a,b) => b.games - a.games || b.wins - a.wins)
-        .slice(0, 4);
-      playerPerfByLane[lane].push({
-        player, lane,
-        totalGames: pk.games,
-        avgK: (pk.k/pk.games).toFixed(1),
-        avgD: (pk.d/pk.games).toFixed(1),
-        avgA: (pk.a/pk.games).toFixed(1),
-        heroes: heroArr,
-      });
-    });
-  }
-  const anyPlayerPerf = Object.keys(playerPerfByLane).length > 0;
-  const playerPerfHTML = anyPlayerPerf ? LANE_ORDER.concat(['Unknown']).filter(L => playerPerfByLane[L]?.length).map(L => {
-    const lc = LANE_COLORS[L] || 'var(--text2)';
-    const items = playerPerfByLane[L].map(pp => {
-      const heroChips = pp.heroes.map(h =>
-        `<div style="display:flex;align-items:center;gap:5px;padding:2px 0;">
-          ${img(h.name, 18)}
-          <span style="font-size:10px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.name}</span>
-          <span style="font-size:8.5px;color:var(--text3);font-family:var(--font-mono);">${h.games}g</span>
-          <span style="font-size:9.5px;font-weight:800;font-family:var(--font-mono);color:${wrc(h.wr)};width:28px;text-align:right;">${h.wr}%</span>
-        </div>`
-      ).join('');
-      return `<div style="background:var(--surface2);border:1px solid ${lc}33;border-radius:8px;padding:9px 10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
-          <span style="font-size:10.5px;font-weight:800;color:var(--text);">${pp.player}</span>
-          <span style="font-size:9px;color:${lc};font-weight:700;letter-spacing:.8px;">${L.toUpperCase()}</span>
-        </div>
-        <div style="font-size:9.5px;color:var(--text3);font-family:var(--font-mono);margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid ${lc}22;">
-          ${pp.totalGames}g · <span style="color:var(--green);">${pp.avgK}</span>/<span style="color:var(--red);">${pp.avgD}</span>/<span style="color:var(--blue);">${pp.avgA}</span> avg
-        </div>
-        ${heroChips || '<div style="font-size:10px;color:var(--text3);">—</div>'}
-      </div>`;
-    }).join('');
-    return items;
-  }).join('') : '';
-  // Lane Pool — clean stacked-list. WR color is the at-a-glance "performance" signal.
-  // KDA is shown via hover tooltip ('KDA' label + title attribute) so the list stays scannable.
-  // Deeper KDA detail per player lives in the Player Performance section below.
+  // Per-Lane Roster — for each lane, list players (main first, subs after) with
+  // their hero pool. KDA shown when entered, omitted gracefully when not.
   const lanePoolHTML = LANE_ORDER.map(L => {
-    const heroes = Object.entries(laneStats[L])
-      .sort((a,b) => b[1].games - a[1].games || b[1].wins - a[1].wins);
-    const playerArr = Object.entries(lanePlayers[L]).sort((a,b) => b[1] - a[1]);
-    const primaryPlayer = playerArr.length ? playerArr[0][0] : null;
     const lc = LANE_COLORS[L];
-    if (!heroes.length) return `<div class="lp-section" style="opacity:.5;">
+    if (!laneTotals[L]) return `<div class="lp-section" style="opacity:.5;">
       <div class="lp-section-head" style="border-bottom:0;padding-bottom:0;margin-bottom:0;">
         <span class="lp-lane-name" style="color:${lc};">${L}</span>
         <span class="lp-lane-meta">No data</span>
       </div>
     </div>`;
-    const heroRows = heroes.map(([h, s]) => {
-      const wr = Math.round(s.wins/s.games*100);
-      const hasKda = s.kdaGames > 0;
-      const tooltip = hasKda
-        ? `Avg KDA ${(s.k/s.kdaGames).toFixed(1)}/${(s.d/s.kdaGames).toFixed(1)}/${(s.a/s.kdaGames).toFixed(1)} over ${s.kdaGames} game${s.kdaGames!==1?'s':''}`
-        : '';
-      return `<div class="lp-row${hasKda?' has-kda':''}" ${hasKda?`title="${tooltip}"`:''}>
-        ${img(h, 24)}
+    // Players who played this lane, sorted by games (main first, subs after).
+    const players = Object.entries(laneRoster[L]).sort((a,b) => b[1].games - a[1].games);
+    const uniqueHeroes = new Set();
+    players.forEach(([_, pr]) => Object.keys(pr.heroes).forEach(h => uniqueHeroes.add(h)));
+
+    const heroRow = (h, hh) => {
+      const wr = Math.round(hh.wins/hh.games*100);
+      const hasKda = hh.kdaGames > 0;
+      const ak = hasKda ? (hh.k/hh.kdaGames).toFixed(1) : null;
+      const ad = hasKda ? (hh.d/hh.kdaGames).toFixed(1) : null;
+      const aa = hasKda ? (hh.a/hh.kdaGames).toFixed(1) : null;
+      return `<div class="lp-row">
+        ${img(h, 22)}
         <span class="lp-name">${h}</span>
-        ${hasKda ? `<span class="lp-kda-hint" title="${tooltip}">KDA ›</span>` : ''}
-        <span class="lp-games">${s.games}g</span>
+        <span class="lp-games">${hh.games}g</span>
         <span class="lp-wr" style="color:${wrc(wr)};">${wr}%</span>
+        ${hasKda ? `<span class="lp-kda-mono">${ak}/${ad}/${aa}</span>` : `<span class="lp-kda-mono lp-kda-empty">—</span>`}
+      </div>`;
+    };
+
+    const playerBlocks = players.map(([player, pr], idx) => {
+      const isUntagged = player === UNTAGGED;
+      const isSub = !isUntagged && idx > 0;
+      const heroEntries = Object.entries(pr.heroes)
+        .sort((a,b) => b[1].games - a[1].games || b[1].wins - a[1].wins);
+      const hasKda = pr.kdaGames > 0;
+      const ak = hasKda ? (pr.k/pr.kdaGames).toFixed(1) : null;
+      const ad = hasKda ? (pr.d/pr.kdaGames).toFixed(1) : null;
+      const aa = hasKda ? (pr.a/pr.kdaGames).toFixed(1) : null;
+      const playerLine = isUntagged
+        ? `<div class="lp-player-line lp-untagged">
+            <span class="lp-player-ign">Unassigned picks</span>
+            <span class="lp-player-stats">${pr.games}g</span>
+          </div>`
+        : `<div class="lp-player-line">
+            <span class="lp-player-ign">${player}${isSub?' <span class="lp-sub-badge">sub</span>':''}</span>
+            <span class="lp-player-stats">${pr.games}g${hasKda ? ` · <span class="lp-kda-mono">${ak}/${ad}/${aa}</span>` : ''}</span>
+          </div>`;
+      return `<div class="lp-player-block">
+        ${playerLine}
+        ${heroEntries.map(([h, hh]) => heroRow(h, hh)).join('')}
       </div>`;
     }).join('');
+
     return `<div class="lp-section">
       <div class="lp-section-head">
         <span class="lp-lane-name" style="color:${lc};">${L}</span>
-        <span class="lp-lane-meta">${laneTotals[L]}g · ${heroes.length} hero${heroes.length!==1?'es':''}</span>
-        ${primaryPlayer ? `<span class="lp-lane-player" title="Primary player on ${L}">▸ ${primaryPlayer}</span>` : ''}
+        <span class="lp-lane-meta">${laneTotals[L]}g · ${uniqueHeroes.size} hero${uniqueHeroes.size!==1?'es':''}</span>
       </div>
-      ${heroRows}
+      ${playerBlocks}
     </div>`;
   }).join('');
 
@@ -3860,19 +3868,10 @@ function openTeamReport(teamName) {
           ${heatmapHTML ? `<div>${sec('Side Drafts · Picks & WR by Side', heatmapHTML)}</div>` : ''}
         </div>` : ''}
 
-        <!-- LANE POOL -->
+        <!-- PER-LANE ROSTER -->
         ${anyLaneData ? `
         <div style="margin-bottom:18px;">
-          ${sec('Lane Pool · Heroes by Lane', `<div>${lanePoolHTML}</div>`)}
-        </div>` : ''}
-
-        <!-- PLAYER PERFORMANCE (only when KDA + player data exists) -->
-        ${anyPlayerPerf ? `
-        <div style="margin-bottom:18px;break-inside:avoid;page-break-inside:avoid;">
-          ${sec('Player Performance · K/D/A by Lane', `
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;">
-              ${playerPerfHTML}
-            </div>`)}
+          ${sec('Per-Lane Roster · Players & Heroes', `<div>${lanePoolHTML}</div>`)}
         </div>` : ''}
 
         <!-- MATCH HISTORY -->
