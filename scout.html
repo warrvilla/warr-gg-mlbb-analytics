@@ -573,69 +573,79 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
   border-radius: 6px;
   padding: 2px 9px;
 }
+/* Hero row uses CSS grid so columns align perfectly across all rows.
+   Order: icon | name | KDA | games | WR — KDA sits LEFT-of-stats so the
+   eye reads identity → performance → counts → success. */
 .lp-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 5px 0;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) 80px 36px 48px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0 6px 14px;     /* small left indent so rows nest under player */
 }
-.lp-row + .lp-row { border-top: 0.5px solid rgba(255,255,255,0.04); }
+.lp-row + .lp-row { border-top: 0.5px solid rgba(255,255,255,0.03); }
 .lp-row .lp-name {
-  flex: 1; min-width: 0;
   font-family: var(--font-body);
   font-size: 12px; font-weight: 500; color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .lp-row .lp-games {
-  font-family: var(--font-mono); font-size: 10px; font-weight: 400;
-  color: var(--text3);
-  width: 32px; text-align: right;
+  font-family: var(--font-mono); font-size: 10.5px; font-weight: 400;
+  color: var(--text3); text-align: right;
 }
 .lp-row .lp-wr {
-  font-family: var(--font-mono); font-size: 12px; font-weight: 600;
-  width: 42px; text-align: right;
+  font-family: var(--font-mono); font-size: 12.5px; font-weight: 600;
+  text-align: right; letter-spacing: -0.01em;
 }
-.lp-row.has-kda { cursor: help; }
-.lp-row .lp-kda-hint {
-  font-size: 10px; color: var(--text4);
-  font-family: var(--font-mono); font-weight: 400;
-  margin-left: -4px;
+.lp-row .lp-kda-mono {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 400;
+  color: var(--text3); white-space: nowrap;
+  letter-spacing: -0.01em;
+  text-align: left;
 }
+/* When the row has no KDA, render an em-dash placeholder so the column
+   still exists and the games / WR stay in their fixed positions. */
+.lp-row .lp-kda-empty { color: var(--text4); text-align: left; }
 
 /* Player block within a lane section — main player + their hero pool, then subs */
 .lp-player-block + .lp-player-block {
-  margin-top: 8px;
-  padding-top: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 0.5px solid var(--border);
 }
 .lp-player-line {
-  display: flex; align-items: center; gap: 8px;
-  margin-bottom: 4px; padding-bottom: 4px;
-  font-family: var(--font-body); font-size: 11.5px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  padding: 4px 8px 4px 0;
+  border-bottom: 0.5px solid rgba(255,255,255,0.04);
+  font-family: var(--font-body);
 }
 .lp-player-line .lp-player-ign {
-  font-weight: 600; color: var(--text);
-  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 600; color: var(--text);
+  display: inline-flex; align-items: center; gap: 7px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .lp-player-line .lp-player-stats {
-  margin-left: auto;
   font-family: var(--font-mono); font-size: 10.5px; color: var(--text3);
+  white-space: nowrap;
 }
 .lp-player-line.lp-untagged .lp-player-ign { color: var(--text3); font-weight: 500; font-style: italic; }
 .lp-sub-badge {
   font-family: var(--font-body); font-size: 9px; font-weight: 600;
   letter-spacing: 0.5px; text-transform: uppercase;
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.04);
   border: 0.5px solid var(--border2);
   color: var(--text3);
   padding: 1px 6px; border-radius: 4px;
+  flex-shrink: 0;
 }
-.lp-kda-mono {
-  font-family: var(--font-mono); font-size: 9.5px; font-weight: 400;
-  color: var(--text3); white-space: nowrap;
-  letter-spacing: -0.01em;
+/* Inline KDA used inside the player-line stats (e.g. "8g · 4.5/2.1/3.6") */
+.lp-player-stats .lp-kda-inline {
+  color: var(--text2); font-weight: 500;
 }
-.lp-row .lp-kda-mono { width: 64px; text-align: right; opacity: .7; }
-.lp-row .lp-kda-mono.lp-kda-empty { display: none; }
-.lp-row.has-kda .lp-kda-mono { opacity: 1; }
 
 /* ── DRAFT BOARD ── */
 .draft-layout {
@@ -3644,13 +3654,16 @@ function openTeamReport(teamName) {
       const ak = hasKda ? (hh.k/hh.kdaGames).toFixed(1) : null;
       const ad = hasKda ? (hh.d/hh.kdaGames).toFixed(1) : null;
       const aa = hasKda ? (hh.a/hh.kdaGames).toFixed(1) : null;
-      // KDA shown only when entered. No placeholder column for cleaner rows.
+      // Always emit the KDA cell (em-dash when missing) so the grid columns
+      // align across all rows. Order: icon · name · KDA · games · WR.
       return `<div class="lp-row${hasKda?' has-kda':''}">
         ${img(h, 22)}
         <span class="lp-name">${h}</span>
+        ${hasKda
+          ? `<span class="lp-kda-mono">${ak} · ${ad} · ${aa}</span>`
+          : `<span class="lp-kda-mono lp-kda-empty">—</span>`}
         <span class="lp-games">${hh.games}g</span>
         <span class="lp-wr" style="color:${wrc(wr)};">${wr}%</span>
-        ${hasKda ? `<span class="lp-kda-mono">${ak} · ${ad} · ${aa}</span>` : ''}
       </div>`;
     };
 
