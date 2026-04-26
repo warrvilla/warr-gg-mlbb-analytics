@@ -2802,9 +2802,14 @@ function saveMatch() {
     return (m.date||'') === date;
   });
 
-  const editingSeriesId = editingMatchId ? DB_MODULE.getMatches().find(m=>m.id===editingMatchId)?.seriesId : null;
+  // ── seriesId always derives from CURRENT grouping fields ──
+  // Previously we preferred the edited match's old seriesId, which meant fixing
+  // a wrong date/week left the match in its stale series — so series lists, side
+  // stats, and tempo conversions didn't reflect the correction. Now: try to join
+  // an existing sibling game in the corrected series, else fresh hash. If the
+  // grouping fields didn't change at all, the hash will be identical anyway.
   const rawKey = `${(week||date).trim()}|${sortedTeams}|${league.trim()}|${stage}|${format}`;
-  const seriesId = editingSeriesId || existingSeries?.seriesId || ('sid_' + DB_MODULE._hashStr(rawKey));
+  const seriesId = existingSeries?.seriesId || ('sid_' + DB_MODULE._hashStr(rawKey));
 
   const _readObjRow = type => [...document.querySelectorAll(`[data-type="${type}"]`)].map(b => b.dataset.val || '').filter(Boolean);
   const objectives = {

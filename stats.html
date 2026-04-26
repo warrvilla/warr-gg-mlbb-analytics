@@ -1408,26 +1408,48 @@ async function exportAnalysisPDF() {
   const btn = document.getElementById('analysisPdfBtn');
   if (btn) { btn.textContent = 'Generating…'; btn.disabled = true; }
   try {
+    // 1. Lazy-load html2canvas + jsPDF
     if (!window.html2canvas) {
       await Promise.all([
         new Promise((res, rej) => {
           const s = document.createElement('script');
           s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-          s.onload = res; s.onerror = rej; document.head.appendChild(s);
+          s.onload = res; s.onerror = () => rej(new Error('html2canvas failed to load (network?)')); document.head.appendChild(s);
         }),
         new Promise((res, rej) => {
           const s = document.createElement('script');
           s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-          s.onload = res; s.onerror = rej; document.head.appendChild(s);
+          s.onload = res; s.onerror = () => rej(new Error('jsPDF failed to load (network?)')); document.head.appendChild(s);
         }),
       ]);
     }
     const el = document.getElementById('reportBody');
     if (!el) { toast('Generate a report first'); return; }
 
-    // Wait for fonts so html2canvas captures them with correct metrics
-    await document.fonts.ready;
+    // 2. Wait for fonts but don't block forever — some browsers leave the
+    // promise pending if fonts can't load. 1.5s timeout is plenty.
+    if (document.fonts && document.fonts.ready) {
+      await Promise.race([
+        document.fonts.ready,
+        new Promise(r => setTimeout(r, 1500)),
+      ]);
+    }
 
+    // 3. Wait for all *visible* portraits to either load or error out, so
+    // html2canvas doesn't render half-loaded images. Hide the broken ones
+    // before capture so they don't render as squashed-question-mark icons.
+    const imgs = [...el.querySelectorAll('img')];
+    await Promise.all(imgs.map(img => new Promise(res => {
+      if (img.complete && img.naturalWidth > 0) return res();
+      const done = () => { img.removeEventListener('load', done); img.removeEventListener('error', done); res(); };
+      img.addEventListener('load', done);
+      img.addEventListener('error', done);
+      // Safety net — never block the export longer than 1.2s per image
+      setTimeout(done, 1200);
+    })));
+    imgs.forEach(img => { if (!img.complete || img.naturalWidth === 0) img.style.visibility = 'hidden'; });
+
+    // 4. Capture
     const canvas = await html2canvas(el, {
       scale: 2,
       useCORS: true,
@@ -1436,6 +1458,7 @@ async function exportAnalysisPDF() {
       logging: false,
       scrollX: 0,
       scrollY: 0,
+      imageTimeout: 2500,
       onclone: (_doc, cloned) => {
         // Strip overflow:hidden so text isn't clipped in the rendered PDF
         cloned.querySelectorAll('*').forEach(node => {
@@ -1448,9 +1471,14 @@ async function exportAnalysisPDF() {
             node.style.whiteSpace   = 'normal';
           }
         });
+        // Hide broken images in the clone too
+        cloned.querySelectorAll('img').forEach(img => {
+          if (!img.complete || img.naturalWidth === 0) img.style.visibility = 'hidden';
+        });
       },
     });
 
+    // 5. Build PDF — single tall page sized to content
     const { jsPDF } = window.jspdf;
     const margin   = 10;
     const pageW    = 210;
@@ -1465,7 +1493,8 @@ async function exportAnalysisPDF() {
     pdf.save(`Warr.GG_Analysis_${safe(_reportContext.blueName)}_vs_${safe(_reportContext.redName)}.pdf`);
   } catch(e) {
     console.error('Analysis export error:', e);
-    toast('Export failed — try again');
+    // Show the actual reason so it's debuggable, not just "failed"
+    toast('Export failed: ' + (e?.message || e || 'unknown error'));
   }
   if (btn) { btn.textContent = '🖨 Export PDF'; btn.disabled = false; }
 }
