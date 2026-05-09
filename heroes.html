@@ -119,6 +119,18 @@
   font-size: 10px; color: var(--text2);
   font-family: var(--font-mono);
 }
+.map-splits {
+  font-size: 9.5px; color: var(--text3);
+  margin-top: 3px; line-height: 1.5;
+  font-family: var(--font-body); font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.map-splits .ms-wr { font-family: var(--font-mono); font-weight: 600; }
+.map-splits .ms-wr.ms-pos { color: var(--neon, #34d17a); }
+.map-splits .ms-wr.ms-neg { color: var(--red, #f05252); }
+.map-splits .ms-g { color: var(--text4); font-family: var(--font-mono); font-size: 9px; margin-left: 1px; }
+.map-splits .ms-sep { color: var(--text4); margin: 0 4px; }
+.map-splits.map-split-low { opacity: .6; }
 
 .relation-block {}
 .relation-label {
@@ -293,6 +305,13 @@
         <option value="EXP">EXP</option>
         <option value="Roam">Roam</option>
       </select>
+      <select class="ctrl-select" id="mapFilter" onchange="onMapChange()" title="Filter stats to games on a specific map">
+        <option value="">All maps</option>
+        <option value="Dangerous Grass">Dangerous Grass</option>
+        <option value="Broken Walls">Broken Walls</option>
+        <option value="Flying Cloud">Flying Cloud</option>
+        <option value="Expanding River">Expanding River</option>
+      </select>
       <select class="ctrl-select" id="sortBy" onchange="onFilter()">
         <option value="games">Most played</option>
         <option value="name">Name A–Z</option>
@@ -320,12 +339,15 @@
 <script>
 // ── State ─────────────────────────────────────────────────────
 let _matches        = [];
+let _publicMatches  = [];  // cached match pool (PUBLIC_LEAGUES filtered)
 let _countersMap    = {};
 let _synergiesMap   = {};
 let _overrides      = {};
 let _playCounts     = {};
 let _heroLaneMap    = {}; // { heroName: 'Gold'|'Jungle'|'Mid'|'EXP'|'Roam' } — primary observed lane
+let _heroMapStats   = {}; // { heroName: { mapName: { games, wins } } } — per-map performance
 let _adminMode      = false;
+const MAP_NAMES = ['Dangerous Grass','Broken Walls','Flying Cloud','Expanding River'];
 
 // Sample-size threshold: relations computed from fewer than this many games
 // are dimmed and labeled "low confidence" in the UI.
@@ -358,15 +380,34 @@ async function loadAll() {
     return;
   }
 
-  const publicMatches = _matches.filter(m => WDB.PUBLIC_LEAGUES.includes(m.league));
+  _publicMatches = _matches.filter(m => WDB.PUBLIC_LEAGUES.includes(m.league));
 
-  _countersMap  = WDB.computeScoutCountersFromMatches(publicMatches);
-  _synergiesMap = WDB.computeScoutSynergiesFromMatches(publicMatches);
+  // Compute per-map hero stats once at load — used by both map filter and per-card splits.
+  // Shape: _heroMapStats[hero][mapName] = { games, wins }
+  _heroMapStats = {};
+  _publicMatches.forEach(m => {
+    if (!m.map) return;
+    const blueWon = m.winner === 'blue';
+    [...(m.bluePicks || [])].forEach(p => {
+      const n = p && (p.name || p); if (!n) return;
+      _heroMapStats[n] = _heroMapStats[n] || {};
+      _heroMapStats[n][m.map] = _heroMapStats[n][m.map] || { games:0, wins:0 };
+      _heroMapStats[n][m.map].games++;
+      if (blueWon) _heroMapStats[n][m.map].wins++;
+    });
+    [...(m.redPicks || [])].forEach(p => {
+      const n = p && (p.name || p); if (!n) return;
+      _heroMapStats[n] = _heroMapStats[n] || {};
+      _heroMapStats[n][m.map] = _heroMapStats[n][m.map] || { games:0, wins:0 };
+      _heroMapStats[n][m.map].games++;
+      if (!blueWon) _heroMapStats[n][m.map].wins++;
+    });
+  });
 
-  // Build hero → primary lane map from observed picks, so the lane filter works
-  // (heroes that were never picked have no lane and won't match a lane filter).
+  // Build the lane map once across the full pool — primary lane shouldn't shift
+  // when the user filters by map. Lane filter still uses observed primary lane.
   const laneCounts = {};
-  publicMatches.forEach(m => {
+  _publicMatches.forEach(m => {
     [...(m.bluePicks || []), ...(m.redPicks || [])].forEach(p => {
       if (!p || !p.name || !p.lane) return;
       laneCounts[p.name] = laneCounts[p.name] || {};
@@ -376,19 +417,11 @@ async function loadAll() {
   _heroLaneMap = {};
   Object.entries(laneCounts).forEach(([hero, lanes]) => {
     const sorted = Object.entries(lanes).sort((a, b) => b[1] - a[1]);
-    if (sorted[0][1] >= 2) _heroLaneMap[hero] = sorted[0][0]; // ≥2 observations → reliable
+    if (sorted[0][1] >= 2) _heroLaneMap[hero] = sorted[0][0];
   });
 
-  _playCounts = {};
-  publicMatches.forEach(m => {
-    ['bluePicks', 'redPicks'].forEach(k => {
-      (m[k] || []).forEach(p => {
-        const n = p && (p.name || p);
-        if (!n) return;
-        _playCounts[n] = (_playCounts[n] || 0) + 1;
-      });
-    });
-  });
+  // Counters/synergies/play-counts get recomputed per map filter change.
+  recomputeForMapFilter();
 
   try {
     _overrides = await WDB.loadHeroRelations();
@@ -454,6 +487,35 @@ function renderStats(matches) {
 
 // ── Filter + sort ─────────────────────────────────────────────
 function onFilter() { renderGrid(); }
+
+// Map filter changes alter the underlying match pool counters/synergies/play-counts
+// are computed from. Recompute, then re-render.
+function onMapChange() {
+  recomputeForMapFilter();
+  renderGrid();
+}
+
+// Re-derive _countersMap, _synergiesMap, _playCounts from _publicMatches filtered
+// by the current Map filter ('' = all maps). Called once at load and again on
+// every Map dropdown change.
+function recomputeForMapFilter() {
+  const mapSel = document.getElementById('mapFilter')?.value || '';
+  const pool = mapSel
+    ? _publicMatches.filter(m => (m.map||'') === mapSel)
+    : _publicMatches;
+  _countersMap  = WDB.computeScoutCountersFromMatches(pool);
+  _synergiesMap = WDB.computeScoutSynergiesFromMatches(pool);
+  _playCounts = {};
+  pool.forEach(m => {
+    ['bluePicks', 'redPicks'].forEach(k => {
+      (m[k] || []).forEach(p => {
+        const n = p && (p.name || p);
+        if (!n) return;
+        _playCounts[n] = (_playCounts[n] || 0) + 1;
+      });
+    });
+  });
+}
 
 function getFilteredHeroes() {
   const role   = document.getElementById('roleFilter').value;
@@ -553,6 +615,7 @@ function heroCardHTML(h) {
           <div class="hero-name">${escHtml(h.name)}</div>
           <div class="hero-role">${escHtml((h.role || '—').toUpperCase())}${h.lane ? ` · ${escHtml(h.lane.toUpperCase())}` : ''}</div>
           <div class="hero-gamecount">${games} game${games !== 1 ? 's' : ''} scouted</div>
+          ${mapSplitsHTML(h.name)}
         </div>
       </div>
 
@@ -588,6 +651,30 @@ function heroCardHTML(h) {
         </div>
       </div>
     </div>`;
+}
+
+// Build a compact best/worst-map line for a hero card. Suppresses maps with
+// fewer than 2 games (noise), and omits the line entirely when no map has
+// enough data — keeps cards clean for low-sample heroes.
+function mapSplitsHTML(heroName) {
+  const stats = _heroMapStats[heroName];
+  if (!stats) return '';
+  const usable = Object.entries(stats)
+    .filter(([_, s]) => s.games >= 2)
+    .map(([map, s]) => ({ map, games: s.games, wr: Math.round(s.wins/s.games*100) }));
+  if (!usable.length) return '';
+  const byWR = [...usable].sort((a,b) => b.wr - a.wr);
+  const best = byWR[0];
+  const worst = byWR.length > 1 ? byWR[byWR.length - 1] : null;
+  const lowConf = best.games < 5 ? ' map-split-low' : '';
+  if (!worst || best.map === worst.map) {
+    return `<div class="map-splits${lowConf}">Best ${escHtml(best.map)} <span class="ms-wr ms-pos">${best.wr}%</span> <span class="ms-g">${best.games}g</span></div>`;
+  }
+  return `<div class="map-splits${lowConf}">
+    Best ${escHtml(best.map)} <span class="ms-wr ms-pos">${best.wr}%</span> <span class="ms-g">${best.games}g</span>
+    <span class="ms-sep">·</span>
+    Worst ${escHtml(worst.map)} <span class="ms-wr ms-neg">${worst.wr}%</span> <span class="ms-g">${worst.games}g</span>
+  </div>`;
 }
 
 function relationItemsHTML(items, kind, heroName) {
