@@ -3301,14 +3301,55 @@ async function generateTeamImage(teamName) {
   if (btn) { btn.textContent = 'Export PDF'; btn.disabled = false; }
 }
 
+// Active map filter for team scout reports. Persists across re-opens of the
+// same modal so changing the dropdown re-renders with the same filter state.
+let _reportMapFilter = '';
+
+// Called from the modal's Map dropdown — stash the new value, then rebuild
+// the report by closing + re-opening with the same team name.
+function setReportMapFilter(map) {
+  _reportMapFilter = map || '';
+  const teamName = document.getElementById('teamReportModal')?.dataset?.team;
+  if (!teamName) return;
+  document.getElementById('teamReportModal').remove();
+  openTeamReport(teamName);
+}
+
 function openTeamReport(teamName) {
-  const t = DB_MODULE.getTeams()[teamName];
-  if (!t) return;
+  const tBase = DB_MODULE.getTeams()[teamName];
+  if (!tBase) return;
 
   const allMatches = DB_MODULE.getMatches();
   const teamGames = allMatches
     .filter(m => m.blueTeam === teamName || m.redTeam === teamName)
+    .filter(m => !_reportMapFilter || (m.map||'') === _reportMapFilter)
     .sort((a,b) => new Date(b.date) - new Date(a.date));
+
+  // When the map filter is active, recompute hero-meta fields (top picks, top
+  // bans, bans-received, top first pick) from the filtered teamGames so the
+  // report's hero sections reflect the selected map. Overall WR / side / KPI
+  // / strengths fields stay sourced from tBase (they're cross-match aggregates
+  // documented in the title bar). Without filter, t === tBase so nothing changes.
+  const t = _reportMapFilter ? Object.create(tBase) : tBase;
+  if (_reportMapFilter) {
+    const pickC = {}, pickW = {}, banC = {}, banRecC = {}, fpC = {};
+    teamGames.forEach(m => {
+      const ours = m.blueTeam === teamName;
+      const won = (ours && m.winner === 'blue') || (!ours && m.winner === 'red');
+      const picks = ours ? (m.bluePicks||[]) : (m.redPicks||[]);
+      const bans  = ours ? (m.blueBans ||[]) : (m.redBans ||[]);
+      const oppBans = ours ? (m.redBans||[]) : (m.blueBans||[]);
+      picks.forEach(p => { const n = p.name||p; if (n) { pickC[n] = (pickC[n]||0)+1; if (won) pickW[n] = (pickW[n]||0)+1; } });
+      bans.forEach(b => { const n = b.name||b; if (n) banC[n] = (banC[n]||0)+1; });
+      oppBans.forEach(b => { const n = b.name||b; if (n) banRecC[n] = (banRecC[n]||0)+1; });
+      if (picks[0]) { const n = picks[0].name||picks[0]; if (n) fpC[n] = (fpC[n]||0)+1; }
+    });
+    t.topPicks      = Object.entries(pickC).sort((a,b)=>b[1]-a[1])
+                        .map(([n,c]) => ({ name:n, count:c, wr: pickW[n] ? Math.round(pickW[n]/c*100) : 0 }));
+    t.topBans       = Object.entries(banC).sort((a,b)=>b[1]-a[1]).map(([n,c]) => ({ name:n, count:c }));
+    t.bansReceived  = Object.entries(banRecC).sort((a,b)=>b[1]-a[1]).map(([n,c]) => ({ name:n, count:c }));
+    t.topFirstPick  = Object.entries(fpC).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([n,c]) => ({ name:n, count:c }));
+  }
 
   // Group into series
   const seriesMap = {};
@@ -3734,15 +3775,24 @@ function openTeamReport(teamName) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'teamReportModal';
+  overlay.dataset.team = teamName;
+  // Maps actually played by this team (so the dropdown only shows useful options)
+  const playedMaps = [...new Set(allMatches
+    .filter(m => m.blueTeam === teamName || m.redTeam === teamName)
+    .map(m => m.map).filter(Boolean))];
+  const mapOpts = `<option value="">All maps</option>` + playedMaps.map(mp =>
+    `<option value="${mp}"${_reportMapFilter===mp?' selected':''}>${mp}</option>`
+  ).join('');
   overlay.innerHTML = `
     <div class="modal" style="max-width:920px;" id="teamReportContent">
       <div class="modal-header no-print" style="gap:8px;">
-        <div class="modal-title">Scout Report — ${teamName}</div>
-        <div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0;">
+        <div class="modal-title">Scout Report — ${teamName}${_reportMapFilter ? ` <span style="font-size:11px;color:var(--accent);font-weight:500;margin-left:6px;">on ${_reportMapFilter}</span>` : ''}</div>
+        <div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0;align-items:center;">
+          ${playedMaps.length > 1 ? `<select class="form-select" style="font-size:11px;padding:5px 8px;height:auto;" onchange="setReportMapFilter(this.value)" title="Filter the entire report to a single map">${mapOpts}</select>` : ''}
           <button class="btn btn-ghost btn-sm" onclick="openTeamEditor('${teamName}');document.getElementById('teamReportModal').remove();">Edit</button>
           <button class="btn btn-ghost btn-sm" onclick="openH2H('${teamName}')">H2H</button>
           <button class="btn btn-accent btn-sm" id="pdfBtn" onclick="generateTeamImage('${teamName}')">Export PDF</button>
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('teamReportModal').remove()">✕</button>
+          <button class="btn btn-ghost btn-sm" onclick="_reportMapFilter='';document.getElementById('teamReportModal').remove();">✕</button>
         </div>
       </div>
       <div class="modal-body" id="reportBody" style="padding:20px 24px;">

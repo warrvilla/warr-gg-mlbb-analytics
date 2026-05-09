@@ -280,22 +280,40 @@ const WDB = {
   // Leagues visible to ALL users
   PUBLIC_LEAGUES: ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series'],
 
-  /** Fetch scout matches — public leagues for everyone, private leagues only own */
-  async loadMatches() {
+  // In-session cache so back/forward navigation between Scout/Heroes/Stats
+  // doesn't refetch the full match library every time. 60s TTL means changes
+  // from other devices propagate within a minute. saveMatch / deleteMatch
+  // invalidate the cache immediately so your own edits are always live.
+  _matchCache: null,
+  _matchCacheTime: 0,
+  _matchCacheTTL: 60_000,
+  _invalidateMatchCache() { this._matchCache = null; this._matchCacheTime = 0; },
+
+  /** Fetch scout matches — public leagues for everyone, private leagues only own.
+   *  Uses an in-memory cache (60s TTL) so repeat navigations are instant.
+   *  Pass {force:true} to skip the cache. */
+  async loadMatches(opts) {
+    const now = Date.now();
+    if (!opts?.force && this._matchCache && (now - this._matchCacheTime) < this._matchCacheTTL) {
+      return this._matchCache;
+    }
     const { data, error } = await _sbClient
       .from('scout_matches')
       .select('id, data, created_by')
       .order('created_at', { ascending: false });
     if (error) throw error;
     const userId = WAuth.getUser()?.id || null;
-    return (data || [])
+    const result = (data || [])
       .filter(row => {
         const league = row.data?.league || '';
         const isPublic = WDB.PUBLIC_LEAGUES.includes(league);
         const isOwn = row.created_by === userId;
-        return isPublic || isOwn; // show public leagues OR your own private matches
+        return isPublic || isOwn;
       })
       .map(row => ({ ...row.data, id: row.id, _createdBy: row.created_by }));
+    this._matchCache = result;
+    this._matchCacheTime = now;
+    return result;
   },
 
   /** Upsert a single match to cloud (insert or update by id) */
@@ -308,12 +326,14 @@ const WDB = {
         { onConflict: 'id' }
       );
     if (error) throw error;
+    this._invalidateMatchCache();
   },
 
   /** Delete a match from cloud */
   async deleteMatch(id) {
     const { error } = await _sbClient.from('scout_matches').delete().eq('id', id);
     if (error) throw error;
+    this._invalidateMatchCache();
   },
 
   // ── DRAFT SAVES — private, per user account ──────────────────
