@@ -280,22 +280,48 @@ const WDB = {
   // Leagues visible to ALL users
   PUBLIC_LEAGUES: ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series'],
 
-  // In-session cache so back/forward navigation between Scout/Heroes/Stats
-  // doesn't refetch the full match library every time. 60s TTL means changes
-  // from other devices propagate within a minute. saveMatch / deleteMatch
-  // invalidate the cache immediately so your own edits are always live.
-  _matchCache: null,
-  _matchCacheTime: 0,
-  _matchCacheTTL: 60_000,
-  _invalidateMatchCache() { this._matchCache = null; this._matchCacheTime = 0; },
+  // Cross-page cache backed by sessionStorage so that navigating between
+  // pages (which are full page reloads in this app) doesn't refetch the
+  // entire match library each time. TTL is 5 min — saveMatch / deleteMatch
+  // invalidate the cache immediately so your own edits never go stale.
+  _MATCH_CACHE_KEY: 'warr_loadmatches_cache_v1',
+  _matchCacheTTL: 5 * 60_000,
+  _invalidateMatchCache() {
+    try { sessionStorage.removeItem(this._MATCH_CACHE_KEY); } catch(e) {}
+  },
+  _readMatchCache() {
+    try {
+      const raw = sessionStorage.getItem(this._MATCH_CACHE_KEY);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      if (!obj || typeof obj !== 'object') return null;
+      if ((Date.now() - (obj.t||0)) > this._matchCacheTTL) return null;
+      // Rebind to current user — RLS already filters server-side, but the
+      // public/own filter runs client-side and changes per session.
+      const userId = WAuth.getUser()?.id || null;
+      if (obj.uid !== userId) return null;
+      return obj.matches;
+    } catch(e) { return null; }
+  },
+  _writeMatchCache(matches) {
+    try {
+      const userId = WAuth.getUser()?.id || null;
+      sessionStorage.setItem(this._MATCH_CACHE_KEY, JSON.stringify({
+        t: Date.now(), uid: userId, matches,
+      }));
+    } catch(e) {
+      // sessionStorage quota — give up silently, in-memory load still works.
+      console.warn('match cache write failed:', e?.message);
+    }
+  },
 
   /** Fetch scout matches — public leagues for everyone, private leagues only own.
-   *  Uses an in-memory cache (60s TTL) so repeat navigations are instant.
-   *  Pass {force:true} to skip the cache. */
+   *  Uses a sessionStorage cache (5 min TTL, invalidated on save/delete) so
+   *  repeat page navigations are instant. Pass {force:true} to skip the cache. */
   async loadMatches(opts) {
-    const now = Date.now();
-    if (!opts?.force && this._matchCache && (now - this._matchCacheTime) < this._matchCacheTTL) {
-      return this._matchCache;
+    if (!opts?.force) {
+      const cached = this._readMatchCache();
+      if (cached) return cached;
     }
     const { data, error } = await _sbClient
       .from('scout_matches')
@@ -311,8 +337,7 @@ const WDB = {
         return isPublic || isOwn;
       })
       .map(row => ({ ...row.data, id: row.id, _createdBy: row.created_by }));
-    this._matchCache = result;
-    this._matchCacheTime = now;
+    this._writeMatchCache(result);
     return result;
   },
 
