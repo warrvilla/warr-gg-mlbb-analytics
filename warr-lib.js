@@ -284,7 +284,7 @@ const WDB = {
   // pages (which are full page reloads in this app) doesn't refetch the
   // entire match library each time. TTL is 5 min — saveMatch / deleteMatch
   // invalidate the cache immediately so your own edits never go stale.
-  _MATCH_CACHE_KEY: 'warr_loadmatches_cache_v1',
+  _MATCH_CACHE_KEY: 'warr_loadmatches_cache_v2',
   _matchCacheTTL: 5 * 60_000,
   _invalidateMatchCache() {
     try { sessionStorage.removeItem(this._MATCH_CACHE_KEY); } catch(e) {}
