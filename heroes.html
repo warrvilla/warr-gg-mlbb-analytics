@@ -285,10 +285,9 @@
 
   <div class="heroes-wrap">
 
-    <!-- Stats strip -->
-    <div class="stat-strip" id="statsRow">
-      <div class="stat-pill"><div class="spin"></div></div>
-    </div>
+    <!-- Stats strip — populated after matches load. Empty during initial load
+         since the grid below already shows the loading spinner. -->
+    <div class="stat-strip" id="statsRow"></div>
 
     <!-- Controls -->
     <div class="controls">
@@ -610,6 +609,7 @@ function heroCardHTML(h) {
 
       <div class="hero-head">
         <img class="hero-portrait" src="${portraitURL}" alt="${escHtml(h.name)}"
+             loading="lazy" decoding="async" width="44" height="44"
              onerror="this.style.background='var(--surface3)';this.removeAttribute('src')">
         <div class="hero-meta">
           <div class="hero-name">${escHtml(h.name)}</div>
@@ -708,7 +708,8 @@ function relationItemsHTML(items, kind, heroName) {
     }
     return `
       <span class="relation-item${lowSample ? ' low-sample' : ''}" title="${escHtml(tooltip)}">
-        <img src="${portrait}" alt="" onerror="this.style.background='var(--surface3)';this.removeAttribute('src')">
+        <img src="${portrait}" alt="" loading="lazy" decoding="async" width="22" height="22"
+             onerror="this.style.background='var(--surface3)';this.removeAttribute('src')">
         ${escHtml(name)}
         ${wrHTML}
       </span>`;
