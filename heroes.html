@@ -629,8 +629,8 @@ function heroCardHTML(h) {
   const useCounterOverride  = over.counter.length > 0;
   const useSynergyOverride  = over.synergy.length > 0;
 
-  const computedCounters  = (_countersMap[h.name]  || []).slice(0, 3);
-  const computedSynergies = (_synergiesMap[h.name] || []).slice(0, 3);
+  const computedCounters  = (_countersMap[h.name]  || []).slice(0, 5);
+  const computedSynergies = (_synergiesMap[h.name] || []).slice(0, 5);
 
   const counters  = useCounterOverride
     ? over.counter.map(n => ({ name: n, _admin: true }))
@@ -855,8 +855,8 @@ function openEdit(heroName) {
   const panel = document.getElementById('edit_' + slug);
   if (!panel) return;
   const over = _overrides[heroName] || { counter: [], synergy: [] };
-  const seedCounters  = over.counter.length ? over.counter  : (_countersMap[heroName]  || []).slice(0, 3).map(x => x.name);
-  const seedSynergies = over.synergy.length ? over.synergy  : (_synergiesMap[heroName] || []).slice(0, 3).map(x => x.name);
+  const seedCounters  = over.counter.length ? over.counter  : (_countersMap[heroName]  || []).slice(0, 5).map(x => x.name);
+  const seedSynergies = over.synergy.length ? over.synergy  : (_synergiesMap[heroName] || []).slice(0, 5).map(x => x.name);
   buildEditSelects('selCounter_' + slug, seedCounters, heroName);
   buildEditSelects('selSynergy_' + slug, seedSynergies, heroName);
   const status = document.getElementById('status_' + slug);
