@@ -321,6 +321,7 @@
         <option value="no">Show all heroes</option>
       </select>
       <input class="ctrl-input" id="searchIn" placeholder="Search hero…" oninput="onFilter()">
+      <button class="btn btn-accent" id="heroesPdfBtn" onclick="exportHeroesPDF()" style="margin-left:auto;font-size:11px;padding:6px 14px;" title="Export currently filtered heroes as PDF">Export PDF</button>
     </div>
 
     <!-- Grid -->
@@ -714,6 +715,105 @@ function relationItemsHTML(items, kind, heroName) {
         ${wrHTML}
       </span>`;
   }).join('');
+}
+
+// ── Export PDF ────────────────────────────────────────────────
+// Same lazy-load + html2canvas + jsPDF pattern Scout's per-team report
+// uses, so the visual styling stays consistent across exports.
+async function exportHeroesPDF() {
+  const btn = document.getElementById('heroesPdfBtn');
+  if (btn) { btn.textContent = 'Generating…'; btn.disabled = true; }
+  try {
+    if (!window.html2canvas) {
+      await Promise.all([
+        new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+          s.onload = res; s.onerror = () => rej(new Error('html2canvas failed to load')); document.head.appendChild(s);
+        }),
+        new Promise((res, rej) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+          s.onload = res; s.onerror = () => rej(new Error('jsPDF failed to load')); document.head.appendChild(s);
+        }),
+      ]);
+    }
+    const grid = document.getElementById('gridWrap');
+    if (!grid || !grid.querySelector('.hero-grid')) {
+      _toastLite('Nothing to export — no heroes match your filters');
+      return;
+    }
+    // Wait for fonts + visible images. Off-screen lazy-loaded images still
+    // render fine because html2canvas uses computed positions.
+    if (document.fonts && document.fonts.ready) {
+      await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 1500))]);
+    }
+    const imgs = [...grid.querySelectorAll('img')];
+    await Promise.all(imgs.map(img => new Promise(res => {
+      if (img.complete && img.naturalWidth > 0) return res();
+      const done = () => { img.removeEventListener('load', done); img.removeEventListener('error', done); res(); };
+      img.addEventListener('load', done);
+      img.addEventListener('error', done);
+      // Force-load lazy images by setting eager temporarily
+      img.loading = 'eager';
+      setTimeout(done, 1500);
+    })));
+    imgs.forEach(img => { if (!img.complete || img.naturalWidth === 0) img.style.visibility = 'hidden'; });
+
+    const canvas = await html2canvas(grid, {
+      scale: 2, useCORS: true, allowTaint: true,
+      backgroundColor: '#07070C', logging: false,
+      imageTimeout: 2500,
+      onclone: (_doc, cloned) => {
+        cloned.querySelectorAll('*').forEach(node => {
+          const cs = window.getComputedStyle(node);
+          if (cs.overflow === 'hidden' || cs.overflowX === 'hidden') {
+            node.style.overflow = 'visible';
+            node.style.overflowX = 'visible';
+            node.style.overflowY = 'visible';
+            node.style.textOverflow = 'clip';
+            node.style.whiteSpace = 'normal';
+          }
+        });
+        // Hide edit-mode panels in the export
+        cloned.querySelectorAll('.edit-btn, .edit-panel').forEach(n => n.style.display = 'none');
+        cloned.querySelectorAll('img').forEach(img => {
+          if (!img.complete || img.naturalWidth === 0) img.style.visibility = 'hidden';
+        });
+      },
+    });
+    const { jsPDF } = window.jspdf;
+    const margin = 10, pageW = 210;
+    const usableW = pageW - margin * 2;
+    const pxPerMm = canvas.width / usableW;
+    const contentH = canvas.height / pxPerMm;
+    const pageH = contentH + margin * 2;
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [pageW, pageH] });
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, margin, usableW, contentH);
+    // Build filename from active filters so 'Warr.GG_Heroes_Jungle_Flying_Cloud.pdf'
+    // tells you what was exported at a glance.
+    const safe = s => (s||'').replace(/[^a-z0-9]/gi, '_');
+    const parts = ['Warr.GG_Heroes'];
+    const role = document.getElementById('roleFilter')?.value;
+    const lane = document.getElementById('laneFilter')?.value;
+    const map  = document.getElementById('mapFilter')?.value;
+    if (role) parts.push(safe(role));
+    if (lane) parts.push(safe(lane));
+    if (map)  parts.push(safe(map));
+    pdf.save(parts.join('_') + '.pdf');
+  } catch(e) {
+    console.error('Heroes export error:', e);
+    _toastLite('Export failed: ' + (e?.message || 'unknown error'));
+  }
+  if (btn) { btn.textContent = 'Export PDF'; btn.disabled = false; }
+}
+function _toastLite(msg) {
+  // Minimal toast since heroes.html doesn't already have one.
+  const el = document.createElement('div');
+  el.textContent = msg;
+  el.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--surface2);border:0.5px solid var(--border3);color:var(--text);padding:10px 18px;border-radius:10px;z-index:9999;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.5);';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
 }
 
 // ── Admin edit mode ───────────────────────────────────────────
