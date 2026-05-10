@@ -254,6 +254,59 @@
   box-shadow: 0 0 14px var(--gold-border);
 }
 .page-header .admin-toggle.visible { display: inline-flex; }
+
+/* ── PRINT STYLES ── */
+/* Browser-native print produces clean A4 pagination. We hide the chrome,
+   force a 2-column grid suited to A4 width, and tell each hero card to
+   never split across a page break. */
+@media print {
+  /* Switch to a print-friendly white background — saves toner and reads
+     better on paper. Users who prefer dark can enable 'Background graphics'
+     in the print dialog for the original look. */
+  body { background: #fff !important; color: #111 !important; }
+
+  /* Hide all the chrome that doesn't belong on paper */
+  .topnav, .topbar, .page-header, .stat-strip, .controls,
+  .admin-toggle, .edit-btn, .edit-panel, #heroesPdfBtn,
+  #warr-toast, .empty-state { display: none !important; }
+
+  /* Tighten page margins; the browser adds its own + the user can adjust */
+  body { margin: 0; padding: 0; }
+  .heroes-wrap { padding: 0; max-width: 100%; }
+
+  /* 2 cards per row at A4 width — comfortable and keeps cards readable */
+  .hero-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8mm !important;
+  }
+
+  /* Don't split a card across a page boundary. break-inside is the
+     modern standard, page-break-inside is the older alias for compat. */
+  .hero-card {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    background: #fff !important;
+    border: 0.5px solid #ccc !important;
+    box-shadow: none !important;
+    color: #111 !important;
+    margin: 0 !important;
+  }
+
+  /* Turn glass surfaces into plain backgrounds for print */
+  .hero-card * { background: transparent !important; }
+  .hero-card .badge { border: 0.5px solid #999 !important; color: #333 !important; }
+  .hero-card .relation-item { border: 0.5px solid #ddd !important; color: #111 !important; }
+  .hero-card .relation-item .wr.high { background: #d4f5dd !important; color: #137a3b !important; }
+  .hero-card .relation-item .wr.mid  { background: #fbeac0 !important; color: #8a5b00 !important; }
+  .hero-card .relation-item .wr.low  { background: #fadcdc !important; color: #9c1b1b !important; }
+  .hero-card .hero-name { color: #111 !important; }
+  .hero-card .hero-role, .hero-card .hero-gamecount,
+  .hero-card .map-splits, .hero-card .relation-label { color: #444 !important; }
+
+  /* Don't print URLs after links (default browser behaviour can be ugly) */
+  a[href]::after { content: none !important; }
+}
 </style>
 </head>
 <body>
@@ -718,92 +771,47 @@ function relationItemsHTML(items, kind, heroName) {
 }
 
 // ── Export PDF ────────────────────────────────────────────────
-// Same lazy-load + html2canvas + jsPDF pattern Scout's per-team report
-// uses, so the visual styling stays consistent across exports.
+// Browser-native print is the right tool for the Heroes grid because:
+//  (1) the list is potentially 100+ cards — needs proper A4 pagination
+//  (2) @media print styles let us hide chrome and force card-aware page breaks
+//  (3) user can save as PDF or print to paper from the same dialog
+// Force-load any lazy images first so they render on the printed pages.
 async function exportHeroesPDF() {
   const btn = document.getElementById('heroesPdfBtn');
-  if (btn) { btn.textContent = 'Generating…'; btn.disabled = true; }
+  if (btn) { btn.textContent = 'Preparing…'; btn.disabled = true; }
   try {
-    if (!window.html2canvas) {
-      await Promise.all([
-        new Promise((res, rej) => {
-          const s = document.createElement('script');
-          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-          s.onload = res; s.onerror = () => rej(new Error('html2canvas failed to load')); document.head.appendChild(s);
-        }),
-        new Promise((res, rej) => {
-          const s = document.createElement('script');
-          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-          s.onload = res; s.onerror = () => rej(new Error('jsPDF failed to load')); document.head.appendChild(s);
-        }),
-      ]);
-    }
+    // Force-load lazy portraits so they're visible on every printed page.
     const grid = document.getElementById('gridWrap');
-    if (!grid || !grid.querySelector('.hero-grid')) {
-      _toastLite('Nothing to export — no heroes match your filters');
-      return;
+    if (grid) {
+      const imgs = [...grid.querySelectorAll('img[loading="lazy"]')];
+      imgs.forEach(img => { img.loading = 'eager'; });
+      // Wait briefly for them to fetch; print after a short delay so layout settles.
+      await new Promise(r => setTimeout(r, 250));
+      await Promise.all(imgs.map(img => new Promise(res => {
+        if (img.complete && img.naturalWidth > 0) return res();
+        const done = () => res();
+        img.addEventListener('load', done, { once: true });
+        img.addEventListener('error', done, { once: true });
+        setTimeout(done, 1500);
+      })));
     }
-    // Wait for fonts + visible images. Off-screen lazy-loaded images still
-    // render fine because html2canvas uses computed positions.
-    if (document.fonts && document.fonts.ready) {
-      await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 1500))]);
-    }
-    const imgs = [...grid.querySelectorAll('img')];
-    await Promise.all(imgs.map(img => new Promise(res => {
-      if (img.complete && img.naturalWidth > 0) return res();
-      const done = () => { img.removeEventListener('load', done); img.removeEventListener('error', done); res(); };
-      img.addEventListener('load', done);
-      img.addEventListener('error', done);
-      // Force-load lazy images by setting eager temporarily
-      img.loading = 'eager';
-      setTimeout(done, 1500);
-    })));
-    imgs.forEach(img => { if (!img.complete || img.naturalWidth === 0) img.style.visibility = 'hidden'; });
-
-    const canvas = await html2canvas(grid, {
-      scale: 2, useCORS: true, allowTaint: true,
-      backgroundColor: '#07070C', logging: false,
-      imageTimeout: 2500,
-      onclone: (_doc, cloned) => {
-        cloned.querySelectorAll('*').forEach(node => {
-          const cs = window.getComputedStyle(node);
-          if (cs.overflow === 'hidden' || cs.overflowX === 'hidden') {
-            node.style.overflow = 'visible';
-            node.style.overflowX = 'visible';
-            node.style.overflowY = 'visible';
-            node.style.textOverflow = 'clip';
-            node.style.whiteSpace = 'normal';
-          }
-        });
-        // Hide edit-mode panels in the export
-        cloned.querySelectorAll('.edit-btn, .edit-panel').forEach(n => n.style.display = 'none');
-        cloned.querySelectorAll('img').forEach(img => {
-          if (!img.complete || img.naturalWidth === 0) img.style.visibility = 'hidden';
-        });
-      },
-    });
-    const { jsPDF } = window.jspdf;
-    const margin = 10, pageW = 210;
-    const usableW = pageW - margin * 2;
-    const pxPerMm = canvas.width / usableW;
-    const contentH = canvas.height / pxPerMm;
-    const pageH = contentH + margin * 2;
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [pageW, pageH] });
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, margin, usableW, contentH);
-    // Build filename from active filters so 'Warr.GG_Heroes_Jungle_Flying_Cloud.pdf'
-    // tells you what was exported at a glance.
+    // Set a print-time title so the saved PDF gets a sensible filename.
+    const role = document.getElementById('roleFilter')?.value || '';
+    const lane = document.getElementById('laneFilter')?.value || '';
+    const map  = document.getElementById('mapFilter')?.value || '';
     const safe = s => (s||'').replace(/[^a-z0-9]/gi, '_');
     const parts = ['Warr.GG_Heroes'];
-    const role = document.getElementById('roleFilter')?.value;
-    const lane = document.getElementById('laneFilter')?.value;
-    const map  = document.getElementById('mapFilter')?.value;
     if (role) parts.push(safe(role));
     if (lane) parts.push(safe(lane));
     if (map)  parts.push(safe(map));
-    pdf.save(parts.join('_') + '.pdf');
+    const prevTitle = document.title;
+    document.title = parts.join('_');
+    window.print();
+    // Restore title shortly after the print dialog returns.
+    setTimeout(() => { document.title = prevTitle; }, 1000);
   } catch(e) {
-    console.error('Heroes export error:', e);
-    _toastLite('Export failed: ' + (e?.message || 'unknown error'));
+    console.error('Heroes print error:', e);
+    _toastLite('Print failed: ' + (e?.message || 'unknown error'));
   }
   if (btn) { btn.textContent = 'Export PDF'; btn.disabled = false; }
 }
