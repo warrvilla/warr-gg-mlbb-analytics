@@ -1282,28 +1282,90 @@ function _dpConfDots(conf) {
   return conf === 'high' ? '●●●' : conf === 'medium' ? '●●○' : '●○○';
 }
 
-// For a given lane + composition, return our highest-WR hero from our pool that
-// fits this comp's archetype. Falls back to any high-WR hero in the lane if no
-// archetype match (so we never leave a lane empty).
-function _dpPickHeroForLane(lane, comp, ourStats, used) {
-  const archetypes = comp.laneArchetypes[lane] || [];
-  const ourPicks = (ourStats?.topPicks || []).filter(p => !used.has(p.name));
-  // First pass — match archetype AND have data
-  const archMatches = ourPicks.filter(p => archetypes.includes(p.name));
-  if (archMatches.length) {
-    // Sort by data quality: WR weighted by games (caps influence at 6 games)
-    archMatches.sort((a, b) => {
-      const sa = a.wr * Math.min(a.count, 6);
-      const sb = b.wr * Math.min(b.count, 6);
-      return sb - sa;
+// Meta cache — populated once per Draft Plan render. Picks heroes most-frequent
+// across ALL scout data so we know what's actually being played in the current meta.
+let _dpMetaCache = null;
+function _dpComputeMeta() {
+  if (_dpMetaCache) return _dpMetaCache;
+  const allMatches = (typeof DB !== 'undefined' && DB.matches) ? DB.matches : [];
+  // Global pick frequency = how many times each hero appears across all picks
+  const pickFreq = {};
+  let totalPicks = 0;
+  allMatches.forEach(m => {
+    if (typeof WDB !== 'undefined' && WDB.PUBLIC_LEAGUES && !WDB.PUBLIC_LEAGUES.includes(m.league)) return;
+    [...(m.bluePicks||[]), ...(m.redPicks||[])].forEach(p => {
+      const n = p && (p.name || p); if (!n) return;
+      pickFreq[n] = (pickFreq[n]||0) + 1; totalPicks++;
     });
-    return archMatches[0];
+  });
+  // Normalize to 0..1 rate
+  const metaRate = {};
+  if (totalPicks > 0) Object.keys(pickFreq).forEach(n => { metaRate[n] = pickFreq[n] / totalPicks; });
+  // Counters/synergies from WDB so we can score counter-pick value
+  let counters = {}, synergies = {};
+  try {
+    if (typeof WDB !== 'undefined') {
+      counters  = WDB.computeScoutCountersFromMatches?.(allMatches) || {};
+      synergies = WDB.computeScoutSynergiesFromMatches?.(allMatches) || {};
+    }
+  } catch(e) { /* fall back to empty */ }
+  _dpMetaCache = { pickFreq, metaRate, counters, synergies };
+  return _dpMetaCache;
+}
+
+// Score a candidate hero for a draft slot. Higher = better pick.
+// Combines: team WR/games (player skill signal), meta presence (current-patch
+// strength), counter value vs predicted enemy picks (matchup advantage), and
+// synergy with already-locked teammates (comp cohesion).
+function _dpScoreHero(name, ourStats, predictedEnemyPicks, teammateNames) {
+  const meta = _dpComputeMeta();
+  // 1. Team WR component — our team's track record on this hero
+  const own = (ourStats?.topPicks || []).find(p => p.name === name);
+  const ownScore = own ? own.wr * Math.min(own.count, 6) : 0; // max 600 (100% × 6g)
+  // 2. Meta presence — how often this hero is picked in current scout data
+  const metaScore = (meta.metaRate[name] || 0) * 30000; // 1% pick rate ≈ 300 points
+  // 3. Counter value vs predicted enemy picks
+  let counterScore = 0;
+  (predictedEnemyPicks || []).forEach(enemy => {
+    const list = meta.counters[name] || [];
+    const hit = list.find(c => c.name === enemy);
+    if (hit) counterScore += Math.round((hit.wr || 0.55) * 100); // max ~70 per counter
+  });
+  // 4. Synergy with already-locked teammates
+  let synergyScore = 0;
+  (teammateNames || []).forEach(mate => {
+    const list = meta.synergies[name] || [];
+    const hit = list.find(s => s.name === mate);
+    if (hit) synergyScore += Math.round((hit.wr || 0.55) * 60);
+  });
+  return { total: ownScore + metaScore + counterScore + synergyScore, ownScore, metaScore, counterScore, synergyScore, own };
+}
+
+// For a given lane + composition, pick the best hero by combining:
+//   own pool WR, meta presence, counter-pick value, synergy with teammates.
+// Always returns the strongest archetype hero — even if we have no data on it
+// (it's just labeled FRESH so the coach knows it's a meta-projection rather
+// than a confirmed comfort pick).
+function _dpPickHeroForLane(lane, comp, ourStats, used, predictedEnemyPicks, teammateNames) {
+  const archetypes = comp.laneArchetypes[lane] || [];
+  const meta = _dpComputeMeta();
+  // Score every archetype candidate for this lane that isn't already used
+  const scored = archetypes
+    .filter(name => !used.has(name))
+    .map(name => {
+      const s = _dpScoreHero(name, ourStats, predictedEnemyPicks, teammateNames);
+      return { name, ...s };
+    })
+    .sort((a, b) => b.total - a.total);
+  if (scored.length) {
+    const top = scored[0];
+    // If our team has played this hero, surface real data. Otherwise mark FRESH.
+    if (top.own) return { name: top.name, count: top.own.count, wr: top.own.wr, _score: top.total };
+    // Use meta as proxy "popularity" data for fresh picks (so user sees it's meta-validated)
+    const metaPickCount = meta.pickFreq[top.name] || 0;
+    return { name: top.name, count: 0, wr: 0, _fresh: true, _metaPicks: metaPickCount, _score: top.total };
   }
-  // Second pass — any archetype hero (no data): we recommend it as a fresh pick.
-  for (const name of archetypes) {
-    if (!used.has(name)) return { name, count: 0, wr: 0, _fresh: true };
-  }
-  // Third pass — any pick we've played, even if off-archetype.
+  // No archetype heroes available (rare). Fall back to any hero we've picked in this lane.
   const lookupLane = name => {
     if (typeof WDB !== 'undefined' && WDB.getHeroLanes) {
       const lanes = WDB.getHeroLanes(name);
@@ -1311,6 +1373,7 @@ function _dpPickHeroForLane(lane, comp, ourStats, used) {
     }
     return null;
   };
+  const ourPicks = (ourStats?.topPicks || []).filter(p => !used.has(p.name));
   const laneFits = ourPicks.filter(p => lookupLane(p.name) === lane);
   if (laneFits.length) return laneFits[0];
   return null;
@@ -1373,27 +1436,43 @@ function _dpBansFor(ourPicks, oppStats, oppName) {
 // Build all three identity plans for the matchup. Returns { identities: [...] }.
 function generateDraftPlan(ourName, oppName, ourStats, oppStats) {
   const LANES = ['Gold','Jungle','Mid','EXP','Roam'];
+  // Reset meta cache per call so it picks up any data changes between report
+  // re-generations. (Cheap to recompute — ~100ms even with 1000 matches.)
+  _dpMetaCache = null;
+  const meta = _dpComputeMeta();
+  // Predicted enemy picks = blend of their topPicks + their hero-meta presence
+  const predictedEnemyPicks = (oppStats?.topPicks || []).slice(0, 7).map(p => p.name);
   const identities = [];
   for (const [compKey, comp] of Object.entries(_DP_COMPS)) {
     const used = new Set();
+    const teammateNames = []; // grows as we lock picks for synergy scoring
     const picks = [];
-    // Lane order: pick highest-priority lanes first (Gold, Jungle, EXP, Mid, Roam)
-    // so flex heroes don't lock into a slot another lane needs more.
+    // Lane order: Gold/Jungle/EXP/Mid/Roam — pick early-game lanes first so flex
+    // heroes don't lock into a slot another lane needs more.
     for (const lane of LANES) {
-      const choice = _dpPickHeroForLane(lane, comp, ourStats, used);
+      const choice = _dpPickHeroForLane(lane, comp, ourStats, used, predictedEnemyPicks, teammateNames);
       if (choice) {
         const games = choice.count || 0;
         const wr = choice.wr || 0;
-        const conf = choice._fresh ? 'low' : _dpConf(games, wr);
-        const reason = choice._fresh
-          ? `Fresh pick from ${comp.label.toLowerCase()} archetype — no data yet`
-          : games >= 3
-            ? `${wr}% over ${games}g for you · fits ${comp.label.toLowerCase()}`
-            : `${games}g of data — promising fit for ${comp.label.toLowerCase()}`;
+        const conf = choice._fresh ? (choice._metaPicks >= 10 ? 'medium' : 'low') : _dpConf(games, wr);
+        // Reason now communicates WHY this pick scored highest — meta strength,
+        // counter value, or team WR — instead of just "fits the comp".
+        let reason;
+        if (choice._fresh) {
+          const metaP = choice._metaPicks || 0;
+          reason = metaP >= 10
+            ? `Meta pick — appears in ${metaP} scout games · no data for you yet`
+            : `${comp.label.toLowerCase()} archetype · no scout data yet, treat as exploration`;
+        } else {
+          reason = games >= 3
+            ? `${wr}% over ${games}g for you · ${comp.label.toLowerCase()} fit`
+            : `${games}g of data — early signal in ${comp.label.toLowerCase()}`;
+        }
         picks.push({ lane, name: choice.name, games, wr, reason, conf, fresh: !!choice._fresh });
         used.add(choice.name);
+        teammateNames.push(choice.name);
       } else {
-        picks.push({ lane, name: '—', games: 0, wr: 0, reason: 'No archetype-fit hero in your pool', conf: 'low', fresh: true });
+        picks.push({ lane, name: '—', games: 0, wr: 0, reason: 'No archetype-fit hero available', conf: 'low', fresh: true });
       }
     }
     const bans = _dpBansFor(picks, oppStats, oppName);
