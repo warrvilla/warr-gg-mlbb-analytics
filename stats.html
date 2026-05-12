@@ -973,6 +973,19 @@ async function generateReport() {
     </div>
     <div id="reportBody">${buildStaticReport(blueName, redName, blueStats, redStats, h2h)}</div>`;
 
+  // Compute Draft Plan AFTER the static report is in the DOM so the user sees
+  // progress immediately. setTimeout yields to the browser's paint cycle.
+  setTimeout(() => {
+    try {
+      const mount = document.getElementById('draftPlanMount');
+      if (mount) mount.outerHTML = buildDraftPlanSection(blueName, redName, blueStats, redStats);
+    } catch(e) {
+      console.warn('Draft Plan render failed:', e);
+      const mount = document.getElementById('draftPlanMount');
+      if (mount) mount.innerHTML = `<div class="report-section"><div class="report-body" style="color:var(--text3);font-size:11px;">Draft Plan unavailable — ${e.message}</div></div>`;
+    }
+  }, 30);
+
   const key = (typeof WDB!=='undefined'&&WDB.getAdminApiKeySync)?WDB.getAdminApiKeySync():'';
   if (!key) {
     const aiEl = document.getElementById('aiReportSection');
@@ -1064,8 +1077,20 @@ function buildStaticReport(blueName, redName, blueStats, redStats, h2h) {
     <!-- PRIORITY TARGETS -->
     ${buildPrioritySection(blueName, redName, blueStats, redStats)}
 
-    <!-- DRAFT PLAN (3 identities + branching + confidence) -->
-    ${buildDraftPlanSection(blueName, redName, blueStats, redStats)}
+    <!-- DRAFT PLAN (3 identities + branching + confidence) — rendered async so
+         the static report appears immediately; this placeholder fills in after. -->
+    <div id="draftPlanMount">
+      <div class="report-section">
+        <div class="report-hdr">
+          <div class="spinner"></div>
+          <span class="report-hdr-title" style="color:var(--gold);">Draft Plan · 3 Identities</span>
+          <span style="font-size:10px;color:var(--text3);margin-left:6px;">Building meta-aware picks…</span>
+        </div>
+        <div class="report-body">
+          <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+        </div>
+      </div>
+    </div>
 
     <!-- AI REPORT PLACEHOLDER -->
     <div class="report-section" id="aiReportSection">
@@ -1282,12 +1307,17 @@ function _dpConfDots(conf) {
   return conf === 'high' ? '●●●' : conf === 'medium' ? '●●○' : '●○○';
 }
 
-// Meta cache — populated once per Draft Plan render. Picks heroes most-frequent
-// across ALL scout data so we know what's actually being played in the current meta.
+// Meta cache — keyed by match count so it only recomputes when scout data
+// actually changes. Counter/synergy aggregation is the expensive part (~O(n×25)),
+// so caching this is the difference between instant re-renders and a 1-2s freeze.
 let _dpMetaCache = null;
+let _dpMetaCacheKey = null;
 function _dpComputeMeta() {
-  if (_dpMetaCache) return _dpMetaCache;
   const allMatches = (typeof DB !== 'undefined' && DB.matches) ? DB.matches : [];
+  // Invalidation key: total match count is enough — if no matches were added,
+  // counters/synergies didn't change either.
+  const key = allMatches.length;
+  if (_dpMetaCache && _dpMetaCacheKey === key) return _dpMetaCache;
   // Global pick frequency = how many times each hero appears across all picks
   const pickFreq = {};
   let totalPicks = 0;
@@ -1310,6 +1340,7 @@ function _dpComputeMeta() {
     }
   } catch(e) { /* fall back to empty */ }
   _dpMetaCache = { pickFreq, metaRate, counters, synergies };
+  _dpMetaCacheKey = key;
   return _dpMetaCache;
 }
 
@@ -1436,9 +1467,7 @@ function _dpBansFor(ourPicks, oppStats, oppName) {
 // Build all three identity plans for the matchup. Returns { identities: [...] }.
 function generateDraftPlan(ourName, oppName, ourStats, oppStats) {
   const LANES = ['Gold','Jungle','Mid','EXP','Roam'];
-  // Reset meta cache per call so it picks up any data changes between report
-  // re-generations. (Cheap to recompute — ~100ms even with 1000 matches.)
-  _dpMetaCache = null;
+  // Meta is auto-invalidated by match count; repeat renders reuse the cache.
   const meta = _dpComputeMeta();
   // Predicted enemy picks = blend of their topPicks + their hero-meta presence
   const predictedEnemyPicks = (oppStats?.topPicks || []).slice(0, 7).map(p => p.name);
