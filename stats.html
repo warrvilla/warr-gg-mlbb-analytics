@@ -408,6 +408,107 @@ select:focus, input:focus {
 /* ── SPINNER ── */
 .spinner { border-color: rgba(255,255,255,0.07) !important; border-top-color: var(--accent) !important; }
 
+/* ── DRAFT PLAN ── */
+.dp-section { background: var(--surface2); border: 0.5px solid var(--border); border-radius: 12px; }
+.dp-tabs {
+  display: flex; gap: 6px; margin-bottom: 14px;
+  border-bottom: 0.5px solid var(--border); padding-bottom: 10px;
+}
+.dp-tab {
+  font-family: var(--font-body); font-size: 12px; font-weight: 500;
+  padding: 8px 14px; border-radius: 8px;
+  background: rgba(255,255,255,0.04); border: 0.5px solid var(--border2);
+  color: var(--text2); cursor: pointer; transition: all .15s;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.dp-tab:hover { color: var(--text); border-color: var(--border3); }
+.dp-tab.active { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
+.dp-tab-conf { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1px; }
+
+.dp-identity { padding: 4px 2px; }
+.dp-id-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 12px; padding-bottom: 10px; border-bottom: 0.5px solid var(--border);
+}
+.dp-id-label { font-family: var(--font-head); font-size: 16px; font-weight: 700; color: var(--text); }
+.dp-id-sub   { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.dp-conf-badge {
+  font-family: var(--font-head); font-size: 9.5px; font-weight: 700; letter-spacing: 1px;
+  padding: 4px 10px; border-radius: 6px; border: 0.5px solid;
+  white-space: nowrap; flex-shrink: 0;
+}
+
+.dp-when {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  margin-bottom: 14px; padding: 9px 12px;
+  background: rgba(255,255,255,0.03); border-radius: 8px;
+  font-size: 11px; color: var(--text2);
+}
+.dp-when-l { font-weight: 700; margin-right: 4px; }
+.dp-when-l.strong { color: var(--green); }
+.dp-when-l.weak   { color: var(--red); }
+
+.dp-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  margin-bottom: 14px;
+}
+@media (max-width: 760px) { .dp-grid { grid-template-columns: 1fr; } }
+
+.dp-col {
+  background: var(--surface3); border: 0.5px solid var(--border2); border-radius: 10px;
+  padding: 10px 12px;
+}
+.dp-col-title {
+  font-family: var(--font-head); font-size: 10px; font-weight: 800; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--text3); margin-bottom: 8px;
+  padding-bottom: 6px; border-bottom: 0.5px solid var(--border);
+}
+.dp-row {
+  display: grid;
+  grid-template-columns: 18px 50px 28px minmax(0,1fr) 60px 32px;
+  align-items: center; gap: 8px;
+  padding: 5px 0;
+}
+.dp-row + .dp-row { border-top: 0.5px solid rgba(255,255,255,0.04); }
+.dp-num {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  color: var(--text3); text-align: right;
+}
+.dp-lane, .dp-intent {
+  font-family: var(--font-head); font-size: 9px; font-weight: 800; letter-spacing: .8px;
+  text-align: center;
+}
+.dp-body { min-width: 0; }
+.dp-name { font-size: 11.5px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dp-reason { font-size: 10px; color: var(--text3); line-height: 1.3; }
+.dp-fresh {
+  font-family: var(--font-mono); font-size: 8px; font-weight: 700; letter-spacing: .5px;
+  color: var(--gold); background: var(--gold-dim);
+  padding: 1px 4px; border-radius: 3px; margin-left: 4px; vertical-align: middle;
+}
+.dp-meta { font-family: var(--font-mono); font-size: 10px; color: var(--text3); text-align: right; }
+.dp-conf { font-family: var(--font-mono); font-size: 11px; letter-spacing: 1px; text-align: right; }
+
+.dp-meta-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+@media (max-width: 760px) { .dp-meta-grid { grid-template-columns: 1fr; } }
+.dp-meta-block {
+  background: var(--surface3); border: 0.5px solid var(--border2); border-radius: 8px;
+  padding: 9px 11px;
+}
+.dp-meta-title {
+  font-family: var(--font-head); font-size: 9.5px; font-weight: 800; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--text3); margin-bottom: 6px;
+}
+.dp-branch { font-size: 11px; color: var(--text2); line-height: 1.45; margin-bottom: 5px; }
+.dp-branch b { color: var(--text); font-weight: 600; }
+.dp-branch.dp-branch-quiet { color: var(--text3); font-style: italic; }
+.dp-pred { font-size: 11px; color: var(--text2); line-height: 1.5; margin-bottom: 3px; }
+.dp-pred b { color: var(--text3); font-weight: 600; }
+.dp-wincond { font-size: 11px; color: var(--text2); line-height: 1.5; }
+
+
 /* ── PRINT — hide chrome, render report only ── */
 @media print {
   body * { visibility: hidden; }
@@ -963,6 +1064,9 @@ function buildStaticReport(blueName, redName, blueStats, redStats, h2h) {
     <!-- PRIORITY TARGETS -->
     ${buildPrioritySection(blueName, redName, blueStats, redStats)}
 
+    <!-- DRAFT PLAN (3 identities + branching + confidence) -->
+    ${buildDraftPlanSection(blueName, redName, blueStats, redStats)}
+
     <!-- AI REPORT PLACEHOLDER -->
     <div class="report-section" id="aiReportSection">
       <div class="report-hdr">
@@ -1114,6 +1218,331 @@ function buildMemorySection() {
       </div>
     </div>
   </div>`;
+}
+
+// ══════ DRAFT PLAN ══════
+// Three composition identities, each producing a 5-pick + 5-ban plan with
+// confidence scores, branching hints, predicted enemy moves, and win condition.
+
+// Lane-archetype templates per strategy. The generator picks the highest-scoring
+// hero from our hero pool that matches each lane's archetype list.
+const _DP_COMPS = {
+  pickoff: {
+    label: 'Pickoff & Burst',
+    sublabel: 'Mobile dive, early aggression, isolate targets',
+    laneArchetypes: {
+      Gold:   ['Beatrix','Granger','Karrie','Wanwan','Brody','Lesley','Melissa','Moskov'],
+      Jungle: ['Lancelot','Hayabusa','Joy','Aamon','Karina','Fanny','Gusion','Saber','Nolan','Natalia','Helcurt'],
+      Mid:    ['Pharsa','Cyclops','Eudora','Vale','Aurora','Selena','Kadita','Harley'],
+      EXP:    ['Yu Zhong','Paquito','Dyrroth','Yin','Alucard','Lapu-Lapu','Arlott','Esmeralda'],
+      Roam:   ['Khufra','Atlas','Franco','Chou','Mathilda','Jawhead','Tigreal'],
+    },
+    winCondition: 'Pick off isolated heroes, snowball turtles 1-2, close before late teamfights stabilise.',
+    strongVs: 'shallow roam pool · poor map vision · drops coordinated fights',
+    weakVs:   'sustain comps · heavy peel · scaling AOE',
+  },
+  scaling: {
+    label: 'Teamfight & Scaling',
+    sublabel: 'Late-game AOE, frontline, sustain through lord fights',
+    laneArchetypes: {
+      Gold:   ['Karrie','Granger','Beatrix','Bruno','Melissa','Brody','Lesley'],
+      Jungle: ['Ling','Fanny','Roger','Barats','Fredrinn','Suyou'],
+      Mid:    ['Yve','Valentina','Pharsa','Xavier','Lylia','Cecilion','Novaria','Zhuxin'],
+      EXP:    ['Phoveus','Esmeralda','Edith','Cici','Gatotkaca','Uranus','Khaleed','Yu Zhong'],
+      Roam:   ['Mathilda','Tigreal','Atlas','Estes','Floryn','Angela','Khufra'],
+    },
+    winCondition: 'Survive early, scale to 5v5 lord teamfights, leverage AOE wombo at 8-10 min lord.',
+    strongVs: 'pickoff comps that struggle 5v5 · early aggression that runs out of steam',
+    weakVs:   'siege comps · 1-3-1 splitpush · early dive that closes before 10min',
+  },
+  snowball: {
+    label: 'Early Snowball',
+    sublabel: 'Levels 1-6 dominance, close before they scale',
+    laneArchetypes: {
+      Gold:   ['Wanwan','Beatrix','Brody','Granger','Lesley','Bruno'],
+      Jungle: ['Selena','Cyclops','Lancelot','Saber','Karina','Joy','Hayabusa','Aamon','Helcurt'],
+      Mid:    ['Cyclops','Vale','Aurora','Eudora','Pharsa','Selena','Kadita','Harley'],
+      EXP:    ['Paquito','Dyrroth','Lapu-Lapu','Yu Zhong','Yin','Sun','Alucard'],
+      Roam:   ['Selena','Nana','Chou','Edith','Atlas','Khufra','Tigreal'],
+    },
+    winCondition: 'Snowball lanes 1-3min, pressure turtle, close around 12-15min before scaling kicks in.',
+    strongVs: 'late-game scaling comps · slow start jungles · greedy lane assignments',
+    weakVs:   'turtle-shell comps · sustain through 6min · counter-jungle threats',
+  },
+};
+
+// Confidence buckets from games + WR. Used both for individual picks and for the
+// overall plan ('high' = trustworthy data, 'low' = thin sample, take with salt).
+function _dpConf(games, wr) {
+  if (games >= 5 && wr >= 60) return 'high';
+  if (games >= 3 || wr >= 60) return 'medium';
+  return 'low';
+}
+function _dpConfDots(conf) {
+  return conf === 'high' ? '●●●' : conf === 'medium' ? '●●○' : '●○○';
+}
+
+// For a given lane + composition, return our highest-WR hero from our pool that
+// fits this comp's archetype. Falls back to any high-WR hero in the lane if no
+// archetype match (so we never leave a lane empty).
+function _dpPickHeroForLane(lane, comp, ourStats, used) {
+  const archetypes = comp.laneArchetypes[lane] || [];
+  const ourPicks = (ourStats?.topPicks || []).filter(p => !used.has(p.name));
+  // First pass — match archetype AND have data
+  const archMatches = ourPicks.filter(p => archetypes.includes(p.name));
+  if (archMatches.length) {
+    // Sort by data quality: WR weighted by games (caps influence at 6 games)
+    archMatches.sort((a, b) => {
+      const sa = a.wr * Math.min(a.count, 6);
+      const sb = b.wr * Math.min(b.count, 6);
+      return sb - sa;
+    });
+    return archMatches[0];
+  }
+  // Second pass — any archetype hero (no data): we recommend it as a fresh pick.
+  for (const name of archetypes) {
+    if (!used.has(name)) return { name, count: 0, wr: 0, _fresh: true };
+  }
+  // Third pass — any pick we've played, even if off-archetype.
+  const lookupLane = name => {
+    if (typeof WDB !== 'undefined' && WDB.getHeroLanes) {
+      const lanes = WDB.getHeroLanes(name);
+      return lanes && lanes[0];
+    }
+    return null;
+  };
+  const laneFits = ourPicks.filter(p => lookupLane(p.name) === lane);
+  if (laneFits.length) return laneFits[0];
+  return null;
+}
+
+// Generate the 5-ban list for an identity. Tagged with intent category so the
+// UI can show WHY each ban exists, not just the hero name.
+function _dpBansFor(ourPicks, oppStats, oppName) {
+  const bans = [];
+  const used = new Set();
+  // 1. Comfort-deny: their highest-WR pick (WR ≥ 60, games ≥ 3)
+  const comforts = (oppStats?.topPicks || [])
+    .filter(p => p.wr >= 60 && p.count >= 3 && !used.has(p.name))
+    .slice(0, 2);
+  comforts.forEach(p => {
+    bans.push({
+      name: p.name,
+      intent: 'COMFORT',
+      reason: `${oppName} won ${p.wr}% on ${p.name} over ${p.count}g`,
+      conf: _dpConf(p.count, p.wr),
+    });
+    used.add(p.name);
+  });
+  // 2. Phase-1 deny: their most-frequent first pick
+  (oppStats?.topFirstPick || []).slice(0, 1).forEach(p => {
+    if (used.has(p.name)) return;
+    bans.push({
+      name: p.name,
+      intent: 'PHASE-1',
+      reason: `${oppName} opens phase-1 with ${p.name} ${p.count}x`,
+      conf: _dpConf(p.count, 70),
+    });
+    used.add(p.name);
+  });
+  // 3. Lane-deny / habit-mirror: heroes they ban (mirror their prep)
+  (oppStats?.topBans || []).slice(0, 3).forEach(b => {
+    if (used.has(b.name) || bans.length >= 5) return;
+    bans.push({
+      name: b.name,
+      intent: 'HABIT',
+      reason: `${oppName} reliably bans this — mirror prep`,
+      conf: b.count >= 3 ? 'medium' : 'low',
+    });
+    used.add(b.name);
+  });
+  // 4. Generic top picks if we still have room
+  (oppStats?.topPicks || []).forEach(p => {
+    if (bans.length >= 5 || used.has(p.name)) return;
+    bans.push({
+      name: p.name,
+      intent: 'POOL',
+      reason: `Common pick (${p.count}g) — generic pool pressure`,
+      conf: 'low',
+    });
+    used.add(p.name);
+  });
+  return bans.slice(0, 5);
+}
+
+// Build all three identity plans for the matchup. Returns { identities: [...] }.
+function generateDraftPlan(ourName, oppName, ourStats, oppStats) {
+  const LANES = ['Gold','Jungle','Mid','EXP','Roam'];
+  const identities = [];
+  for (const [compKey, comp] of Object.entries(_DP_COMPS)) {
+    const used = new Set();
+    const picks = [];
+    // Lane order: pick highest-priority lanes first (Gold, Jungle, EXP, Mid, Roam)
+    // so flex heroes don't lock into a slot another lane needs more.
+    for (const lane of LANES) {
+      const choice = _dpPickHeroForLane(lane, comp, ourStats, used);
+      if (choice) {
+        const games = choice.count || 0;
+        const wr = choice.wr || 0;
+        const conf = choice._fresh ? 'low' : _dpConf(games, wr);
+        const reason = choice._fresh
+          ? `Fresh pick from ${comp.label.toLowerCase()} archetype — no data yet`
+          : games >= 3
+            ? `${wr}% over ${games}g for you · fits ${comp.label.toLowerCase()}`
+            : `${games}g of data — promising fit for ${comp.label.toLowerCase()}`;
+        picks.push({ lane, name: choice.name, games, wr, reason, conf, fresh: !!choice._fresh });
+        used.add(choice.name);
+      } else {
+        picks.push({ lane, name: '—', games: 0, wr: 0, reason: 'No archetype-fit hero in your pool', conf: 'low', fresh: true });
+      }
+    }
+    const bans = _dpBansFor(picks, oppStats, oppName);
+    // Predicted enemy moves: their top picks + bans
+    const predictedEnemyBans = (oppStats?.topBans || []).slice(0, 5).map(b => b.name);
+    const predictedEnemyPicks = (oppStats?.topPicks || []).slice(0, 5).map(p => p.name);
+    // Branching: if they ban our top-confidence pick, what's our fallback?
+    const branches = [];
+    const topPick = picks.filter(p => p.name !== '—').sort((a, b) => b.wr - a.wr)[0];
+    if (topPick && predictedEnemyBans.includes(topPick.name)) {
+      branches.push({
+        trigger: `If they ban ${topPick.name} (likely — in their top ban list)`,
+        action:  `Switch ${topPick.lane} to your next-best in this comp; consider Pivot to another identity.`,
+      });
+    }
+    // Overall confidence: based on data depth on both sides
+    const ourGames = ourStats?.total || 0;
+    const oppGames = oppStats?.total || 0;
+    const overallConf = (ourGames >= 10 && oppGames >= 5) ? 'high'
+      : (ourGames >= 3 && oppGames >= 3) ? 'medium'
+      : 'low';
+    identities.push({
+      key: compKey, label: comp.label, sublabel: comp.sublabel,
+      strongVs: comp.strongVs, weakVs: comp.weakVs,
+      winCondition: comp.winCondition,
+      picks, bans, predictedEnemyBans, predictedEnemyPicks, branches,
+      conf: overallConf,
+    });
+  }
+  return { identities };
+}
+
+// Build the Draft Plan section HTML.
+function buildDraftPlanSection(blueName, redName, blueStats, redStats) {
+  if (!blueStats || !redStats) return '';
+  const plan = generateDraftPlan(blueName, redName, blueStats, redStats);
+  const portrait = name => {
+    if (name === '—') return `<span style="display:inline-block;width:28px;height:28px;border-radius:8px;background:var(--surface3);"></span>`;
+    return `<img src="./portraits/${nameToId(name)}.png" alt="${name}" loading="lazy" width="28" height="28" onerror="this.style.background='var(--surface3)';this.removeAttribute('src')" style="width:28px;height:28px;border-radius:8px;object-fit:cover;background:var(--surface3);">`;
+  };
+  const laneColor = lane => ({
+    Gold: '#f4a534', Jungle: '#a78bfa', Mid: '#60a5fa', EXP: '#f87171', Roam: '#34d17a',
+  }[lane] || 'var(--text2)');
+  const confColor = c => c === 'high' ? 'var(--green)' : c === 'medium' ? 'var(--gold)' : 'var(--red)';
+  const intentColor = i => ({
+    COMFORT: '#f87171', 'PHASE-1': '#60a5fa', HABIT: '#a78bfa', POOL: 'var(--text3)',
+  }[i] || 'var(--text3)');
+
+  const identityHTML = plan.identities.map((id, idx) => `
+    <div class="dp-identity" data-id="${id.key}" style="${idx===0?'':'display:none;'}">
+      <div class="dp-id-header">
+        <div>
+          <div class="dp-id-label">${id.label}</div>
+          <div class="dp-id-sub">${id.sublabel}</div>
+        </div>
+        <span class="dp-conf-badge" style="color:${confColor(id.conf)};border-color:${confColor(id.conf)}55;background:${confColor(id.conf)}11;">
+          ${id.conf.toUpperCase()} CONFIDENCE
+        </span>
+      </div>
+
+      <div class="dp-when">
+        <div><span class="dp-when-l strong">Strong vs:</span> ${id.strongVs}</div>
+        <div><span class="dp-when-l weak">Weak vs:</span> ${id.weakVs}</div>
+      </div>
+
+      <div class="dp-grid">
+        <!-- PICKS -->
+        <div class="dp-col">
+          <div class="dp-col-title">Your Picks (5) — in draft order</div>
+          ${id.picks.map((p, i) => `
+            <div class="dp-row">
+              <span class="dp-num">${i+1}</span>
+              <span class="dp-lane" style="color:${laneColor(p.lane)};">${p.lane.toUpperCase()}</span>
+              ${portrait(p.name)}
+              <div class="dp-body">
+                <div class="dp-name">${p.name}${p.fresh ? ' <span class="dp-fresh">FRESH</span>' : ''}</div>
+                <div class="dp-reason">${p.reason}</div>
+              </div>
+              <span class="dp-meta">${p.games}g${p.wr?` · ${p.wr}%`:''}</span>
+              <span class="dp-conf" style="color:${confColor(p.conf)};" title="${p.conf} confidence">${_dpConfDots(p.conf)}</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- BANS -->
+        <div class="dp-col">
+          <div class="dp-col-title">Your Bans (5) — priority order</div>
+          ${id.bans.map((b, i) => `
+            <div class="dp-row">
+              <span class="dp-num">${i+1}</span>
+              <span class="dp-intent" style="color:${intentColor(b.intent)};">${b.intent}</span>
+              ${portrait(b.name)}
+              <div class="dp-body">
+                <div class="dp-name">${b.name}</div>
+                <div class="dp-reason">${b.reason}</div>
+              </div>
+              <span class="dp-conf" style="color:${confColor(b.conf)};" title="${b.conf} confidence">${_dpConfDots(b.conf)}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- BRANCHING + ENEMY PREDICTION + WIN CONDITION -->
+      <div class="dp-meta-grid">
+        <div class="dp-meta-block">
+          <div class="dp-meta-title">If they react…</div>
+          ${id.branches.length
+            ? id.branches.map(b => `<div class="dp-branch"><b>${b.trigger}</b> → ${b.action}</div>`).join('')
+            : `<div class="dp-branch dp-branch-quiet">Your top picks aren't on their ban radar — execute as planned.</div>`}
+        </div>
+        <div class="dp-meta-block">
+          <div class="dp-meta-title">Expected enemy moves</div>
+          <div class="dp-pred"><b>Bans:</b> ${id.predictedEnemyBans.join(' · ') || '—'}</div>
+          <div class="dp-pred"><b>Picks:</b> ${id.predictedEnemyPicks.join(' · ') || '—'}</div>
+        </div>
+        <div class="dp-meta-block">
+          <div class="dp-meta-title">Win condition</div>
+          <div class="dp-wincond">${id.winCondition}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  return `
+    <div class="report-section dp-section">
+      <div class="report-hdr">
+        <span class="report-hdr-title" style="color:var(--gold);">Draft Plan · 3 Identities</span>
+        <span style="font-size:10px;color:var(--text3);margin-left:6px;">Three ways to play this matchup — pick the one that suits your team's style</span>
+      </div>
+      <div class="report-body">
+        <div class="dp-tabs">
+          ${plan.identities.map((id, i) => `
+            <button class="dp-tab${i===0?' active':''}" data-target="${id.key}" onclick="_dpSwitchTab(event,'${id.key}')">
+              ${id.label}
+              <span class="dp-tab-conf" style="color:${confColor(id.conf)};">${_dpConfDots(id.conf)}</span>
+            </button>
+          `).join('')}
+        </div>
+        ${identityHTML}
+      </div>
+    </div>`;
+}
+
+function _dpSwitchTab(ev, key) {
+  ev.preventDefault();
+  document.querySelectorAll('.dp-tab').forEach(t => t.classList.toggle('active', t.dataset.target === key));
+  document.querySelectorAll('.dp-identity').forEach(d => {
+    d.style.display = d.dataset.id === key ? '' : 'none';
+  });
 }
 
 // ══════ AI REPORT ══════

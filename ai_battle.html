@@ -1571,16 +1571,28 @@ function initBattle(){
 // ═══════ HELPERS ═══════
 function rc(r){const m={'MM':'#f59e0b','Mage':'#a855f7','Tank':'#3b82f6','Fighter':'#f97316','Assassin':'#ef4444','Support':'#22c55e'};for(const k of Object.keys(m))if(r.includes(k))return m[k];return'#94a3b8';}
 function tc(t){return{S:'#f59e0b',A:'#9ca3af',B:'#b45309',C:'#4b5563'}[t]||'#4b5563';}
-function lane(h){if(TIER_LIST[h.name]?.lane)return TIER_LIST[h.name].lane;return LANES_MAP[h.name]||'Flex';}
+function lane(h){
+  if(TIER_LIST[h.name]?.lane)return TIER_LIST[h.name].lane;
+  if(LANES_MAP[h.name])return LANES_MAP[h.name];
+  // Fall back to curated lane defaults from warr-lib. Without this, heroes
+  // not in the legacy LANES_MAP (e.g. newer ones or those missing scout data)
+  // return 'Flex' and silently disappear from teammate-lane tracking — letting
+  // the AI pick duplicate-lane heroes.
+  if(typeof WDB!=='undefined'&&WDB.HERO_LANE_DEFAULTS?.[h.name])return WDB.HERO_LANE_DEFAULTS[h.name][0];
+  return 'Flex';
+}
 // Effective lane = manual/auto-assigned override (laneAssignmentsAB) → else primary lane.
 // All composition checks must use this, NOT lane(), so that flex reassignments are respected.
 function effectiveLaneAB(h){if(!h)return'Flex';return laneAssignmentsAB[h.id]||lane(h);}
 function needs(picks){const cl=picks.map(p=>effectiveLaneAB(p)).filter(l=>l!=='Flex');return{cl,needed:['Gold','Jungle','Mid','EXP','Roam'].filter(l=>!cl.includes(l))};}
 // Pick the best concrete lane this hero should occupy given the teammates already locked in.
+// If every one of this hero's playable lanes is already taken, return 'Flex' rather than a
+// duplicate — that way the hero doesn't fake-occupy a slot it can't actually fill, and the
+// score-side hard-block stays accurate for subsequent picks.
 function pickLaneForHero(h,myPicks){
   const taken=new Set(myPicks.map(p=>effectiveLaneAB(p)).filter(l=>l!=='Flex'));
   const opts=getHeroLanesAB(h);
-  return opts.find(l=>l!=='Flex'&&!taken.has(l))||opts[0]||'Flex';
+  return opts.find(l=>l!=='Flex'&&!taken.has(l))||'Flex';
 }
 // STRICT: can this hero join the team without duplicating an already-covered lane?
 function canPickHero(h,myPicks){
@@ -2391,9 +2403,20 @@ function localAI(step){
     // ── STRICT HARD LANE BLOCK ──
     // Reject a hero whose effective lane is already occupied by a teammate, OR whose only
     // options are already-covered lanes (no flex path into an open slot).
-    const takenLanes=new Set(myP.map(p=>effectiveLaneAB(p)).filter(l=>l!=='Flex'));
+    // For teammates without an explicit lane assignment, fall back to their
+    // hero's first observed/default lane so they don't silently disappear
+    // from takenLanes — that was letting AI pick duplicate-lane heroes.
+    const _laneOf = p => {
+      const assigned = laneAssignmentsAB[p.id];
+      if (assigned) return assigned;
+      const opts = getHeroLanesAB(p);
+      return (opts && opts[0]) || 'Flex';
+    };
+    const takenLanes=new Set(myP.map(_laneOf).filter(l=>l!=='Flex'));
     if(ln!=='Flex'&&takenLanes.has(ln))return null;
     if(myNeeded.length>0&&!heroLanes.some(l=>l==='Flex'||myNeeded.includes(l)))return null;
+    // Final guard — explicit canPickHero check using the same lane source.
+    if(!canPickHero(h,myP))return null;
 
     // ── ENEMY TEAM MODE ──────────────────────────────────────────────────
     if(ep){
