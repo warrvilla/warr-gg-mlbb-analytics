@@ -395,6 +395,7 @@ let _matches        = [];
 let _publicMatches  = [];  // cached match pool (PUBLIC_LEAGUES filtered)
 let _countersMap    = {};
 let _synergiesMap   = {};
+let _draftedAgainst = {}; // { [hero]: [{name, count}] } — who opponents pick when hero is on enemy team
 let _overrides      = {};
 let _playCounts     = {};
 let _heroLaneMap    = {}; // { heroName: 'Gold'|'Jungle'|'Mid'|'EXP'|'Roam' } — primary observed lane
@@ -556,8 +557,9 @@ function recomputeForMapFilter() {
   const pool = mapSel
     ? _publicMatches.filter(m => (m.map||'') === mapSel)
     : _publicMatches;
-  _countersMap  = WDB.computeScoutCountersFromMatches(pool);
-  _synergiesMap = WDB.computeScoutSynergiesFromMatches(pool);
+  _countersMap   = WDB.computeScoutCountersFromMatches(pool);
+  _synergiesMap  = WDB.computeScoutSynergiesFromMatches(pool);
+  _draftedAgainst = WDB.computeDraftedAgainstFromMatches?.(pool) || {};
   _playCounts = {};
   pool.forEach(m => {
     ['bluePicks', 'redPicks'].forEach(k => {
@@ -631,6 +633,9 @@ function heroCardHTML(h) {
 
   const computedCounters  = (_countersMap[h.name]  || []).slice(0, 5);
   const computedSynergies = (_synergiesMap[h.name] || []).slice(0, 5);
+  // Drafted-against: pure behavioral signal — what enemy teams actually
+  // pick when this hero is on the board, regardless of WR outcome.
+  const draftedAgainst = (_draftedAgainst[h.name] || []).slice(0, 5);
 
   const counters  = useCounterOverride
     ? over.counter.map(n => ({ name: n, _admin: true }))
@@ -687,6 +692,16 @@ function heroCardHTML(h) {
           ${synergyBadge}
         </div>
         <div class="relation-row">${relationItemsHTML(synergies, 'synergy', h.name)}</div>
+      </div>
+
+      <div class="relation-block">
+        <div class="relation-label" title="When opponents see ${escHtml(h.name)} on the enemy team, these are the heroes they most often pick in response — pure draft-habit signal, not win-rate.">
+          <span>Drafted against</span>
+          ${draftedAgainst.length
+            ? '<span class="badge badge-muted">From Scout</span>'
+            : '<span class="badge badge-muted">No data</span>'}
+        </div>
+        <div class="relation-row">${relationItemsHTML(draftedAgainst, 'response', h.name)}</div>
       </div>
 
       <div class="edit-panel" id="edit_${heroSlug}">
@@ -757,6 +772,14 @@ function relationItemsHTML(items, kind, heroName) {
         tooltip = `${heroName || 'This hero'} + ${name} won ${pct}% across ${it.count} game${it.count===1?'':'s'} together` +
                   (lowSample ? ` (low sample — only ${it.count} game${it.count===1?'':'s'})` : '');
       }
+    } else if (kind === 'response' && typeof it.count === 'number') {
+      // Drafted-against rows show pick FREQUENCY (count), not WR — it's a
+      // behavioural signal: "this is what teams pick when X is on the enemy."
+      lowSample = it.count < LOW_SAMPLE_THRESHOLD;
+      const sampleNote = lowSample ? ' ⚠' : '';
+      wrHTML = `<span class="wr mid">${it.count}g${sampleNote}</span>`;
+      tooltip = `Drafted ${it.count} time${it.count===1?'':'s'} against ${heroName || 'this hero'}` +
+                (lowSample ? ` (low sample — only ${it.count} game${it.count===1?'':'s'})` : '');
     } else if (it._admin) {
       tooltip = `${name} (admin pick)`;
     }

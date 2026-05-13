@@ -725,6 +725,42 @@ WDB.computeScoutSynergiesFromMatches = function(matches, minMatches) {
   return out;
 };
 
+/** For each hero, the heroes that opponents most often DRAFT when this hero
+ *  is on the enemy team. Cross-pair count from bluePicks × redPicks across
+ *  all matches. Unlike counters (which is WR-based), this is purely behavioral:
+ *  what teams actually pick in response, regardless of outcome.
+ *
+ *  Returns: { [hero]: [ { name, count }, ... ] } sorted by frequency desc.
+ *  Only includes opposing-side pairs with at least minMatches games. */
+WDB.computeDraftedAgainstFromMatches = function(matches, minMatches) {
+  minMatches = minMatches == null ? 3 : minMatches;
+  const map = {}; // map[heroX][heroY] = count of games where Y was drafted while X was on enemy
+  (matches || []).forEach(m => {
+    if (!m) return;
+    const league = m.league || '';
+    if (!WDB.PUBLIC_LEAGUES.includes(league)) return; // skip scrims / private
+    const blue = (m.bluePicks || []).map(p => p && (p.name || p)).filter(Boolean);
+    const red  = (m.redPicks  || []).map(p => p && (p.name || p)).filter(Boolean);
+    // Every blue hero "saw" every red hero as a response, and vice versa
+    blue.forEach(bh => {
+      red.forEach(rh => {
+        if (!map[bh]) map[bh] = {};
+        map[bh][rh] = (map[bh][rh] || 0) + 1;
+        if (!map[rh]) map[rh] = {};
+        map[rh][bh] = (map[rh][bh] || 0) + 1;
+      });
+    });
+  });
+  const out = {};
+  Object.entries(map).forEach(([hero, responses]) => {
+    out[hero] = Object.entries(responses)
+      .filter(([_, c]) => c >= minMatches)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+  });
+  return out;
+};
+
 /** Load all admin-curated hero_relations. Returns:
  *    { [hero]: { counter: [names], synergy: [names] } }  */
 WDB.loadHeroRelations = async function() {
