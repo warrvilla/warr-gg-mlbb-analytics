@@ -509,6 +509,36 @@ select:focus, input:focus {
 .dp-wincond { font-size: 11px; color: var(--text2); line-height: 1.5; }
 
 
+/* ── POCKET PICK SECTION ── */
+.pp-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+@media (max-width: 760px) { .pp-grid { grid-template-columns: 1fr; } }
+.pp-col {
+  background: var(--surface3); border: 0.5px solid var(--border2); border-radius: 8px;
+  padding: 10px 12px;
+}
+.pp-col-title {
+  font-family: var(--font-head); font-size: 10px; font-weight: 800; letter-spacing: 1.2px;
+  text-transform: uppercase; margin-bottom: 8px;
+  padding-bottom: 6px; border-bottom: 0.5px solid var(--border);
+}
+.pp-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 0; cursor: help;
+}
+.pp-row + .pp-row { border-top: 0.5px solid rgba(255,255,255,0.04); }
+.pp-body { flex: 1; min-width: 0; }
+.pp-name { font-size: 11.5px; font-weight: 600; color: var(--text); }
+.pp-meta { font-size: 9.5px; color: var(--text3); font-family: var(--font-mono); line-height: 1.4; }
+.pp-badge {
+  font-family: var(--font-head); font-size: 8.5px; font-weight: 800; letter-spacing: .8px;
+  padding: 2px 7px; border-radius: 4px;
+  background: var(--gold-dim); color: var(--gold);
+  border: 0.5px solid var(--gold-border);
+}
+.pp-badge.pp-zero { background: var(--neon-dim); color: var(--neon); border-color: var(--neon-border); }
+
 /* ── PRINT — hide chrome, render report only ── */
 @media print {
   body * { visibility: hidden; }
@@ -516,6 +546,13 @@ select:focus, input:focus {
   #reportBody { position: absolute; left: 0; top: 0; width: 100%; }
   .no-print, .topbar, #leagueFilterPills, #apiKeyCard, .key-card { display: none !important; }
   .card-hdr, .setup-grid { display: none !important; }
+  /* Compact spacing for the printed briefing */
+  .report-section { margin-bottom: 12px !important; break-inside: avoid; page-break-inside: avoid; }
+  .report-section * { color: #111 !important; }
+  .report-section { background: #fff !important; border: 0.5px solid #ccc !important; box-shadow: none !important; }
+  .pp-row, .dp-row, .lp-row { break-inside: avoid; page-break-inside: avoid; }
+  .pp-badge { background: #e6f7ee !important; color: #137a3b !important; border-color: #9adcb6 !important; }
+  .pp-badge.pp-zero { background: #d4f5dd !important; color: #137a3b !important; }
 }
 
 /* ═══════════════════════════════════════════════════════ */
@@ -1077,6 +1114,9 @@ function buildStaticReport(blueName, redName, blueStats, redStats, h2h) {
     <!-- PRIORITY TARGETS -->
     ${buildPrioritySection(blueName, redName, blueStats, redStats)}
 
+    <!-- POCKET PICKS — heroes the opponent has rarely faced -->
+    ${buildPocketPickSection(blueName, redName, blueStats, redStats)}
+
     <!-- DRAFT PLAN (3 identities + branching + confidence) — rendered async so
          the static report appears immediately; this placeholder fills in after. -->
     <div id="draftPlanMount">
@@ -1243,6 +1283,98 @@ function buildMemorySection() {
       </div>
     </div>
   </div>`;
+}
+
+// ══════ POCKET PICKS ══════
+// Heroes the opponent has RARELY faced across their entire scout history.
+// These are "surprise picks" — the opposing coach hasn't seen them, hasn't
+// prepared counterplay, and the team can't recall their matchups from memory.
+//
+// Algorithm:
+//   1. Compute global meta presence (pick count across all scout matches).
+//   2. For each meta hero, count how many times the opponent has faced it
+//      (i.e., that hero appeared on the OPPOSING side in opp's matches).
+//   3. Surface heroes with high meta presence (≥5 global) but low face count
+//      (≤2 times for opp) — surprise candidates.
+function computePocketPicks(oppName) {
+  if (!oppName) return [];
+  const all = (DB?.matches || []);
+  // 1. Global pick frequency across the entire match library
+  const globalPicks = {};
+  all.forEach(m => {
+    if (typeof WDB !== 'undefined' && WDB.PUBLIC_LEAGUES && !WDB.PUBLIC_LEAGUES.includes(m.league)) return;
+    [...(m.bluePicks || []), ...(m.redPicks || [])].forEach(p => {
+      const n = p && (p.name || p); if (!n) return;
+      globalPicks[n] = (globalPicks[n] || 0) + 1;
+    });
+  });
+  // 2. How many times has THIS opponent faced each hero?
+  const facedCount = {}; let oppMatchCount = 0;
+  all.forEach(m => {
+    if (m.blueTeam !== oppName && m.redTeam !== oppName) return;
+    if (typeof WDB !== 'undefined' && WDB.PUBLIC_LEAGUES && !WDB.PUBLIC_LEAGUES.includes(m.league)) return;
+    oppMatchCount++;
+    const enemyPicks = m.blueTeam === oppName ? (m.redPicks || []) : (m.bluePicks || []);
+    enemyPicks.forEach(p => {
+      const n = p && (p.name || p); if (!n) return;
+      facedCount[n] = (facedCount[n] || 0) + 1;
+    });
+  });
+  // 3. Filter: meta-relevant (≥5 global games) AND opp has faced ≤2 times.
+  //    Skip when opp has fewer than 3 matches total (no meaningful "faced" data).
+  const META_THRESHOLD = 5;
+  const FACED_THRESHOLD = 2;
+  if (oppMatchCount < 3) return [];
+  const pockets = [];
+  Object.entries(globalPicks).forEach(([name, gCount]) => {
+    if (gCount < META_THRESHOLD) return;
+    const faced = facedCount[name] || 0;
+    if (faced > FACED_THRESHOLD) return;
+    pockets.push({ name, globalCount: gCount, faced, oppMatches: oppMatchCount });
+  });
+  // 4. Sort by global meta strength desc (most-meta first); top 10.
+  return pockets.sort((a, b) => b.globalCount - a.globalCount).slice(0, 10);
+}
+
+function buildPocketPickSection(blueName, redName, blueStats, redStats) {
+  // Generate pockets vs the RED team (the enemy from blue's perspective)
+  // and also vs the BLUE team (useful for the red coach, or symmetry).
+  const vsRed  = computePocketPicks(redName);
+  const vsBlue = computePocketPicks(blueName);
+  if (!vsRed.length && !vsBlue.length) return '';
+  const portrait = name => `<img src="./portraits/${nameToId(name)}.png" alt="${name}" loading="lazy" width="24" height="24" onerror="this.style.background='var(--surface3)';this.removeAttribute('src')" style="width:24px;height:24px;border-radius:7px;object-fit:cover;background:var(--surface3);">`;
+  const renderList = (pockets, oppDisplayName) => {
+    if (!pockets.length) return `<div style="color:var(--text3);font-size:11px;padding:8px 4px;">${oppDisplayName} has too few matches to compute pocket picks.</div>`;
+    return pockets.map(p => `
+      <div class="pp-row" title="${oppDisplayName} has faced ${p.name} only ${p.faced} time${p.faced===1?'':'s'} across ${p.oppMatches} matches. Globally ${p.name} appears in ${p.globalCount} games — they should know it but haven't faced it.">
+        ${portrait(p.name)}
+        <div class="pp-body">
+          <div class="pp-name">${p.name}</div>
+          <div class="pp-meta">faced ${p.faced}× of ${p.oppMatches} · meta ${p.globalCount}g</div>
+        </div>
+        <span class="pp-badge ${p.faced === 0 ? 'pp-zero' : ''}">${p.faced === 0 ? 'NEVER' : 'RARE'}</span>
+      </div>
+    `).join('');
+  };
+  return `
+    <div class="report-section pp-section">
+      <div class="report-hdr">
+        <span class="report-hdr-title" style="color:var(--neon);">Pocket Picks · Surprise Candidates</span>
+        <span style="font-size:10px;color:var(--text3);margin-left:6px;">Meta-strong heroes the opponent hasn't seen — under-prepared matchups they can't read from memory</span>
+      </div>
+      <div class="report-body">
+        <div class="pp-grid">
+          <div class="pp-col">
+            <div class="pp-col-title" style="color:#f87171;">Pockets vs ${redName}</div>
+            ${renderList(vsRed, redName)}
+          </div>
+          <div class="pp-col">
+            <div class="pp-col-title" style="color:#60a5fa;">Pockets vs ${blueName}</div>
+            ${renderList(vsBlue, blueName)}
+          </div>
+        </div>
+      </div>
+    </div>`;
 }
 
 // ══════ DRAFT PLAN ══════
