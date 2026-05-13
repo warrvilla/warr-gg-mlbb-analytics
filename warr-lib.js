@@ -726,36 +726,46 @@ WDB.computeScoutSynergiesFromMatches = function(matches, minMatches) {
 };
 
 /** For each hero, the heroes that opponents most often DRAFT when this hero
- *  is on the enemy team. Cross-pair count from bluePicks × redPicks across
- *  all matches. Unlike counters (which is WR-based), this is purely behavioral:
- *  what teams actually pick in response, regardless of outcome.
+ *  is on the enemy team. Cross-pair count from bluePicks × redPicks across all
+ *  matches, with win-rate of the RESPONSE hero.
  *
- *  Returns: { [hero]: [ { name, count }, ... ] } sorted by frequency desc.
+ *  Returns: { [hero]: [ { name, count, wr }, ... ] } sorted by count desc.
+ *  - count: games where `name` was drafted while `hero` was on enemy
+ *  - wr:    0..1 win rate of the RESPONSE (chip hero) in those games. So when
+ *           shown on `hero`'s card, high wr means this response actually worked.
  *  Only includes opposing-side pairs with at least minMatches games. */
 WDB.computeDraftedAgainstFromMatches = function(matches, minMatches) {
   minMatches = minMatches == null ? 3 : minMatches;
-  const map = {}; // map[heroX][heroY] = count of games where Y was drafted while X was on enemy
+  const map = {}; // map[hero][response] = { count, wins }  (wins = response's wins)
   (matches || []).forEach(m => {
-    if (!m) return;
+    if (!m || !m.winner) return;
     const league = m.league || '';
     if (!WDB.PUBLIC_LEAGUES.includes(league)) return; // skip scrims / private
     const blue = (m.bluePicks || []).map(p => p && (p.name || p)).filter(Boolean);
     const red  = (m.redPicks  || []).map(p => p && (p.name || p)).filter(Boolean);
-    // Every blue hero "saw" every red hero as a response, and vice versa
+    const blueWon = m.winner === 'blue';
     blue.forEach(bh => {
       red.forEach(rh => {
+        // From bh's card POV: rh is the response. rh is on red side, so rh
+        // won iff red won.
         if (!map[bh]) map[bh] = {};
-        map[bh][rh] = (map[bh][rh] || 0) + 1;
+        if (!map[bh][rh]) map[bh][rh] = { count: 0, wins: 0 };
+        map[bh][rh].count++;
+        if (!blueWon) map[bh][rh].wins++;
+        // From rh's card POV: bh is the response. bh is on blue side, so bh
+        // won iff blue won.
         if (!map[rh]) map[rh] = {};
-        map[rh][bh] = (map[rh][bh] || 0) + 1;
+        if (!map[rh][bh]) map[rh][bh] = { count: 0, wins: 0 };
+        map[rh][bh].count++;
+        if (blueWon) map[rh][bh].wins++;
       });
     });
   });
   const out = {};
   Object.entries(map).forEach(([hero, responses]) => {
     out[hero] = Object.entries(responses)
-      .filter(([_, c]) => c >= minMatches)
-      .map(([name, count]) => ({ name, count }))
+      .filter(([_, s]) => s.count >= minMatches)
+      .map(([name, s]) => ({ name, count: s.count, wr: s.count ? s.wins / s.count : 0 }))
       .sort((a, b) => b.count - a.count);
   });
   return out;

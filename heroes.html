@@ -764,22 +764,18 @@ function relationItemsHTML(items, kind, heroName) {
       lowSample = (it.count || 0) < LOW_SAMPLE_THRESHOLD;
       const sampleNote = lowSample ? ' ⚠' : '';
       wrHTML = `<span class="wr ${cls}">${pct}% · ${it.count}g${sampleNote}</span>`;
-      // Honest tooltip — different sentence for counter vs synergy because the WR means different things
+      // Honest tooltip — wording differs per relation kind because the WR
+      // semantically means something different in each context.
       if (kind === 'counter') {
         tooltip = `${name} won ${pct}% vs ${heroName || 'this hero'} across ${it.count} game${it.count===1?'':'s'}` +
                   (lowSample ? ` (low sample — only ${it.count} game${it.count===1?'':'s'})` : '');
       } else if (kind === 'synergy') {
         tooltip = `${heroName || 'This hero'} + ${name} won ${pct}% across ${it.count} game${it.count===1?'':'s'} together` +
                   (lowSample ? ` (low sample — only ${it.count} game${it.count===1?'':'s'})` : '');
+      } else if (kind === 'response') {
+        tooltip = `${name} was drafted against ${heroName || 'this hero'} ${it.count} time${it.count===1?'':'s'} — won ${pct}% (high % = effective response)` +
+                  (lowSample ? ` · low sample` : '');
       }
-    } else if (kind === 'response' && typeof it.count === 'number') {
-      // Drafted-against rows show pick FREQUENCY (count), not WR — it's a
-      // behavioural signal: "this is what teams pick when X is on the enemy."
-      lowSample = it.count < LOW_SAMPLE_THRESHOLD;
-      const sampleNote = lowSample ? ' ⚠' : '';
-      wrHTML = `<span class="wr mid">${it.count}g${sampleNote}</span>`;
-      tooltip = `Drafted ${it.count} time${it.count===1?'':'s'} against ${heroName || 'this hero'}` +
-                (lowSample ? ` (low sample — only ${it.count} game${it.count===1?'':'s'})` : '');
     } else if (it._admin) {
       tooltip = `${name} (admin pick)`;
     }
