@@ -1507,7 +1507,9 @@ function generateDraftPlan(ourName, oppName, ourStats, oppStats) {
     const bans = _dpBansFor(picks, oppStats, oppName);
     // Predicted enemy moves: their top picks + bans
     const predictedEnemyBans = (oppStats?.topBans || []).slice(0, 5).map(b => b.name);
-    const predictedEnemyPicks = (oppStats?.topPicks || []).slice(0, 5).map(p => p.name);
+    // For the display, show the top 5 even though scoring uses 7. (Re-uses the
+    // outer predictedEnemyPicks; no shadowing.)
+    const predictedEnemyPicksDisplay = predictedEnemyPicks.slice(0, 5);
     // Branching: if they ban our top-confidence pick, what's our fallback?
     const branches = [];
     const topPick = picks.filter(p => p.name !== '—').sort((a, b) => b.wr - a.wr)[0];
@@ -1527,7 +1529,9 @@ function generateDraftPlan(ourName, oppName, ourStats, oppStats) {
       key: compKey, label: comp.label, sublabel: comp.sublabel,
       strongVs: comp.strongVs, weakVs: comp.weakVs,
       winCondition: comp.winCondition,
-      picks, bans, predictedEnemyBans, predictedEnemyPicks, branches,
+      picks, bans, predictedEnemyBans,
+      predictedEnemyPicks: predictedEnemyPicksDisplay,
+      branches,
       conf: overallConf,
     });
   }
