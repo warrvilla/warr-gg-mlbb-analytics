@@ -1231,7 +1231,14 @@ async function loadAdminLeagues() {
       WDB.loadLeagues(),
       WDB.loadMatches().catch(() => [])
     ]);
-    _adminLeagueCache = leagues;
+    // Merge in built-in PUBLIC_LEAGUES as virtual entries so admin sees MPL PH,
+    // MPL ID, MSC, etc. even when no DB row exists. The save flow materialises
+    // them into real rows on first edit (id starts null → upsert creates).
+    const dbByName = new Map(leagues.map(l => [l.name, l]));
+    const virtuals = (WDB.PUBLIC_LEAGUES || [])
+      .filter(name => !dbByName.has(name))
+      .map(name => ({ id: null, name, region: 'Public league', is_scout_active: false, current_season: null, _virtual: true }));
+    _adminLeagueCache = [...leagues, ...virtuals];
     _adminSeasonsByLeague = {};
     matches.forEach(m => {
       const lg = (m.league || '').trim();
@@ -1262,10 +1269,14 @@ function renderAdminLeagues() {
     // Keep the saved season selectable even if no matches exist for it (yet)
     const opts = [...new Set([cur, ...seasons].filter(Boolean))];
     const noOptions = opts.length === 0;
+    // Virtual entries (built-in PUBLIC_LEAGUES not yet in DB) are referenced by
+    // name; persisted ones by id. The setter handles both.
+    const refAttr = l.id ? `id:${l.id}` : `name:${l.name}`;
+    const isVirtual = !!l._virtual;
     const seasonSelect = `
       <select class="admin-mgmt-input sm"
               style="font-size:11px;padding:4px 8px;min-width:140px;${noOptions?'opacity:.5;':''}"
-              onchange="adminSetCurrentSeason('${_adminEsc(l.id)}', this.value)"
+              onchange="adminSetCurrentSeason('${_adminEsc(refAttr)}', this.value)"
               ${noOptions?'disabled title="Add a match with a season first to mark it current"':'title="Pre-select this season in Scout when this league is filtered"'}>
         <option value="">— No current —</option>
         ${opts.map(s => `<option value="${_adminEsc(s)}" ${s===cur?'selected':''}>${_adminEsc(s)}</option>`).join('')}
@@ -1274,29 +1285,41 @@ function renderAdminLeagues() {
     <div class="admin-row">
       <div class="admin-row-main">
         <div>
-          <div class="admin-row-name">${_adminEsc(l.name)}</div>
-          <div class="admin-row-meta">${_adminEsc(l.region || 'No region')}${cur ? ` · current: <strong style="color:var(--accent);">${_adminEsc(cur)}</strong>` : ''}</div>
+          <div class="admin-row-name">${_adminEsc(l.name)}${isVirtual ? ' <span style="font-size:9px;font-weight:600;color:var(--text3);background:rgba(255,255,255,0.05);padding:1px 6px;border-radius:4px;margin-left:4px;letter-spacing:.5px;">BUILT-IN</span>' : ''}</div>
+          <div class="admin-row-meta">${_adminEsc(l.region || 'No region')}${cur ? ` · current: <strong style="color:var(--accent);">${_adminEsc(cur)}</strong>` : ''}${isVirtual ? ' · public preset' : ''}</div>
         </div>
         ${l.is_scout_active ? '<span class="admin-badge">SCOUT DEFAULT</span>' : ''}
       </div>
       <div class="admin-row-actions" style="flex-wrap:wrap;">
         ${seasonSelect}
-        ${l.is_scout_active
+        ${l.is_scout_active || isVirtual
           ? ''
           : `<button class="admin-mgmt-btn ghost sm" onclick="adminSetActiveLeague('${_adminEsc(l.id)}')">Set Default</button>`}
-        <button class="admin-mgmt-btn danger sm" onclick="adminDeleteLeague('${_adminEsc(l.id)}','${_adminEsc(l.name)}')">Delete</button>
+        ${isVirtual
+          ? '<span style="font-size:10px;color:var(--text4);align-self:center;">built-in · cannot delete</span>'
+          : `<button class="admin-mgmt-btn danger sm" onclick="adminDeleteLeague('${_adminEsc(l.id)}','${_adminEsc(l.name)}')">Delete</button>`}
       </div>
     </div>
   `;
   }).join('');
 }
 
-async function adminSetCurrentSeason(leagueId, season) {
+async function adminSetCurrentSeason(ref, season) {
   if (!_adminCheckReady()) return;
-  const league = _adminLeagueCache.find(l => l.id === leagueId);
+  // ref format: 'id:<uuid>' for persisted league, 'name:<League Name>' for virtual built-in.
+  // Virtual entries are materialised on first save (upsert without id → new row).
+  let league;
+  if (ref.startsWith('id:')) {
+    league = _adminLeagueCache.find(l => l.id === ref.slice(3));
+  } else if (ref.startsWith('name:')) {
+    league = _adminLeagueCache.find(l => l.name === ref.slice(5));
+  }
   if (!league) return;
   try {
-    await WDB.saveLeague({ ...league, current_season: season || null });
+    // Strip _virtual marker and any null id before sending — upsert needs no id for inserts.
+    const payload = { name: league.name, region: league.region, is_scout_active: league.is_scout_active, current_season: season || null };
+    if (league.id) payload.id = league.id;
+    await WDB.saveLeague(payload);
     _adminToast(season ? `Current season → ${season}` : 'Current season cleared');
     await loadAdminLeagues();
   } catch (e) {

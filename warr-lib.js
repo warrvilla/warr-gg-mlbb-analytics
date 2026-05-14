@@ -1367,31 +1367,47 @@ WDB.loadLeagues = async function() {
   return data || [];
 };
 
-/** Save (upsert) a league. Admin only — caller must check WAdmin.isAdmin() */
+/** Save (upsert) a league. Admin only — caller must check WAdmin.isAdmin().
+ *  Defensive: if the leagues table doesn't have current_season (migration
+ *  hasn't run yet, or PostgREST schema cache hasn't refreshed), retry the
+ *  upsert without that field so saving still works. The current_season
+ *  feature degrades gracefully in that scenario. */
 WDB.saveLeague = async function(league) {
   const user = WAuth.getUser();
-  const row = { name: league.name, region: league.region || null,
+  const baseRow = { name: league.name, region: league.region || null,
                 is_scout_active: !!league.is_scout_active,
-                current_season: (league.current_season || null),
                 created_by: user?.id };
-  if (league.id) row.id = league.id;
-  const { data, error } = await _sbClient.from('leagues').upsert(row, { onConflict: 'id' }).select().single();
+  if (league.id) baseRow.id = league.id;
+  // Include current_season only if explicitly set; null is fine for clearing it.
+  const row = { ...baseRow };
+  if (league.current_season !== undefined) row.current_season = league.current_season || null;
+
+  const attempt = async (payload) => _sbClient.from('leagues').upsert(payload, { onConflict: 'id' }).select().single();
+  let { data, error } = await attempt(row);
+  if (error && /current_season/i.test(error.message || '')) {
+    // Schema cache doesn't know about current_season — retry without it.
+    console.warn('[WDB] current_season column missing in schema cache. Run migrate_leagues_current_season.sql in Supabase, then refresh PostgREST. Saving without current_season for now.');
+    ({ data, error } = await attempt(baseRow));
+  }
   if (error) throw error;
   return data;
 };
 
-/** Look up the admin-marked current season for a league name. Returns string or null. */
+/** Look up the admin-marked current season for a league name. Returns string or null.
+ *  Returns null silently if the column doesn't exist yet (graceful degradation). */
 WDB.getCurrentSeasonForLeague = async function(leagueName) {
   if (!leagueName || leagueName === 'all') return null;
-  // Hardcoded MPL/MSC/M-Series leagues live in PUBLIC_LEAGUES but may have a row
-  // in the leagues table too. Match by name.
-  const { data, error } = await _sbClient
-    .from('leagues')
-    .select('current_season')
-    .eq('name', leagueName)
-    .maybeSingle();
-  if (error || !data) return null;
-  return data.current_season || null;
+  try {
+    const { data, error } = await _sbClient
+      .from('leagues')
+      .select('current_season')
+      .eq('name', leagueName)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data.current_season || null;
+  } catch (e) {
+    return null; // column missing or other transient issue
+  }
 };
 
 /** Delete a league and all its seasons. Admin only. */
