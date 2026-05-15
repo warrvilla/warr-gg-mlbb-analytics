@@ -625,7 +625,12 @@ select:focus, input:focus {
       <span></span>
       <span class="card-hdr-title">Pre-Match Setup</span>
       <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:4px;">Select teams for scouting report</span>
-      <div id="leagueFilterPills" style="margin-left:auto;display:flex;gap:5px;flex-wrap:wrap;"></div>
+      <select id="reportSeasonFilter" style="margin-left:auto;font-size:11px;padding:5px 10px;height:auto;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);"
+              onchange="onReportSeasonChange()"
+              title="Filter all analytics to a single season — defaults to most-recent so new-season meta-shift doesn't blend old patches into current data">
+        <option value="">All seasons</option>
+      </select>
+      <div id="leagueFilterPills" style="display:flex;gap:5px;flex-wrap:wrap;"></div>
     </div>
     <div class="card-body">
       <div class="setup-grid">
@@ -672,6 +677,7 @@ const MEM_KEY   = 'mlbb_ai_draft_memory';
 let DB = {matches:[], teams:{}};
 let patchSuggestions = {};
 let _reportLeagueFilter = 'all';
+let _reportSeasonFilter = ''; // '' = all seasons; defaults to most-recent on data load
 
 // Hero name → portrait id mapping for names that don't survive simple normalization
 const HERO_NAME_TO_ID = {
@@ -815,6 +821,8 @@ WAuth.renderAuthChip('authChip');
       pillsEl.appendChild(btn);
     });
   }
+  // Populate the season dropdown with observed seasons from this match pool.
+  populateReportSeasonDropdown();
 }
 
 function updateLeaguePills() {
@@ -824,6 +832,9 @@ function updateLeaguePills() {
     btn.style.color = l===_reportLeagueFilter ? 'var(--accent)' : '';
     btn.style.background = l===_reportLeagueFilter ? 'var(--accent-dim)' : '';
   });
+  // Refresh the season dropdown when league changes — different leagues have
+  // different observed seasons (MPL PH might be S17, MPL ID might be S15).
+  populateReportSeasonDropdown();
 }
 
 function onTeamChange() {
@@ -833,9 +844,39 @@ function onTeamChange() {
 }
 
 // ══════ STATS HELPERS ══════
+// All analytics use this match pool — filtered by both the league pills AND
+// the season dropdown. Season defaults to the most-recent one so current-meta
+// analytics stay clean when a new season starts.
 function getFilteredMatches() {
-  if (_reportLeagueFilter === 'all') return DB.matches||[];
-  return (DB.matches||[]).filter(m => m.league === _reportLeagueFilter);
+  let pool = DB.matches || [];
+  if (_reportLeagueFilter !== 'all') pool = pool.filter(m => m.league === _reportLeagueFilter);
+  if (_reportSeasonFilter) pool = pool.filter(m => (m.season||'') === _reportSeasonFilter);
+  return pool;
+}
+
+// Populate the Analysis page season dropdown from observed seasons in the
+// current league filter. Default selection = most-recent season.
+function populateReportSeasonDropdown() {
+  const sel = document.getElementById('reportSeasonFilter');
+  if (!sel) return;
+  const leaguePool = _reportLeagueFilter === 'all'
+    ? (DB.matches || [])
+    : (DB.matches || []).filter(m => m.league === _reportLeagueFilter);
+  const seasons = [...new Set(leaguePool.map(m => (m.season||'').trim()).filter(Boolean))]
+    .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+  // Preserve current selection if still valid; else fall back to most-recent.
+  const wanted = seasons.includes(_reportSeasonFilter) ? _reportSeasonFilter : (seasons[0] || '');
+  _reportSeasonFilter = wanted;
+  sel.innerHTML = `<option value="">All seasons</option>`
+    + seasons.map(s => `<option value="${s}" ${s===wanted?'selected':''}>${s}${s===seasons[0]?' (current)':''}</option>`).join('');
+}
+
+function onReportSeasonChange() {
+  _reportSeasonFilter = document.getElementById('reportSeasonFilter')?.value || '';
+  // Bust the Draft Plan meta cache so counters/synergies/meta-presence
+  // recompute from the newly-scoped match pool on next Generate.
+  _dpMetaCache = null;
+  _dpMetaCacheKey = null;
 }
 
 function getTeamMatches(name) {
@@ -1298,7 +1339,10 @@ function buildMemorySection() {
 //      (≤2 times for opp) — surprise candidates.
 function computePocketPicks(oppName) {
   if (!oppName) return [];
-  const all = (DB?.matches || []);
+  // Use the season/league-filtered match pool so 'rarely faced' is computed
+  // within the active scope (e.g. current season only — a hero faced in S14
+  // shouldn't count as 'familiar' when we're scouting S17 matches).
+  const all = (typeof getFilteredMatches === 'function') ? getFilteredMatches() : (DB?.matches || []);
   // 1. Global pick frequency across the entire match library
   const globalPicks = {};
   all.forEach(m => {
@@ -1445,10 +1489,15 @@ function _dpConfDots(conf) {
 let _dpMetaCache = null;
 let _dpMetaCacheKey = null;
 function _dpComputeMeta() {
-  const allMatches = (typeof DB !== 'undefined' && DB.matches) ? DB.matches : [];
-  // Invalidation key: total match count is enough — if no matches were added,
-  // counters/synergies didn't change either.
-  const key = allMatches.length;
+  // Respect the Analysis page's season filter so Draft Plan picks reflect the
+  // current-meta scope, not historical patches. Falls back to all DB matches
+  // when no season filter is active.
+  const allMatches = (typeof getFilteredMatches === 'function')
+    ? getFilteredMatches()
+    : ((typeof DB !== 'undefined' && DB.matches) ? DB.matches : []);
+  // Invalidation key combines match count + active season + league filter so
+  // the cache busts cleanly when any of them changes.
+  const key = `${allMatches.length}|${_reportSeasonFilter}|${_reportLeagueFilter}`;
   if (_dpMetaCache && _dpMetaCacheKey === key) return _dpMetaCache;
   // Global pick frequency = how many times each hero appears across all picks
   const pickFreq = {};

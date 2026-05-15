@@ -364,6 +364,10 @@
         <option value="Flying Cloud">Flying Cloud</option>
         <option value="Expanding River">Expanding River</option>
       </select>
+      <select class="ctrl-select" id="seasonFilter" onchange="onSeasonChange()" title="Filter stats to games from a specific season — defaults to most-recent so meta-shift between seasons doesn't blend data">
+        <!-- Options populated dynamically once matches load -->
+        <option value="">All seasons</option>
+      </select>
       <select class="ctrl-select" id="sortBy" onchange="onFilter()">
         <option value="games">Most played</option>
         <option value="name">Name A–Z</option>
@@ -401,6 +405,7 @@ let _playCounts     = {};
 let _heroLaneMap    = {}; // { heroName: 'Gold'|'Jungle'|'Mid'|'EXP'|'Roam' } — primary observed lane
 let _heroMapStats   = {}; // { heroName: { mapName: { games, wins } } } — per-map performance
 let _adminMode      = false;
+let _activeSeason   = ''; // '' = all seasons; otherwise a specific season label
 const MAP_NAMES = ['Dangerous Grass','Broken Walls','Flying Cloud','Expanding River'];
 
 // Sample-size threshold: relations computed from fewer than this many games
@@ -435,11 +440,18 @@ async function loadAll() {
   }
 
   _publicMatches = _matches.filter(m => WDB.PUBLIC_LEAGUES.includes(m.league));
+  // Populate the Season dropdown from matches present in the data. Default
+  // selection is the most-recent season (so a fresh page load doesn't blend
+  // old patches into current-meta analytics).
+  populateSeasonDropdown();
 
-  // Compute per-map hero stats once at load — used by both map filter and per-card splits.
-  // Shape: _heroMapStats[hero][mapName] = { games, wins }
+  // Compute per-map hero stats — respects the active season filter so map
+  // splits reflect the current meta's performance, not historic patches.
   _heroMapStats = {};
-  _publicMatches.forEach(m => {
+  const seasonScopedForMapStats = _activeSeason
+    ? _publicMatches.filter(m => (m.season||'') === _activeSeason)
+    : _publicMatches;
+  seasonScopedForMapStats.forEach(m => {
     if (!m.map) return;
     const blueWon = m.winner === 'blue';
     [...(m.bluePicks || [])].forEach(p => {
@@ -484,7 +496,10 @@ async function loadAll() {
     _overrides = {};
   }
 
-  renderStats(_publicMatches);
+  const seasonScoped = _activeSeason
+    ? _publicMatches.filter(m => (m.season||'') === _activeSeason)
+    : _publicMatches;
+  renderStats(seasonScoped);
   renderGrid();
 }
 
@@ -549,14 +564,40 @@ function onMapChange() {
   renderGrid();
 }
 
+// Season filter changes — same pattern as map. Defaults to the most-recent
+// season so new-season meta-shift doesn't blend with stale data.
+function onSeasonChange() {
+  _activeSeason = document.getElementById('seasonFilter')?.value || '';
+  recomputeForMapFilter();
+  renderStats(_publicMatches.filter(m => !_activeSeason || (m.season||'') === _activeSeason));
+  renderGrid();
+}
+
+// Populate the season dropdown from observed seasons in public matches.
+// Default selection = most-recent season (the analytics use case: 'show me
+// current meta'). User can switch to All Seasons or a specific past season.
+function populateSeasonDropdown() {
+  const sel = document.getElementById('seasonFilter');
+  if (!sel) return;
+  const seasons = [...new Set(_publicMatches.map(m => (m.season||'').trim()).filter(Boolean))]
+    .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+  const mostRecent = seasons[0] || '';
+  sel.innerHTML = `<option value="">All seasons</option>`
+    + seasons.map(s => `<option value="${s}" ${s===mostRecent?'selected':''}>${s}${s===mostRecent?' (current)':''}</option>`).join('');
+  // Adopt the most-recent season as the default active filter
+  _activeSeason = mostRecent;
+}
+
 // Re-derive _countersMap, _synergiesMap, _playCounts from _publicMatches filtered
 // by the current Map filter ('' = all maps). Called once at load and again on
 // every Map dropdown change.
 function recomputeForMapFilter() {
   const mapSel = document.getElementById('mapFilter')?.value || '';
-  const pool = mapSel
-    ? _publicMatches.filter(m => (m.map||'') === mapSel)
-    : _publicMatches;
+  // Apply BOTH map and season filters to the match pool. Season default is
+  // most-recent so out-of-date patch data doesn't bleed into current analytics.
+  let pool = _publicMatches;
+  if (_activeSeason) pool = pool.filter(m => (m.season||'') === _activeSeason);
+  if (mapSel)        pool = pool.filter(m => (m.map||'') === mapSel);
   _countersMap   = WDB.computeScoutCountersFromMatches(pool);
   _synergiesMap  = WDB.computeScoutSynergiesFromMatches(pool);
   _draftedAgainst = WDB.computeDraftedAgainstFromMatches?.(pool) || {};
