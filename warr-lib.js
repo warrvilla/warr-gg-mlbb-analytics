@@ -1368,25 +1368,37 @@ WDB.loadLeagues = async function() {
 };
 
 /** Save (upsert) a league. Admin only — caller must check WAdmin.isAdmin().
- *  Defensive: if the leagues table doesn't have current_season (migration
- *  hasn't run yet, or PostgREST schema cache hasn't refreshed), retry the
- *  upsert without that field so saving still works. The current_season
- *  feature degrades gracefully in that scenario. */
+ *  When the caller explicitly sets current_season but the column doesn't
+ *  exist in the schema cache yet, we throw a clear error so the user knows
+ *  to run the migration — silently dropping the field would lose the user's
+ *  selection (which is what 'season reverts to no current' was).
+ *  When current_season is NOT set, we save the league row normally even if
+ *  the column is missing. */
 WDB.saveLeague = async function(league) {
   const user = WAuth.getUser();
   const baseRow = { name: league.name, region: league.region || null,
-                is_scout_active: !!league.is_scout_active,
                 created_by: user?.id };
   if (league.id) baseRow.id = league.id;
-  // Include current_season only if explicitly set; null is fine for clearing it.
   const row = { ...baseRow };
-  if (league.current_season !== undefined) row.current_season = league.current_season || null;
+  const wantsCurrentSeason = league.current_season !== undefined;
+  if (wantsCurrentSeason) row.current_season = league.current_season || null;
 
   const attempt = async (payload) => _sbClient.from('leagues').upsert(payload, { onConflict: 'id' }).select().single();
   let { data, error } = await attempt(row);
   if (error && /current_season/i.test(error.message || '')) {
-    // Schema cache doesn't know about current_season — retry without it.
-    console.warn('[WDB] current_season column missing in schema cache. Run migrate_leagues_current_season.sql in Supabase, then refresh PostgREST. Saving without current_season for now.');
+    // Did the user explicitly want a non-empty season? If so, don't silently
+    // lose it — surface a clear migration message.
+    if (wantsCurrentSeason && league.current_season) {
+      throw new Error(
+        "Current-season feature needs a one-time Supabase migration.\n\n" +
+        "In Supabase → SQL Editor, run:\n\n" +
+        "  ALTER TABLE public.leagues ADD COLUMN IF NOT EXISTS current_season text;\n" +
+        "  NOTIFY pgrst, 'reload schema';\n\n" +
+        "Then try again."
+      );
+    }
+    // No season requested — just create/update the league without it.
+    console.warn('[WDB] current_season column missing in schema cache; saving league row without it.');
     ({ data, error } = await attempt(baseRow));
   }
   if (error) throw error;
@@ -1414,25 +1426,6 @@ WDB.getCurrentSeasonForLeague = async function(leagueName) {
 WDB.deleteLeague = async function(id) {
   const { error } = await _sbClient.from('leagues').delete().eq('id', id);
   if (error) throw error;
-};
-
-/**
- * Set one league as the active scout default.
- * Clears is_scout_active on all others, sets it on the given id.
- */
-WDB.setActiveLeague = async function(id) {
-  // Clear all first
-  await _sbClient.from('leagues').update({ is_scout_active: false }).neq('id', '00000000-0000-0000-0000-000000000000');
-  if (id) {
-    const { error } = await _sbClient.from('leagues').update({ is_scout_active: true }).eq('id', id);
-    if (error) throw error;
-  }
-};
-
-/** Get the currently active league (or null) */
-WDB.getActiveLeague = async function() {
-  const { data } = await _sbClient.from('leagues').select('*').eq('is_scout_active', true).limit(1).single();
-  return data || null;
 };
 
 // ═══════════════════════════════════════════════════════════════

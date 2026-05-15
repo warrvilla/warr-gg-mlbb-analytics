@@ -1288,13 +1288,9 @@ function renderAdminLeagues() {
           <div class="admin-row-name">${_adminEsc(l.name)}${isVirtual ? ' <span style="font-size:9px;font-weight:600;color:var(--text3);background:rgba(255,255,255,0.05);padding:1px 6px;border-radius:4px;margin-left:4px;letter-spacing:.5px;">BUILT-IN</span>' : ''}</div>
           <div class="admin-row-meta">${_adminEsc(l.region || 'No region')}${cur ? ` · current: <strong style="color:var(--accent);">${_adminEsc(cur)}</strong>` : ''}${isVirtual ? ' · public preset' : ''}</div>
         </div>
-        ${l.is_scout_active ? '<span class="admin-badge">SCOUT DEFAULT</span>' : ''}
       </div>
       <div class="admin-row-actions" style="flex-wrap:wrap;">
         ${seasonSelect}
-        ${l.is_scout_active || isVirtual
-          ? ''
-          : `<button class="admin-mgmt-btn ghost sm" onclick="adminSetActiveLeague('${_adminEsc(l.id)}')">Set Default</button>`}
         ${isVirtual
           ? '<span style="font-size:10px;color:var(--text4);align-self:center;">built-in · cannot delete</span>'
           : `<button class="admin-mgmt-btn danger sm" onclick="adminDeleteLeague('${_adminEsc(l.id)}','${_adminEsc(l.name)}')">Delete</button>`}
@@ -1352,17 +1348,6 @@ async function adminDeleteLeague(id, name) {
     await loadAdminLeagues();
   } catch (e) {
     _adminToast('Delete failed: ' + e.message, 'error');
-  }
-}
-
-async function adminSetActiveLeague(id) {
-  if (!_adminCheckReady()) return;
-  try {
-    await WDB.setActiveLeague(id);
-    _adminToast('Scout default updated');
-    await loadAdminLeagues();
-  } catch (e) {
-    _adminToast('Update failed: ' + e.message, 'error');
   }
 }
 
