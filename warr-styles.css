@@ -142,8 +142,8 @@ body::before {
    TOP NAVIGATION  — glass macOS-style bar
    ═══════════════════════════════════════════════════════════════ */
 .topnav {
-  position: fixed;
-  top: 0; left: 0; right: 0;
+  position: sticky;
+  top: 0;
   height: var(--nav-h);
   background: rgba(7,7,12,0.82);
   backdrop-filter: blur(48px) saturate(140%);
@@ -269,9 +269,9 @@ body::before {
   transform: translateY(-1px);
 }
 
-/* Page body offset */
+/* Page body — the nav is now sticky, so it occupies its own 52px in the
+   document flow. No padding-top compensation needed. */
 .page-body {
-  padding-top: var(--nav-h);
   min-height: 100vh;
 }
 
@@ -479,7 +479,6 @@ body::before {
   .nav-links { display: none; }
   .mobile-menu-btn { display: flex; }
   .topnav { padding: 0 18px; }
-  .page-body { padding-top: var(--nav-h); }
 }
 
 /* ── TABLET (≤ 640px) ─────────────────────────────────────── */
