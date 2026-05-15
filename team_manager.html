@@ -201,18 +201,11 @@ body { background: var(--bg); min-height: 100vh; }
 
 <!-- NAV -->
 <div id="warr-nav-root"></div><div class="page-wrap">
-  <div class="page-header">
-    <div>
-      <div class="page-title">Team Manager</div>
-      <div class="page-sub">Manage rosters, view player hero pools and win rates from match data.</div>
-    </div>
-    <button class="btn btn-accent" id="addTeamBtn" onclick="openAddTeam()" style="display:none;">+ Add Team</button>
-  </div>
-
-  <!-- View mode tabs -->
-  <div style="display:flex;gap:8px;margin-bottom:16px;">
+  <!-- View mode tabs + page actions -->
+  <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
     <button class="btn btn-accent" id="viewTeamsBtn" onclick="setViewMode('teams')">By Team</button>
     <button class="btn btn-ghost" id="viewPlayersBtn" onclick="setViewMode('players')">All Players</button>
+    <button class="btn btn-accent" id="addTeamBtn" onclick="openAddTeam()" style="display:none;margin-left:auto;">+ Add Team</button>
   </div>
 
   <!-- All Players view -->

@@ -316,17 +316,6 @@
 
 <div class="page-body">
 
-  <!-- Sticky page header — matches scout/stats/draft pages -->
-  <div class="page-header">
-    <div class="page-title">Heroes</div>
-    <div class="page-header-right">
-      <button class="admin-toggle" id="adminToggle" onclick="toggleAdminMode()">
-        <span>✎</span> Edit curation
-      </button>
-      <span class="header-count" id="countBadge">— heroes</span>
-    </div>
-  </div>
-
   <!-- Intro paragraph -->
   <div class="heroes-intro">
     <p>
@@ -378,7 +367,11 @@
         <option value="no">Show all heroes</option>
       </select>
       <input class="ctrl-input" id="searchIn" placeholder="Search hero…" oninput="onFilter()">
-      <button class="btn btn-accent" id="heroesPdfBtn" onclick="exportHeroesPDF()" style="margin-left:auto;font-size:11px;padding:6px 14px;" title="Export currently filtered heroes as PDF">Export PDF</button>
+      <span class="header-count" id="countBadge" style="margin-left:auto;font-size:11px;color:var(--text3);align-self:center;white-space:nowrap;">— heroes</span>
+      <button class="admin-toggle" id="adminToggle" onclick="toggleAdminMode()" style="font-size:11px;padding:6px 12px;">
+        <span>✎</span> Edit curation
+      </button>
+      <button class="btn btn-accent" id="heroesPdfBtn" onclick="exportHeroesPDF()" style="font-size:11px;padding:6px 14px;" title="Export currently filtered heroes as PDF">Export PDF</button>
     </div>
 
     <!-- Grid -->
