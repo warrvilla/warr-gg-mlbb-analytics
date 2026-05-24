@@ -345,7 +345,7 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
 }
 
 /* ── FLEX PAGE LAYOUT FIX ── */
-.page-body { display: flex; flex-direction: column; margin-top: var(--nav-h); height: calc(100vh - var(--nav-h)); overflow: hidden; padding-top: 0; }
+.page-body { display: flex; flex-direction: column; height: calc(100vh - var(--nav-h)); overflow: hidden; padding-top: 0; }
 /* #battle starts hidden via inline style; these flex properties apply when JS sets display:flex */
 #battle { flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
 #setup { overflow-y: auto; flex: 1; }
