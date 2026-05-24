@@ -2329,25 +2329,23 @@ function localAI(step){
       const heroLns=getHeroLanesAB(h);
 
       // ── LANE GEOMETRY ──
-      // FLEX-AWARE: check ALL playable lanes, not just the primary. The old version
-      // used lane(h) (primary only) which let flex heroes through — e.g. a Mid/Gold
-      // hero with primary "Gold" would skip the Mid-is-filled check, and any hero
-      // missing from the lane map (falls back to 'Flex') would skip all lane logic.
+      // PRIMARY-LANE soft checks (matches coach intuition — a hero is judged by the
+      // lane it actually plays, not every speculative secondary slot getHeroLanesAB
+      // might list). Strategic bypasses (must/protect/comfort/combo) can override.
+      const laneFilledByOpp=ln!=='Flex'&&!oppNeeded.includes(ln);
+      const aiStillNeedsLane=ln!=='Flex'&&myNeeded.includes(ln);
+      const aiLaneCovered=ln!=='Flex'&&!myNeeded.includes(ln)&&!laneFilledByOpp;
+      // ALL-LANES hard waste check: every concrete lane this hero can play is filled
+      // in opp's lineup → opp literally has no slot for this hero. Used by Filter 1
+      // below as a hard reject that no strategic bypass can salvage. This is what
+      // catches the original "I filled Mid, AI still bans a flex Mid hero" bug
+      // without making the AI conservative on heroes whose primary is open.
       const playableLns=heroLns.filter(L=>L!=='Flex');
-      // oppCannotPick: every concrete lane this hero plays is already filled in opp's
-      // lineup → opp literally cannot slot it. Hard ban-waste filter below uses this.
       const oppCannotPick=playableLns.length>0&&playableLns.every(L=>!oppNeeded.includes(L));
-      // laneFilledByOpp: opp has all the hero's lanes filled (same as oppCannotPick now).
-      const laneFilledByOpp=oppCannotPick;
-      // aiStillNeedsLane: ANY of the hero's lanes is one we still need
-      const aiStillNeedsLane=playableLns.some(L=>myNeeded.includes(L));
-      // aiLaneCovered: AI has all the hero's lanes covered AND opp still needs at
-      // least one of them (so banning would deny opp's option) — kept for filter 2.
-      const aiLaneCovered=playableLns.length>0&&playableLns.every(L=>!myNeeded.includes(L))&&!laneFilledByOpp;
       // Flex-aware: does ANY playable lane of this hero overlap with OUR unfilled lanes?
-      const hitsOwnNeed=playableLns.some(L=>myNeeded.includes(L));
+      const hitsOwnNeed=heroLns.some(L=>L!=='Flex'&&myNeeded.includes(L));
       // STRICT SELF-BAN PROTECTION (kept): hero hits our lane AND enemy has that lane filled
-      const wasteSelfBan=playableLns.some(L=>myNeeded.includes(L)&&!oppNeeded.includes(L));
+      const wasteSelfBan=heroLns.some(L=>L!=='Flex'&&myNeeded.includes(L)&&!oppNeeded.includes(L));
       if(wasteSelfBan&&!isMustBan)return null;
 
       // ── INTENT CLASSIFICATION ──
@@ -2381,16 +2379,16 @@ function localAI(step){
       const hasStrategicReason=strategicReasons.length>0;
 
       // ── HARD FILTERS ──
-      // Filter 1 (HARD WASTE): if every concrete lane this hero can play is already
-      // filled in opp's lineup, opp literally cannot pick this hero. The ban is
-      // wasted regardless of strategic category — protect/comfort/combo arguments
-      // all assume opp could actually play the hero, which they can't here. Must-ban
-      // (broken-meta) is the only exception because those get auto-removed on
-      // principle even when the immediate game can't see them picked.
+      // Filter 0 (HARD WASTE): every concrete lane this hero can play is already
+      // filled in opp's lineup → opp literally cannot pick this hero, the ban is
+      // wasted regardless of strategic category. Only must-ban (broken meta)
+      // bypasses, since those get auto-removed on principle.
       if(oppCannotPick&&!isMustBan)return null;
-      // Filter 2: AI has this lane covered but opp still needs it → only justified
-      // when we have a strategic angle (deny, comfort, etc.). Without one, banning
-      // here is functionally a coin-flip — opp picks something else equally strong.
+      // Filter 1 (PRIMARY-LANE WASTE): hero's primary lane is filled in opp's lineup.
+      // Soft check — strategic bypasses (protect/comfort/combo) can still let it
+      // through if opp could realistically still pick it for their primary lane.
+      if(laneFilledByOpp&&!isMustBan&&!isProtectBan&&!isComfortDeny&&!isComboBreak)return null;
+      // Filter 2: Both teams done with this lane (no one needs it) → tier-only ban is waste
       if(aiLaneCovered&&!hasStrategicReason)return null;
       // Filter 3: Ban hits OUR unfilled lane AND no strategic category applies → reject
       // This is the "don't ban a Jungle when we still need Jungle just because Jungle is strong" rule.
