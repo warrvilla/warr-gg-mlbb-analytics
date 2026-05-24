@@ -154,84 +154,8 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
 @keyframes spinSlow { from{transform:rotate(0)} to{transform:rotate(360deg)} }
 @keyframes spinRev  { from{transform:rotate(360deg)} to{transform:rotate(0)} }
 
-/* ── TOP BAR (minimal, transparent overlay) ────────────────── */
-.topbar {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  z-index: 20;
-  height: var(--nav-h);
-  display: flex; align-items: center;
-  padding: 0 32px;
-  background: linear-gradient(180deg, rgba(5,5,9,0.65) 0%, rgba(5,5,9,0.20) 60%, transparent 100%);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-bottom: 0.5px solid rgba(255,255,255,0.04);
-}
-.brand {
-  display: flex; align-items: center; gap: 10px;
-  font-family: var(--font-display);
-  font-weight: 800; letter-spacing: 0.04em;
-  font-size: 15px;
-  color: var(--text);
-  text-decoration: none;
-}
-.brand-mark {
-  width: 22px; height: 22px;
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
-  box-shadow: 0 0 12px rgba(168,136,204,0.55), inset 0 1px 0 rgba(255,255,255,0.25);
-  font-size: 11px; font-weight: 900; color: #fff;
-}
-.brand .brand-dot { color: var(--accent); }
-.topbar-spacer { flex: 1; }
-.topbar-links {
-  display: flex; align-items: center; gap: 26px;
-}
-.topbar-links a {
-  font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text2); text-decoration: none;
-  transition: color 0.18s;
-}
-.topbar-links a:hover { color: var(--text); }
-.cta-beta {
-  display: inline-flex; align-items: center; gap: 8px;
-  margin-left: 28px;
-  padding: 9px 18px;
-  font-family: var(--font-display);
-  font-size: 12px; font-weight: 700; letter-spacing: 0.12em;
-  text-transform: uppercase; text-decoration: none;
-  color: #fff;
-  border-radius: var(--pill);
-  background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,0.06) inset,
-    0 0 18px rgba(168,136,204,0.45),
-    0 6px 22px rgba(94,92,230,0.30);
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-}
-.cta-beta:hover {
-  transform: translateY(-1px);
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,0.10) inset,
-    0 0 28px rgba(168,136,204,0.65),
-    0 8px 28px rgba(94,92,230,0.40);
-}
-.cta-beta-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 8px #fff;
-  animation: dot-pulse 1.8s ease-in-out infinite;
-}
-@keyframes dot-pulse {
-  0%,100% { opacity: 1; transform: scale(1); }
-  50%     { opacity: 0.4; transform: scale(0.7); }
-}
-@media (max-width: 760px) {
-  .topbar { padding: 0 16px; }
-  .topbar-links { display: none; }
-}
+/* Top nav is rendered by warr-nav.js into #warr-nav-root above.
+   Page-wide nav styling lives in warr-styles.css / warr-nav.js BASELINE_CSS. */
 
 /* ── MASSIVE WORDMARK TITLE ────────────────────────────────── */
 .headline-wrap {
@@ -725,6 +649,9 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
 </head>
 <body>
 
+<!-- Shared site navigation (rendered by warr-nav.js) -->
+<div id="warr-nav-root"></div>
+
 <!-- ════════════ CINEMATIC HERO STAGE ════════════ -->
 <section class="stage">
 
@@ -738,26 +665,6 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
   <div class="grid-fx"></div>
   <div class="horizon"></div>
   <div class="scan"></div>
-
-  <!-- TOP NAV BAR -->
-  <header class="topbar">
-    <a href="index.html" class="brand">
-      <span class="brand-mark">W</span>
-      WARR<span class="brand-dot">.</span>GG
-    </a>
-    <div class="topbar-spacer"></div>
-    <nav class="topbar-links">
-      <a href="draft_board.html">Draft</a>
-      <a href="ai_battle.html">AI Battle</a>
-      <a href="scout.html">Scout</a>
-      <a href="stats.html">Analysis</a>
-      <a href="patch_meta.html">Meta</a>
-    </nav>
-    <a href="auth.html" class="cta-beta">
-      <span class="cta-beta-dot"></span>
-      Enter War Room
-    </a>
-  </header>
 
   <!-- HERO EMBLEM (SVG centerpiece — stylized warrior/draft sigil) -->
   <div class="emblem-wrap" aria-hidden="true">
@@ -1098,23 +1005,6 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
 </footer>
 
 <script src="warr-lib.js"></script>
-<script>
-// Homepage uses its own custom top bar — no shared nav injection.
-// Light auth check just to swap CTA copy if signed in.
-(async () => {
-  try {
-    if (window.WAuth && WAuth.getUser) {
-      const u = await WAuth.getUser();
-      if (u) {
-        const btn = document.querySelector('.cta-beta');
-        if (btn) {
-          btn.innerHTML = '<span class="cta-beta-dot"></span>My War Room';
-          btn.href = 'profile.html';
-        }
-      }
-    }
-  } catch(_) {}
-})();
-</script>
+<script src="warr-nav.js"></script>
 </body>
 </html>
