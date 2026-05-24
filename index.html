@@ -8,7 +8,7 @@
 <style>
 /* ── LOCAL PAGE TOKENS ──────────────────────────────────────── */
 :root {
-  --bg:#07070C; --bg2:#0B0B12; --surface:#101018; --surface2:#161620;
+  --bg:#050509; --bg2:#0A0A12; --surface:#101018; --surface2:#161620;
   --surface3:#1E1E2A; --surface4:#272734;
   --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.07); --border3:rgba(255,255,255,0.11);
   --accent:#A888CC; --accent-dim:rgba(168,136,204,0.09); --accent-glow:rgba(168,136,204,0.22); --accent-border:rgba(168,136,204,0.22);
@@ -28,227 +28,508 @@
   --blur:blur(40px) saturate(140%); --blur-sm:blur(20px) saturate(130%);
 }
 
-body { overflow-x: hidden; }
+html, body { background: #050509; }
+body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
 
-/* ── AMBIENT BACKGROUND ORBS ───────────────────────────────── */
-.ambient {
-  position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  overflow: hidden;
-}
-.orb {
-  position: absolute; border-radius: 50%;
-  filter: blur(100px); opacity: 0.85;
-}
-.orb-1 {
-  width: 700px; height: 700px;
-  background: radial-gradient(circle, rgba(168,136,204,0.28) 0%, rgba(94,92,230,0.14) 40%, transparent 70%);
-  top: -200px; left: -150px;
-  animation: orb-drift1 20s ease-in-out infinite;
-}
-.orb-2 {
-  width: 600px; height: 600px;
-  background: radial-gradient(circle, rgba(94,160,216,0.06) 0%, rgba(94,160,216,0.08) 45%, transparent 70%);
-  bottom: -100px; right: -100px;
-  animation: orb-drift2 25s ease-in-out infinite;
-}
-.orb-3 {
-  width: 450px; height: 450px;
-  background: radial-gradient(circle, rgba(76,184,122,0.08) 0%, transparent 65%);
-  top: 50%; right: 20%;
-  animation: orb-drift3 18s ease-in-out infinite;
-}
-@keyframes orb-drift1 { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(40px,-30px) scale(1.05)} 66%{transform:translate(-20px,40px) scale(0.97)} }
-@keyframes orb-drift2 { 0%,100%{transform:translate(0,0) scale(1)} 40%{transform:translate(-50px,30px) scale(1.08)} 70%{transform:translate(30px,-40px) scale(0.95)} }
-@keyframes orb-drift3 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-30px,-50px) scale(1.12)} }
-
-/* ── HERO ──────────────────────────────────────────────────── */
-.hero {
+/* ── CINEMATIC HERO STAGE ───────────────────────────────────── */
+.stage {
+  position: relative;
   min-height: 100svh;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  text-align: center;
-  padding: calc(var(--nav-h) + 80px) 24px 80px;
-  position: relative; z-index: 1;
+  width: 100%;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse 100% 80% at 50% 110%, rgba(168,136,204,0.20) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(94,92,230,0.18) 0%, transparent 55%),
+    linear-gradient(180deg, #050509 0%, #0A0814 40%, #07060F 100%);
 }
 
-.hero-eyebrow {
-  display: inline-flex; align-items: center; gap: 8px;
-  font-size: 12px; font-weight: 500; letter-spacing: 0.01em;
-  color: var(--text3);
-  background: rgba(255,255,255,0.06);
-  border: 0.5px solid rgba(255,255,255,0.08);
-  border-radius: var(--pill);
-  padding: 6px 16px;
-  margin-bottom: 36px;
-  backdrop-filter: blur(10px);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+/* deep starfield */
+.stars {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 12% 28%, rgba(255,255,255,0.55), transparent 50%),
+    radial-gradient(1px 1px at 34% 64%, rgba(255,255,255,0.40), transparent 50%),
+    radial-gradient(1.5px 1.5px at 68% 18%, rgba(255,255,255,0.70), transparent 50%),
+    radial-gradient(1px 1px at 82% 52%, rgba(255,255,255,0.45), transparent 50%),
+    radial-gradient(1px 1px at 50% 88%, rgba(255,255,255,0.55), transparent 50%),
+    radial-gradient(1px 1px at 6% 82%, rgba(255,255,255,0.35), transparent 50%),
+    radial-gradient(1.5px 1.5px at 94% 10%, rgba(255,255,255,0.55), transparent 50%),
+    radial-gradient(1px 1px at 22% 4%, rgba(255,255,255,0.35), transparent 50%),
+    radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,0.30), transparent 50%);
+  opacity: 0.85;
+  animation: twinkle 6s ease-in-out infinite;
 }
-.eyebrow-dot {
+@keyframes twinkle {
+  0%,100% { opacity: 0.55; }
+  50%     { opacity: 0.95; }
+}
+
+/* drifting nebula glow blobs */
+.nebula {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+}
+.neb {
+  position: absolute; border-radius: 50%;
+  filter: blur(120px); opacity: 0.85;
+}
+.neb-1 {
+  width: 900px; height: 900px;
+  background: radial-gradient(circle, rgba(168,136,204,0.35) 0%, rgba(94,92,230,0.18) 40%, transparent 70%);
+  top: 30%; left: -200px;
+  animation: neb1 26s ease-in-out infinite;
+}
+.neb-2 {
+  width: 700px; height: 700px;
+  background: radial-gradient(circle, rgba(94,160,216,0.18) 0%, rgba(100,210,255,0.10) 40%, transparent 70%);
+  bottom: -150px; right: -150px;
+  animation: neb2 30s ease-in-out infinite;
+}
+.neb-3 {
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, rgba(216,120,128,0.10) 0%, transparent 60%);
+  top: -100px; right: 30%;
+  animation: neb3 24s ease-in-out infinite;
+}
+@keyframes neb1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(60px,-40px) scale(1.06)} }
+@keyframes neb2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-50px,30px) scale(1.08)} }
+@keyframes neb3 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-40px,50px) scale(1.10)} }
+
+/* horizon/ground glow */
+.horizon {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 320px; z-index: 1; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 100% at 50% 100%, rgba(168,136,204,0.45) 0%, rgba(94,92,230,0.18) 35%, transparent 70%),
+    linear-gradient(180deg, transparent 0%, rgba(5,5,9,0.4) 50%, #050509 100%);
+}
+
+/* faint grid overlay (sci-fi HUD feel) */
+.grid-fx {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(168,136,204,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(168,136,204,0.04) 1px, transparent 1px);
+  background-size: 80px 80px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 60%, black 0%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 60%, black 0%, transparent 75%);
+}
+
+/* scanlines */
+.scan {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 3px,
+    rgba(255,255,255,0.012) 3px,
+    rgba(255,255,255,0.012) 4px
+  );
+  mix-blend-mode: overlay;
+}
+
+/* ── HERO EMBLEM (SVG centerpiece) ─────────────────────────── */
+.emblem-wrap {
+  position: absolute;
+  left: 50%; top: 56%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  width: min(560px, 75vw);
+  aspect-ratio: 1;
+  pointer-events: none;
+}
+.emblem-wrap svg {
+  width: 100%; height: 100%;
+  filter:
+    drop-shadow(0 0 40px rgba(168,136,204,0.55))
+    drop-shadow(0 0 12px rgba(94,92,230,0.45));
+  animation: emblem-float 8s ease-in-out infinite;
+}
+@keyframes emblem-float {
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-12px); }
+}
+.ring-spin-slow { transform-origin: 300px 300px; animation: spinSlow 60s linear infinite; }
+.ring-spin-rev  { transform-origin: 300px 300px; animation: spinRev 90s linear infinite; }
+@keyframes spinSlow { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+@keyframes spinRev  { from{transform:rotate(360deg)} to{transform:rotate(0)} }
+
+/* ── TOP BAR (minimal, transparent overlay) ────────────────── */
+.topbar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 20;
+  height: var(--nav-h);
+  display: flex; align-items: center;
+  padding: 0 32px;
+  background: linear-gradient(180deg, rgba(5,5,9,0.65) 0%, rgba(5,5,9,0.20) 60%, transparent 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 0.5px solid rgba(255,255,255,0.04);
+}
+.brand {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 800; letter-spacing: 0.04em;
+  font-size: 15px;
+  color: var(--text);
+  text-decoration: none;
+}
+.brand-mark {
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
+  box-shadow: 0 0 12px rgba(168,136,204,0.55), inset 0 1px 0 rgba(255,255,255,0.25);
+  font-size: 11px; font-weight: 900; color: #fff;
+}
+.brand .brand-dot { color: var(--accent); }
+.topbar-spacer { flex: 1; }
+.topbar-links {
+  display: flex; align-items: center; gap: 26px;
+}
+.topbar-links a {
+  font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text2); text-decoration: none;
+  transition: color 0.18s;
+}
+.topbar-links a:hover { color: var(--text); }
+.cta-beta {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-left: 28px;
+  padding: 9px 18px;
+  font-family: var(--font-display);
+  font-size: 12px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; text-decoration: none;
+  color: #fff;
+  border-radius: var(--pill);
+  background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.06) inset,
+    0 0 18px rgba(168,136,204,0.45),
+    0 6px 22px rgba(94,92,230,0.30);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.cta-beta:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.10) inset,
+    0 0 28px rgba(168,136,204,0.65),
+    0 8px 28px rgba(94,92,230,0.40);
+}
+.cta-beta-dot {
   width: 6px; height: 6px; border-radius: 50%;
-  background: var(--neon);
-  box-shadow: 0 0 6px rgba(76,184,122,0.50);
-  flex-shrink: 0;
-  animation: dot-pulse 2.5s ease-in-out infinite;
+  background: #fff;
+  box-shadow: 0 0 8px #fff;
+  animation: dot-pulse 1.8s ease-in-out infinite;
 }
 @keyframes dot-pulse {
-  0%,100%{opacity:1;box-shadow:0 0 6px rgba(76,184,122,0.50)}
-  50%{opacity:0.5;box-shadow:0 0 3px rgba(76,184,122,0.22)}
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%     { opacity: 0.4; transform: scale(0.7); }
+}
+@media (max-width: 760px) {
+  .topbar { padding: 0 16px; }
+  .topbar-links { display: none; }
 }
 
-/* Large hero title — Apple-style clean */
-.hero-title {
-  font-family: var(--font-display);
-  font-size: clamp(56px, 10vw, 112px);
-  font-weight: 700;
-  line-height: 1.02;
-  letter-spacing: -0.04em;
-  color: var(--text);
-  margin-bottom: 8px;
+/* ── MASSIVE WORDMARK TITLE ────────────────────────────────── */
+.headline-wrap {
+  position: absolute;
+  left: 0; right: 0; top: 18%;
+  z-index: 4;
+  text-align: center;
+  pointer-events: none;
+  padding: 0 16px;
 }
-.hero-title em {
+.headline-kicker {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.4em;
+  color: var(--text3);
+  text-transform: uppercase;
+  margin-bottom: 22px;
+  padding: 6px 14px;
+  border: 0.5px solid rgba(168,136,204,0.30);
+  border-radius: var(--pill);
+  background: rgba(168,136,204,0.06);
+  backdrop-filter: blur(8px);
+}
+.headline-kicker::before, .headline-kicker::after {
+  content: ''; width: 22px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(168,136,204,0.6));
+}
+.headline-kicker::after { background: linear-gradient(90deg, rgba(168,136,204,0.6), transparent); }
+
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(64px, 14vw, 200px);
+  line-height: 0.85;
+  letter-spacing: -0.05em;
+  text-transform: uppercase;
+  margin: 0;
+  position: relative;
+  background: linear-gradient(180deg, #FFFFFF 0%, #E8E0F5 35%, #A888CC 70%, #5E5CE6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 80px rgba(168,136,204,0.4);
+  filter: drop-shadow(0 6px 24px rgba(94,92,230,0.30));
+}
+/* outline echo behind wordmark */
+.wordmark-outline {
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(64px, 14vw, 200px);
+  line-height: 0.85;
+  letter-spacing: -0.05em;
+  text-transform: uppercase;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(168,136,204,0.18);
+  pointer-events: none;
+  transform: translate(0px, 6px);
+  z-index: -1;
+}
+.headline-sub {
+  margin-top: 14px;
+  font-family: var(--font-mono);
+  font-size: clamp(11px, 1.3vw, 13px);
+  font-weight: 500;
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+.headline-sub .dot {
+  display: inline-block; width: 4px; height: 4px;
+  background: var(--accent); border-radius: 50%;
+  margin: 0 12px; transform: translateY(-3px);
+  box-shadow: 0 0 6px var(--accent);
+}
+
+/* ── INFO CARD (bottom-left) ───────────────────────────────── */
+.info-card {
+  position: absolute;
+  left: 32px; bottom: 36px;
+  z-index: 5;
+  max-width: 360px;
+  padding: 22px 24px;
+  background: rgba(10,8,20,0.62);
+  border: 0.5px solid rgba(255,255,255,0.10);
+  border-radius: 18px;
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  box-shadow:
+    0 24px 48px rgba(0,0,0,0.55),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.info-card::before {
+  content: '';
+  position: absolute; top: 0; left: 14%; right: 14%;
+  height: 0.5px;
+  background: linear-gradient(90deg, transparent, rgba(168,136,204,0.4), transparent);
+  pointer-events: none;
+}
+.info-tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.2em;
+  color: var(--neon); text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.info-tag-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--neon);
+  box-shadow: 0 0 8px rgba(76,184,122,0.7);
+  animation: dot-pulse 2.5s ease-in-out infinite;
+}
+.info-title {
+  font-family: var(--font-display);
+  font-size: 16px; font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text); margin-bottom: 8px;
+}
+.info-text {
+  font-size: 13px; line-height: 1.55;
+  color: var(--text2);
+  letter-spacing: -0.005em;
+}
+
+/* ── FLOATING STAT CHIPS (right side) ───────────────────────── */
+.stat-chips {
+  position: absolute;
+  right: 32px; bottom: 36px;
+  z-index: 5;
+  display: flex; flex-direction: column; gap: 10px;
+  align-items: flex-end;
+}
+.stat-chip {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: rgba(10,8,20,0.62);
+  border: 0.5px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.stat-chip-icon {
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.stat-chip-text {
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 500; letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text2);
+}
+.stat-chip-text strong {
+  color: var(--text); font-weight: 700;
+  margin-right: 6px;
+}
+
+/* ── PRIMARY CTA (center-bottom of stage) ───────────────────── */
+.primary-cta-wrap {
+  position: absolute;
+  left: 50%; bottom: 120px;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.primary-cta {
+  display: inline-flex; align-items: center; gap: 12px;
+  padding: 16px 36px;
+  font-family: var(--font-display);
+  font-size: 14px; font-weight: 800; letter-spacing: 0.18em;
+  text-transform: uppercase; text-decoration: none;
+  color: #fff;
+  border-radius: var(--pill);
+  background: linear-gradient(135deg, #B898D8 0%, #6E6CF0 100%);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.10) inset,
+    0 0 30px rgba(168,136,204,0.55),
+    0 14px 40px rgba(94,92,230,0.40);
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  position: relative; overflow: hidden;
+}
+.primary-cta::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.30) 50%, transparent 70%);
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
+}
+.primary-cta:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.16) inset,
+    0 0 45px rgba(168,136,204,0.75),
+    0 18px 52px rgba(94,92,230,0.55);
+}
+.primary-cta:hover::after { transform: translateX(100%); }
+.cta-arrow {
+  width: 16px; height: 16px;
+}
+.scroll-hint {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 500; letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--text3);
+  opacity: 0.7;
+  animation: bob 2.2s ease-in-out infinite;
+}
+.scroll-hint svg { opacity: 0.6; }
+@keyframes bob {
+  0%,100% { transform: translateY(0); opacity: 0.7; }
+  50%     { transform: translateY(4px); opacity: 0.4; }
+}
+
+/* ── ENTRY ANIMATIONS ───────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.headline-wrap > *,
+.info-card,
+.stat-chips,
+.primary-cta-wrap,
+.emblem-wrap { animation: fadeUp 0.9s cubic-bezier(.22,1,.36,1) both; }
+.emblem-wrap     { animation-delay: 0.05s; }
+.headline-kicker { animation-delay: 0.10s; }
+.wordmark        { animation-delay: 0.18s; }
+.headline-sub    { animation-delay: 0.30s; }
+.primary-cta-wrap{ animation-delay: 0.42s; }
+.info-card       { animation-delay: 0.55s; }
+.stat-chips      { animation-delay: 0.55s; }
+
+/* ── BELOW-THE-FOLD SECTIONS ───────────────────────────────── */
+.section {
+  max-width: 1200px; margin: 0 auto;
+  padding: 100px 32px;
+  position: relative; z-index: 1;
+}
+.section-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.3em;
+  text-transform: uppercase; color: var(--accent);
+  margin-bottom: 14px;
+}
+.section-heading {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 5vw, 56px);
+  font-weight: 800; letter-spacing: -0.03em;
+  color: var(--text); line-height: 1.05;
+  margin-bottom: 12px;
+}
+.section-heading em {
   font-style: normal;
-  background: linear-gradient(135deg, #FFFFFF 0%, #A888CC 45%, #5E5CE6 80%, #5EA0D8 100%);
+  background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
-
-.hero-sub {
-  font-size: clamp(16px, 2vw, 20px);
-  font-weight: 400;
-  color: var(--text3);
-  max-width: 520px;
-  line-height: 1.55;
-  margin: 20px auto 44px;
-  letter-spacing: -0.01em;
-}
-
-/* CTA buttons */
-.hero-actions {
-  display: flex; gap: 12px; flex-wrap: wrap;
-  justify-content: center; margin-bottom: 80px;
-}
-.cta-primary {
-  padding: 14px 28px;
-  font-size: 15px; font-weight: 600; letter-spacing: -0.02em;
-  background: var(--accent); color: #fff;
-  border: none; border-radius: var(--pill);
-  cursor: pointer; transition: all 0.22s ease;
-  text-decoration: none; display: inline-block;
-  box-shadow: 0 4px 20px rgba(168,136,204,0.22), inset 0 1px 0 rgba(255,255,255,0.12);
-}
-.cta-primary:hover {
-  background: #B898D8;
-  box-shadow: 0 8px 32px rgba(168,136,204,0.30), inset 0 1px 0 rgba(255,255,255,0.14);
-  transform: translateY(-2px);
-}
-.cta-secondary {
-  padding: 13px 26px;
-  font-size: 15px; font-weight: 500; letter-spacing: -0.02em;
-  background: rgba(255,255,255,0.08); color: var(--text2);
-  border: 0.5px solid rgba(255,255,255,0.10); border-radius: var(--pill);
-  cursor: pointer; transition: all 0.22s ease;
-  text-decoration: none; display: inline-block;
-  backdrop-filter: blur(10px);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 4px 16px rgba(0,0,0,0.3);
-}
-.cta-secondary:hover {
-  background: rgba(255,255,255,0.08);
-  color: var(--text);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 6px 24px rgba(0,0,0,0.4);
-  transform: translateY(-1px);
-}
-
-/* ── STATS GLASS PILL ───────────────────────────────────────── */
-.hero-stats {
-  display: flex; gap: 0;
-  background: var(--glass);
-  backdrop-filter: var(--blur-sm);
-  -webkit-backdrop-filter: var(--blur-sm);
-  border: 0.5px solid var(--glass-border);
-  border-radius: var(--r3);
-  box-shadow: var(--glass-shadow);
-  overflow: hidden;
-  position: relative;
-}
-.hero-stats::before {
-  content: '';
-  position: absolute; top: 0; left: 10%; right: 10%;
-  height: 0.5px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent);
-  pointer-events: none;
-}
-.hud-stat {
-  padding: 20px 34px; text-align: center; flex: 1;
-  border-right: 0.5px solid rgba(255,255,255,0.07);
-  position: relative;
-}
-.hud-stat:last-child { border-right: none; }
-.hud-stat-val {
-  font-family: var(--font-display);
-  font-size: 22px; font-weight: 700;
-  color: var(--text); line-height: 1.1;
-  letter-spacing: -0.03em;
-}
-.hud-stat-label {
-  font-size: 11px; font-weight: 400;
-  color: var(--text4); margin-top: 4px;
-  letter-spacing: 0.01em;
-}
-
-/* ── SECTION ────────────────────────────────────────────────── */
-.content-section {
-  padding: 0 32px 100px;
-  max-width: 1200px; margin: 0 auto; width: 100%;
-  position: relative; z-index: 1;
-}
-.section-eyebrow {
-  font-size: 12px; font-weight: 500; letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--accent);
-  margin-bottom: 12px;
-}
-.section-heading {
-  font-family: var(--font-display);
-  font-size: clamp(28px, 4vw, 46px);
-  font-weight: 700; letter-spacing: -0.03em;
-  color: var(--text); line-height: 1.1;
-  margin-bottom: 10px;
-}
-.section-heading em { font-style: normal; color: var(--text2); }
 .section-sub {
-  font-size: 15px; color: var(--text3); margin-bottom: 48px;
-  max-width: 460px; line-height: 1.55; letter-spacing: -0.01em;
+  font-size: 16px; color: var(--text3);
+  max-width: 540px; line-height: 1.55; letter-spacing: -0.01em;
+  margin-bottom: 56px;
 }
 
-/* ── TOOLS GRID ─────────────────────────────────────────────── */
+/* tools grid */
 .tools-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
-
 .tool-card {
-  background: var(--glass);
-  backdrop-filter: var(--blur-sm);
-  -webkit-backdrop-filter: var(--blur-sm);
-  border: 0.5px solid var(--glass-border);
-  border-radius: var(--r3);
-  box-shadow: var(--glass-shadow);
+  background: rgba(16,16,26,0.68);
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+  border: 0.5px solid rgba(255,255,255,0.07);
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07);
   padding: 28px 26px 24px;
   display: flex; flex-direction: column; gap: 10px;
   text-decoration: none; color: inherit;
   transition: all 0.22s ease;
   position: relative; overflow: hidden;
 }
-/* Top shine */
 .tool-card::before {
   content: '';
   position: absolute; top: 0; left: 8%; right: 8%;
   height: 0.5px;
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
-  pointer-events: none;
 }
-/* Color accent bar on hover */
 .tool-card::after {
   content: '';
   position: absolute; bottom: 0; left: 0; right: 0;
@@ -256,7 +537,7 @@ body { overflow-x: hidden; }
   background: var(--card-accent, rgba(168,136,204,0.5));
   transform: scaleX(0); transform-origin: left;
   transition: transform 0.28s ease;
-  border-radius: 0 0 var(--r3) var(--r3);
+  border-radius: 0 0 24px 24px;
 }
 .tool-card:hover {
   background: rgba(40,40,44,0.80);
@@ -265,12 +546,9 @@ body { overflow-x: hidden; }
   box-shadow: 0 16px 48px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.09);
 }
 .tool-card:hover::after { transform: scaleX(1); }
-.tool-card.featured {
-  grid-column: span 2;
-}
-
+.tool-card.featured { grid-column: span 2; }
 .tool-icon {
-  width: 40px; height: 40px; border-radius: var(--r2);
+  width: 40px; height: 40px; border-radius: 18px;
   display: flex; align-items: center; justify-content: center;
   font-size: 20px; flex-shrink: 0;
   background: rgba(255,255,255,0.07);
@@ -287,11 +565,9 @@ body { overflow-x: hidden; }
 .tool-badge-blue   { color: var(--blue);   border-color: var(--blue-border);   background: var(--blue-dim); }
 .tool-badge-neon   { color: var(--neon);   border-color: var(--neon-border);   background: var(--neon-dim); }
 .tool-badge-gold   { color: var(--gold);   border-color: var(--gold-border);   background: var(--gold-dim); }
-.tool-badge-muted  { color: var(--text3);  border-color: var(--border2);       background: rgba(255,255,255,0.04); }
-
 .tool-name {
   font-family: var(--font-display);
-  font-size: 17px; font-weight: 600;
+  font-size: 17px; font-weight: 700;
   color: var(--text); letter-spacing: -0.02em;
 }
 .tool-desc {
@@ -299,31 +575,26 @@ body { overflow-x: hidden; }
   flex: 1; letter-spacing: -0.01em;
 }
 .tool-arrow {
-  font-size: 13px; font-weight: 500;
-  color: var(--text4); letter-spacing: -0.01em;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text3);
   margin-top: auto; transition: color 0.18s;
-  display: flex; align-items: center; gap: 4px;
+  display: flex; align-items: center; gap: 6px;
 }
-.tool-card:hover .tool-arrow { color: var(--text2); }
+.tool-card:hover .tool-arrow { color: var(--text); }
 
-/* ── WORKFLOW ───────────────────────────────────────────────── */
-.workflow-section {
-  border-top: 0.5px solid var(--border);
-  padding: 80px 32px;
-  max-width: 1200px; margin: 0 auto; width: 100%;
-  position: relative; z-index: 1;
-}
+/* workflow */
 .workflow-grid {
   display: grid; grid-template-columns: repeat(3, 1fr);
   gap: 16px; margin-top: 48px;
 }
 .workflow-step {
-  background: var(--glass);
-  backdrop-filter: var(--blur-sm);
-  -webkit-backdrop-filter: var(--blur-sm);
-  border: 0.5px solid var(--glass-border);
-  border-radius: var(--r3);
-  box-shadow: var(--glass-shadow);
+  background: rgba(16,16,26,0.68);
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+  border: 0.5px solid rgba(255,255,255,0.07);
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07);
   padding: 32px 28px;
   display: flex; flex-direction: column; gap: 14px;
   position: relative; overflow: hidden;
@@ -335,31 +606,31 @@ body { overflow-x: hidden; }
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.11), transparent);
 }
 .step-num {
-  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
-  color: var(--accent); letter-spacing: 0.06em;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  color: var(--accent); letter-spacing: 0.12em;
   padding: 4px 10px; border-radius: var(--pill);
   background: var(--accent-dim);
   border: 0.5px solid var(--accent-border);
   width: fit-content;
 }
 .step-title {
-  font-family: var(--font-display); font-size: 15px; font-weight: 600;
+  font-family: var(--font-display); font-size: 15px; font-weight: 700;
   color: var(--text); letter-spacing: -0.02em;
 }
 .step-desc { font-size: 13px; color: var(--text3); line-height: 1.6; letter-spacing: -0.01em; }
 
-/* ── CTA BAND ───────────────────────────────────────────────── */
+/* CTA band */
 .cta-band-wrap {
-  padding: 0 32px 100px;
-  max-width: 1200px; margin: 0 auto; position: relative; z-index: 1;
+  max-width: 1200px; margin: 0 auto; padding: 0 32px 100px;
+  position: relative; z-index: 1;
 }
 .cta-band {
-  background: var(--glass);
-  backdrop-filter: var(--blur-sm);
-  -webkit-backdrop-filter: var(--blur-sm);
-  border: 0.5px solid var(--glass-border);
-  border-radius: var(--r4);
-  box-shadow: var(--glass-shadow);
+  background: rgba(16,16,26,0.68);
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+  border: 0.5px solid rgba(255,255,255,0.07);
+  border-radius: 32px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07);
   padding: 64px 48px;
   text-align: center;
   position: relative; overflow: hidden;
@@ -370,140 +641,286 @@ body { overflow-x: hidden; }
   height: 0.5px;
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.16), transparent);
 }
-/* Inner orb glow in CTA band */
 .cta-band::after {
-  content: '';
-  position: absolute; inset: 0; pointer-events: none;
+  content: ''; position: absolute; inset: 0; pointer-events: none;
   background:
-    radial-gradient(ellipse 70% 60% at 30% 50%, rgba(168,136,204,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 60% at 30% 50%, rgba(168,136,204,0.10) 0%, transparent 60%),
     radial-gradient(ellipse 60% 50% at 75% 50%, rgba(94,160,216,0.08) 0%, transparent 60%);
 }
 .cta-band-tag {
-  font-size: 12px; font-weight: 500; letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.3em;
   text-transform: uppercase; color: var(--neon);
   margin-bottom: 18px; position: relative; z-index: 1;
 }
 .cta-band-title {
   font-family: var(--font-display);
-  font-size: clamp(28px, 4vw, 48px);
-  font-weight: 700; letter-spacing: -0.03em;
-  color: var(--text); line-height: 1.08;
+  font-size: clamp(32px, 5vw, 56px);
+  font-weight: 800; letter-spacing: -0.03em;
+  color: var(--text); line-height: 1.05;
   margin-bottom: 14px; position: relative; z-index: 1;
 }
-.cta-band-title em { font-style: normal; color: var(--accent); }
+.cta-band-title em {
+  font-style: normal;
+  background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
 .cta-band-sub {
   font-size: 15px; color: var(--text3); margin-bottom: 36px;
   letter-spacing: -0.01em; position: relative; z-index: 1;
 }
 
-/* ── FOOTER ─────────────────────────────────────────────────── */
-.site-footer {
+/* footer */
+.site-footer-outer {
   border-top: 0.5px solid var(--border);
-  padding: 32px 32px;
-  display: flex; align-items: center; gap: 20px;
-  max-width: 1200px; margin: 0 auto; width: 100%;
   position: relative; z-index: 1;
 }
+.site-footer {
+  max-width: 1200px; margin: 0 auto;
+  padding: 32px;
+  display: flex; align-items: center; gap: 20px;
+}
 .footer-brand {
-  font-family: var(--font-display); font-size: 14px; font-weight: 700;
-  letter-spacing: -0.02em; color: var(--text);
+  font-family: var(--font-display); font-size: 14px; font-weight: 800;
+  letter-spacing: 0.04em; color: var(--text);
 }
-.footer-copy {
-  font-size: 12px; color: var(--text4); letter-spacing: -0.01em; margin-top: 3px;
-}
+.footer-copy { font-size: 12px; color: var(--text4); margin-top: 3px; }
 .footer-links { margin-left: auto; display: flex; gap: 24px; }
 .footer-links a {
-  font-size: 13px; font-weight: 500; letter-spacing: -0.01em;
-  color: var(--text4); transition: color 0.18s;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text3); transition: color 0.18s; text-decoration: none;
 }
-.footer-links a:hover { color: var(--text2); }
+.footer-links a:hover { color: var(--text); }
 
 /* ── RESPONSIVE ─────────────────────────────────────────────── */
-@media (max-width: 1000px) {
-  .tools-grid { grid-template-columns: 1fr 1fr; }
-  .tool-card.featured { grid-column: span 2; }
+@media (max-width: 1100px) {
+  .info-card { max-width: 320px; }
+}
+@media (max-width: 900px) {
+  .headline-wrap { top: 14%; }
+  .emblem-wrap { width: min(420px, 70vw); top: 58%; }
+  .info-card {
+    left: 16px; right: 16px; bottom: 24px;
+    max-width: none;
+  }
+  .stat-chips { display: none; }
+  .primary-cta-wrap { bottom: auto; top: calc(18% + 280px); }
 }
 @media (max-width: 760px) {
-  .tools-grid, .workflow-grid { grid-template-columns: 1fr; }
+  .tools-grid { grid-template-columns: 1fr; }
   .tool-card.featured { grid-column: span 1; }
-  .hero-actions { flex-direction: column; align-items: center; }
-  .hero-stats { flex-direction: column; }
-  .hud-stat { border-right: none; border-bottom: 0.5px solid rgba(255,255,255,0.06); }
-  .hud-stat:last-child { border-bottom: none; }
-  .content-section, .workflow-section, .cta-band-wrap { padding-left: 16px; padding-right: 16px; }
-  .site-footer { flex-direction: column; text-align: center; }
-  .footer-links { margin-left: 0; }
+  .workflow-grid { grid-template-columns: 1fr; }
+  .section { padding: 64px 16px; }
+  .cta-band-wrap { padding-left: 16px; padding-right: 16px; }
   .cta-band { padding: 40px 24px; }
+  .site-footer { flex-direction: column; text-align: center; padding: 24px 16px; }
+  .footer-links { margin-left: 0; flex-wrap: wrap; justify-content: center; }
 }
-
-/* ── ANIMATIONS ─────────────────────────────────────────────── */
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.hero > * { animation: fadeUp 0.70s cubic-bezier(.22,1,.36,1) both; }
-.hero-eyebrow     { animation-delay: 0.00s; }
-.hero-title       { animation-delay: 0.08s; }
-.hero-sub         { animation-delay: 0.15s; }
-.hero-actions     { animation-delay: 0.22s; }
-.hero-stats       { animation-delay: 0.32s; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="warr-theme.js"></script>
 </head>
 <body>
 
-<!-- AMBIENT ORBS -->
-<div class="ambient">
-  <div class="orb orb-1"></div>
-  <div class="orb orb-2"></div>
-  <div class="orb orb-3"></div>
-</div>
+<!-- ════════════ CINEMATIC HERO STAGE ════════════ -->
+<section class="stage">
 
-<!-- NAV -->
-<div id="warr-nav-root"></div>
+  <!-- ATMOSPHERE -->
+  <div class="stars"></div>
+  <div class="nebula">
+    <div class="neb neb-1"></div>
+    <div class="neb neb-2"></div>
+    <div class="neb neb-3"></div>
+  </div>
+  <div class="grid-fx"></div>
+  <div class="horizon"></div>
+  <div class="scan"></div>
 
-<!-- HERO -->
-<section class="hero">
-  <div class="hero-eyebrow">
-    <div class="eyebrow-dot"></div>
-    MLBB Esports Intelligence Platform
+  <!-- TOP NAV BAR -->
+  <header class="topbar">
+    <a href="index.html" class="brand">
+      <span class="brand-mark">W</span>
+      WARR<span class="brand-dot">.</span>GG
+    </a>
+    <div class="topbar-spacer"></div>
+    <nav class="topbar-links">
+      <a href="draft_board.html">Draft</a>
+      <a href="ai_battle.html">AI Battle</a>
+      <a href="scout.html">Scout</a>
+      <a href="stats.html">Analysis</a>
+      <a href="patch_meta.html">Meta</a>
+    </nav>
+    <a href="auth.html" class="cta-beta">
+      <span class="cta-beta-dot"></span>
+      Enter War Room
+    </a>
+  </header>
+
+  <!-- HERO EMBLEM (SVG centerpiece — stylized warrior/draft sigil) -->
+  <div class="emblem-wrap" aria-hidden="true">
+    <svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"  stop-color="#FFFFFF" stop-opacity="0.95"/>
+          <stop offset="30%" stop-color="#C8B4E8" stop-opacity="0.7"/>
+          <stop offset="60%" stop-color="#A888CC" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#5E5CE6" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="bladeGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"  stop-color="#E8E0F5"/>
+          <stop offset="50%" stop-color="#A888CC"/>
+          <stop offset="100%" stop-color="#5E5CE6"/>
+        </linearGradient>
+        <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%"  stop-color="#A888CC" stop-opacity="0.8"/>
+          <stop offset="50%" stop-color="#5E5CE6" stop-opacity="0.5"/>
+          <stop offset="100%" stop-color="#A888CC" stop-opacity="0.8"/>
+        </linearGradient>
+      </defs>
+
+      <!-- core glow -->
+      <circle cx="300" cy="300" r="260" fill="url(#coreGlow)" opacity="0.55"/>
+
+      <!-- outermost rotating ring with tick marks -->
+      <g class="ring-spin-slow" opacity="0.7">
+        <circle cx="300" cy="300" r="280" fill="none" stroke="url(#ringGrad)" stroke-width="0.8" stroke-dasharray="2 8"/>
+        <g stroke="#A888CC" stroke-width="1.2">
+          <line x1="300" y1="6" x2="300" y2="22"/>
+          <line x1="300" y1="578" x2="300" y2="594"/>
+          <line x1="6" y1="300" x2="22" y2="300"/>
+          <line x1="578" y1="300" x2="594" y2="300"/>
+        </g>
+      </g>
+
+      <!-- mid rotating hex ring -->
+      <g class="ring-spin-rev" opacity="0.55">
+        <polygon points="300,80 491,190 491,410 300,520 109,410 109,190"
+          fill="none" stroke="#A888CC" stroke-width="1" stroke-dasharray="4 6"/>
+        <polygon points="300,110 465,205 465,395 300,490 135,395 135,205"
+          fill="none" stroke="#5E5CE6" stroke-width="0.6"/>
+      </g>
+
+      <!-- inner concentric circles -->
+      <circle cx="300" cy="300" r="200" fill="none" stroke="rgba(168,136,204,0.18)" stroke-width="0.6"/>
+      <circle cx="300" cy="300" r="150" fill="none" stroke="rgba(168,136,204,0.22)" stroke-width="0.6"/>
+
+      <!-- central hexagon (draft chamber) -->
+      <polygon points="300,170 412,235 412,365 300,430 188,365 188,235"
+        fill="rgba(10,8,20,0.5)"
+        stroke="url(#ringGrad)" stroke-width="1.5"/>
+
+      <!-- crossed blades / warrior emblem -->
+      <g>
+        <!-- left blade -->
+        <path d="M 200 200 L 240 240 L 320 380 L 300 400 L 220 260 Z"
+          fill="url(#bladeGrad)" opacity="0.92"/>
+        <!-- right blade -->
+        <path d="M 400 200 L 360 240 L 280 380 L 300 400 L 380 260 Z"
+          fill="url(#bladeGrad)" opacity="0.92"/>
+        <!-- crown/diamond at top -->
+        <polygon points="300,150 320,180 300,210 280,180"
+          fill="#E8E0F5" opacity="0.95"/>
+        <!-- center jewel -->
+        <circle cx="300" cy="300" r="14" fill="#FFFFFF" opacity="0.95"/>
+        <circle cx="300" cy="300" r="22" fill="none" stroke="#A888CC" stroke-width="1.5" opacity="0.7"/>
+        <circle cx="300" cy="300" r="32" fill="none" stroke="rgba(168,136,204,0.35)" stroke-width="0.8"/>
+      </g>
+
+      <!-- tiny orbiting dots -->
+      <g class="ring-spin-slow">
+        <circle cx="300" cy="50" r="3" fill="#A888CC"/>
+        <circle cx="550" cy="300" r="2.5" fill="#5EA0D8"/>
+        <circle cx="300" cy="550" r="2.5" fill="#A888CC"/>
+        <circle cx="50" cy="300" r="2.5" fill="#5E5CE6"/>
+      </g>
+
+      <!-- corner crosshairs -->
+      <g stroke="rgba(168,136,204,0.45)" stroke-width="1" fill="none">
+        <path d="M 40 80 L 40 40 L 80 40"/>
+        <path d="M 520 40 L 560 40 L 560 80"/>
+        <path d="M 560 520 L 560 560 L 520 560"/>
+        <path d="M 80 560 L 40 560 L 40 520"/>
+      </g>
+    </svg>
   </div>
 
-  <h1 class="hero-title">Draft smarter.<br><em>Win the game.</em></h1>
-
-  <p class="hero-sub">
-    AI-powered draft tools, meta tracking, and competitive analytics — built for serious Mobile Legends teams.
-  </p>
-
-  <div class="hero-actions">
-    <a href="draft_board.html" class="cta-primary">Open Draft Board</a>
-    <a href="ai_battle.html" class="cta-secondary">Challenge AI →</a>
+  <!-- HEADLINE -->
+  <div class="headline-wrap">
+    <div class="headline-kicker">MLBB Esports Intelligence · v2.6</div>
+    <div style="position:relative;display:inline-block;">
+      <span class="wordmark-outline" aria-hidden="true">WARR<span style="color:transparent;-webkit-text-stroke:1px rgba(168,136,204,0.32);">.</span>GG</span>
+      <h1 class="wordmark">WARR<span style="background:linear-gradient(180deg,#A888CC,#5E5CE6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">.</span>GG</h1>
+    </div>
+    <div class="headline-sub">Draft <span class="dot"></span> Scout <span class="dot"></span> Dominate</div>
   </div>
 
-  <div class="hero-stats">
-    <div class="hud-stat">
-      <div class="hud-stat-val">MPL</div>
-      <div class="hud-stat-label">PH · ID · MY · SG</div>
-    </div>
-    <div class="hud-stat">
-      <div class="hud-stat-val">120+</div>
-      <div class="hud-stat-label">Heroes tracked</div>
-    </div>
-    <div class="hud-stat">
-      <div class="hud-stat-val" style="color:var(--accent);">AI</div>
-      <div class="hud-stat-label">Draft analysis</div>
-    </div>
-    <div class="hud-stat">
-      <div class="hud-stat-val" style="color:var(--neon);">Free</div>
-      <div class="hud-stat-label">No account needed</div>
+  <!-- PRIMARY CTA + SCROLL HINT -->
+  <div class="primary-cta-wrap">
+    <a href="draft_board.html" class="primary-cta">
+      Open Draft Board
+      <svg class="cta-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
+    </a>
+    <div class="scroll-hint">
+      Scroll
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 9l6 6 6-6"/>
+      </svg>
     </div>
   </div>
+
+  <!-- INFO CARD (bottom-left) -->
+  <aside class="info-card">
+    <div class="info-tag">
+      <span class="info-tag-dot"></span>
+      Live · Built for MPL
+    </div>
+    <div class="info-title">Win the draft before the game starts.</div>
+    <div class="info-text">
+      AI-powered draft simulation, opponent scouting, and patch-aware meta tools — built for serious Mobile Legends teams competing across MPL, MSC, and M-Series.
+    </div>
+  </aside>
+
+  <!-- STAT CHIPS (bottom-right) -->
+  <div class="stat-chips">
+    <div class="stat-chip">
+      <span class="stat-chip-icon">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 7v5l3 2"/>
+        </svg>
+      </span>
+      <span class="stat-chip-text"><strong>120+</strong> Heroes tracked</span>
+    </div>
+    <div class="stat-chip">
+      <span class="stat-chip-icon" style="background:rgba(76,184,122,0.10);color:var(--neon);">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 11l3 3L22 4"/>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+      </span>
+      <span class="stat-chip-text"><strong>Free</strong> No account needed</span>
+    </div>
+    <div class="stat-chip">
+      <span class="stat-chip-icon" style="background:rgba(94,160,216,0.10);color:var(--blue);">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12h4l3-8 4 16 3-8h4"/>
+        </svg>
+      </span>
+      <span class="stat-chip-text"><strong>MPL</strong> PH · ID · MY · SG</span>
+    </div>
+  </div>
+
 </section>
 
-<!-- TOOLS -->
-<div class="content-section">
-  <div class="section-eyebrow">Arsenal</div>
+
+<!-- ════════════ TOOLS ════════════ -->
+<div class="section">
+  <div class="section-eyebrow">// Arsenal</div>
   <div class="section-heading">Every tool your<br><em>team needs.</em></div>
   <p class="section-sub">Six integrated tools — from live draft simulations to AI opponents and opponent scouting databases.</p>
 
@@ -512,74 +929,112 @@ body { overflow-x: hidden; }
     <!-- Draft Board — featured -->
     <a class="tool-card featured" href="draft_board.html" style="--card-accent:rgba(94,160,216,0.6);">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-        <div class="tool-icon" style="background:rgba(94,160,216,0.08);border-color:rgba(94,160,216,0.20);">⚔️</div>
+        <div class="tool-icon" style="background:rgba(94,160,216,0.10);border-color:rgba(94,160,216,0.22);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5EA0D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.5 17.5L3 6V3h3l11.5 11.5"/>
+            <path d="M13 19l6-6"/>
+            <path d="M16 16l4 4"/>
+            <path d="M19 21l2-2"/>
+          </svg>
+        </div>
         <div class="tool-badge tool-badge-blue">Core Tool</div>
       </div>
       <div class="tool-name">Draft Board</div>
-      <div class="tool-desc">Simulate full MPL-format draft sequences with live ban and pick tracking. Run BO1 through BO7 series simulations, smart opponent side-picker, and export results for post-match review.</div>
-      <div class="tool-arrow">Open Draft Board <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+      <div class="tool-desc">Simulate full MPL-format draft sequences with live ban and pick tracking. Run BO1 through BO7 series, smart opponent side-picker, and export results for post-match review.</div>
+      <div class="tool-arrow">Open Draft Board →</div>
     </a>
 
     <!-- AI Battle -->
     <a class="tool-card" href="ai_battle.html" style="--card-accent:rgba(168,136,204,0.6);">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-        <div class="tool-icon" style="background:rgba(168,136,204,0.08);border-color:rgba(168,136,204,0.13);">🤖</div>
+        <div class="tool-icon" style="background:rgba(168,136,204,0.10);border-color:rgba(168,136,204,0.22);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A888CC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="7" width="14" height="12" rx="2"/>
+            <circle cx="9" cy="13" r="1.4"/>
+            <circle cx="15" cy="13" r="1.4"/>
+            <path d="M12 3v4"/>
+            <path d="M10 19v2"/>
+            <path d="M14 19v2"/>
+          </svg>
+        </div>
         <div class="tool-badge tool-badge-accent">AI Powered</div>
       </div>
       <div class="tool-name">AI Battle</div>
       <div class="tool-desc">1v1 live draft against Warr.GG AI — Normal, Hard, and Grandmaster modes. Adapts to your bans and counters in real time.</div>
-      <div class="tool-arrow">Challenge AI <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+      <div class="tool-arrow">Challenge AI →</div>
     </a>
 
     <!-- Scout -->
     <a class="tool-card" href="scout.html" style="--card-accent:rgba(100,210,255,0.5);">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-        <div class="tool-icon" style="background:rgba(100,210,255,0.10);border-color:rgba(100,210,255,0.18);">🔍</div>
+        <div class="tool-icon" style="background:rgba(100,210,255,0.10);border-color:rgba(100,210,255,0.22);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64D2FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="7"/>
+            <path d="M21 21l-4.3-4.3"/>
+          </svg>
+        </div>
         <div class="tool-badge" style="color:var(--cyan);border-color:rgba(100,210,255,0.30);background:rgba(100,210,255,0.10);">Scouting</div>
       </div>
       <div class="tool-name">Team Scout</div>
-      <div class="tool-desc">Deep opponent analysis — draft patterns, hero comfort pools, ban tendencies, and side-specific strategies by league and season.</div>
-      <div class="tool-arrow">Scout Opponents <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+      <div class="tool-desc">Deep opponent analysis — draft patterns, comfort pools, ban tendencies, and side-specific strategies by league and season.</div>
+      <div class="tool-arrow">Scout Opponents →</div>
     </a>
 
     <!-- Stats -->
-    <a class="tool-card" href="stats.html" style="--card-accent:rgba(255,159,10,0.5);">
+    <a class="tool-card" href="stats.html" style="--card-accent:rgba(200,144,80,0.5);">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-        <div class="tool-icon" style="background:rgba(200,144,80,0.08);border-color:rgba(255,159,10,0.18);">📊</div>
+        <div class="tool-icon" style="background:rgba(200,144,80,0.10);border-color:rgba(200,144,80,0.22);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C89050" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3v18h18"/>
+            <path d="M7 14l3-3 4 4 5-7"/>
+          </svg>
+        </div>
         <div class="tool-badge tool-badge-gold">Analytics</div>
       </div>
       <div class="tool-name">Analysis</div>
-      <div class="tool-desc">Win rates, pick/ban frequencies, team head-to-head records, and game-by-game breakdowns across all MPL regions and international events.</div>
-      <div class="tool-arrow">View Reports <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+      <div class="tool-desc">Win rates, pick/ban frequencies, team head-to-head records, and game-by-game breakdowns across all MPL regions.</div>
+      <div class="tool-arrow">View Reports →</div>
     </a>
 
     <!-- Patch Meta -->
-    <a class="tool-card" href="patch_meta.html" style="--card-accent:rgba(255,55,95,0.5);">
+    <a class="tool-card" href="patch_meta.html" style="--card-accent:rgba(216,120,128,0.5);">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-        <div class="tool-icon" style="background:rgba(216,120,128,0.08);border-color:rgba(216,120,128,0.12);">📋</div>
+        <div class="tool-icon" style="background:rgba(216,120,128,0.10);border-color:rgba(216,120,128,0.22);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D87880" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <path d="M14 2v6h6"/>
+            <path d="M8 13h8M8 17h5"/>
+          </svg>
+        </div>
         <div class="tool-badge" style="color:var(--red);border-color:var(--red-border);background:var(--red-dim);">Meta</div>
       </div>
       <div class="tool-name">Patch Meta</div>
       <div class="tool-desc">Live hero tier lists, role priority rankings, and meta shift tracking. Know what's S-tier before your opponents read the patch notes.</div>
-      <div class="tool-arrow">Check Tier List <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+      <div class="tool-arrow">Check Tier List →</div>
     </a>
 
     <!-- Scrim Vault -->
     <a class="tool-card" href="auth.html" style="--card-accent:rgba(76,184,122,0.5);">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-        <div class="tool-icon" style="background:rgba(76,184,122,0.07);border-color:rgba(76,184,122,0.12);">🔒</div>
+        <div class="tool-icon" style="background:rgba(76,184,122,0.10);border-color:rgba(76,184,122,0.22);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4CB87A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="10" width="16" height="11" rx="2"/>
+            <path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+          </svg>
+        </div>
         <div class="tool-badge tool-badge-neon">Private</div>
       </div>
       <div class="tool-name">Scrim Vault</div>
-      <div class="tool-desc">Log and analyze your team's internal scrim drafts. Fully isolated per team — only your registered account can access your private records.</div>
-      <div class="tool-arrow">Sign In to Access <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+      <div class="tool-desc">Log and analyze your team's internal scrim drafts. Fully isolated per team — only your registered account can access your records.</div>
+      <div class="tool-arrow">Sign In to Access →</div>
     </a>
   </div>
 </div>
 
-<!-- WORKFLOW -->
-<div class="workflow-section">
-  <div class="section-eyebrow">How it works</div>
+
+<!-- ════════════ WORKFLOW ════════════ -->
+<div class="section" style="border-top:0.5px solid var(--border);">
+  <div class="section-eyebrow">// How it works</div>
   <div class="section-heading">From raw data to<br><em>game-winning drafts.</em></div>
   <p class="section-sub">Three steps. No setup required.</p>
 
@@ -597,29 +1052,38 @@ body { overflow-x: hidden; }
     <div class="workflow-step">
       <div class="step-num">03</div>
       <div class="step-title">Simulate &amp; Win</div>
-      <div class="step-desc">Run full draft simulations before match day. Test ban sequences, practice against AI, and arrive in the draft chair with the plan locked.</div>
+      <div class="step-desc">Run full draft simulations before match day. Test ban sequences, practice against AI, arrive in the draft chair with the plan locked.</div>
     </div>
   </div>
 </div>
 
-<!-- CTA BAND -->
+
+<!-- ════════════ CTA BAND ════════════ -->
 <div class="cta-band-wrap">
   <div class="cta-band">
-    <div class="cta-band-tag">Free to use</div>
+    <div class="cta-band-tag">// Free to use</div>
     <div class="cta-band-title">Ready to dominate<br><em>the draft?</em></div>
     <div class="cta-band-sub">No account needed for public tools. Scrim Vault requires free registration.</div>
     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;position:relative;z-index:1;">
-      <a href="draft_board.html" class="cta-primary">Launch Draft Board</a>
-      <a href="auth.html" class="cta-secondary">Create Free Account →</a>
+      <a href="draft_board.html" class="primary-cta" style="font-size:13px;padding:14px 28px;">
+        Launch Draft Board
+        <svg class="cta-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </a>
+      <a href="auth.html" style="display:inline-flex;align-items:center;gap:10px;padding:14px 26px;font-family:var(--font-display);font-size:13px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;text-decoration:none;color:var(--text2);border-radius:var(--pill);background:rgba(255,255,255,0.06);border:0.5px solid rgba(255,255,255,0.10);backdrop-filter:blur(10px);transition:all 0.18s ease;">
+        Create Free Account
+      </a>
     </div>
   </div>
 </div>
 
-<!-- FOOTER -->
-<footer style="border-top:0.5px solid var(--border);position:relative;z-index:1;">
+
+<!-- ════════════ FOOTER ════════════ -->
+<footer class="site-footer-outer">
   <div class="site-footer">
     <div>
-      <div class="footer-brand">Warr.GG</div>
+      <div class="footer-brand">WARR<span style="color:var(--accent);">.</span>GG</div>
       <div class="footer-copy">MLBB Esports Intelligence · Built for MPL SG · © 2025</div>
     </div>
     <div class="footer-links">
@@ -634,11 +1098,22 @@ body { overflow-x: hidden; }
 </footer>
 
 <script src="warr-lib.js"></script>
-<script src="warr-nav.js"></script>
 <script>
-// index.html: homepage is public — just render the auth chip (sign in/out state)
+// Homepage uses its own custom top bar — no shared nav injection.
+// Light auth check just to swap CTA copy if signed in.
 (async () => {
-  await WAuth.renderAuthChip('authChip');
+  try {
+    if (window.WAuth && WAuth.getUser) {
+      const u = await WAuth.getUser();
+      if (u) {
+        const btn = document.querySelector('.cta-beta');
+        if (btn) {
+          btn.innerHTML = '<span class="cta-beta-dot"></span>My War Room';
+          btn.href = 'profile.html';
+        }
+      }
+    }
+  } catch(_) {}
 })();
 </script>
 </body>

@@ -160,31 +160,48 @@ body::before {
 /* remove old glow line */
 .topnav::after { display: none; }
 
-/* Brand */
+/* Brand — gradient W mark + WARR.GG wordmark, matches index.html cinematic topbar */
 .nav-brand {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   line-height: 1;
   text-decoration: none;
   flex-shrink: 0;
-  gap: 2px;
-  margin-right: 12px;
+  margin-right: 16px;
 }
+.nav-brand-mark {
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
+  box-shadow:
+    0 0 12px rgba(168,136,204,0.45),
+    inset 0 1px 0 rgba(255,255,255,0.25);
+  font-family: var(--font-display);
+  font-size: 11px; font-weight: 900; color: #fff; letter-spacing: 0;
+}
+.nav-brand-text {
+  display: inline-flex; align-items: baseline;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+.nav-brand-text .dot { color: var(--accent); }
+/* Legacy brand-name/brand-sub still respected if any old page renders them */
 .nav-brand-name {
   font-family: var(--font-head);
   font-weight: 700;
-  font-size: 15px;
-  letter-spacing: -0.02em;
+  font-size: 14px;
+  letter-spacing: -0.01em;
   color: var(--text);
   background: none;
   -webkit-text-fill-color: unset;
 }
 .nav-brand-sub {
-  font-family: var(--font-mono);
-  font-size: 8px;
-  color: var(--text4);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  display: none; /* removed — replaced by gradient W mark */
 }
 
 /* Nav links */
@@ -213,7 +230,8 @@ body::before {
 }
 .nav-link.active {
   color: var(--text);
-  background: rgba(255,255,255,0.11);
+  background: rgba(168,136,204,0.13);
+  box-shadow: inset 0 0 0 0.5px rgba(168,136,204,0.24);
 }
 
 /* Nav right */
@@ -473,7 +491,11 @@ body::before {
   display: block;
 }
 .mobile-nav-link:last-child { border-bottom: none; }
-.mobile-nav-link.active { color: var(--text); }
+.mobile-nav-link.active {
+  color: var(--text);
+  background: rgba(168,136,204,0.12);
+  border-radius: 8px;
+}
 
 @media (max-width: 800px) {
   .nav-links { display: none; }

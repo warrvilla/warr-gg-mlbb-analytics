@@ -14,6 +14,9 @@
  *   • Includes optional theme switcher (wires warr-theme.js if present)
  *   • Wires mobile menu toggle
  *
+ * Branding is unified with index.html — same gradient-W mark, same
+ * "WARR.GG" wordmark, same amethyst accent for the active link.
+ *
  * Backward-compat: if a page has hardcoded <nav class="topnav"> AND no
  * placeholder, the script just de-dupes links and applies active state.
  */
@@ -25,44 +28,73 @@
   // style .topnav/.nav-link etc. keep their look; pages that don't
   // (auth.html, setup-guide.html, counters.html, top100.html) get a
   // sane default instead of rendering an unstyled stack of anchors.
+  //
+  // Palette matches warr-styles.css — amethyst accent (#A888CC) on a
+  // glassy black bar. No more legacy gold (#f4a534).
   const BASELINE_CSS = `
     nav.topnav {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 0 20px;
+      gap: 8px;
+      padding: 0 24px;
       height: 52px;
       position: sticky;
       top: 0;
-      z-index: 100;
-      background: rgba(8,11,16,.92);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-bottom: .5px solid rgba(255,255,255,0.07);
+      z-index: 500;
+      background: rgba(7,7,12,0.82);
+      backdrop-filter: blur(48px) saturate(140%);
+      -webkit-backdrop-filter: blur(48px) saturate(140%);
+      border-bottom: .5px solid rgba(255,255,255,0.06);
+      box-shadow: 0 1px 0 rgba(255,255,255,0.03), 0 4px 32px rgba(0,0,0,0.5);
     }
     nav.topnav .nav-brand {
-      display: flex; flex-direction: column; line-height: 1.1;
-      text-decoration: none; color: inherit; margin-right: 14px;
+      display: inline-flex; align-items: center; gap: 10px;
+      text-decoration: none; color: inherit;
+      margin-right: 16px; flex-shrink: 0;
     }
-    nav.topnav .nav-brand-name { font-weight: 800; font-size: 15px; letter-spacing: -0.01em; }
-    nav.topnav .nav-brand-sub  { font-size: 9px; color: var(--text3,#8a94a8); letter-spacing: 1.5px; text-transform: uppercase; }
-    nav.topnav .nav-links { display: flex; gap: 2px; flex: 1; }
+    nav.topnav .nav-brand-mark {
+      width: 22px; height: 22px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 6px;
+      background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
+      box-shadow:
+        0 0 12px rgba(168,136,204,0.45),
+        inset 0 1px 0 rgba(255,255,255,0.25);
+      font-family: -apple-system,'SF Pro Display','Inter','Helvetica Neue',sans-serif;
+      font-size: 11px; font-weight: 900; color: #fff; letter-spacing: 0;
+    }
+    nav.topnav .nav-brand-text {
+      display: inline-flex; align-items: baseline; gap: 0;
+      font-family: -apple-system,'SF Pro Display','Inter','Helvetica Neue',sans-serif;
+      font-weight: 800; letter-spacing: 0.02em;
+      font-size: 14px; color: var(--text,#F0F0F8);
+    }
+    nav.topnav .nav-brand-text .dot { color: #A888CC; }
+    nav.topnav .nav-links { display: flex; align-items: center; gap: 2px; flex: 1; }
     nav.topnav .nav-link {
-      padding: 7px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
-      color: var(--text2,#aab3c4); text-decoration: none; transition: background .15s, color .15s;
+      padding: 5px 12px; font-size: 13px; font-weight: 500;
+      letter-spacing: -0.01em; text-transform: none;
+      color: var(--text3,rgba(240,240,248,0.45));
+      text-decoration: none; border-radius: 9999px;
+      transition: background .18s ease, color .18s ease;
+      white-space: nowrap;
     }
-    nav.topnav .nav-link:hover { background: rgba(255,255,255,.05); color: var(--text,#e6ebf5); }
+    nav.topnav .nav-link:hover {
+      background: rgba(255,255,255,0.07);
+      color: var(--text2,rgba(240,240,248,0.78));
+    }
     nav.topnav .nav-link.active {
-      background: rgba(244,165,52,.12);
-      color: var(--gold,#f4a534);
+      background: rgba(168,136,204,0.13);
+      color: #F0F0F8;
+      box-shadow: inset 0 0 0 0.5px rgba(168,136,204,0.24);
     }
-    nav.topnav .nav-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+    nav.topnav .nav-right { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-shrink: 0; }
     nav.topnav .theme-switcher { display: inline-flex; gap: 2px; padding: 3px; border-radius: 8px; background: rgba(255,255,255,.04); }
     nav.topnav .theme-btn {
       width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
       border: 0; background: transparent; color: var(--text3,#8a94a8); cursor: pointer; border-radius: 6px;
     }
-    nav.topnav .theme-btn.active { background: rgba(244,165,52,.15); color: var(--gold,#f4a534); }
+    nav.topnav .theme-btn.active { background: rgba(168,136,204,0.15); color: #A888CC; }
     nav.topnav .mobile-menu-btn {
       display: none; background: transparent; border: 0; padding: 8px; cursor: pointer; flex-direction: column; gap: 4px;
     }
@@ -71,14 +103,17 @@
     }
     .mobile-nav {
       display: none; flex-direction: column; padding: 8px 12px; gap: 2px;
-      background: rgba(8,11,16,.96); border-bottom: .5px solid rgba(255,255,255,0.07);
-      position: sticky; top: 52px; z-index: 99;
+      background: rgba(7,7,12,0.96);
+      backdrop-filter: blur(40px) saturate(140%);
+      -webkit-backdrop-filter: blur(40px) saturate(140%);
+      border-bottom: .5px solid rgba(255,255,255,0.06);
+      position: sticky; top: 52px; z-index: 499;
     }
     .mobile-nav.open { display: flex; }
     .mobile-nav .mobile-nav-link {
-      padding: 10px 12px; border-radius: 8px; color: var(--text2,#aab3c4); text-decoration: none; font-weight: 600; font-size: 13px;
+      padding: 10px 12px; border-radius: 8px; color: var(--text2,#aab3c4); text-decoration: none; font-weight: 500; font-size: 13px;
     }
-    .mobile-nav .mobile-nav-link.active { background: rgba(244,165,52,.12); color: var(--gold,#f4a534); }
+    .mobile-nav .mobile-nav-link.active { background: rgba(168,136,204,0.12); color: #F0F0F8; }
     @media (max-width: 820px) {
       nav.topnav .nav-links { display: none; }
       nav.topnav .mobile-menu-btn { display: inline-flex; }
@@ -98,12 +133,14 @@
 
   // ── Canonical link list (single source of truth) ────────────────
   // Order here = order rendered. Each entry: { href, label, adminOnly? }
+  //
+  // Keep labels short and aligned with index.html's cinematic top bar.
   const NAV_LINKS = [
     { href: 'draft_board.html',  label: 'Draft'     },
     { href: 'ai_battle.html',    label: 'AI Battle' },
     { href: 'scout.html',        label: 'Scout'     },
     { href: 'stats.html',        label: 'Analysis'  },
-    { href: 'patch_meta.html',   label: 'Patch'     },
+    { href: 'patch_meta.html',   label: 'Meta'      },
     { href: 'heroes.html',       label: 'Heroes'    },
     { href: 'profile.html',      label: 'Profile'   },
     { href: 'team_manager.html', label: 'Teams'     },
@@ -121,26 +158,25 @@
 
   // ── Render canonical nav HTML ────────────────────────────────────
   function renderNav() {
-    const here = currentPage();
     const links = NAV_LINKS.map(l => {
       const cls = 'nav-link' + (isActive(l.href) ? ' active' : '');
-      const style = l.adminOnly ? 'style="display:none;color:var(--gold,#f4a534);"' : '';
+      const style = l.adminOnly ? 'style="display:none;color:#A888CC;"' : '';
       const idAttr = l.id ? `id="${l.id}"` : '';
       return `<a class="${cls}" ${idAttr} href="${l.href}" ${style}>${l.label}</a>`;
     }).join('\n    ');
 
     const mobileLinks = NAV_LINKS.map(l => {
       const cls = 'mobile-nav-link' + (isActive(l.href) ? ' active' : '');
-      const style = l.adminOnly ? 'style="display:none;color:var(--gold,#f4a534);"' : '';
+      const style = l.adminOnly ? 'style="display:none;color:#A888CC;"' : '';
       const idAttr = l.id ? `id="${l.id}_m"` : '';
       return `<a class="${cls}" ${idAttr} href="${l.href}" ${style}>${l.label}</a>`;
     }).join('\n  ');
 
     return `
 <nav class="topnav">
-  <a class="nav-brand" href="index.html">
-    <span class="nav-brand-name">Warr.GG</span>
-    <span class="nav-brand-sub">MLBB Intel</span>
+  <a class="nav-brand" href="index.html" aria-label="Warr.GG home">
+    <span class="nav-brand-mark">W</span>
+    <span class="nav-brand-text">WARR<span class="dot">.</span>GG</span>
   </a>
   <div class="nav-links">
     ${links}
