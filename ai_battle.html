@@ -1919,19 +1919,103 @@ function getHumanTendencies(){
   return Object.values(merged).sort((a,b)=>b.score-a.score);
 }
 
+// ═══════ SCOUT INTEL LAYER (the brain) ═══════
+// One-shot compute of counters / synergies / drafted-against from the
+// coach's full match dataset (public + scrims). Cached for the session
+// so we don't recompute on every pick during a 24-pick draft. Bumped
+// whenever the scout DB mtime changes via invalidateScoutIntel().
+let _scoutIntel = null;
+let _scoutIntelMtime = 0;
+
+function _buildScoutIntel(){
+  try{
+    const db = loadScoutAB();
+    const matches = db.matches || [];
+    if (!matches.length || typeof WDB === 'undefined') {
+      return { counters:{}, synergies:{}, draftedAgainst:{}, n:0 };
+    }
+    // includeAll:true → scrims count too. An MPL coach's scrim data is
+    // arguably the *most* relevant signal for their own team's intel.
+    const opts = { includeAll:true };
+    return {
+      counters:        WDB.computeScoutCountersFromMatches(matches, 2, opts) || {},
+      synergies:       WDB.computeScoutSynergiesFromMatches(matches, 2, opts) || {},
+      draftedAgainst:  WDB.computeDraftedAgainstFromMatches(matches, 2, opts) || {},
+      n: matches.length
+    };
+  } catch(e){
+    console.warn('[AI Battle] _buildScoutIntel failed:', e);
+    return { counters:{}, synergies:{}, draftedAgainst:{}, n:0 };
+  }
+}
+
+function scoutIntel(){
+  // Re-build if the scout DB has been mutated (e.g. coach added a scrim
+  // between drafts). We piggy-back on localStorage length as a cheap
+  // mtime stand-in.
+  let mtime = 0;
+  try{ const raw=localStorage.getItem(SCOUT_KEY_AB); mtime = raw ? raw.length : 0; }catch(_){}
+  if (!_scoutIntel || mtime !== _scoutIntelMtime){
+    _scoutIntel = _buildScoutIntel();
+    _scoutIntelMtime = mtime;
+  }
+  return _scoutIntel;
+}
+
+// Heroes that beat `heroName` in scout matches (primary signal).
+function getScoutCounters(heroName){
+  const c = scoutIntel().counters[heroName] || [];
+  // Only surface meaningful counters: ≥60% counter WR with ≥2 games.
+  // (Compute uses minMatches=2; we keep the WR floor.)
+  return c.filter(x => x.wr >= 0.6);
+}
+
+// Heroes that pair well with `heroName` on the same team (primary signal).
+function getScoutSynergies(heroName){
+  const s = scoutIntel().synergies[heroName] || [];
+  // ≥55% pair WR with ≥2 games together.
+  return s.filter(x => x.wr >= 0.55);
+}
+
+// Heroes opponents most often draft when `heroName` is on the enemy side.
+// Includes WR of the response — high WR = the response actually worked.
+function getDraftedAgainst(heroName){
+  return scoutIntel().draftedAgainst[heroName] || [];
+}
+
+function invalidateScoutIntel(){ _scoutIntel = null; _scoutIntelMtime = 0; }
+
 function getLearnedCounters(heroName){
-  // From vs records: heroes that beat heroName most
+  // Scout-first hybrid: scout-derived counters (real games, large sample)
+  // dominate, battle-memory vsRecord only fills in heroes the scout data
+  // doesn't cover. Each entry carries `source` so downstream consumers
+  // can weight scout signals higher.
+  const out = {};
+  // Source 1: scout matches (primary)
+  getScoutCounters(heroName).forEach(x=>{
+    out[x.name] = { name:x.name, wr:x.wr, count:x.count, source:'scout' };
+  });
+  // Source 2: battle memory (secondary — covers AI-vs-human play)
   const m=loadMem();
-  const learned=[];
   Object.entries(m).forEach(([name,d])=>{
     if(!d.vsRecord||!d.vsRecord[heroName])return;
     const vr=d.vsRecord[heroName];
     if(vr.count>=2){
       const wr=vr.wins/vr.count;
-      if(wr>=0.6)learned.push({name,wr,count:vr.count});
+      if(wr>=0.6){
+        if (out[name]){
+          // Blend: combine sample sizes, weighted-avg WR.
+          const tc = out[name].count + vr.count;
+          out[name].wr = (out[name].wr*out[name].count + wr*vr.count) / tc;
+          out[name].count = tc;
+          out[name].source = 'scout+battle';
+        } else {
+          out[name] = { name, wr, count:vr.count, source:'battle' };
+        }
+      }
     }
   });
-  return learned.sort((a,b)=>b.wr-a.wr);
+  return Object.values(out).sort((a,b)=>b.wr-a.wr);
 }
 
 function getHumanComboThreats(){
@@ -2457,10 +2541,18 @@ function localAI(step){
       const countersOppFull=Math.round(oppP.reduce((sum,op)=>{const cl=fullCounterList(op.name).find(x=>x.name===h.name);return sum+(cl?Math.round((cl.wr||0.65)*40):0);},0)*counterMult);
       const countersOpp=pickPhase===2?countersOppFull:Math.round(countersOppFull*0.45);
       const vuln=oppP.reduce((sum,op)=>{const cl=fullCounterList(h.name).find(x=>x.name===op.name);return sum+(cl?-Math.round((cl.wr||0.65)*20):0);},0);
+      // DRAFTED-AGAINST: heroes typically picked opposite oppP's heroes (frequency signal).
+      // High count + high WR = proven cross-team response in real scout matches.
+      const draftedAgainstBonus=Math.round(oppP.reduce((sum,op)=>{
+        const da=getDraftedAgainst(op.name).find(x=>x.name===h.name);
+        if(!da)return sum;
+        const sampleW=Math.min(da.count/5,1); // ≥5 games = full weight
+        return sum+Math.round((da.wr||0.5)*30*sampleW);
+      },0)*counterMult);
       // Tier weight raised — quality matters, not just frequency
       const tierTB=ts*0.35;
       const laBonus=diff!=='normal'?_pickLookAheadBonus(h,myP,oppP,bannedSet,ST.step,step.team,humanFavs):0;
-      return{hero:h,score:freqScore+phaseBonus+posBonus+fillsNeeded+countersOpp+vuln+tierTB+neverPickedPenalty+laBonus+Math.random()*randRange};
+      return{hero:h,score:freqScore+phaseBonus+posBonus+fillsNeeded+countersOpp+vuln+draftedAgainstBonus+tierTB+neverPickedPenalty+laBonus+Math.random()*randRange};
     }
 
     // ── GENERIC AI MODE ──────────────────────────────────────────────────
@@ -2477,6 +2569,14 @@ function localAI(step){
     const counterMult=isRedSide?1.2:1.0;
     const countersOpp=Math.round(oppP.reduce((sum,op)=>{const cl=fullCounterList(op.name).find(x=>x.name===h.name);return sum+(cl?Math.round((cl.wr||0.65)*40):0);},0)*counterMult);
     const vuln=oppP.reduce((sum,op)=>{const cl=fullCounterList(h.name).find(x=>x.name===op.name);return sum+(cl?-Math.round((cl.wr||0.65)*28):0);},0);
+    // DRAFTED-AGAINST: frequency signal — heroes that real teams typically pick opposite oppP's heroes.
+    // Sample-weighted so a 3-game 100% WR doesn't out-rank a 20-game 65% WR.
+    const draftedAgainstBonus=Math.round(oppP.reduce((sum,op)=>{
+      const da=getDraftedAgainst(op.name).find(x=>x.name===h.name);
+      if(!da)return sum;
+      const sampleW=Math.min(da.count/5,1);
+      return sum+Math.round((da.wr||0.5)*32*sampleW);
+    },0)*counterMult);
     const beatsHumanFavs=humanFavs.slice(0,5).filter(f=>{const lc=getLearnedCounters(f.name);return lc.some(x=>x.name===h.name);}).length*15;
     const synergyBonus=myP.reduce((sum,ex)=>{const key=[h.name,ex.name].sort().join('+');const cb=scoutCombosAI[key];return sum+(cb&&cb.count>=2&&(cb.wins/cb.count)>=0.6?Math.round((cb.wins/cb.count)*30):0);},0);
     const _squishyCarries=myP.filter(p=>{const r=getHeroRole(p.name);return r==='Marksman'||r==='Mage';});

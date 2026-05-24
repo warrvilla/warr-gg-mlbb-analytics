@@ -640,15 +640,19 @@ WDB.getCounterMap = function() {
  *  vs[H][X] tracks H's record against X (wins + total games). Returned
  *  rows show the *counter's* win rate vs H (i.e. 1 - H's wr), sorted desc.
  *  [{ name, wr, count }]   (min 2 games, wr = counter's wr against H) */
-WDB.computeScoutCountersFromMatches = function(matches, minMatches) {
+WDB.computeScoutCountersFromMatches = function(matches, minMatches, opts) {
   // Default raised from 2 → 3: two-game samples were producing noisy "100% counter" entries.
   // Three games is still permissive but cuts the worst coin-flip noise.
   minMatches = minMatches == null ? 3 : minMatches;
+  // opts.includeAll: when true, also count scrims / private leagues. Used by AI Battle +
+  // Draft Board so the coach's own scrim intel feeds the AI's reasoning. Default false
+  // preserves the original public-only behavior for the Heroes page.
+  const includeAll = !!(opts && opts.includeAll);
   const vs = {}; // vs[H][X] = { wins: H's wins vs X, count: total games together }
   (matches || []).forEach(m => {
     if (!m || !m.winner) return;
     const league = m.league || '';
-    if (!WDB.PUBLIC_LEAGUES.includes(league)) return; // skip Scrims / Other
+    if (!includeAll && !WDB.PUBLIC_LEAGUES.includes(league)) return; // skip Scrims / Other
     const blue = (m.bluePicks || []).map(p => p && (p.name || p)).filter(Boolean);
     const red  = (m.redPicks  || []).map(p => p && (p.name || p)).filter(Boolean);
     const winPicks  = m.winner === 'blue' ? blue : red;
@@ -691,14 +695,15 @@ WDB.computeScoutCountersFromMatches = function(matches, minMatches) {
 
 /** For each hero → list of same-team heroes with best win rate together.
  *  [{ name, wr, count }]   (sorted by wr desc, min 2 games) */
-WDB.computeScoutSynergiesFromMatches = function(matches, minMatches) {
+WDB.computeScoutSynergiesFromMatches = function(matches, minMatches, opts) {
   // Default raised from 2 → 3 (see counters function above).
   minMatches = minMatches == null ? 3 : minMatches;
+  const includeAll = !!(opts && opts.includeAll);
   const pair = {}; // pair[hero][mate] = { wins, count }
   (matches || []).forEach(m => {
     if (!m || !m.winner) return;
     const league = m.league || '';
-    if (!WDB.PUBLIC_LEAGUES.includes(league)) return;
+    if (!includeAll && !WDB.PUBLIC_LEAGUES.includes(league)) return;
     ['blue', 'red'].forEach(side => {
       const picks = (m[side + 'Picks'] || []).map(p => p && (p.name || p)).filter(Boolean);
       const won   = m.winner === side;
@@ -734,13 +739,14 @@ WDB.computeScoutSynergiesFromMatches = function(matches, minMatches) {
  *  - wr:    0..1 win rate of the RESPONSE (chip hero) in those games. So when
  *           shown on `hero`'s card, high wr means this response actually worked.
  *  Only includes opposing-side pairs with at least minMatches games. */
-WDB.computeDraftedAgainstFromMatches = function(matches, minMatches) {
+WDB.computeDraftedAgainstFromMatches = function(matches, minMatches, opts) {
   minMatches = minMatches == null ? 3 : minMatches;
+  const includeAll = !!(opts && opts.includeAll);
   const map = {}; // map[hero][response] = { count, wins }  (wins = response's wins)
   (matches || []).forEach(m => {
     if (!m || !m.winner) return;
     const league = m.league || '';
-    if (!WDB.PUBLIC_LEAGUES.includes(league)) return; // skip scrims / private
+    if (!includeAll && !WDB.PUBLIC_LEAGUES.includes(league)) return; // skip scrims / private
     const blue = (m.bluePicks || []).map(p => p && (p.name || p)).filter(Boolean);
     const red  = (m.redPicks  || []).map(p => p && (p.name || p)).filter(Boolean);
     const blueWon = m.winner === 'blue';

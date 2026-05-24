@@ -942,6 +942,7 @@ select {
     </div>
     <div class="hero-grid" id="heroGrid"></div>
     <div class="predict-panel" id="predictionPanel" style="display:none;margin:0 8px 4px;"></div>
+    <div id="scoutIntelPanel" style="display:none;margin:0 8px 4px;padding:8px 10px;border:0.5px solid rgba(168,136,204,0.18);border-radius:10px;background:rgba(168,136,204,0.04);font-size:11px;line-height:1.45;"></div>
     <div class="action-bar" style="border-top:1px solid var(--border);">
       <button class="btn btn-reset" onclick="cancelCurrentGame()">✕ New Game</button>
       <button class="btn btn-ghost" onclick="undoLast()">← Undo</button>
@@ -1409,6 +1410,7 @@ function cancelCurrentGame(silent){
   document.getElementById('analysisSection').style.display='none';
   document.getElementById('declareBtn').style.display='none';
   document.getElementById('predictionPanel').style.display='none';
+  const _sip = document.getElementById('scoutIntelPanel'); if (_sip) _sip.style.display='none';
   renderAll();updateTurn();
   if(series.mode>1)updateSeriesScore();
   if(!silent)toast('Game cleared');
@@ -1670,12 +1672,74 @@ function selectHeroBase(id){
   state.currentStep++;
   document.getElementById('analyzeBtn').disabled=!(state.bluePicks.length>=3&&state.redPicks.length>=3);
   renderAll();updateTurn();
+  // Live scout intel based on the new board state
+  try{ renderScoutIntelPanel(); }catch(_){}
   if(state.currentStep>=DRAFT_ORDER.length){
     toast('Draft complete — Analyze or declare winner!');
     document.getElementById('analyzeBtn').disabled=false;
     if(!series.finished) document.getElementById('declareBtn').style.display='inline-flex';
   }
   if(series.mode>1)updateSeriesScore();
+}
+
+// ── LIVE SCOUT INTEL PANEL ──────────────────────────────────────────────────
+// Renders below predictionPanel. Updates after every pick/ban with the most
+// actionable intel for the CURRENT side-to-move: top counters for the latest
+// opponent pick, best-with for our latest own pick, plus a "common opposite"
+// shortlist drawn from scout cross-pair frequency.
+function renderScoutIntelPanel(){
+  const panel = document.getElementById('scoutIntelPanel');
+  if (!panel) return;
+  const intel = draftScoutIntel();
+  if (!intel.n){ panel.style.display='none'; return; }
+
+  // Who's about to move? Use that side's POV.
+  const cur = DRAFT_ORDER[state.currentStep];
+  if (!cur){ panel.style.display='none'; return; }
+  const mySide  = cur.team;
+  const myPicks = mySide==='blue' ? state.bluePicks : state.redPicks;
+  const oppPicks= mySide==='blue' ? state.redPicks  : state.bluePicks;
+  if (!myPicks.length && !oppPicks.length){ panel.style.display='none'; return; }
+
+  // Newest enemy pick → top scout counters (heroes we can use against it)
+  const lastOpp = oppPicks[oppPicks.length-1];
+  const countersForLastOpp = lastOpp ? dbScoutCounters(lastOpp.name).slice(0,3) : [];
+  // Newest own pick → best-with (heroes that pair well — useful for the next pick)
+  const lastMine = myPicks[myPicks.length-1];
+  const synergiesForLastMine = lastMine ? dbScoutSynergies(lastMine.name).slice(0,3) : [];
+  // Cross-pair frequency: heroes typically drafted opposite the LAST opp pick
+  const responsesForLastOpp = lastOpp ? dbDraftedAgainst(lastOpp.name).slice(0,3) : [];
+
+  // Build a hero-name → already-used set so we can grey out unavailable suggestions.
+  const usedNames = new Set([
+    ...state.blueBans, ...state.redBans, ...state.bluePicks, ...state.redPicks
+  ].map(h=>h.name));
+
+  const chip = (x, kind) => {
+    const used = usedNames.has(x.name);
+    const wrPct = Math.round((x.wr||0)*100);
+    const sub = kind==='counter' ? `${wrPct}% vs (${x.count||0}g)` :
+                kind==='synergy' ? `${wrPct}% w/ (${x.count||0}g)` :
+                                   `${x.count||0}g${wrPct?` · ${wrPct}% WR`:''}`;
+    const opacity = used ? 0.35 : 1;
+    const onclick = used ? '' : ` onclick="(()=>{const h=FINAL_HEROES.find(z=>z.name==='${x.name.replace(/'/g,"\\'")}');if(h)selectHero(h.id);})()"`;
+    return `<span style="display:inline-flex;flex-direction:column;align-items:flex-start;padding:4px 8px;margin:2px 4px 2px 0;border:0.5px solid rgba(168,136,204,0.25);border-radius:8px;background:rgba(168,136,204,0.06);cursor:${used?'default':'pointer'};opacity:${opacity};"${onclick}><span style="font-weight:600;color:var(--text);">${x.name}</span><span style="font-size:9px;color:var(--text3);">${sub}</span></span>`;
+  };
+  const row = (label, items, kind) => items.length
+    ? `<div style="margin-top:4px;"><span style="display:inline-block;min-width:90px;color:var(--text3);font-size:10px;letter-spacing:.04em;text-transform:uppercase;">${label}</span>${items.map(x=>chip(x,kind)).join('')}</div>`
+    : '';
+
+  const blocks = [];
+  if (lastOpp && (countersForLastOpp.length || responsesForLastOpp.length)){
+    blocks.push(`<div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;">vs enemy <strong style="color:var(--text);text-transform:none;">${lastOpp.name}</strong></div>${row('Counters', countersForLastOpp, 'counter')}${row('Often picked', responsesForLastOpp, 'response')}</div>`);
+  }
+  if (lastMine && synergiesForLastMine.length){
+    blocks.push(`<div style="margin-top:6px;"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;">w/ our <strong style="color:var(--text);text-transform:none;">${lastMine.name}</strong></div>${row('Best with', synergiesForLastMine, 'synergy')}</div>`);
+  }
+  if (!blocks.length){ panel.style.display='none'; return; }
+
+  panel.style.display = 'block';
+  panel.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="font-size:11px;font-weight:700;color:#A888CC;letter-spacing:.04em;">SCOUT INTEL</span><span style="font-size:9px;color:var(--text3);">${intel.n} games · click a chip to pick</span></div>${blocks.join('')}`;
 }
 
 function undoLast(){
@@ -1699,7 +1763,9 @@ function undoLast(){
     document.getElementById('analyzeBtn').disabled=!(state.bluePicks.length>=3&&state.redPicks.length>=3);
     document.getElementById('analysisSection').style.display='none';
     document.getElementById('declareBtn').style.display='none';
-    renderAll();updateTurn();toast('Undo done');
+    renderAll();updateTurn();
+    try{ renderScoutIntelPanel(); }catch(_){}
+    toast('Undo done');
     return;
   }
   const last=state.history.pop();
@@ -1709,7 +1775,9 @@ function undoLast(){
   document.getElementById('analyzeBtn').disabled=!(state.bluePicks.length>=3&&state.redPicks.length>=3);
   document.getElementById('analysisSection').style.display='none';
   document.getElementById('declareBtn').style.display='none';
-  renderAll();updateTurn();toast('Undo done');
+  renderAll();updateTurn();
+  try{ renderScoutIntelPanel(); }catch(_){}
+  toast('Undo done');
 }
 
 // ── Prediction Engine ─────────────────────────────────────────────────
@@ -1925,17 +1993,38 @@ function computeLocalPreds(step){
     const enemyName = step.team==='blue' ? rt : bt;
     const tend = TEAM_TENDENCIES[enemyName] || null;
     const enemyFavPicks = tend ? tend.favoritePicks : [];
+    // PROTECT-BAN candidates: heroes that beat any of our existing picks in scout data
+    // Build a map of {threatName → {victimName, wr, count}} for the strongest counter per threat.
+    const protectMap = {};
+    myPicks.forEach(p=>{
+      dbScoutCounters(p.name).slice(0,8).forEach(c=>{
+        const cur = protectMap[c.name];
+        const score = (c.wr||0.6) * (c.count||0);
+        if (!cur || score > cur._score){
+          protectMap[c.name] = { victim:p.name, wr:c.wr, count:c.count, _score:score };
+        }
+      });
+    });
 
-    return avail.filter(h=>h.mp==='mustban'||h.mp==='highpick'||h.ms>=7.5)
+    return avail.filter(h=>{
+        // Allow normal meta-threat candidates OR any PROTECT-BAN target from scout data
+        return h.mp==='mustban' || h.mp==='highpick' || h.ms>=7.5 || protectMap[h.name];
+      })
       .map(h=>{
         const m7Hero = M7_HEROES.find(m=>m[0]===h.name);
         const pbPct = m7Hero ? m7Hero[4] : null;
         const banCount = m7Hero ? m7Hero[3] : 0;
         const isEnemySig = enemyFavPicks.includes(h.name);
+        const protect = protectMap[h.name];
+        // Scout-derived: how strongly this hero counters OUR existing picks
+        const protectBonus = protect ? Math.round((protect.wr||0.6) * 55 + Math.min(protect.count, 6) * 3) : 0;
         let s = h.br*0.55 + h.ms*4
           + (h.mp==='mustban'?30:h.mp==='highpick'?12:0)
-          + (isEnemySig ? 35 : 0); // big bonus for enemy signature hero
-        let reason = isEnemySig && tend
+          + (isEnemySig ? 35 : 0)
+          + protectBonus;
+        let reason = protect
+          ? `[PROTECT] ${h.name} beats ${protect.victim} ${Math.round((protect.wr||0.6)*100)}% (${protect.count||0}g scout) — defend our pick`
+          : isEnemySig && tend
           ? `${enemyName} signature pick — deny their win condition`
           : pbPct>=90 ? `${pbPct}% P&B at M7 — must remove`
           : pbPct>=70 ? `${pbPct}% P&B at M7, ${banCount} bans`
@@ -1945,19 +2034,66 @@ function computeLocalPreds(step){
       })
       .sort((a,b)=>b.score-a.score).slice(0,5);
   } else {
-    // Picks: lane-aware scoring, tier list overrides meta score if imported
+    // Picks: lane-aware scoring + scout-derived counter / synergy / drafted-against signals.
     const { coveredLanes, needed } = getRoleNeeds(myPicks);
     return avail.filter(h=>h.mp!=='off'||h.ms>=7)
       .map(h=>{
         const { fills, redundant } = laneMatchScore(h, needed, coveredLanes);
         const tierScore = getTierScore(h.name); // null if no tier list
         const baseScore = tierScore !== null ? tierScore : h.ms * 10;
+
+        // ── SCOUT SIGNALS ────────────────────────────────────────────────────
+        // (1) COUNTER: does h beat any opp pick? (scout-derived)
+        let counterBonus = 0, counterTarget = null, counterWR = 0, counterCount = 0;
+        oppPicks.forEach(op=>{
+          const hit = dbScoutCounters(op.name).find(c=>c.name===h.name);
+          if (hit){
+            const v = Math.round((hit.wr||0.65)*38 + Math.min(hit.count,5)*2);
+            if (v > counterBonus){ counterBonus = v; counterTarget = op.name; counterWR = hit.wr; counterCount = hit.count; }
+          }
+        });
+        // (2) VULNERABILITY: do any opp picks beat h? (negative)
+        let vuln = 0;
+        oppPicks.forEach(op=>{
+          const beats = dbScoutCounters(h.name).find(c=>c.name===op.name);
+          if (beats) vuln -= Math.round((beats.wr||0.65)*22);
+        });
+        // (3) SYNERGY: does h pair with any of our picks? (scout-derived)
+        let synergyBonus = 0, synergyMate = null, synergyWR = 0, synergyCount = 0;
+        myPicks.forEach(mp=>{
+          const hit = dbScoutSynergies(mp.name).find(s=>s.name===h.name);
+          if (hit){
+            const v = Math.round((hit.wr||0.55)*30 + Math.min(hit.count,5)*2);
+            if (v > synergyBonus){ synergyBonus = v; synergyMate = mp.name; synergyWR = hit.wr; synergyCount = hit.count; }
+          }
+        });
+        // (4) DRAFTED-AGAINST: how often h is drafted opposite opp picks (frequency signal)
+        let daBonus = 0;
+        oppPicks.forEach(op=>{
+          const hit = dbDraftedAgainst(op.name).find(x=>x.name===h.name);
+          if (hit){
+            const sampleW = Math.min(hit.count/5, 1);
+            daBonus += Math.round((hit.wr||0.5) * 22 * sampleW);
+          }
+        });
+
         let s = baseScore
           + (h.mp==='highpick'?10:0)
-          + (fills * 28)           // big bonus for filling needed lane
-          - (redundant ? 30 : 0)   // heavy penalty for duplicate lane
-          - (prevUsed.includes(h.id)?12:0);
-        const reason = buildPickReason(h, needed, coveredLanes);
+          + (fills * 28)
+          - (redundant ? 30 : 0)
+          - (prevUsed.includes(h.id)?12:0)
+          + counterBonus + vuln + synergyBonus + daBonus;
+
+        // Override the rule-based reason with the strongest scout-derived rationale if present.
+        const baseReason = buildPickReason(h, needed, coveredLanes);
+        let reason = baseReason;
+        if (counterBonus >= 25 && counterTarget){
+          reason = `Counters ${counterTarget} ${Math.round(counterWR*100)}% (${counterCount}g scout) — proven matchup`;
+        } else if (synergyBonus >= 25 && synergyMate){
+          reason = `Pairs with ${synergyMate} ${Math.round(synergyWR*100)}% (${synergyCount}g scout) — proven combo`;
+        } else if (daBonus >= 20){
+          reason = `Common scout response to enemy comp — high cross-pair win rate`;
+        }
         return {hero:h, score:Math.round(s), reason};
       })
       .sort((a,b)=>b.score-a.score).slice(0,5);
@@ -2912,6 +3048,57 @@ let scoutLeagueFilter = 'all'; // 'all' | 'MPL PH' | 'MPL MY' | 'MPL ID' | 'MPL 
 function loadScoutDB() {
   try { const r=localStorage.getItem(SCOUT_KEY); return r?JSON.parse(r):{matches:[],teams:{}}; } catch(e){return{matches:[],teams:{}};}
 }
+
+// ═══════ SCOUT INTEL LAYER (shared brain w/ AI Battle) ═══════
+// Lazy-built per session from the coach's full match dataset (public + scrims).
+// Powers counter/synergy/drafted-against signals across local suggestions, the
+// live intel panel below picks, and the AI-Coach prompt context.
+let _draftScoutIntel = null;
+let _draftScoutIntelMtime = 0;
+
+function _buildDraftScoutIntel(){
+  try{
+    const db = loadScoutDB();
+    const matches = db.matches || [];
+    if (!matches.length || typeof WDB === 'undefined') {
+      return { counters:{}, synergies:{}, draftedAgainst:{}, n:0 };
+    }
+    const opts = { includeAll:true }; // include scrims — coach's own intel
+    return {
+      counters:        WDB.computeScoutCountersFromMatches(matches, 2, opts) || {},
+      synergies:       WDB.computeScoutSynergiesFromMatches(matches, 2, opts) || {},
+      draftedAgainst:  WDB.computeDraftedAgainstFromMatches(matches, 2, opts) || {},
+      n: matches.length
+    };
+  } catch(e){
+    console.warn('[Draft Board] _buildDraftScoutIntel failed:', e);
+    return { counters:{}, synergies:{}, draftedAgainst:{}, n:0 };
+  }
+}
+
+function draftScoutIntel(){
+  let mtime = 0;
+  try{ const raw=localStorage.getItem(SCOUT_KEY); mtime = raw ? raw.length : 0; }catch(_){}
+  if (!_draftScoutIntel || mtime !== _draftScoutIntelMtime){
+    _draftScoutIntel = _buildDraftScoutIntel();
+    _draftScoutIntelMtime = mtime;
+  }
+  return _draftScoutIntel;
+}
+
+// Heroes that beat `heroName` (≥60% counter WR with ≥2 games).
+function dbScoutCounters(heroName){
+  return (draftScoutIntel().counters[heroName] || []).filter(x => x.wr >= 0.6);
+}
+// Heroes that pair well with `heroName` on the same team (≥55% WR with ≥2 games).
+function dbScoutSynergies(heroName){
+  return (draftScoutIntel().synergies[heroName] || []).filter(x => x.wr >= 0.55);
+}
+// Heroes opponents most often draft when `heroName` is on the enemy side.
+function dbDraftedAgainst(heroName){
+  return draftScoutIntel().draftedAgainst[heroName] || [];
+}
+function invalidateDraftScoutIntel(){ _draftScoutIntel = null; _draftScoutIntelMtime = 0; }
 
 function getScoutTeamProfile(teamName) {
   if(!teamName || teamName==='Blue Team' || teamName==='Red Team') return null;
