@@ -2226,25 +2226,39 @@ function _pickLookAheadBonus(candidate,myPicks,oppPicks,bannedSet,stepIdx,aiTeam
   return bonus;
 }
 
-// ═══════ COACH SUGGESTION ENGINE (always-on, scout-driven) ═══════
-// Persistent panel that ranks the top picks/bans for the side currently
-// on the clock. Pure scoring — no commit, no side-effects. Pulls from
-// the same scout intel (counters / synergies / drafted-against) the AI
-// itself uses, plus tier list, lane fit, and meta win rate. Returns
-// top N {hero, score, reason, tier, category}.
+// ═══════ COACH SUGGESTION ENGINE v2 (always-on, full scout brain) ═══════
+// Top 5 picks/bans for the side currently on the clock — pure scoring,
+// no commit. Pulls EVERY signal the AI itself uses:
+//   - Scout intel:    getScoutCounters, getScoutSynergies, getDraftedAgainst
+//   - Our team:       getHumanTendencies (our comfort heroes), getHumanComboThreats (our combos)
+//   - Opp team:       enemyProfile.topPicks/topBans, blueSideCore/redSideCore,
+//                     bluePhase1/2, redPhase1/2, bluePickFreq, redPickFreq,
+//                     blueBanPhase1/2, redBanPhase1/2
+//   - Meta:           tier list, h.mp (mustban/highpick), h.ms (meta score)
+//   - Lane geometry:  needs(), pickLaneForHero — flex-aware, primary-first
 //
-// Formula (all signals normalized into one weighted sum):
-//   tierScore      — S=100, A=75, B=50, C=25
-//   laneFit        — fills your needed lane (+40), redundant (-30)
-//   counterBonus   — beats one of opp's picks: WR*45 + min(games,6)*3
-//   vulnPenalty    — opp pick beats this hero:  -(WR*30)
-//   synergyBonus   — pairs with our existing pick: WR*30 + min(games,6)*3
-//   draftedAgainst — frequency signal: WR*22*min(games/5,1) per opp pick
-//   metaBonus      — meta pick rate weight: ms*4
-//   highPick       — TIER_LIST mp='highpick' (+15)
+// Pick formula:
+//   tier × 0.5  +  laneFit (+40/-30)
+//   + counter (max over opp: WR*50 + min(g,6)*3)
+//   - vuln (sum over opp: WR*32)
+//   + synergy (max over our picks: WR*32 + min(g,6)*3)
+//   + draftedAgainst (per opp: WR*22*min(g/5,1))
+//   + ourComfort (we played this hero ≥3g ≥55% WR: WR*30 + min(g,6)*2)
+//   + ourComboPiece (in a known combo: WR*25)
+//   + enemyCoreCounter (counters one of opp team's signature picks: +20)
+//   + meta (ms*4 + 15 highpick)
 //
-// For bans, the dominant signals flip: hero counters OUR picks (PROTECT),
-// hero is a high-WR scout combo piece (COMBO), opp's comfort hero.
+// Ban formula:
+//   tier × 0.4
+//   + PROTECT (hero beats our pick: WR*60 + min(g,6)*4)
+//   + COMFORT-DENY (opp track record: WR*45 + min(g,6)*3)
+//   + COMBO-BREAK (hero in opp's high-WR combo: WR*40)
+//   + PHASE1-DENY (opp locks this hero early in their P1: +35)
+//   + HABIT-MIRROR (opp themselves bans this hero often: +25)
+//   + LANE-DENY (S/A tier in opp's still-needed lane: +30)
+//   + MUST-BAN (h.mp==='mustban': +50)
+// Hard waste filter: oppCannotPick (every concrete lane filled in opp's
+// lineup) → reject regardless of category, only must-ban bypasses.
 function computeCoachSuggestions(step){
   if(!step) return [];
   const usedIds=[...ST.bb,...ST.rb,...ST.bp,...ST.rp].map(h=>h.id);
@@ -2253,6 +2267,22 @@ function computeCoachSuggestions(step){
   const oppP=step.team==='blue'?ST.rp:ST.bp;
   const {needed:myNeeded}=needs(myP);
   const {needed:oppNeeded}=needs(oppP);
+  // ── FULL CONTEXT — same data localAI uses ──
+  const ourFavs   = getHumanTendencies();           // our team's scout-derived specialties
+  const ourCombos = getHumanComboThreats();         // our team's high-WR pairs
+  const ep        = enemyProfile || null;           // opp team profile (if set)
+  // For the opp's side perspective, pick the right phase/freq slot. Opp is on
+  // the OTHER side from us, so when we score from our POV, we read opp's profile
+  // for the opposite side key.
+  const oppSideKey = step.team==='blue' ? 'red' : 'blue';
+  const oppCore    = ep ? [...new Set([...(oppSideKey==='blue'?ep.blueSideCore||[]:ep.redSideCore||[]),...(ep.topPicks||[]).slice(0,8)])] : [];
+  const oppPhase1  = ep ? (oppSideKey==='blue'?ep.bluePhase1||[]:ep.redPhase1||[]) : [];
+  const oppPhase2  = ep ? (oppSideKey==='blue'?ep.bluePhase2||[]:ep.redPhase2||[]) : [];
+  const oppBanP1   = ep ? (oppSideKey==='blue'?ep.blueBanPhase1||[]:ep.redBanPhase1||[]) : [];
+  const oppBanP2   = ep ? (oppSideKey==='blue'?ep.blueBanPhase2||[]:ep.redBanPhase2||[]) : [];
+  const oppPickFreq= ep ? (oppSideKey==='blue'?ep.bluePickFreq||{}:ep.redPickFreq||{}) : {};
+  const oppName    = ep ? (ep.name||'') : '';
+  const isPhase2   = ST.step>=12;
 
   // ── BAN MODE ─────────────────────────────────────────────────────
   if(step.type==='ban'){
@@ -2261,83 +2291,134 @@ function computeCoachSuggestions(step){
       const tierScore={S:100,A:75,B:50,C:25}[t]||20;
       const heroLns=getHeroLanesAB(h);
       const playableLns=heroLns.filter(L=>L!=='Flex');
-      // Hard waste: opp literally cannot pick this hero (every lane filled).
       const oppCannotPick=playableLns.length>0&&playableLns.every(L=>!oppNeeded.includes(L));
       const isMustBan=h.mp==='mustban';
       if(oppCannotPick && !isMustBan) return null;
-      // PROTECT — hero beats one of our picks in scout data
+      // PROTECT — scout counter to one of our picks
       let protectScore=0,protectTarget=null,protectWR=0,protectCount=0;
       myP.forEach(p=>{
         const hit=getScoutCounters(p.name).find(c=>c.name===h.name);
         if(hit){
-          const v=Math.round((hit.wr||0.6)*55+Math.min(hit.count,6)*3);
+          const v=Math.round((hit.wr||0.6)*60+Math.min(hit.count,6)*4);
           if(v>protectScore){protectScore=v;protectTarget=p.name;protectWR=hit.wr;protectCount=hit.count;}
         }
       });
-      // COMFORT-DENY — opp has track record on this hero (battle memory + scout team profile)
-      const humanFavs=getHumanTendencies();
-      const fav=humanFavs.find(f=>f.name===h.name);
-      const comfortScore=fav&&(fav.count||0)>=3&&(fav.wr||0)>=0.55?Math.round(fav.wr*40+Math.min(fav.count,6)*2):0;
-      // LANE-DENY — opp still needs the hero's primary lane and hero is S/A
+      // COMFORT-DENY — opp has scout track record on this hero. Two sources:
+      // (1) enemyProfile.topPicks frequency, (2) drafted-against-them WR signal.
+      const epFreq=oppPickFreq[h.name]||0;
+      const inOppCore=oppCore.includes(h.name);
+      // Pull opp's actual WR on this hero from drafted-against data (count = how often
+      // they had it on enemy side, wr = their WR with it). Approximate by checking
+      // matches where opp's name is on a side.
+      let comfortScore=0,comfortLabel='';
+      if(epFreq>=0.25){ // opp picks ≥25% of side-slots
+        comfortScore=Math.round(epFreq*120);
+        comfortLabel=`${oppName} picks ${Math.round(epFreq*100)}% of games`;
+      } else if(inOppCore){
+        comfortScore=35;
+        comfortLabel=`Core ${oppName} pick`;
+      }
+      // PHASE1-DENY — opp opens their P1 with this hero (deny pre-lock)
+      const isPhase1Deny=oppPhase1.includes(h.name) && !isPhase2;
+      const phase1Score=isPhase1Deny?35:0;
+      // COMBO-BREAK — hero is part of an opp combo we know about
+      const matchedCombo=ourCombos.find(cb=>cb.a===h.name||cb.b===h.name);
+      const comboScore=matchedCombo?Math.round((matchedCombo.wr||0.6)*40):0;
+      const comboPartner=matchedCombo?(matchedCombo.a===h.name?matchedCombo.b:matchedCombo.a):null;
+      // HABIT-MIRROR — opp themselves bans this hero frequently (mirror their prep)
+      const isHabitMirror=ep && (oppBanP1.includes(h.name) || oppBanP2.includes(h.name));
+      const habitScore=isHabitMirror?25:0;
+      // LANE-DENY — S/A in opp's still-needed lane
       const ln=lane(h);
       const isLaneDeny=ln!=='Flex'&&oppNeeded.includes(ln)&&['S','A'].includes(t);
       const laneDenyScore=isLaneDeny?30:0;
-      // META — meta P&B weight
-      const metaScore=h.mp==='mustban'?40:h.mp==='highpick'?15:h.ms*2;
-      const total=tierScore*0.5+protectScore+comfortScore+laneDenyScore+metaScore;
+      // META
+      const mustBonus=isMustBan?50:0;
+      const metaScore=h.mp==='highpick'?15:Math.round((h.ms||0)*2);
+
+      const total=tierScore*0.4 + protectScore + comfortScore + phase1Score + comboScore + habitScore + laneDenyScore + mustBonus + metaScore;
       if(total<25 && !isMustBan) return null;
-      let reason='';
-      if(protectScore>=25 && protectTarget){
-        reason=`Beats your ${protectTarget} ${Math.round(protectWR*100)}% in ${protectCount}g — protect your pick`;
-      } else if(comfortScore>=15 && fav){
-        reason=`Opp comfort: ${Math.round((fav.wr||0)*100)}% WR over ${fav.count||0}g — deny their specialty`;
-      } else if(isMustBan){
-        reason=`Auto-ban — broken at this patch, no reliable counterplay`;
-      } else if(isLaneDeny){
-        reason=`${t}-tier ${ln} — opp still needs this lane, deny the option`;
-      } else {
-        reason=`${t}-tier threat (${h.ms}/10 meta)`;
-      }
-      return {hero:h,score:Math.round(total),reason,tier:t,category:protectScore>=25?'protect':comfortScore>=15?'comfort':isMustBan?'must':isLaneDeny?'lane':'tier'};
+      // Pick the dominant rationale for reason text
+      let reason='', category='tier';
+      const candidates=[
+        {key:'must',     score:mustBonus,    text:`Auto-ban — broken meta this patch`,  active:isMustBan},
+        {key:'protect',  score:protectScore, text:protectTarget?`Beats your ${protectTarget} ${Math.round(protectWR*100)}% in ${protectCount}g scout — protect your pick`:'', active:protectScore>=30},
+        {key:'comfort',  score:comfortScore, text:comfortLabel, active:comfortScore>=30},
+        {key:'combo',    score:comboScore,   text:matchedCombo?`Breaks ${matchedCombo.a}+${matchedCombo.b} combo (${Math.round((matchedCombo.wr||0.6)*100)}% WR, ${matchedCombo.count||0}g)`:'', active:comboScore>=20},
+        {key:'phase1',   score:phase1Score,  text:oppName?`${oppName} opens P1 with this — deny pre-lock`:'Locked early in P1 — deny pre-lock', active:isPhase1Deny},
+        {key:'habit',    score:habitScore,   text:oppName?`${oppName} reliably bans this — mirror their prep`:'Habit-mirror ban', active:isHabitMirror},
+        {key:'lane',     score:laneDenyScore,text:`${t}-tier ${ln} — opp still needs ${ln}, this is their best option`, active:isLaneDeny},
+      ].filter(c=>c.active).sort((a,b)=>b.score-a.score);
+      const top=candidates[0];
+      if(top){ reason=top.text; category=top.key; } else { reason=`${t}-tier threat (${h.ms||0}/10 meta)`; category='tier'; }
+      return {hero:h,score:Math.round(total),reason,tier:t,category};
     }).filter(Boolean).sort((a,b)=>b.score-a.score);
     return scored.slice(0,5);
   }
 
   // ── PICK MODE ────────────────────────────────────────────────────
-  const myCovered=needs(myP).cl;
+  // Pre-compute role distribution of our picks — used to hard-block 3rd
+  // of a role and to softly penalize 2nd of the duplicate-prone roles
+  // (Tank, Marksman). MPL comps run at most: 2 Tanks (EXP/Roam),
+  // 1 Marksman, 1 Mage, 1 Fighter/Assassin.
+  const myRoles={};
+  myP.forEach(p=>{
+    const r=getHeroRole(p.name);
+    if(r) myRoles[r]=(myRoles[r]||0)+1;
+  });
+  const roleCap = { Tank:2, Marksman:1, Mage:1, Support:1, Assassin:1, Fighter:2 };
+
   const scored=avail.map(h=>{
     const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
     const tierScore={S:100,A:75,B:50,C:25}[t]||20;
-    const heroLns=getHeroLanesAB(h);
+    const role=getHeroRole(h.name);
     const ln=lane(h);
-    // LANE FIT — fills our needed lane (+40), redundant if we already have it (-30)
-    const fillsNeeded=ln!=='Flex'&&myNeeded.includes(ln)?40:0;
-    const redundant=ln!=='Flex'&&!myNeeded.includes(ln)?-30:0;
-    // COUNTER — strongest scout counter we have vs any opp pick
+    const heroLns=getHeroLanesAB(h);
+
+    // ── HARD GATES ─────────────────────────────────────────────────
+    // Gate 1: hero has nowhere to slot into our team given current picks.
+    // pickLaneForHero returns 'Flex' when every concrete lane the hero
+    // plays is already taken — that means we'd be picking a duplicate-lane
+    // hero with no actual slot. Reject unless we're at the very start
+    // of our draft (no picks yet) where every lane is "open" anyway.
+    const slot=pickLaneForHero(h,myP);
+    if(slot==='Flex'&&myP.length>=1&&heroLns.some(L=>L!=='Flex'))return null;
+    // Gate 2: role cap — block heroes whose role already at capacity.
+    // 3rd Tank, 2nd Marksman, 2nd Mage, 2nd Support, 2nd Assassin all rejected.
+    if(role && myRoles[role]>=(roleCap[role]||1)) return null;
+    // Gate 3: the hero's primary lane is already filled in our team AND
+    // it has no other concrete lane to slot into (covered by gate 1, but
+    // make it explicit so reasoning text uses 'slot' below).
+
+    // LANE FIT — based on the slot we'd actually use, not primary lane
+    const fillsNeeded=slot!=='Flex'?40:0;
+
+    // ── COUNTER vs opp picks (scout-derived) — the headline signal ──
     let counterBonus=0,counterTarget=null,counterWR=0,counterCount=0;
     oppP.forEach(op=>{
       const hit=getScoutCounters(op.name).find(c=>c.name===h.name);
       if(hit){
-        const v=Math.round((hit.wr||0.65)*45+Math.min(hit.count,6)*3);
+        // Higher weight than before — counter-picking is the primary "destroy enemy" lever.
+        const v=Math.round((hit.wr||0.65)*55+Math.min(hit.count,6)*4);
         if(v>counterBonus){counterBonus=v;counterTarget=op.name;counterWR=hit.wr;counterCount=hit.count;}
       }
     });
-    // VULNERABILITY — any opp pick beats this hero
+    // VULN — any opp pick beats this hero (heavier penalty now)
     let vuln=0;
     oppP.forEach(op=>{
       const beats=getScoutCounters(h.name).find(c=>c.name===op.name);
-      if(beats) vuln-=Math.round((beats.wr||0.65)*30);
+      if(beats) vuln-=Math.round((beats.wr||0.65)*38);
     });
-    // SYNERGY — pairs with one of our picks
+    // SYNERGY with our picks (scout-derived, sample-weighted)
     let synergyBonus=0,synergyMate=null,synergyWR=0,synergyCount=0;
     myP.forEach(mp=>{
       const hit=getScoutSynergies(mp.name).find(s=>s.name===h.name);
       if(hit){
-        const v=Math.round((hit.wr||0.55)*30+Math.min(hit.count,6)*3);
+        const v=Math.round((hit.wr||0.55)*38+Math.min(hit.count,6)*3);
         if(v>synergyBonus){synergyBonus=v;synergyMate=mp.name;synergyWR=hit.wr;synergyCount=hit.count;}
       }
     });
-    // DRAFTED-AGAINST — sample-weighted cross-pair frequency vs opp picks
+    // DRAFTED-AGAINST — cross-pair frequency vs opp picks
     let daBonus=0;
     oppP.forEach(op=>{
       const hit=getDraftedAgainst(op.name).find(x=>x.name===h.name);
@@ -2346,34 +2427,50 @@ function computeCoachSuggestions(step){
         daBonus+=Math.round((hit.wr||0.5)*22*sampleW);
       }
     });
-    // META
-    const metaBonus=h.ms*4+(h.mp==='highpick'?15:0);
-
-    const total=tierScore*0.5+fillsNeeded+redundant+counterBonus+vuln+synergyBonus+daBonus+metaBonus;
-    if(total<20) return null;
-    // Reasoning text — surface the strongest scout signal
-    let reason='';
-    let category='tier';
-    if(counterBonus>=30 && counterTarget){
-      reason=`Counters ${counterTarget} ${Math.round(counterWR*100)}% in ${counterCount}g scout — proven matchup`;
-      category='counter';
-    } else if(synergyBonus>=25 && synergyMate){
-      reason=`Pairs with ${synergyMate} ${Math.round(synergyWR*100)}% in ${synergyCount}g — proven combo`;
-      category='synergy';
-    } else if(fillsNeeded>0 && daBonus>=15){
-      reason=`Fills ${ln}, common scout response vs enemy comp`;
-      category='fit';
-    } else if(fillsNeeded>0){
-      reason=`Best ${t}-tier ${ln} option for your open lane`;
-      category='fit';
-    } else if(daBonus>=20){
-      reason=`Common cross-pair response to enemy picks (scout data)`;
-      category='response';
-    } else {
-      reason=`${t}-tier flex pick — ${h.ms}/10 meta score`;
-      category='tier';
+    // OUR-COMFORT — our team has scout history winning with this hero
+    const ourFav=ourFavs.find(f=>f.name===h.name);
+    const ourComfort=(ourFav && (ourFav.count||0)>=3 && (ourFav.wr||0)>=0.55)
+      ? Math.round((ourFav.wr||0)*42+Math.min(ourFav.count,6)*3) : 0;
+    // OUR-COMBO-PIECE — completing one of our scout combos
+    const matchedOurCombo=ourCombos.find(cb=>(cb.a===h.name||cb.b===h.name) && myP.some(mp=>cb.a===mp.name||cb.b===mp.name));
+    const ourComboBonus=matchedOurCombo?Math.round((matchedOurCombo.wr||0.6)*30):0;
+    // OPP-CORE-COUNTER — counters one of opp team's signature picks (proactive)
+    let coreCounterBonus=0,coreCounterTarget=null;
+    if(oppCore.length){
+      oppCore.slice(0,5).forEach(name=>{
+        const hit=getScoutCounters(name).find(c=>c.name===h.name);
+        if(hit && hit.wr>=0.6){
+          const v=Math.round(hit.wr*25);
+          if(v>coreCounterBonus){coreCounterBonus=v;coreCounterTarget=name;}
+        }
+      });
     }
-    return {hero:h,score:Math.round(total),reason,tier:t,category};
+    // ROLE BALANCE — soft penalty when adding a 2nd Tank/Fighter (drafts run
+    // them sometimes but rarely over a more useful pick). Hard cap already
+    // gated above; this just deprioritizes within the cap.
+    const dupRolePenalty = role && myRoles[role]>=1 && (role==='Tank'||role==='Fighter') ? -25 : 0;
+    // META — meta-pick rate boost (lighter than before so it doesn't dominate)
+    const metaBonus=(h.ms||0)*2.5+(h.mp==='highpick'?15:0);
+
+    // Lower tier weight (was 0.5) — tier is a tiebreaker, not the spine.
+    const total = tierScore*0.30
+      + fillsNeeded + counterBonus + vuln + synergyBonus + daBonus
+      + ourComfort + ourComboBonus + coreCounterBonus + dupRolePenalty + metaBonus;
+    if(total<15) return null;
+
+    let reason='', category='tier';
+    const candidates=[
+      {key:'counter',  score:counterBonus,    text:counterTarget?`Counters ${counterTarget} ${Math.round(counterWR*100)}% in ${counterCount}g scout — proven matchup`:''},
+      {key:'synergy',  score:synergyBonus,    text:synergyMate?`Pairs with ${synergyMate} ${Math.round(synergyWR*100)}% in ${synergyCount}g scout — proven combo`:''},
+      {key:'comfort',  score:ourComfort,      text:ourFav?`Your team: ${Math.round((ourFav.wr||0)*100)}% WR on ${h.name} over ${ourFav.count||0}g`:''},
+      {key:'core',     score:coreCounterBonus,text:coreCounterTarget?`Counters ${oppName||'opp'}'s signature ${coreCounterTarget}`:''},
+      {key:'combo',    score:ourComboBonus,   text:matchedOurCombo?`Activates ${matchedOurCombo.a}+${matchedOurCombo.b} (${Math.round((matchedOurCombo.wr||0.6)*100)}% WR)`:''},
+      {key:'fit',      score:fillsNeeded>0?40:0, text:`Best ${t}-tier ${slot} option for your open lane`},
+      {key:'response', score:daBonus,         text:`Common scout response to enemy comp`},
+    ].filter(c=>c.score>=20 && c.text).sort((a,b)=>b.score-a.score);
+    const top=candidates[0];
+    if(top){ reason=top.text; category=top.key; } else { reason=`${t}-tier ${slot!=='Flex'?slot:'flex'} — ${h.ms||0}/10 meta`; category='tier'; }
+    return {hero:h,score:Math.round(total),reason,tier:t,category,slot,role};
   }).filter(Boolean).sort((a,b)=>b.score-a.score);
   return scored.slice(0,5);
 }
