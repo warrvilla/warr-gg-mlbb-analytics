@@ -942,6 +942,7 @@ select {
     </div>
     <div class="hero-grid" id="heroGrid"></div>
     <div class="predict-panel" id="predictionPanel" style="display:none;margin:0 8px 4px;"></div>
+    <div id="coachPanel" style="margin:0 8px 4px;padding:8px 10px;border:0.5px solid rgba(168,136,204,0.22);border-radius:10px;background:rgba(168,136,204,0.05);min-height:0;"></div>
     <div id="scoutIntelPanel" style="display:none;margin:0 8px 4px;padding:8px 10px;border:0.5px solid rgba(168,136,204,0.18);border-radius:10px;background:rgba(168,136,204,0.04);font-size:11px;line-height:1.45;"></div>
     <div class="action-bar" style="border-top:1px solid var(--border);">
       <button class="btn btn-reset" onclick="cancelCurrentGame()">✕ New Game</button>
@@ -1411,6 +1412,7 @@ function cancelCurrentGame(silent){
   document.getElementById('declareBtn').style.display='none';
   document.getElementById('predictionPanel').style.display='none';
   const _sip = document.getElementById('scoutIntelPanel'); if (_sip) _sip.style.display='none';
+  // Coach panel auto-rebuilds in renderAll() — no need to hide it.
   renderAll();updateTurn();
   if(series.mode>1)updateSeriesScore();
   if(!silent)toast('Game cleared');
@@ -1531,7 +1533,7 @@ function exportMatchData(){
 }
 
 // ── Render ─────────────────────────────────────────────────────────────
-function renderAll(){renderSeq();renderSlots();renderPool();}
+function renderAll(){renderSeq();renderSlots();renderPool();try{renderCoachPanelDB();}catch(_){}}
 
 function renderSeq(){
   document.getElementById('seqBar').innerHTML=DRAFT_ORDER.map((s,i)=>`<div class="seq-item"><div class="seq-dot ${s.type}-${s.team} ${i===state.currentStep?'current':i<state.currentStep?'done':''}">${s.label}</div><div class="seq-label">${s.team[0].toUpperCase()}</div></div>`).join('');
@@ -3099,6 +3101,58 @@ function dbDraftedAgainst(heroName){
   return draftScoutIntel().draftedAgainst[heroName] || [];
 }
 function invalidateDraftScoutIntel(){ _draftScoutIntel = null; _draftScoutIntelMtime = 0; }
+
+// ═══════ ALWAYS-ON COACH PANEL (live-draft simulation) ═══════
+// Mirror of the AI Battle panel. Always visible, recomputed on every
+// renderAll(). Reuses computeLocalPreds (already scout-aware after the
+// recent upgrade) so the formula stays in sync. Each chip is color-coded
+// by category and click-to-commit.
+function renderCoachPanelDB(){
+  const panel = document.getElementById('coachPanel');
+  if (!panel) return;
+  // Hide once the draft is complete — analyze takes over from here.
+  if (state.currentStep >= DRAFT_ORDER.length){
+    panel.style.display = 'block';
+    panel.innerHTML = `<div style="font-size:11px;color:var(--text3);text-align:center;padding:2px 0;">Draft complete — click Analyze Draft for the full breakdown.</div>`;
+    return;
+  }
+  const step = DRAFT_ORDER[state.currentStep];
+  if (!step){ panel.style.display = 'none'; return; }
+  const sugg = computeLocalPreds(step);
+  const intel = draftScoutIntel();
+  const {bt, rt} = sideNames();
+  const tName = step.team==='blue' ? bt : rt;
+  const tCol  = step.team==='blue' ? 'var(--blue)' : 'var(--red)';
+
+  // Map suggestion reason text → category (rough — used for color coding).
+  // The upgraded computeLocalPreds builds reason text starting with
+  // "Counters X", "Pairs with X", "[PROTECT]", etc. so we sniff that prefix.
+  const cat = (s)=>{
+    const r = s.reason || '';
+    if (r.startsWith('[PROTECT]'))           return {key:'protect', label:'PROTECT', col:'#D87880'};
+    if (r.startsWith('Counters '))           return {key:'counter', label:'COUNTER', col:'#5EA0D8'};
+    if (r.startsWith('Pairs with '))         return {key:'synergy', label:'SYNERGY', col:'#4CB87A'};
+    if (r.startsWith('Common scout response'))return {key:'response',label:'RESPONSE',col:'#A888CC'};
+    if (/signature pick/i.test(r))           return {key:'comfort', label:'COMFORT', col:'#C89050'};
+    if (/must remove|priority ban/i.test(r)) return {key:'must',    label:'MUST',    col:'#D87880'};
+    if (step.type==='ban')                    return {key:'tier',    label:'BAN',     col:'#A888CC'};
+    return {key:'tier', label:'PICK', col:'#A888CC'};
+  };
+
+  if (!sugg.length){
+    panel.style.display = 'block';
+    panel.innerHTML = `<div style="font-size:11px;color:var(--text3);text-align:center;padding:2px 0;">No strong suggestions — pick from the pool above.</div>`;
+    return;
+  }
+
+  const chips = sugg.map(s=>{
+    const c = cat(s);
+    return `<div onclick="selectHero('${s.hero.id}')" style="cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;padding:6px 9px;border:0.5px solid ${c.col}55;border-radius:8px;background:${c.col}10;transition:transform .12s ease;" onmouseover="this.style.transform='translateY(-1px)';this.style.background='${c.col}22';" onmouseout="this.style.transform='translateY(0)';this.style.background='${c.col}10';" title="Click to ${step.type}: ${s.hero.name}"><div style="display:flex;align-items:center;gap:6px;width:100%;"><span style="font-size:8px;font-weight:700;letter-spacing:.06em;color:${c.col};">${c.label}</span><span style="font-size:8px;color:var(--text3);margin-left:auto;font-family:var(--font-mono);">${s.score}</span></div><div style="font-size:12px;font-weight:700;color:var(--text);margin-top:2px;">${s.hero.name}</div><div style="font-size:9px;color:var(--text2);margin-top:2px;line-height:1.35;">${s.reason}</div></div>`;
+  }).join('');
+
+  panel.style.display = 'block';
+  panel.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;color:#A888CC;">COACH SUGGESTIONS — ${step.type.toUpperCase()}</span><span style="font-size:9px;font-weight:600;padding:1px 7px;border:0.5px solid ${tCol};border-radius:10px;color:${tCol};">${tName}</span><span style="font-size:9px;color:var(--text3);">${intel.n||0} games of scout data</span></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;">${chips}</div>`;
+}
 
 function getScoutTeamProfile(teamName) {
   if(!teamName || teamName==='Blue Team' || teamName==='Red Team') return null;
