@@ -2142,18 +2142,25 @@ function computeLocalPreds(step){
     };
 
     // ── PLAYER HERO POOL ──────────────────────────────────────────
-    // Build {lane: {player, pool}} for current roster
+    // BUG FIX: previous version had args swapped — actual signature is
+    // (matches, playerIgn). Return shape is {byRole, total, games} with
+    // each hero entry as {games, wins} — wr has to be computed.
     const lanePool = {};
     try {
       if (typeof WDB !== 'undefined' && WDB.computePlayerHeroPool){
         const db = loadScoutDB();
         const roster = (db.teams?.[ourName]?.players) || [];
+        const allMatches = db.matches || [];
         ['Gold','Jungle','Mid','EXP','Roam'].forEach(L => {
           const player = roster.find(p => (p.lane || p.role) === L);
           if (!player || !player.name) return;
           try {
-            const pool = WDB.computePlayerHeroPool(player.name, db.matches || []);
-            lanePool[L] = { player: player.name, pool: pool || {} };
+            const raw = WDB.computePlayerHeroPool(allMatches, player.name);
+            const flat = {};
+            Object.entries(raw.total || {}).forEach(([heroName, s]) => {
+              if (s.games >= 1) flat[heroName] = { games: s.games, wr: s.games ? s.wins / s.games : 0 };
+            });
+            lanePool[L] = { player: player.name, pool: flat };
           } catch(_) {}
         });
       }
@@ -2236,8 +2243,9 @@ function computeLocalPreds(step){
           const pp = lanePool[slot].pool[h.name];
           const playerNm = lanePool[slot].player;
           if (pp){
-            if (pp.games >= 3 && pp.wr >= 0.55){
-              playerPoolBonus = Math.round((pp.wr-0.5) * 80 + Math.min(pp.games,6)*2);
+            if (pp.games >= 2 && pp.wr >= 0.55){
+              const sampleW = Math.min(pp.games / 5, 1);
+              playerPoolBonus = Math.round((pp.wr-0.5) * 80 * sampleW + Math.min(pp.games,6)*2);
               playerPoolNote = `${playerNm}: ${pp.games}g ${Math.round(pp.wr*100)}% WR`;
             } else if (pp.games >= 3 && pp.wr <= 0.40){
               playerPoolBonus = -Math.round((0.5-pp.wr) * 60);
@@ -3381,10 +3389,14 @@ function dbGetLaneAwareCounter(heroName, heroLane, candidateName, candidateLane)
   if (typeof WDB === 'undefined' || !WDB.getLaneAwareCounter) return null;
   return WDB.getLaneAwareCounter(draftScoutIntel().laneCounters, heroName, heroLane, candidateName, candidateLane);
 }
-// Effective tier — dynamic if sample sufficient, else static.
+// Effective tier — adaptive threshold so it actually triggers at typical scrim volumes.
 function dbEffectiveTier(heroName){
-  const dyn = draftScoutIntel().dynamicTiers[heroName];
-  if (dyn && dyn.picks >= 4) return dyn.tier;
+  const intel = draftScoutIntel();
+  const dyn = intel.dynamicTiers[heroName];
+  if (dyn){
+    const minPicks = Math.max(2, Math.min(5, Math.floor((intel.n || 0) / 12)));
+    if (dyn.picks >= minPicks) return dyn.tier;
+  }
   if (TIER_LIST[heroName]?.tier) return TIER_LIST[heroName].tier;
   const h = FINAL_HEROES.find(x=>x.name===heroName);
   return h?.tier || 'B';

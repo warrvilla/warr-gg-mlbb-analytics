@@ -1998,9 +1998,16 @@ function getLaneAwareCounter(heroName, heroLane, candidateName, candidateLane){
 }
 
 // Effective tier: dynamic from scout matches when sample is sufficient, else static.
+// Threshold adapts to total scout volume — for a small DB (10 games) we accept
+// 2-pick samples, for a large one (60+) we want 5+. Prevents the override from
+// going silent when the coach has only a handful of scrim entries.
 function getEffectiveTier(heroName){
-  const dyn = scoutIntel().dynamicTiers[heroName];
-  if (dyn && dyn.picks >= 4) return dyn.tier; // 4-game minimum to override
+  const intel = scoutIntel();
+  const dyn = intel.dynamicTiers[heroName];
+  if (dyn){
+    const minPicks = Math.max(2, Math.min(5, Math.floor((intel.n || 0) / 12)));
+    if (dyn.picks >= minPicks) return dyn.tier;
+  }
   return _scoutTierCache?.[heroName]?.tier || TIER_LIST[heroName]?.tier || (HEROES.find(h=>h.name===heroName)?.tier) || 'B';
 }
 
@@ -2324,17 +2331,28 @@ function computeCoachSuggestions(step){
   // Build {lane: poolMap} where poolMap is {heroName: {games, wr}} for the
   // player currently on that lane on our team. Used to boost picks the
   // actual player has won with, dampen ones they've struggled with.
+  // BUG FIX: previous version had the WDB.computePlayerHeroPool args
+  // swapped (it expects (matches, playerIgn), I was passing (playerName,
+  // matches)). Result: the pool was always empty so playerPoolBonus
+  // never fired. Also the returned shape is {byRole, total, games},
+  // with each hero entry as {games, wins} — we have to compute wr.
   const lanePool = {};
   try {
     if (typeof WDB !== 'undefined' && WDB.computePlayerHeroPool && pName) {
       const db = loadScoutAB();
       const roster = (db.teams?.[pName]?.players) || [];
+      const allMatches = db.matches || [];
       ['Gold','Jungle','Mid','EXP','Roam'].forEach(L => {
         const player = roster.find(p => (p.lane || p.role) === L);
         if (!player || !player.name) return;
         try {
-          const pool = WDB.computePlayerHeroPool(player.name, db.matches || []);
-          lanePool[L] = { player: player.name, pool: pool || {} };
+          const raw = WDB.computePlayerHeroPool(allMatches, player.name);
+          // Flatten total{} into {heroName: {games, wr}} for easy lookup
+          const flat = {};
+          Object.entries(raw.total || {}).forEach(([heroName, s]) => {
+            if (s.games >= 1) flat[heroName] = { games: s.games, wr: s.games ? s.wins / s.games : 0 };
+          });
+          lanePool[L] = { player: player.name, pool: flat };
         } catch(_) {}
       });
     }
@@ -2521,8 +2539,10 @@ function computeCoachSuggestions(step){
       const pp = lanePool[slot].pool[h.name];
       const playerNm = lanePool[slot].player;
       if (pp){
-        if (pp.games >= 3 && pp.wr >= 0.55){
-          playerPoolBonus = Math.round((pp.wr-0.5) * 80 + Math.min(pp.games,6)*2);
+        if (pp.games >= 2 && pp.wr >= 0.55){
+          // Scale weight by sample size so 2-game spikes don't dominate.
+          const sampleW = Math.min(pp.games / 5, 1);
+          playerPoolBonus = Math.round((pp.wr-0.5) * 80 * sampleW + Math.min(pp.games,6)*2);
           playerPoolNote = `${playerNm}: ${pp.games}g ${Math.round(pp.wr*100)}% WR`;
         } else if (pp.games >= 3 && pp.wr <= 0.40){
           playerPoolBonus = -Math.round((0.5-pp.wr) * 60);
@@ -3106,7 +3126,18 @@ function localAI(step){
     return{hero:h,score:ts+fillsNeeded+teamPick+countersOpp+vuln+beatsHumanFavs+synergyBonus+carryProtectBonus+metaBonus+archBonus+pickTimingAdj+compAdj+laBonus+mistakeNudge+Math.random()*randRange};
   }).sort((a,b)=>b.score-a.score);
 
-  const h=scored[0]?.hero||avail[0];
+  // SAFER PICK FALLBACK — when scored is empty, prefer a hero that
+  // actually fills one of our needed lanes over the first-alphabetical
+  // hero in avail. avail[0] was producing terrible picks (Aamon, etc.)
+  // in edge cases.
+  const _safePickPool = avail.filter(_h => {
+    const _lns = getHeroLanesAB(_h);
+    return _lns.some(L => L==='Flex' || myNeeded.includes(L));
+  });
+  const h = scored[0]?.hero
+    || _safePickPool.find(x => ['S'].includes(_scoutTierCache?.[x.name]?.tier || TIER_LIST[x.name]?.tier || x.tier))
+    || _safePickPool[0]
+    || avail[0];
   const ln=lane(h);
   const countered=oppP.filter(op=>fullCounterList(op.name).some(x=>x.name===h.name));
   const learnedFor=countered.filter(op=>getLearnedCounters(op.name).some(x=>x.name===h.name));
