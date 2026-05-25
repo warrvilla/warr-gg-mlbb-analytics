@@ -777,6 +777,134 @@ WDB.computeDraftedAgainstFromMatches = function(matches, minMatches, opts) {
   return out;
 };
 
+/** Lane-aware counters: vs[H][L][X][L2] tracks H-in-L vs X-in-L2.
+ *  Returns nested map: { [hero]: { [heroLane]: { [counter]: { [counterLane]: {wr, count} } } } }
+ *  Use case: Pharsa-Mid counters ≠ Pharsa-EXP counters. Lookup is
+ *  WDB.getLaneAwareCounter(map, heroName, heroLane, candidateName, candidateLane).
+ *  Falls back to global counter when sample is too thin (caller's job). */
+WDB.computeLaneAwareCountersFromMatches = function(matches, minMatches, opts) {
+  minMatches = minMatches == null ? 2 : minMatches;
+  const includeAll = !!(opts && opts.includeAll);
+  const vs = {};
+  (matches || []).forEach(m => {
+    if (!m || !m.winner) return;
+    const league = m.league || '';
+    if (!includeAll && !WDB.PUBLIC_LEAGUES.includes(league)) return;
+    const blue = (m.bluePicks || []).map(p => p && {name:p.name||p, lane:p.lane||null}).filter(p=>p&&p.name);
+    const red  = (m.redPicks  || []).map(p => p && {name:p.name||p, lane:p.lane||null}).filter(p=>p&&p.name);
+    const winSide = m.winner === 'blue' ? blue : red;
+    const loseSide= m.winner === 'blue' ? red  : blue;
+    // From the WIN side's POV, every winner has a win against every loser
+    winSide.forEach(H => {
+      if (!H.lane) return;
+      loseSide.forEach(X => {
+        if (!X.lane || H.name === X.name) return;
+        if (!vs[H.name]) vs[H.name] = {};
+        if (!vs[H.name][H.lane]) vs[H.name][H.lane] = {};
+        if (!vs[H.name][H.lane][X.name]) vs[H.name][H.lane][X.name] = {};
+        const cell = vs[H.name][H.lane][X.name][X.lane] || { wins: 0, count: 0 };
+        cell.wins += 1; cell.count += 1;
+        vs[H.name][H.lane][X.name][X.lane] = cell;
+      });
+    });
+    // From the LOSE side's POV, just count (no win)
+    loseSide.forEach(H => {
+      if (!H.lane) return;
+      winSide.forEach(X => {
+        if (!X.lane || H.name === X.name) return;
+        if (!vs[H.name]) vs[H.name] = {};
+        if (!vs[H.name][H.lane]) vs[H.name][H.lane] = {};
+        if (!vs[H.name][H.lane][X.name]) vs[H.name][H.lane][X.name] = {};
+        const cell = vs[H.name][H.lane][X.name][X.lane] || { wins: 0, count: 0 };
+        cell.count += 1;
+        vs[H.name][H.lane][X.name][X.lane] = cell;
+      });
+    });
+  });
+  // Normalize: at each (H, hl, X, xl) cell, X's WR against H = 1 - (H's wins / count)
+  const out = {};
+  Object.keys(vs).forEach(H => {
+    out[H] = {};
+    Object.keys(vs[H]).forEach(hl => {
+      out[H][hl] = {};
+      Object.keys(vs[H][hl]).forEach(X => {
+        Object.keys(vs[H][hl][X]).forEach(xl => {
+          const cell = vs[H][hl][X][xl];
+          if (cell.count < minMatches) return;
+          if (!out[H][hl][X]) out[H][hl][X] = {};
+          out[H][hl][X][xl] = { wr: 1 - (cell.wins / cell.count), count: cell.count };
+        });
+      });
+    });
+  });
+  return out;
+};
+
+/** Quick lookup: X-in-xl's WR against H-in-hl. Returns null when no data. */
+WDB.getLaneAwareCounter = function(map, heroName, heroLane, candidateName, candidateLane) {
+  try {
+    return map && map[heroName] && map[heroName][heroLane]
+      && map[heroName][heroLane][candidateName]
+      && map[heroName][heroLane][candidateName][candidateLane] || null;
+  } catch (_) { return null; }
+};
+
+/** Composition identity detector.
+ *  Returns { identity, confidence, scores } where identity ∈
+ *  {dive, poke, teamfight, pickoff, scale} or null when too few picks.
+ *  scores: { dive: 0..1, poke: 0..1, ... } — softmax-ish over archetype fit.
+ *  Identity locks at confidence >= 0.55. */
+WDB.COMP_ARCHETYPES = {
+  dive:      { heroes: ['Ling','Lancelot','Hayabusa','Gusion','Chou','Jawhead','Khufra','Zilong','Paquito','Benedetta','Aamon','Julian','Arlott','Karina','Helcurt','Saber','Roger','Yu Zhong','Fanny','Nolan'], roles:{Assassin:3,Fighter:2,Tank:1} },
+  poke:      { heroes: ['Pharsa','Lunox','Selena','Beatrix','Lesley','Natan','Yve','Valir','Harith','Novaria','Cyclops','Aurora','Chang\'e','Kimmy','Layla','Bruno','Granger','Karrie'], roles:{Mage:3,Marksman:2,MM:2,Support:1} },
+  teamfight: { heroes: ['Atlas','Tigreal','Vale','Kagura','Wanwan','Ruby','Gatotkaca','Carmilla','Floryn','Estes','Grock','Belerick','Johnson','Khufra','Lolita','Faramis','Minsitthar','Phoveus','Edith'], roles:{Tank:3,Mage:2,Support:2} },
+  pickoff:   { heroes: ['Chou','Franco','Kaja','Natalia','Selena','Saber','Hanzo','Fanny','Akai','Mathilda','Diggie','Helcurt','Benedetta','Cecilion','Ling','Lancelot','Nolan'], roles:{Assassin:2,Support:2,Tank:2} },
+  scale:     { heroes: ['Karrie','Wanwan','Esmeralda','Uranus','Diggie','Angela','Hylos','Estes','Yi Sun-shin','Melissa','Moskov','Bruno','Granger','Beatrix','Brody','Edith'], roles:{Marksman:3,MM:3,Tank:2,Support:2} },
+};
+
+WDB.detectComposition = function(picks) {
+  if (!picks || picks.length < 2) {
+    return { identity: null, confidence: 0, scores: {} };
+  }
+  const scores = {};
+  // Lazy role helper — accepts {name, role} or hero objects either way.
+  const roleOf = p => (p && (p.role || p.heroRole) || '').split('/')[0].trim();
+  Object.entries(WDB.COMP_ARCHETYPES).forEach(([k, def]) => {
+    let s = 0;
+    picks.forEach(p => {
+      const n = p.name || p;
+      if (def.heroes.includes(n)) s += 2;
+      const r = roleOf(p);
+      if (r && def.roles[r]) s += (def.roles[r] / 3); // 0.33..1.0
+    });
+    scores[k] = s / Math.max(picks.length * 2, 4);
+  });
+  // Pick the dominant archetype
+  let identity = null, best = 0;
+  Object.entries(scores).forEach(([k, v]) => { if (v > best) { best = v; identity = k; } });
+  // Need both an absolute threshold and a margin over the runner-up
+  const sorted = Object.values(scores).sort((a,b)=>b-a);
+  const margin = sorted[0] - (sorted[1] || 0);
+  const confident = best >= 0.40 && margin >= 0.10;
+  return {
+    identity: confident ? identity : null,
+    confidence: best,
+    scores
+  };
+};
+
+/** Score how well a candidate hero fits a given composition identity.
+ *  Returns 0..1. Used by coach engines to bias toward identity coherence. */
+WDB.compFitScore = function(heroName, role, identity) {
+  if (!identity || !WDB.COMP_ARCHETYPES[identity]) return 0;
+  const def = WDB.COMP_ARCHETYPES[identity];
+  let s = 0;
+  if (def.heroes.includes(heroName)) s += 0.6;
+  const r = (role || '').split('/')[0].trim();
+  if (r && def.roles[r]) s += (def.roles[r] / 3) * 0.4;
+  return Math.min(s, 1);
+};
+
 /** Load all admin-curated hero_relations. Returns:
  *    { [hero]: { counter: [names], synergy: [names] } }  */
 WDB.loadHeroRelations = async function() {

@@ -1934,20 +1934,24 @@ function _buildScoutIntel(){
     const db = loadScoutAB();
     const matches = db.matches || [];
     if (!matches.length || typeof WDB === 'undefined') {
-      return { counters:{}, synergies:{}, draftedAgainst:{}, n:0 };
+      return { counters:{}, synergies:{}, draftedAgainst:{}, laneCounters:{}, dynamicTiers:{}, n:0 };
     }
     // includeAll:true → scrims count too. An MPL coach's scrim data is
     // arguably the *most* relevant signal for their own team's intel.
     const opts = { includeAll:true };
+    let dynamicTiers = {};
+    try { dynamicTiers = WDB.computeDynamicTiers ? (WDB.computeDynamicTiers(2) || {}) : {}; } catch(_) {}
     return {
       counters:        WDB.computeScoutCountersFromMatches(matches, 2, opts) || {},
       synergies:       WDB.computeScoutSynergiesFromMatches(matches, 2, opts) || {},
       draftedAgainst:  WDB.computeDraftedAgainstFromMatches(matches, 2, opts) || {},
+      laneCounters:    WDB.computeLaneAwareCountersFromMatches ? (WDB.computeLaneAwareCountersFromMatches(matches, 2, opts) || {}) : {},
+      dynamicTiers:    dynamicTiers,
       n: matches.length
     };
   } catch(e){
     console.warn('[AI Battle] _buildScoutIntel failed:', e);
-    return { counters:{}, synergies:{}, draftedAgainst:{}, n:0 };
+    return { counters:{}, synergies:{}, draftedAgainst:{}, laneCounters:{}, dynamicTiers:{}, n:0 };
   }
 }
 
@@ -1986,6 +1990,19 @@ function getDraftedAgainst(heroName){
 }
 
 function invalidateScoutIntel(){ _scoutIntel = null; _scoutIntelMtime = 0; }
+
+// Lane-aware counter lookup: X-in-xl's WR against H-in-hl. Returns null when no data.
+function getLaneAwareCounter(heroName, heroLane, candidateName, candidateLane){
+  if (typeof WDB === 'undefined' || !WDB.getLaneAwareCounter) return null;
+  return WDB.getLaneAwareCounter(scoutIntel().laneCounters, heroName, heroLane, candidateName, candidateLane);
+}
+
+// Effective tier: dynamic from scout matches when sample is sufficient, else static.
+function getEffectiveTier(heroName){
+  const dyn = scoutIntel().dynamicTiers[heroName];
+  if (dyn && dyn.picks >= 4) return dyn.tier; // 4-game minimum to override
+  return _scoutTierCache?.[heroName]?.tier || TIER_LIST[heroName]?.tier || (HEROES.find(h=>h.name===heroName)?.tier) || 'B';
+}
 
 function getLearnedCounters(heroName){
   // Scout-first hybrid: scout-derived counters (real games, large sample)
@@ -2268,12 +2285,9 @@ function computeCoachSuggestions(step){
   const {needed:myNeeded}=needs(myP);
   const {needed:oppNeeded}=needs(oppP);
   // ── FULL CONTEXT — same data localAI uses ──
-  const ourFavs   = getHumanTendencies();           // our team's scout-derived specialties
-  const ourCombos = getHumanComboThreats();         // our team's high-WR pairs
-  const ep        = enemyProfile || null;           // opp team profile (if set)
-  // For the opp's side perspective, pick the right phase/freq slot. Opp is on
-  // the OTHER side from us, so when we score from our POV, we read opp's profile
-  // for the opposite side key.
+  const ourFavs   = getHumanTendencies();
+  const ourCombos = getHumanComboThreats();
+  const ep        = enemyProfile || null;
   const oppSideKey = step.team==='blue' ? 'red' : 'blue';
   const oppCore    = ep ? [...new Set([...(oppSideKey==='blue'?ep.blueSideCore||[]:ep.redSideCore||[]),...(ep.topPicks||[]).slice(0,8)])] : [];
   const oppPhase1  = ep ? (oppSideKey==='blue'?ep.bluePhase1||[]:ep.redPhase1||[]) : [];
@@ -2284,16 +2298,84 @@ function computeCoachSuggestions(step){
   const oppName    = ep ? (ep.name||'') : '';
   const isPhase2   = ST.step>=12;
 
+  // ── PICK-POSITION CONTEXT ───────────────────────────────────────
+  // Counter-pick weight scales by how much we know about opp. Blind first
+  // pick: counters muted (no opp picks anyway), comfort/flex boosted. Last
+  // pick (step 19, red side): full counter weight, lookahead penalty muted
+  // (no more picks to anticipate). Mid-draft: standard weight.
+  const stepsRemaining = 20 - ST.step;
+  const isLastPick = step.type==='pick' && oppP.length===5 && myP.length===4; // we lock final
+  const isBlindFirst = step.type==='pick' && oppP.length===0;
+  const counterWeight = isLastPick ? 1.45 : isBlindFirst ? 0.30 : (oppP.length>=3 ? 1.20 : 1.0);
+  const comfortWeight = isBlindFirst ? 1.55 : 1.0;
+  const lookaheadEnabled = step.type==='pick' && !isLastPick && oppP.length < 5;
+
+  // ── COMPOSITION IDENTITY (locks at 2+ picks) ────────────────────
+  const compResult = typeof WDB!=='undefined' && WDB.detectComposition
+    ? WDB.detectComposition(myP.map(p=>({name:p.name, role:getHeroRole(p.name)})))
+    : { identity:null, confidence:0, scores:{} };
+  const compIdentity = compResult.identity;
+  // Opp's identity (so we can pick anti-comp pieces)
+  const oppCompResult = typeof WDB!=='undefined' && WDB.detectComposition
+    ? WDB.detectComposition(oppP.map(p=>({name:p.name, role:getHeroRole(p.name)})))
+    : { identity:null, confidence:0, scores:{} };
+
+  // ── PLAYER HERO POOL (per-lane player comfort) ──────────────────
+  // Build {lane: poolMap} where poolMap is {heroName: {games, wr}} for the
+  // player currently on that lane on our team. Used to boost picks the
+  // actual player has won with, dampen ones they've struggled with.
+  const lanePool = {};
+  try {
+    if (typeof WDB !== 'undefined' && WDB.computePlayerHeroPool && pName) {
+      const db = loadScoutAB();
+      const roster = (db.teams?.[pName]?.players) || [];
+      ['Gold','Jungle','Mid','EXP','Roam'].forEach(L => {
+        const player = roster.find(p => (p.lane || p.role) === L);
+        if (!player || !player.name) return;
+        try {
+          const pool = WDB.computePlayerHeroPool(player.name, db.matches || []);
+          lanePool[L] = { player: player.name, pool: pool || {} };
+        } catch(_) {}
+      });
+    }
+  } catch(_) {}
+
   // ── BAN MODE ─────────────────────────────────────────────────────
   if(step.type==='ban'){
+    // SANDWICH BAN: predict opp's next pick. The highest-frequency hero in
+    // oppPickFreq that fits opp's open lanes and isn't already used/banned.
+    // Bans that hit this hero (or its proven synergy partners) get a bonus
+    // because we pre-empt opp's intended draft flow.
+    let predictedOppPick = null;
+    if (ep && Object.keys(oppPickFreq).length){
+      const candidates = Object.entries(oppPickFreq)
+        .filter(([n,_])=>{
+          const cand = HEROES.find(hh=>hh.name===n);
+          if (!cand) return false;
+          if (usedIds.includes(cand.id)) return false;
+          // Must fit one of opp's open lanes
+          const lns = getHeroLanesAB(cand);
+          return lns.some(L => L==='Flex' || oppNeeded.includes(L));
+        })
+        .sort((a,b)=>b[1]-a[1]);
+      if (candidates.length) predictedOppPick = candidates[0][0];
+    }
+    // Names of heroes that are proven synergy partners of the predicted pick
+    const predictedSynergyPartners = predictedOppPick
+      ? getScoutSynergies(predictedOppPick).slice(0,3).map(s=>s.name)
+      : [];
+
     const scored=avail.map(h=>{
-      const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
+      const t=getEffectiveTier(h.name);
       const tierScore={S:100,A:75,B:50,C:25}[t]||20;
       const heroLns=getHeroLanesAB(h);
       const playableLns=heroLns.filter(L=>L!=='Flex');
       const oppCannotPick=playableLns.length>0&&playableLns.every(L=>!oppNeeded.includes(L));
       const isMustBan=h.mp==='mustban';
       if(oppCannotPick && !isMustBan) return null;
+      // SANDWICH: ban hits opp's predicted next pick OR its synergy partner
+      const sandwichBonus = (h.name === predictedOppPick) ? 45
+                          : (predictedSynergyPartners.includes(h.name) ? 22 : 0);
       // PROTECT — scout counter to one of our picks
       let protectScore=0,protectTarget=null,protectWR=0,protectCount=0;
       myP.forEach(p=>{
@@ -2336,18 +2418,19 @@ function computeCoachSuggestions(step){
       const mustBonus=isMustBan?50:0;
       const metaScore=h.mp==='highpick'?15:Math.round((h.ms||0)*2);
 
-      const total=tierScore*0.4 + protectScore + comfortScore + phase1Score + comboScore + habitScore + laneDenyScore + mustBonus + metaScore;
+      const total=tierScore*0.4 + protectScore + comfortScore + phase1Score + comboScore + habitScore + laneDenyScore + sandwichBonus + mustBonus + metaScore;
       if(total<25 && !isMustBan) return null;
       // Pick the dominant rationale for reason text
       let reason='', category='tier';
       const candidates=[
-        {key:'must',     score:mustBonus,    text:`Auto-ban — broken meta this patch`,  active:isMustBan},
-        {key:'protect',  score:protectScore, text:protectTarget?`Beats your ${protectTarget} ${Math.round(protectWR*100)}% in ${protectCount}g scout — protect your pick`:'', active:protectScore>=30},
-        {key:'comfort',  score:comfortScore, text:comfortLabel, active:comfortScore>=30},
-        {key:'combo',    score:comboScore,   text:matchedCombo?`Breaks ${matchedCombo.a}+${matchedCombo.b} combo (${Math.round((matchedCombo.wr||0.6)*100)}% WR, ${matchedCombo.count||0}g)`:'', active:comboScore>=20},
-        {key:'phase1',   score:phase1Score,  text:oppName?`${oppName} opens P1 with this — deny pre-lock`:'Locked early in P1 — deny pre-lock', active:isPhase1Deny},
-        {key:'habit',    score:habitScore,   text:oppName?`${oppName} reliably bans this — mirror their prep`:'Habit-mirror ban', active:isHabitMirror},
-        {key:'lane',     score:laneDenyScore,text:`${t}-tier ${ln} — opp still needs ${ln}, this is their best option`, active:isLaneDeny},
+        {key:'must',     score:mustBonus,      text:`Auto-ban — broken meta this patch`,  active:isMustBan},
+        {key:'protect',  score:protectScore,   text:protectTarget?`Beats your ${protectTarget} ${Math.round(protectWR*100)}% in ${protectCount}g scout — protect your pick`:'', active:protectScore>=30},
+        {key:'sandwich', score:sandwichBonus,  text: h.name===predictedOppPick ? `[PRE-EMPT] ${oppName||'Opp'}'s predicted next pick — sandwich-ban` : (sandwichBonus>0 ? `Breaks ${predictedOppPick}+${h.name} pair opp likely runs next` : ''), active:sandwichBonus>=20},
+        {key:'comfort',  score:comfortScore,   text:comfortLabel, active:comfortScore>=30},
+        {key:'combo',    score:comboScore,     text:matchedCombo?`Breaks ${matchedCombo.a}+${matchedCombo.b} combo (${Math.round((matchedCombo.wr||0.6)*100)}% WR, ${matchedCombo.count||0}g)`:'', active:comboScore>=20},
+        {key:'phase1',   score:phase1Score,    text:oppName?`${oppName} opens P1 with this — deny pre-lock`:'Locked early in P1 — deny pre-lock', active:isPhase1Deny},
+        {key:'habit',    score:habitScore,     text:oppName?`${oppName} reliably bans this — mirror their prep`:'Habit-mirror ban', active:isHabitMirror},
+        {key:'lane',     score:laneDenyScore,  text:`${t}-tier ${ln} — opp still needs ${ln}, this is their best option`, active:isLaneDeny},
       ].filter(c=>c.active).sort((a,b)=>b.score-a.score);
       const top=candidates[0];
       if(top){ reason=top.text; category=top.key; } else { reason=`${t}-tier threat (${h.ms||0}/10 meta)`; category='tier'; }
@@ -2369,47 +2452,48 @@ function computeCoachSuggestions(step){
   const roleCap = { Tank:2, Marksman:1, Mage:1, Support:1, Assassin:1, Fighter:2 };
 
   const scored=avail.map(h=>{
-    const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
+    const t=getEffectiveTier(h.name);
     const tierScore={S:100,A:75,B:50,C:25}[t]||20;
     const role=getHeroRole(h.name);
     const ln=lane(h);
     const heroLns=getHeroLanesAB(h);
 
     // ── HARD GATES ─────────────────────────────────────────────────
-    // Gate 1: hero has nowhere to slot into our team given current picks.
-    // pickLaneForHero returns 'Flex' when every concrete lane the hero
-    // plays is already taken — that means we'd be picking a duplicate-lane
-    // hero with no actual slot. Reject unless we're at the very start
-    // of our draft (no picks yet) where every lane is "open" anyway.
     const slot=pickLaneForHero(h,myP);
     if(slot==='Flex'&&myP.length>=1&&heroLns.some(L=>L!=='Flex'))return null;
-    // Gate 2: role cap — block heroes whose role already at capacity.
-    // 3rd Tank, 2nd Marksman, 2nd Mage, 2nd Support, 2nd Assassin all rejected.
     if(role && myRoles[role]>=(roleCap[role]||1)) return null;
-    // Gate 3: the hero's primary lane is already filled in our team AND
-    // it has no other concrete lane to slot into (covered by gate 1, but
-    // make it explicit so reasoning text uses 'slot' below).
 
-    // LANE FIT — based on the slot we'd actually use, not primary lane
     const fillsNeeded=slot!=='Flex'?40:0;
 
-    // ── COUNTER vs opp picks (scout-derived) — the headline signal ──
-    let counterBonus=0,counterTarget=null,counterWR=0,counterCount=0;
+    // ── COUNTER (lane-aware when possible, scaled by pick position) ──
+    let counterBonus=0,counterTarget=null,counterWR=0,counterCount=0,counterIsLaneAware=false;
     oppP.forEach(op=>{
-      const hit=getScoutCounters(op.name).find(c=>c.name===h.name);
-      if(hit){
-        // Higher weight than before — counter-picking is the primary "destroy enemy" lever.
+      // Try lane-aware counter first — Pharsa-Mid counters ≠ Pharsa-EXP counters.
+      const opLane = effectiveLaneAB(op);
+      let usedLaneAware = false, hit = null;
+      if (opLane!=='Flex' && slot!=='Flex'){
+        const laneHit = getLaneAwareCounter(op.name, opLane, h.name, slot);
+        if (laneHit && laneHit.count >= 2){ hit = laneHit; usedLaneAware = true; }
+      }
+      // Fall back to global counter if lane-aware sample is thin.
+      if (!hit){
+        const global = getScoutCounters(op.name).find(c=>c.name===h.name);
+        if (global) hit = global;
+      }
+      if (hit){
         const v=Math.round((hit.wr||0.65)*55+Math.min(hit.count,6)*4);
-        if(v>counterBonus){counterBonus=v;counterTarget=op.name;counterWR=hit.wr;counterCount=hit.count;}
+        if(v>counterBonus){counterBonus=v;counterTarget=op.name;counterWR=hit.wr;counterCount=hit.count;counterIsLaneAware=usedLaneAware;}
       }
     });
-    // VULN — any opp pick beats this hero (heavier penalty now)
+    counterBonus = Math.round(counterBonus * counterWeight);
+
+    // VULN — heavier penalty
     let vuln=0;
     oppP.forEach(op=>{
       const beats=getScoutCounters(h.name).find(c=>c.name===op.name);
       if(beats) vuln-=Math.round((beats.wr||0.65)*38);
     });
-    // SYNERGY with our picks (scout-derived, sample-weighted)
+    // SYNERGY
     let synergyBonus=0,synergyMate=null,synergyWR=0,synergyCount=0;
     myP.forEach(mp=>{
       const hit=getScoutSynergies(mp.name).find(s=>s.name===h.name);
@@ -2418,7 +2502,7 @@ function computeCoachSuggestions(step){
         if(v>synergyBonus){synergyBonus=v;synergyMate=mp.name;synergyWR=hit.wr;synergyCount=hit.count;}
       }
     });
-    // DRAFTED-AGAINST — cross-pair frequency vs opp picks
+    // DRAFTED-AGAINST
     let daBonus=0;
     oppP.forEach(op=>{
       const hit=getDraftedAgainst(op.name).find(x=>x.name===h.name);
@@ -2427,14 +2511,29 @@ function computeCoachSuggestions(step){
         daBonus+=Math.round((hit.wr||0.5)*22*sampleW);
       }
     });
-    // OUR-COMFORT — our team has scout history winning with this hero
+    // OUR-COMFORT — team-level (boosted on blind picks)
     const ourFav=ourFavs.find(f=>f.name===h.name);
     const ourComfort=(ourFav && (ourFav.count||0)>=3 && (ourFav.wr||0)>=0.55)
-      ? Math.round((ourFav.wr||0)*42+Math.min(ourFav.count,6)*3) : 0;
-    // OUR-COMBO-PIECE — completing one of our scout combos
+      ? Math.round((ourFav.wr||0)*42*comfortWeight+Math.min(ourFav.count,6)*3) : 0;
+    // PLAYER-POOL — the specific player who'd play this hero in this lane
+    let playerPoolBonus = 0, playerPoolNote = '';
+    if (slot!=='Flex' && lanePool[slot]){
+      const pp = lanePool[slot].pool[h.name];
+      const playerNm = lanePool[slot].player;
+      if (pp){
+        if (pp.games >= 3 && pp.wr >= 0.55){
+          playerPoolBonus = Math.round((pp.wr-0.5) * 80 + Math.min(pp.games,6)*2);
+          playerPoolNote = `${playerNm}: ${pp.games}g ${Math.round(pp.wr*100)}% WR`;
+        } else if (pp.games >= 3 && pp.wr <= 0.40){
+          playerPoolBonus = -Math.round((0.5-pp.wr) * 60);
+          playerPoolNote = `${playerNm}: only ${Math.round(pp.wr*100)}% in ${pp.games}g — risky`;
+        }
+      }
+    }
+    // OUR-COMBO-PIECE
     const matchedOurCombo=ourCombos.find(cb=>(cb.a===h.name||cb.b===h.name) && myP.some(mp=>cb.a===mp.name||cb.b===mp.name));
     const ourComboBonus=matchedOurCombo?Math.round((matchedOurCombo.wr||0.6)*30):0;
-    // OPP-CORE-COUNTER — counters one of opp team's signature picks (proactive)
+    // OPP-CORE-COUNTER
     let coreCounterBonus=0,coreCounterTarget=null;
     if(oppCore.length){
       oppCore.slice(0,5).forEach(name=>{
@@ -2445,31 +2544,74 @@ function computeCoachSuggestions(step){
         }
       });
     }
-    // ROLE BALANCE — soft penalty when adding a 2nd Tank/Fighter (drafts run
-    // them sometimes but rarely over a more useful pick). Hard cap already
-    // gated above; this just deprioritizes within the cap.
+    // COMP-IDENTITY — bonus for fitting our locked-in identity, penalty for off-comp
+    let compBonus = 0, compNote = '';
+    if (compIdentity && typeof WDB!=='undefined' && WDB.compFitScore){
+      const fit = WDB.compFitScore(h.name, role, compIdentity);
+      compBonus = Math.round((fit - 0.3) * 50); // -15 if no fit, +35 if perfect
+      if (fit >= 0.5) compNote = `${compIdentity} comp piece`;
+    }
+    // ANTI-COMP — if opp's comp is locked, bonus for hard counter to it
+    let antiCompBonus = 0;
+    if (oppCompResult.identity){
+      const archDef = ARCH_DEFS[oppCompResult.identity];
+      if (archDef && archDef.counters && archDef.counters.includes(h.name)){
+        antiCompBonus = 22;
+      }
+    }
+    // LOOKAHEAD — opp's best response to this pick. Subtract that response's
+    // damage to us. Only run when opp still has picks left and we're not last.
+    let lookaheadPenalty = 0;
+    if (lookaheadEnabled && oppP.length < 5){
+      // What's opp's strongest counter to this hero that fits their open lanes?
+      const oppCounters = getScoutCounters(h.name).filter(c => {
+        const cHero = HEROES.find(hh=>hh.name===c.name);
+        if (!cHero) return false;
+        if (usedIds.includes(cHero.id)) return false;
+        // Check if any of cHero's lanes overlap with opp's needed lanes
+        const cLns = getHeroLanesAB(cHero);
+        return cLns.some(L => L==='Flex' || oppNeeded.includes(L));
+      });
+      if (oppCounters.length){
+        const best = oppCounters[0]; // already sorted by WR desc
+        lookaheadPenalty = -Math.round((best.wr-0.5) * 35);
+      }
+    }
+    // ROLE BALANCE — soft penalty for 2nd Tank/Fighter
     const dupRolePenalty = role && myRoles[role]>=1 && (role==='Tank'||role==='Fighter') ? -25 : 0;
-    // META — meta-pick rate boost (lighter than before so it doesn't dominate)
-    const metaBonus=(h.ms||0)*2.5+(h.mp==='highpick'?15:0);
+    // META — lighter on counter-pick steps, heavier on blind picks where it matters more
+    const metaBonus=Math.round(((h.ms||0)*2.5+(h.mp==='highpick'?15:0)) * (isBlindFirst?1.3:1.0));
 
-    // Lower tier weight (was 0.5) — tier is a tiebreaker, not the spine.
     const total = tierScore*0.30
       + fillsNeeded + counterBonus + vuln + synergyBonus + daBonus
-      + ourComfort + ourComboBonus + coreCounterBonus + dupRolePenalty + metaBonus;
-    if(total<15) return null;
+      + ourComfort + playerPoolBonus + ourComboBonus + coreCounterBonus
+      + compBonus + antiCompBonus + lookaheadPenalty
+      + dupRolePenalty + metaBonus;
+    if(total<10) return null;
 
     let reason='', category='tier';
+    const counterText = counterTarget
+      ? (counterIsLaneAware
+          ? `Counters ${counterTarget} in ${slot} ${Math.round(counterWR*100)}% (${counterCount}g lane-specific scout)`
+          : `Counters ${counterTarget} ${Math.round(counterWR*100)}% in ${counterCount}g scout — proven matchup`)
+      : '';
     const candidates=[
-      {key:'counter',  score:counterBonus,    text:counterTarget?`Counters ${counterTarget} ${Math.round(counterWR*100)}% in ${counterCount}g scout — proven matchup`:''},
+      {key:'player',   score:Math.abs(playerPoolBonus), text:playerPoolNote && playerPoolBonus>0 ? `${playerPoolNote} on ${h.name}` : ''},
+      {key:'counter',  score:counterBonus,    text:counterText},
       {key:'synergy',  score:synergyBonus,    text:synergyMate?`Pairs with ${synergyMate} ${Math.round(synergyWR*100)}% in ${synergyCount}g scout — proven combo`:''},
-      {key:'comfort',  score:ourComfort,      text:ourFav?`Your team: ${Math.round((ourFav.wr||0)*100)}% WR on ${h.name} over ${ourFav.count||0}g`:''},
+      {key:'comfort',  score:ourComfort,      text:ourFav?`${pName||'Your team'}: ${Math.round((ourFav.wr||0)*100)}% WR on ${h.name} over ${ourFav.count||0}g`:''},
       {key:'core',     score:coreCounterBonus,text:coreCounterTarget?`Counters ${oppName||'opp'}'s signature ${coreCounterTarget}`:''},
       {key:'combo',    score:ourComboBonus,   text:matchedOurCombo?`Activates ${matchedOurCombo.a}+${matchedOurCombo.b} (${Math.round((matchedOurCombo.wr||0.6)*100)}% WR)`:''},
-      {key:'fit',      score:fillsNeeded>0?40:0, text:`Best ${t}-tier ${slot} option for your open lane`},
+      {key:'comp',     score:compBonus,       text:compNote?`${compNote} (${compIdentity} identity)`:''},
+      {key:'anticomp', score:antiCompBonus,   text:oppCompResult.identity?`Hard answer vs opp ${oppCompResult.identity} comp`:''},
+      {key:'fit',      score:fillsNeeded>0?40:0, text:isBlindFirst?`Safe ${t}-tier ${slot} blind first pick`:`Best ${t}-tier ${slot} option for open lane`},
       {key:'response', score:daBonus,         text:`Common scout response to enemy comp`},
     ].filter(c=>c.score>=20 && c.text).sort((a,b)=>b.score-a.score);
     const top=candidates[0];
     if(top){ reason=top.text; category=top.key; } else { reason=`${t}-tier ${slot!=='Flex'?slot:'flex'} — ${h.ms||0}/10 meta`; category='tier'; }
+    // Append player-pool warning when it's a negative
+    if (playerPoolBonus < 0 && playerPoolNote) reason += ` ⚠ ${playerPoolNote}`;
+    if (isLastPick && counterBonus>0) reason = `[LAST PICK] ${reason}`;
     return {hero:h,score:Math.round(total),reason,tier:t,category,slot,role};
   }).filter(Boolean).sort((a,b)=>b.score-a.score);
   return scored.slice(0,5);

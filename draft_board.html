@@ -1990,16 +1990,17 @@ function computeLocalPreds(step){
   const prevUsed=series.matches.flatMap(m=>(step.team==='blue'?m.bluePicks:m.redPicks).map(h=>h.id));
 
   if(step.type==='ban'){
-    // Get enemy team tendencies
+    // BAN v4 — protect + comfort + sandwich + lane-deny + series-aware
     const {bt,rt}=sideNames();
     const enemyName = step.team==='blue' ? rt : bt;
     const tend = TEAM_TENDENCIES[enemyName] || null;
     const enemyFavPicks = tend ? tend.favoritePicks : [];
-    // PROTECT-BAN candidates: heroes that beat any of our existing picks in scout data
-    // Build a map of {threatName → {victimName, wr, count}} for the strongest counter per threat.
+    const oppProfile = getScoutTeamProfile(enemyName) || {};
+    const oppTopPicks = (oppProfile.topPicks || []).map(p => ({name:p.name, count:p.count||0}));
+    // PROTECT-BAN candidates
     const protectMap = {};
-    myPicks.forEach(p=>{
-      dbScoutCounters(p.name).slice(0,8).forEach(c=>{
+    myPicks.forEach(p => {
+      dbScoutCounters(p.name).slice(0,8).forEach(c => {
         const cur = protectMap[c.name];
         const score = (c.wr||0.6) * (c.count||0);
         if (!cur || score > cur._score){
@@ -2007,88 +2008,209 @@ function computeLocalPreds(step){
         }
       });
     });
+    // SANDWICH BAN — predict opp's next pick (their highest-count topPick
+    // that fits an open opp lane and isn't used). Ban that hero or its
+    // proven synergy partner.
+    const oppNeededLanes = getRoleNeeds(oppPicks).needed;
+    const usedNames = new Set([...state.blueBans,...state.redBans,...state.bluePicks,...state.redPicks].map(h=>h.name));
+    let predictedOppPick = null;
+    for (const tp of oppTopPicks.sort((a,b)=>b.count-a.count)){
+      if (usedNames.has(tp.name)) continue;
+      const cand = FINAL_HEROES.find(h => h.name === tp.name);
+      if (!cand) continue;
+      const lns = getHeroLanes(cand);
+      if (lns.some(L => L==='Flex' || oppNeededLanes.includes(L))){
+        predictedOppPick = tp.name;
+        break;
+      }
+    }
+    const predictedSynergyPartners = predictedOppPick
+      ? dbScoutSynergies(predictedOppPick).slice(0,3).map(s=>s.name)
+      : [];
 
-    return avail.filter(h=>{
-        // Allow normal meta-threat candidates OR any PROTECT-BAN target from scout data
-        return h.mp==='mustban' || h.mp==='highpick' || h.ms>=7.5 || protectMap[h.name];
+    // BO5 SERIES context for bans — series.matches is previous games.
+    // OPP'S PRIOR PICKS we want to deny in G2/G3 if they showed a strong hero.
+    const gameNum = (series && series.currentGame) || 1;
+    const oppPrevPicks = new Set();
+    if (series && series.matches && gameNum > 1){
+      series.matches.forEach(m => {
+        (step.team==='blue' ? m.redPicks : m.bluePicks || []).forEach(h => oppPrevPicks.add(h.name));
+      });
+    }
+
+    return avail.filter(h => {
+        return h.mp==='mustban' || h.mp==='highpick' || h.ms>=7.5
+          || protectMap[h.name] || h.name === predictedOppPick
+          || predictedSynergyPartners.includes(h.name);
       })
-      .map(h=>{
-        const m7Hero = M7_HEROES.find(m=>m[0]===h.name);
+      .map(h => {
+        const t = dbEffectiveTier(h.name);
+        const tierBoost = ({S:35,A:20,B:10,C:5})[t] || 0;
+        const m7Hero = M7_HEROES.find(m => m[0] === h.name);
         const pbPct = m7Hero ? m7Hero[4] : null;
         const banCount = m7Hero ? m7Hero[3] : 0;
         const isEnemySig = enemyFavPicks.includes(h.name);
         const protect = protectMap[h.name];
-        // Scout-derived: how strongly this hero counters OUR existing picks
-        const protectBonus = protect ? Math.round((protect.wr||0.6) * 55 + Math.min(protect.count, 6) * 3) : 0;
-        let s = h.br*0.55 + h.ms*4
-          + (h.mp==='mustban'?30:h.mp==='highpick'?12:0)
+        const protectBonus = protect ? Math.round((protect.wr||0.6) * 60 + Math.min(protect.count, 6) * 4) : 0;
+        // SANDWICH bonus
+        const sandwichBonus = (h.name === predictedOppPick) ? 45
+                            : (predictedSynergyPartners.includes(h.name) ? 22 : 0);
+        // BO5 — heavier ban priority on heroes opp showed in earlier games
+        const seriesBanBoost = (gameNum > 1 && oppPrevPicks.has(h.name)) ? 28 : 0;
+        // Scout-team comfort signal from opp's actual top-picks frequency
+        const oppTopEntry = oppTopPicks.find(p => p.name === h.name);
+        const oppFreqBonus = oppTopEntry && oppTopEntry.count >= 2 ? Math.min(oppTopEntry.count * 6, 35) : 0;
+
+        let s = h.br*0.4 + h.ms*3 + tierBoost
+          + (h.mp==='mustban' ? 30 : h.mp==='highpick' ? 12 : 0)
           + (isEnemySig ? 35 : 0)
-          + protectBonus;
-        let reason = protect
-          ? `[PROTECT] ${h.name} beats ${protect.victim} ${Math.round((protect.wr||0.6)*100)}% (${protect.count||0}g scout) — defend our pick`
-          : isEnemySig && tend
-          ? `${enemyName} signature pick — deny their win condition`
-          : pbPct>=90 ? `${pbPct}% P&B at M7 — must remove`
-          : pbPct>=70 ? `${pbPct}% P&B at M7, ${banCount} bans`
-          : h.mp==='mustban' ? `${h.br}% ban rate — priority ban`
-          : `${h.ms}/10 meta score, dangerous if left open`;
-        return {hero:h, score:Math.round(s), reason};
+          + protectBonus + sandwichBonus + seriesBanBoost + oppFreqBonus;
+
+        let reason;
+        if (protect){
+          reason = `[PROTECT] ${h.name} beats ${protect.victim} ${Math.round((protect.wr||0.6)*100)}% (${protect.count||0}g scout) — defend our pick`;
+        } else if (h.name === predictedOppPick){
+          reason = `[PRE-EMPT] ${enemyName}'s predicted next pick — sandwich-ban`;
+        } else if (predictedSynergyPartners.includes(h.name)){
+          reason = `Breaks ${predictedOppPick}+${h.name} pair opp likely runs next`;
+        } else if (seriesBanBoost > 0){
+          reason = `[SERIES] ${enemyName} showed this in G${gameNum-1} — deny the repeat`;
+        } else if (oppFreqBonus >= 20){
+          reason = `${enemyName} comfort: ${oppTopEntry.count}g in scout data — deny their specialty`;
+        } else if (isEnemySig && tend){
+          reason = `${enemyName} signature pick — deny their win condition`;
+        } else if (pbPct >= 90){
+          reason = `${pbPct}% P&B at M7 — must remove`;
+        } else if (pbPct >= 70){
+          reason = `${pbPct}% P&B at M7, ${banCount} bans`;
+        } else if (h.mp === 'mustban'){
+          reason = `${h.br}% ban rate — priority ban`;
+        } else {
+          reason = `${h.ms}/10 meta score, dangerous if left open`;
+        }
+        return { hero:h, score:Math.round(s), reason };
       })
-      .sort((a,b)=>b.score-a.score).slice(0,5);
+      .sort((a,b)=>b.score-a.score)
+      .slice(0,5);
   } else {
-    // Picks: lane + role gated, scout-driven scoring.
+    // Picks: full v4 scoring — every gap addressed.
     const { coveredLanes, needed } = getRoleNeeds(myPicks);
     const {bt: _bt, rt: _rt} = sideNames();
     const ourName = step.team==='blue' ? _bt : _rt;
     const oppName = step.team==='blue' ? _rt : _bt;
-    // OUR-TEAM scout profile (comfort heroes — what we win with most)
     const ourProfile = getScoutTeamProfile(ourName) || {};
     const ourTop = (ourProfile.topPicks || []).slice(0, 12).map(p => p.name);
-    // OPP team profile (their signature picks — what to counter)
     const oppProfile = getScoutTeamProfile(oppName) || {};
     const oppTop = (oppProfile.topPicks || []).slice(0, 8).map(p => p.name);
 
-    // Role distribution of our current picks — hard cap at standard MPL comp.
+    // Role distribution + cap
     const myRoles = {};
     myPicks.forEach(p => { const r = (p.role||'').split('/')[0]; if (r) myRoles[r] = (myRoles[r]||0) + 1; });
     const roleCap = { Tank:2, Marksman:1, Mage:1, Support:1, Assassin:1, MM:1, Fighter:2 };
 
-    // Inline pickLaneForHero: given our existing picks, find the first
-    // playable lane the hero can slot into that's not already taken.
     const slotForHero = (h) => {
       const taken = new Set(coveredLanes);
       const opts = getHeroLanes(h);
       return opts.find(L => L !== 'Flex' && !taken.has(L)) || 'Flex';
     };
 
+    // ── PICK-POSITION CONTEXT ─────────────────────────────────────
+    const oppPicksCount = oppPicks.length;
+    const myPicksCount = myPicks.length;
+    const stepIdx = state.currentStep;
+    const isLastPick = step.type==='pick' && oppPicksCount===5 && myPicksCount===4;
+    const isBlindFirst = step.type==='pick' && oppPicksCount===0;
+    const counterWeight = isLastPick ? 1.45 : isBlindFirst ? 0.30 : (oppPicksCount>=3 ? 1.20 : 1.0);
+    const comfortWeight = isBlindFirst ? 1.55 : 1.0;
+    const lookaheadEnabled = step.type==='pick' && !isLastPick && oppPicksCount < 5;
+
+    // ── COMPOSITION IDENTITY ──────────────────────────────────────
+    const compResult = typeof WDB!=='undefined' && WDB.detectComposition
+      ? WDB.detectComposition(myPicks.map(p=>({name:p.name, role:p.role})))
+      : { identity:null, confidence:0 };
+    const compIdentity = compResult.identity;
+    const oppCompResult = typeof WDB!=='undefined' && WDB.detectComposition
+      ? WDB.detectComposition(oppPicks.map(p=>({name:p.name, role:p.role})))
+      : { identity:null, confidence:0 };
+    // Hardcoded counter-set per identity (mirrors AI Battle ARCH_DEFS.counters)
+    const ARCH_COUNTERS = {
+      dive: ['Lolita','Diggie','Uranus','Esmeralda','Atlas','Angela','Rafaela'],
+      poke: ['Ling','Lancelot','Fanny','Gusion','Hayabusa','Karina','Helcurt'],
+      teamfight: ['Natalia','Fanny','Lancelot','Helcurt','Benedetta'],
+      pickoff: ['Wanwan','Karrie','Lolita','Atlas','Angela'],
+      scale: ['Zilong','Masha','Leomord','Paquito','Jawhead','Chou'],
+    };
+
+    // ── PLAYER HERO POOL ──────────────────────────────────────────
+    // Build {lane: {player, pool}} for current roster
+    const lanePool = {};
+    try {
+      if (typeof WDB !== 'undefined' && WDB.computePlayerHeroPool){
+        const db = loadScoutDB();
+        const roster = (db.teams?.[ourName]?.players) || [];
+        ['Gold','Jungle','Mid','EXP','Roam'].forEach(L => {
+          const player = roster.find(p => (p.lane || p.role) === L);
+          if (!player || !player.name) return;
+          try {
+            const pool = WDB.computePlayerHeroPool(player.name, db.matches || []);
+            lanePool[L] = { player: player.name, pool: pool || {} };
+          } catch(_) {}
+        });
+      }
+    } catch(_) {}
+
+    // ── BO5 SERIES CONTEXT (strategic repeat penalty) ─────────────
+    // series.matches = previous games in the series. Heroes we already
+    // showed are tipped hands — opp prepped vs them by G2/G3.
+    const gameNum = (series && series.currentGame) || 1;
+    const ourPrevPicks = new Set();
+    const oppPrevPicks = new Set();
+    if (series && series.matches && gameNum > 1){
+      series.matches.forEach(m => {
+        (step.team==='blue' ? m.bluePicks : m.redPicks || []).forEach(h => ourPrevPicks.add(h.name));
+        (step.team==='blue' ? m.redPicks : m.bluePicks || []).forEach(h => oppPrevPicks.add(h.name));
+      });
+    }
+
     return avail.filter(h => h.mp!=='off' || h.ms>=7)
       .map(h => {
-        // ── HARD GATES ───────────────────────────────────────────────────
+        // ── HARD GATES ──
         const slot = slotForHero(h);
         const hasConcreteLane = getHeroLanes(h).some(L => L !== 'Flex');
-        // Gate 1: hero has no slot in our team and we already have picks
         if (slot === 'Flex' && myPicks.length >= 1 && hasConcreteLane) return null;
-        // Gate 2: role cap (3rd Tank, 2nd MM, etc.)
         const heroRole = (h.role || '').split('/')[0];
         if (heroRole && myRoles[heroRole] >= (roleCap[heroRole] || 1)) return null;
 
-        const tierScore = getTierScore(h.name);
-        const baseScore = tierScore !== null ? tierScore : h.ms * 10;
+        const t = dbEffectiveTier(h.name);
+        const tierScore = ({ S:100, A:75, B:50, C:25 }[t]) || 20;
 
-        // ── SCOUT SIGNALS — heavier weights than v1 ──
-        let counterBonus = 0, counterTarget = null, counterWR = 0, counterCount = 0;
+        // ── COUNTER (lane-aware → global fallback, scaled by pick position) ──
+        let counterBonus = 0, counterTarget = null, counterWR = 0, counterCount = 0, counterIsLaneAware = false;
         oppPicks.forEach(op => {
-          const hit = dbScoutCounters(op.name).find(c => c.name === h.name);
+          const opLane = getHeroLane(op);
+          let used=false, hit=null;
+          if (opLane !== 'Flex' && slot !== 'Flex'){
+            const laneHit = dbGetLaneAwareCounter(op.name, opLane, h.name, slot);
+            if (laneHit && laneHit.count >= 2){ hit = laneHit; used = true; }
+          }
+          if (!hit){
+            const global = dbScoutCounters(op.name).find(c => c.name === h.name);
+            if (global) hit = global;
+          }
           if (hit){
             const v = Math.round((hit.wr||0.65)*55 + Math.min(hit.count,6)*4);
-            if (v > counterBonus){ counterBonus=v; counterTarget=op.name; counterWR=hit.wr; counterCount=hit.count; }
+            if (v > counterBonus){ counterBonus=v; counterTarget=op.name; counterWR=hit.wr; counterCount=hit.count; counterIsLaneAware=used; }
           }
         });
+        counterBonus = Math.round(counterBonus * counterWeight);
+
+        // VULN
         let vuln = 0;
         oppPicks.forEach(op => {
           const beats = dbScoutCounters(h.name).find(c => c.name === op.name);
           if (beats) vuln -= Math.round((beats.wr||0.65)*38);
         });
+        // SYNERGY
         let synergyBonus = 0, synergyMate = null, synergyWR = 0, synergyCount = 0;
         myPicks.forEach(mp => {
           const hit = dbScoutSynergies(mp.name).find(s => s.name === h.name);
@@ -2097,6 +2219,7 @@ function computeLocalPreds(step){
             if (v > synergyBonus){ synergyBonus=v; synergyMate=mp.name; synergyWR=hit.wr; synergyCount=hit.count; }
           }
         });
+        // DRAFTED-AGAINST
         let daBonus = 0;
         oppPicks.forEach(op => {
           const hit = dbDraftedAgainst(op.name).find(x => x.name === h.name);
@@ -2105,9 +2228,24 @@ function computeLocalPreds(step){
             daBonus += Math.round((hit.wr||0.5) * 22 * sampleW);
           }
         });
-        // OUR-COMFORT — hero is in our team's topPicks (scout team profile)
-        const ourComfortBonus = ourTop.includes(h.name) ? 35 : 0;
-        // OPP-CORE-COUNTER — hero counters one of opp's signature picks
+        // OUR-COMFORT (team-level, boosted on blind picks)
+        const ourComfortBonus = ourTop.includes(h.name) ? Math.round(35 * comfortWeight) : 0;
+        // PLAYER-POOL — the specific player who'd play this hero in this lane
+        let playerPoolBonus = 0, playerPoolNote = '';
+        if (slot !== 'Flex' && lanePool[slot]){
+          const pp = lanePool[slot].pool[h.name];
+          const playerNm = lanePool[slot].player;
+          if (pp){
+            if (pp.games >= 3 && pp.wr >= 0.55){
+              playerPoolBonus = Math.round((pp.wr-0.5) * 80 + Math.min(pp.games,6)*2);
+              playerPoolNote = `${playerNm}: ${pp.games}g ${Math.round(pp.wr*100)}% WR`;
+            } else if (pp.games >= 3 && pp.wr <= 0.40){
+              playerPoolBonus = -Math.round((0.5-pp.wr) * 60);
+              playerPoolNote = `${playerNm}: only ${Math.round(pp.wr*100)}% in ${pp.games}g — risky`;
+            }
+          }
+        }
+        // OPP-CORE-COUNTER
         let coreCounterBonus = 0, coreTarget = null;
         oppTop.slice(0, 5).forEach(name => {
           const hit = dbScoutCounters(name).find(c => c.name === h.name);
@@ -2116,32 +2254,81 @@ function computeLocalPreds(step){
             if (v > coreCounterBonus){ coreCounterBonus = v; coreTarget = name; }
           }
         });
-        // ROLE BALANCE — soft penalty for 2nd Tank/Fighter (still allowed by cap)
+        // COMP-IDENTITY
+        let compBonus = 0, compNote = '';
+        if (compIdentity && typeof WDB!=='undefined' && WDB.compFitScore){
+          const fit = WDB.compFitScore(h.name, h.role, compIdentity);
+          compBonus = Math.round((fit - 0.3) * 50);
+          if (fit >= 0.5) compNote = `${compIdentity} comp piece`;
+        }
+        // ANTI-COMP
+        let antiCompBonus = 0;
+        if (oppCompResult.identity && ARCH_COUNTERS[oppCompResult.identity]){
+          if (ARCH_COUNTERS[oppCompResult.identity].includes(h.name)) antiCompBonus = 22;
+        }
+        // LOOKAHEAD — opp's best counter response to this hero
+        let lookaheadPenalty = 0;
+        if (lookaheadEnabled && oppPicksCount < 5){
+          const oppCounters = dbScoutCounters(h.name).filter(c => {
+            const cHero = FINAL_HEROES.find(hh => hh.name === c.name);
+            if (!cHero) return false;
+            if (usedIds.includes(cHero.id)) return false;
+            const cLns = getHeroLanes(cHero);
+            const oppNeeded = getRoleNeeds(oppPicks).needed;
+            return cLns.some(L => L==='Flex' || oppNeeded.includes(L));
+          });
+          if (oppCounters.length){
+            const best = oppCounters[0];
+            lookaheadPenalty = -Math.round((best.wr-0.5) * 35);
+          }
+        }
+        // BO5 SERIES — repeat penalty + opp surprise bonus
+        let seriesPenalty = 0, seriesNote = '';
+        if (gameNum > 1){
+          if (ourPrevPicks.has(h.name)){
+            seriesPenalty -= 30; // opp prepped vs this from earlier games
+            seriesNote = `Already shown in G${gameNum-1} — opp prepped`;
+          } else if (gameNum >= 3){
+            // Fresh threat in late series — small bonus
+            seriesPenalty += 8;
+          }
+        }
+        // ROLE BALANCE
         const dupRolePenalty = heroRole && myRoles[heroRole] >= 1 && (heroRole==='Tank'||heroRole==='Fighter') ? -25 : 0;
-        // LANE FIT — based on the actual slot
+        // LANE FIT
         const fillsNeeded = slot !== 'Flex' ? 40 : 0;
-        // META — lighter than before so it doesn't dominate
-        const metaBonus = (h.ms||0)*2.5 + (h.mp==='highpick'?15:0);
+        // META — boosted on blind picks
+        const metaBonus = Math.round(((h.ms||0)*2.5 + (h.mp==='highpick'?15:0)) * (isBlindFirst?1.3:1.0));
 
-        // Lower tier base weight: 0.5 → was the main reason tanks dominated.
-        const total = baseScore*0.4
-          + fillsNeeded
-          + counterBonus + vuln + synergyBonus + daBonus
-          + ourComfortBonus + coreCounterBonus + dupRolePenalty + metaBonus
+        const total = tierScore*0.30
+          + fillsNeeded + counterBonus + vuln + synergyBonus + daBonus
+          + ourComfortBonus + playerPoolBonus + coreCounterBonus
+          + compBonus + antiCompBonus + lookaheadPenalty + seriesPenalty
+          + dupRolePenalty + metaBonus
           - (prevUsed.includes(h.id)?12:0);
 
-        if (total < 20) return null;
+        if (total < 10) return null;
 
-        // Pick the strongest rationale for the reason text.
+        const counterText = counterTarget
+          ? (counterIsLaneAware
+              ? `Counters ${counterTarget} in ${slot} ${Math.round(counterWR*100)}% (${counterCount}g lane-specific scout)`
+              : `Counters ${counterTarget} ${Math.round(counterWR*100)}% in ${counterCount}g scout — proven matchup`)
+          : '';
         const candidates = [
-          { score:counterBonus,     text: counterTarget ? `Counters ${counterTarget} ${Math.round(counterWR*100)}% in ${counterCount}g scout — proven matchup` : '' },
-          { score:synergyBonus,     text: synergyMate ? `Pairs with ${synergyMate} ${Math.round(synergyWR*100)}% in ${synergyCount}g scout — proven combo` : '' },
-          { score:ourComfortBonus,  text: ourComfortBonus ? `${ourName} comfort: in your team's top picks` : '' },
-          { score:coreCounterBonus, text: coreTarget ? `Counters ${oppName}'s signature ${coreTarget}` : '' },
-          { score:fillsNeeded>0?40:0, text: `Best ${getTierScore(h.name)===null?'tier-?':(tierScore>=80?'S':tierScore>=60?'A':'B')} ${slot} for your open lane` },
-          { score:daBonus,          text: `Common scout response to enemy comp` },
+          { score:Math.abs(playerPoolBonus),text: playerPoolNote && playerPoolBonus>0 ? `${playerPoolNote} on ${h.name}` : '' },
+          { score:counterBonus,             text: counterText },
+          { score:synergyBonus,             text: synergyMate ? `Pairs with ${synergyMate} ${Math.round(synergyWR*100)}% in ${synergyCount}g scout — proven combo` : '' },
+          { score:ourComfortBonus,          text: ourComfortBonus ? `${ourName} comfort: in your team's top picks` : '' },
+          { score:coreCounterBonus,         text: coreTarget ? `Counters ${oppName}'s signature ${coreTarget}` : '' },
+          { score:compBonus,                text: compNote ? `${compNote} (${compIdentity} identity)` : '' },
+          { score:antiCompBonus,            text: oppCompResult.identity ? `Hard answer vs opp ${oppCompResult.identity} comp` : '' },
+          { score:fillsNeeded>0?40:0,       text: isBlindFirst ? `Safe ${t}-tier ${slot} blind first pick` : `Best ${t}-tier ${slot} for open lane` },
+          { score:daBonus,                  text: `Common scout response to enemy comp` },
         ].filter(c => c.score >= 20 && c.text).sort((a,b)=>b.score-a.score);
-        const reason = candidates[0] ? candidates[0].text : buildPickReason(h, needed, coveredLanes);
+        let reason = candidates[0] ? candidates[0].text : buildPickReason(h, needed, coveredLanes);
+        if (seriesNote) reason += ` ⚠ ${seriesNote}`;
+        if (playerPoolBonus < 0 && playerPoolNote) reason += ` ⚠ ${playerPoolNote}`;
+        if (isLastPick && counterBonus>0) reason = `[LAST PICK] ${reason}`;
 
         return { hero:h, score:Math.round(total), reason };
       })
@@ -3112,18 +3299,22 @@ function _buildDraftScoutIntel(){
     const db = loadScoutDB();
     const matches = db.matches || [];
     if (!matches.length || typeof WDB === 'undefined') {
-      return { counters:{}, synergies:{}, draftedAgainst:{}, n:0 };
+      return { counters:{}, synergies:{}, draftedAgainst:{}, laneCounters:{}, dynamicTiers:{}, n:0 };
     }
-    const opts = { includeAll:true }; // include scrims — coach's own intel
+    const opts = { includeAll:true };
+    let dynamicTiers = {};
+    try { dynamicTiers = WDB.computeDynamicTiers ? (WDB.computeDynamicTiers(2) || {}) : {}; } catch(_) {}
     return {
       counters:        WDB.computeScoutCountersFromMatches(matches, 2, opts) || {},
       synergies:       WDB.computeScoutSynergiesFromMatches(matches, 2, opts) || {},
       draftedAgainst:  WDB.computeDraftedAgainstFromMatches(matches, 2, opts) || {},
+      laneCounters:    WDB.computeLaneAwareCountersFromMatches ? (WDB.computeLaneAwareCountersFromMatches(matches, 2, opts) || {}) : {},
+      dynamicTiers:    dynamicTiers,
       n: matches.length
     };
   } catch(e){
     console.warn('[Draft Board] _buildDraftScoutIntel failed:', e);
-    return { counters:{}, synergies:{}, draftedAgainst:{}, n:0 };
+    return { counters:{}, synergies:{}, draftedAgainst:{}, laneCounters:{}, dynamicTiers:{}, n:0 };
   }
 }
 
@@ -3150,6 +3341,20 @@ function dbDraftedAgainst(heroName){
   return draftScoutIntel().draftedAgainst[heroName] || [];
 }
 function invalidateDraftScoutIntel(){ _draftScoutIntel = null; _draftScoutIntelMtime = 0; }
+
+// Lane-aware counter lookup (Pharsa-Mid vs Pharsa-EXP).
+function dbGetLaneAwareCounter(heroName, heroLane, candidateName, candidateLane){
+  if (typeof WDB === 'undefined' || !WDB.getLaneAwareCounter) return null;
+  return WDB.getLaneAwareCounter(draftScoutIntel().laneCounters, heroName, heroLane, candidateName, candidateLane);
+}
+// Effective tier — dynamic if sample sufficient, else static.
+function dbEffectiveTier(heroName){
+  const dyn = draftScoutIntel().dynamicTiers[heroName];
+  if (dyn && dyn.picks >= 4) return dyn.tier;
+  if (TIER_LIST[heroName]?.tier) return TIER_LIST[heroName].tier;
+  const h = FINAL_HEROES.find(x=>x.name===heroName);
+  return h?.tier || 'B';
+}
 
 // ═══════ ALWAYS-ON COACH PANEL (live-draft simulation) ═══════
 // Mirror of the AI Battle panel. Always visible, recomputed on every
