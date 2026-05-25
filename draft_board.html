@@ -2300,35 +2300,69 @@ function computeLocalPreds(step){
         // META — boosted on blind picks
         const metaBonus = Math.round(((h.ms||0)*2.5 + (h.mp==='highpick'?15:0)) * (isBlindFirst?1.3:1.0));
 
+        // ── FIRST-PICK PRIORITIES ──
+        let firstPickBonus = 0, firstPickNote = '';
+        if (isBlindFirst){
+          const concrete = getHeroLanes(h).filter(L => L !== 'Flex');
+          if (concrete.length >= 2) firstPickBonus += 30;
+          if (concrete.length >= 3) firstPickBonus += 15;
+          const oppTopBans = (oppProfile.topBans || []).slice(0, 8).map(b => b.name || b);
+          if (oppTopBans.includes(h.name)){
+            firstPickBonus += 35;
+            firstPickNote = `${oppName} commonly bans this — anti-ban-prep first pick`;
+          }
+          if (h.mp === 'highpick' && (t === 'S' || t === 'A')) firstPickBonus += 20;
+        }
+
         const total = tierScore*0.30
           + fillsNeeded + counterBonus + vuln + synergyBonus + daBonus
           + ourComfortBonus + playerPoolBonus + coreCounterBonus
           + compBonus + antiCompBonus + lookaheadPenalty + seriesPenalty
-          + dupRolePenalty + metaBonus
+          + firstPickBonus + dupRolePenalty + metaBonus
           - (prevUsed.includes(h.id)?12:0);
 
         if (total < 10) return null;
 
+        // ── REASONING (concrete, multi-signal sentences) ──
         const counterText = counterTarget
           ? (counterIsLaneAware
-              ? `Counters ${counterTarget} in ${slot} ${Math.round(counterWR*100)}% (${counterCount}g lane-specific scout)`
-              : `Counters ${counterTarget} ${Math.round(counterWR*100)}% in ${counterCount}g scout — proven matchup`)
+              ? `counters ${counterTarget} in ${slot} ${Math.round(counterWR*100)}% (${counterCount}g lane-specific)`
+              : `counters ${counterTarget} ${Math.round(counterWR*100)}% in ${counterCount}g scout`)
           : '';
-        const candidates = [
-          { score:Math.abs(playerPoolBonus),text: playerPoolNote && playerPoolBonus>0 ? `${playerPoolNote} on ${h.name}` : '' },
-          { score:counterBonus,             text: counterText },
-          { score:synergyBonus,             text: synergyMate ? `Pairs with ${synergyMate} ${Math.round(synergyWR*100)}% in ${synergyCount}g scout — proven combo` : '' },
-          { score:ourComfortBonus,          text: ourComfortBonus ? `${ourName} comfort: in your team's top picks` : '' },
-          { score:coreCounterBonus,         text: coreTarget ? `Counters ${oppName}'s signature ${coreTarget}` : '' },
-          { score:compBonus,                text: compNote ? `${compNote} (${compIdentity} identity)` : '' },
-          { score:antiCompBonus,            text: oppCompResult.identity ? `Hard answer vs opp ${oppCompResult.identity} comp` : '' },
-          { score:fillsNeeded>0?40:0,       text: isBlindFirst ? `Safe ${t}-tier ${slot} blind first pick` : `Best ${t}-tier ${slot} for open lane` },
-          { score:daBonus,                  text: `Common scout response to enemy comp` },
-        ].filter(c => c.score >= 20 && c.text).sort((a,b)=>b.score-a.score);
-        let reason = candidates[0] ? candidates[0].text : buildPickReason(h, needed, coveredLanes);
+        const dynTier = draftScoutIntel().dynamicTiers[h.name];
+        const tierUpgraded = dynTier && dynTier.picks>=4 && dynTier.tier !== (TIER_LIST[h.name]?.tier||h.tier);
+        const signals = [
+          { key:'player',   score:Math.abs(playerPoolBonus), text: playerPoolNote && playerPoolBonus>0 ? `${playerPoolNote}` : '', positive:playerPoolBonus>0 },
+          { key:'counter',  score:counterBonus,    text: counterText, positive:true },
+          { key:'synergy',  score:synergyBonus,    text: synergyMate?`pairs with ${synergyMate} ${Math.round(synergyWR*100)}% in ${synergyCount}g`:'', positive:true },
+          { key:'comfort',  score:ourComfortBonus, text: ourComfortBonus?`${ourName} signature pick (in your topPicks)`:'', positive:true },
+          { key:'core',     score:coreCounterBonus,text: coreTarget?`hard-counters ${oppName}'s signature ${coreTarget}`:'', positive:true },
+          { key:'comp',     score:compBonus,       text: compNote?`fits your ${compIdentity} identity`:'', positive:compBonus>0 },
+          { key:'anticomp', score:antiCompBonus,   text: oppCompResult.identity?`hard answer vs opp ${oppCompResult.identity} comp`:'', positive:true },
+          { key:'firstpick',score:firstPickBonus,  text: firstPickNote || (firstPickBonus>=30?`flex first pick — keeps your comp hidden`:''), positive:true },
+          { key:'fit',      score:fillsNeeded>0?40:0, text:`fills your open ${slot}`, positive:true },
+          { key:'response', score:daBonus,         text:`commonly drafted opposite enemy comp`, positive:true },
+        ].filter(c => c.score >= 15 && c.text && c.positive).sort((a,b)=>b.score-a.score);
+
+        let reason = '';
+        if (signals.length){
+          const top = signals[0];
+          const support = signals[1] && (top.score - signals[1].score < 50) ? signals[1] : null;
+          const lead = top.text.charAt(0).toUpperCase() + top.text.slice(1);
+          reason = support ? `${lead}; also ${support.text}` : lead;
+        } else {
+          const parts = [];
+          if (fillsNeeded>0) parts.push(`fills open ${slot}`);
+          if (h.mp==='highpick') parts.push(`high-pick meta`);
+          if (t==='S' || t==='A') parts.push(`${t}-tier ${slot!=='Flex'?slot:''}`);
+          if (!parts.length) parts.push(`${t}-tier ${slot!=='Flex'?slot:'flex'} (${h.ms||0}/10 meta)`);
+          reason = parts.join(' · ');
+        }
+        if (tierUpgraded && (t==='S' || t==='A')) reason += ` · scout-promoted to ${t}-tier from your scrims`;
         if (seriesNote) reason += ` ⚠ ${seriesNote}`;
         if (playerPoolBonus < 0 && playerPoolNote) reason += ` ⚠ ${playerPoolNote}`;
         if (isLastPick && counterBonus>0) reason = `[LAST PICK] ${reason}`;
+        else if (isBlindFirst) reason = `[BLIND 1st] ${reason}`;
 
         return { hero:h, score:Math.round(total), reason };
       })

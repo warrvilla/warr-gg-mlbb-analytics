@@ -2582,36 +2582,82 @@ function computeCoachSuggestions(step){
     // META — lighter on counter-pick steps, heavier on blind picks where it matters more
     const metaBonus=Math.round(((h.ms||0)*2.5+(h.mp==='highpick'?15:0)) * (isBlindFirst?1.3:1.0));
 
+    // ── FIRST-PICK PRIORITIES (blind first pick only) ─────────────
+    // Real coaches favor on blind first: flex versatility, anti-ban-prep,
+    // and broadly-strong heroes that don't telegraph our comp identity.
+    let firstPickBonus = 0, firstPickNote = '';
+    if (isBlindFirst){
+      const concreteLanes = heroLns.filter(L => L !== 'Flex');
+      // (a) FLEX VERSATILITY: 2+ playable lanes = useful first pick
+      if (concreteLanes.length >= 2) firstPickBonus += 30;
+      if (concreteLanes.length >= 3) firstPickBonus += 15;
+      // (b) ANTI-BAN-PREP: opp commonly bans this → force them to waste a ban
+      //     somewhere else, or take the threat off the table.
+      if (ep && (ep.topBans||[]).slice(0,8).includes(h.name)){
+        firstPickBonus += 35;
+        firstPickNote = `${oppName||'Opp'} commonly bans this — anti-ban-prep first pick`;
+      }
+      // (c) BLIND-SAFE: high meta + high tier = safe pick even without intel
+      if (h.mp === 'highpick' && (t === 'S' || t === 'A')) firstPickBonus += 20;
+    }
+
     const total = tierScore*0.30
       + fillsNeeded + counterBonus + vuln + synergyBonus + daBonus
       + ourComfort + playerPoolBonus + ourComboBonus + coreCounterBonus
       + compBonus + antiCompBonus + lookaheadPenalty
-      + dupRolePenalty + metaBonus;
+      + firstPickBonus + dupRolePenalty + metaBonus;
     if(total<10) return null;
 
-    let reason='', category='tier';
+    // ── REASONING (concrete, multi-signal sentences) ──
+    // Surface the strongest signal as the headline, then append the next
+    // strongest as supporting detail. Always include specific numbers when
+    // available (names, WRs, sample sizes). Fallback explains WHY a hero
+    // ranked high using whatever signals fired weakly.
     const counterText = counterTarget
       ? (counterIsLaneAware
-          ? `Counters ${counterTarget} in ${slot} ${Math.round(counterWR*100)}% (${counterCount}g lane-specific scout)`
-          : `Counters ${counterTarget} ${Math.round(counterWR*100)}% in ${counterCount}g scout — proven matchup`)
+          ? `counters ${counterTarget} in ${slot} ${Math.round(counterWR*100)}% (${counterCount}g lane-specific)`
+          : `counters ${counterTarget} ${Math.round(counterWR*100)}% in ${counterCount}g scout`)
       : '';
-    const candidates=[
-      {key:'player',   score:Math.abs(playerPoolBonus), text:playerPoolNote && playerPoolBonus>0 ? `${playerPoolNote} on ${h.name}` : ''},
-      {key:'counter',  score:counterBonus,    text:counterText},
-      {key:'synergy',  score:synergyBonus,    text:synergyMate?`Pairs with ${synergyMate} ${Math.round(synergyWR*100)}% in ${synergyCount}g scout — proven combo`:''},
-      {key:'comfort',  score:ourComfort,      text:ourFav?`${pName||'Your team'}: ${Math.round((ourFav.wr||0)*100)}% WR on ${h.name} over ${ourFav.count||0}g`:''},
-      {key:'core',     score:coreCounterBonus,text:coreCounterTarget?`Counters ${oppName||'opp'}'s signature ${coreCounterTarget}`:''},
-      {key:'combo',    score:ourComboBonus,   text:matchedOurCombo?`Activates ${matchedOurCombo.a}+${matchedOurCombo.b} (${Math.round((matchedOurCombo.wr||0.6)*100)}% WR)`:''},
-      {key:'comp',     score:compBonus,       text:compNote?`${compNote} (${compIdentity} identity)`:''},
-      {key:'anticomp', score:antiCompBonus,   text:oppCompResult.identity?`Hard answer vs opp ${oppCompResult.identity} comp`:''},
-      {key:'fit',      score:fillsNeeded>0?40:0, text:isBlindFirst?`Safe ${t}-tier ${slot} blind first pick`:`Best ${t}-tier ${slot} option for open lane`},
-      {key:'response', score:daBonus,         text:`Common scout response to enemy comp`},
-    ].filter(c=>c.score>=20 && c.text).sort((a,b)=>b.score-a.score);
-    const top=candidates[0];
-    if(top){ reason=top.text; category=top.key; } else { reason=`${t}-tier ${slot!=='Flex'?slot:'flex'} — ${h.ms||0}/10 meta`; category='tier'; }
-    // Append player-pool warning when it's a negative
+    const dynTier = scoutIntel().dynamicTiers[h.name];
+    const tierUpgraded = dynTier && dynTier.picks>=4 && dynTier.tier!==(TIER_LIST[h.name]?.tier||h.tier);
+    const signals=[
+      {key:'player',   score:Math.abs(playerPoolBonus), text: playerPoolNote && playerPoolBonus>0 ? `${playerPoolNote}` : '', positive:playerPoolBonus>0},
+      {key:'counter',  score:counterBonus,    text: counterText, positive:true},
+      {key:'synergy',  score:synergyBonus,    text: synergyMate?`pairs with ${synergyMate} ${Math.round(synergyWR*100)}% in ${synergyCount}g`:'', positive:true},
+      {key:'comfort',  score:ourComfort,      text: ourFav?`${pName||'your team'} ${Math.round((ourFav.wr||0)*100)}% WR over ${ourFav.count||0}g`:'', positive:true},
+      {key:'core',     score:coreCounterBonus,text: coreCounterTarget?`hard-counters ${oppName||'opp'}'s signature ${coreCounterTarget}`:'', positive:true},
+      {key:'combo',    score:ourComboBonus,   text: matchedOurCombo?`activates ${matchedOurCombo.a}+${matchedOurCombo.b} (${Math.round((matchedOurCombo.wr||0.6)*100)}% WR)`:'', positive:true},
+      {key:'comp',     score:compBonus,       text: compNote?`fits your ${compIdentity} identity`:'', positive:compBonus>0},
+      {key:'anticomp', score:antiCompBonus,   text: oppCompResult.identity?`hard answer vs opp ${oppCompResult.identity} comp`:'', positive:true},
+      {key:'firstpick',score:firstPickBonus,  text: firstPickNote || (firstPickBonus>=30?`flex first pick — keeps your comp hidden`:''), positive:true},
+      {key:'fit',      score:fillsNeeded>0?40:0, text: `fills your open ${slot}`, positive:true},
+      {key:'response', score:daBonus,         text: `commonly drafted opposite enemy comp`, positive:true},
+    ].filter(c=>c.score>=15 && c.text && c.positive).sort((a,b)=>b.score-a.score);
+
+    // Build sentence: headline (top signal) + up to one supporting clause.
+    let reason='', category='tier';
+    if (signals.length){
+      const top = signals[0];
+      const support = signals[1] && (top.score - signals[1].score < 50) ? signals[1] : null;
+      // Capitalize first letter of top.text
+      const lead = top.text.charAt(0).toUpperCase() + top.text.slice(1);
+      reason = support ? `${lead}; also ${support.text}` : lead;
+      category = top.key;
+    } else {
+      // Specific fallback when no strong signal fires
+      const reasonParts = [];
+      if (fillsNeeded>0) reasonParts.push(`fills open ${slot}`);
+      if (h.mp==='highpick') reasonParts.push(`high-pick meta`);
+      if (t==='S' || t==='A') reasonParts.push(`${t}-tier ${slot!=='Flex'?slot:''}`);
+      if (!reasonParts.length) reasonParts.push(`${t}-tier ${slot!=='Flex'?slot:'flex'} (${h.ms||0}/10 meta)`);
+      reason = reasonParts.join(' · ');
+      category = 'tier';
+    }
+    // Annotations
+    if (tierUpgraded && (t==='S' || t==='A')) reason += ` · scout-promoted to ${t}-tier from your scrims`;
     if (playerPoolBonus < 0 && playerPoolNote) reason += ` ⚠ ${playerPoolNote}`;
     if (isLastPick && counterBonus>0) reason = `[LAST PICK] ${reason}`;
+    else if (isBlindFirst) reason = `[BLIND 1st] ${reason}`;
     return {hero:h,score:Math.round(total),reason,tier:t,category,slot,role};
   }).filter(Boolean).sort((a,b)=>b.score-a.score);
   return scored.slice(0,5);
@@ -2880,7 +2926,25 @@ function localAI(step){
     }).filter(Boolean).sort((a,b)=>b.score-a.score);
 
     const best=scored[0];
-    const h=best?.hero||avail.find(h=>h.mp==='mustban')||avail.find(h=>['S'].includes(_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier))||avail[0];
+    // SAFE FALLBACK POOL: when scored is empty (everything got filtered in late
+    // P2 etc.), still respect the lane-waste check before grabbing a fallback.
+    // The old version went straight to avail.find(S-tier) which is how Fanny
+    // got banned with Jungle already filled — she's S-tier in scout data so
+    // the fallback grabbed her regardless of whether opp could even pick her.
+    const _safePool=avail.filter(_h=>{
+      const _lns=getHeroLanesAB(_h);
+      const _playable=_lns.filter(L=>L!=='Flex');
+      // Pass Filter 0 equivalent: at least one open opp lane (or pure-Flex hero).
+      return _playable.length===0 || _playable.some(L=>oppNeeded.includes(L));
+    });
+    const h=best?.hero
+      || _safePool.find(x=>x.mp==='mustban')
+      || _safePool.find(x=>['S'].includes(_scoutTierCache?.[x.name]?.tier||TIER_LIST[x.name]?.tier||x.tier))
+      || _safePool[0]
+      // Final last-resort: a literal must-ban hero (broken meta) regardless of
+      // lane waste — those get auto-banned on principle.
+      || avail.find(x=>x.mp==='mustban')
+      || avail[0];
     const ln=lane(h);
     const _banT=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
     const cat=best?.category||(h.mp==='mustban'?'must':'tier');
