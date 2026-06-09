@@ -2909,9 +2909,46 @@ function saveMatch() {
     const _sk = DB_MODULE.getSeriesId ? DB_MODULE.getSeriesId(match) : null;
     if (_sk) _seriesCollapsed[_sk] = false;
   } catch(_) {}
+
+  // ── AUTO-ADJUST FILTERS IF THE SAVED MATCH WOULD BE HIDDEN ──
+  // Without this, a coach saving (say) an MPL PH Playoffs match while the
+  // view is filtered to MPL ID / Season 17 / patch 1.9.28 just sees the
+  // match silently disappear. Detect mismatch, relax the filters, and tell
+  // the user we did so. We DO NOT touch the saved match data — only filters
+  // (which are view-only UI state).
+  const filterAdjustments = [];
+  if (leagueFilter !== 'all' && leagueFilter !== match.league){
+    filterAdjustments.push(`League → All`);
+    leagueFilter = 'all';
+  }
+  if (seasonFilter !== 'all' && seasonFilter !== (match.season||'')){
+    filterAdjustments.push(`Season → All`);
+    seasonFilter = 'all';
+  }
+  if (patchFilter !== 'all' && patchFilter !== (match.patch||'')){
+    filterAdjustments.push(`Patch → All`);
+    patchFilter = 'all';
+  }
+  if (matchSearch && !match.blueTeam.toLowerCase().includes(matchSearch.toLowerCase())
+                   && !match.redTeam.toLowerCase().includes(matchSearch.toLowerCase())
+                   && !(match.notes||'').toLowerCase().includes(matchSearch.toLowerCase())){
+    filterAdjustments.push(`Search cleared`);
+    matchSearch = '';
+    const _ms = document.getElementById('matchSearchInput'); if (_ms) _ms.value = '';
+  }
+  // Reflect filter changes in the UI selects too.
+  if (filterAdjustments.length){
+    const _lf = document.getElementById('leagueFilterSelect'); if (_lf) _lf.value = leagueFilter;
+    const _sf = document.getElementById('seasonFilterSelect'); if (_sf) _sf.value = seasonFilter;
+    const _pf = document.getElementById('patchFilterSelect');  if (_pf) _pf.value = patchFilter;
+  }
+
   closeMatchModal();
   renderMatchList();
-  toast(`✓ Match saved — ${blueTeam} vs ${redTeam}`);
+  const baseMsg = `✓ Match saved — ${blueTeam} vs ${redTeam}`;
+  toast(filterAdjustments.length
+    ? `${baseMsg} · Filters reset (${filterAdjustments.join(', ')}) so it's visible`
+    : baseMsg);
   // Auto-sync to cloud (non-blocking)
   _setSyncStatus('syncing');
   _cloudSaveMatch(match);
