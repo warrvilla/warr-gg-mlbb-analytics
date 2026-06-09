@@ -1156,8 +1156,101 @@ WDB.PORTRAIT_ALIAS = {
   'Yu Zhong':    'YuZhong',
   'Luo Yi':      'luoyi',
 };
-/** Returns the portraits/ path for a given hero name */
+// ── Portrait override system (cloud-backed) ──
+// Once the admin uploads a portrait via the homepage UI, it gets stored in
+// the 'hero-portraits' Supabase Storage bucket and an entry lands in the
+// hero_portrait_overrides table. WDB.heroPortrait below checks that table
+// first (via the cached map), falling back to the local portraits/ folder
+// when no override exists. The result: site-wide live updates without code.
+WDB._portraitOverrides = {};   // {heroName: publicUrl}
+WDB._portraitOverridesLoaded = false;
+
+/** Load the override map once per session. Safe to call multiple times. */
+WDB.loadHeroPortraitOverrides = async function() {
+  if (WDB._portraitOverridesLoaded) return WDB._portraitOverrides;
+  if (typeof _sbClient === 'undefined') return {};
+  try {
+    const { data, error } = await _sbClient
+      .from('hero_portrait_overrides')
+      .select('hero_name, file_path, updated_at');
+    if (error) throw error;
+    const map = {};
+    (data || []).forEach(row => {
+      // Resolve public URL for the file in the hero-portraits bucket.
+      // Cache-bust with updated_at so re-uploads show immediately.
+      const { data: pub } = _sbClient.storage
+        .from('hero-portraits')
+        .getPublicUrl(row.file_path);
+      const stamp = row.updated_at ? `?t=${new Date(row.updated_at).getTime()}` : '';
+      map[row.hero_name] = (pub?.publicUrl || '') + stamp;
+    });
+    WDB._portraitOverrides = map;
+    WDB._portraitOverridesLoaded = true;
+    return map;
+  } catch (e) {
+    console.warn('[WDB] loadHeroPortraitOverrides failed:', e.message);
+    return {};
+  }
+};
+
+/** Upload a new portrait for a hero. Admin only.
+ *  Returns { url } on success or throws. */
+WDB.uploadHeroPortrait = async function(heroName, file) {
+  if (!heroName || !file) throw new Error('heroName and file are required');
+  if (typeof _sbClient === 'undefined') throw new Error('Supabase not initialized');
+  if (typeof WAdmin === 'undefined' || !WAdmin.isAdmin()) throw new Error('Admin only');
+  // Filename: use the alias (matches the local file convention) + the file's extension.
+  const base = WDB.PORTRAIT_ALIAS[heroName] || heroName;
+  const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+  const path = `${base}.${ext}`;
+
+  const { error: upErr } = await _sbClient.storage
+    .from('hero-portraits')
+    .upload(path, file, { upsert: true, cacheControl: '3600', contentType: file.type });
+  if (upErr) throw upErr;
+
+  // Record / update the override row
+  const { error: dbErr } = await _sbClient
+    .from('hero_portrait_overrides')
+    .upsert({
+      hero_name: heroName,
+      file_path: path,
+      updated_at: new Date().toISOString(),
+      updated_by: WAuth.getUser()?.id || null
+    }, { onConflict: 'hero_name' });
+  if (dbErr) throw dbErr;
+
+  // Refresh local cache with the new cache-busted URL
+  const { data: pub } = _sbClient.storage.from('hero-portraits').getPublicUrl(path);
+  WDB._portraitOverrides[heroName] = (pub?.publicUrl || '') + `?t=${Date.now()}`;
+  return { url: WDB._portraitOverrides[heroName] };
+};
+
+/** Remove the portrait override for a hero (reverts to local PNG). Admin only. */
+WDB.deleteHeroPortrait = async function(heroName) {
+  if (!heroName) throw new Error('heroName is required');
+  if (typeof _sbClient === 'undefined') throw new Error('Supabase not initialized');
+  if (typeof WAdmin === 'undefined' || !WAdmin.isAdmin()) throw new Error('Admin only');
+
+  // Find the existing path so we can clean up the storage object too.
+  const { data: row } = await _sbClient
+    .from('hero_portrait_overrides')
+    .select('file_path')
+    .eq('hero_name', heroName)
+    .maybeSingle();
+  if (row?.file_path) {
+    await _sbClient.storage.from('hero-portraits').remove([row.file_path]).catch(() => {});
+  }
+  await _sbClient.from('hero_portrait_overrides').delete().eq('hero_name', heroName);
+  delete WDB._portraitOverrides[heroName];
+};
+
+/** Returns the portraits/ path for a given hero name.
+ *  Checks cloud override first, then falls back to local PNG. */
 WDB.heroPortrait = function(name) {
+  if (WDB._portraitOverrides && WDB._portraitOverrides[name]) {
+    return WDB._portraitOverrides[name];
+  }
   const base = WDB.PORTRAIT_ALIAS[name] || name;
   return `portraits/${base}.png`;
 };
