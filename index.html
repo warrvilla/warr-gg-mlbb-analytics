@@ -742,10 +742,6 @@ body {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>
         </button>
       </div>
-      <button class="hero-admin-edit" id="heroAdminEdit" onclick="openSlidesEditor()">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        Edit Slides
-      </button>
     </section>
 
     <!-- ────────────── META HIER + INTEL FEED ────────────── -->
@@ -806,21 +802,6 @@ body {
     </section>
 
   </main>
-</div>
-
-<!-- ────────────── ADMIN SLIDE EDITOR MODAL ────────────── -->
-<div class="modal-backdrop" id="slidesModal">
-  <div class="modal-box">
-    <div class="modal-head">
-      <h3 class="modal-title">Edit Hero Slides</h3>
-      <button class="modal-close" onclick="closeSlidesEditor()" aria-label="Close">×</button>
-    </div>
-    <div id="slidesEditorList"></div>
-    <div class="modal-foot">
-      <button class="add-slide" onclick="addSlide()">+ Add Slide</button>
-      <button class="save-slides" onclick="saveSlides()">Save Slides</button>
-    </div>
-  </div>
 </div>
 
 <script src="warr-lib.js"></script>
@@ -918,148 +899,13 @@ function resetHeroTimer() {
   _slideTimer = setInterval(heroNext, 6500);
 }
 
-// ── ADMIN SLIDE EDITOR ──
-async function showAdminControls() {
-  // Check if current user is admin via WAdmin.isAdmin (defined in warr-lib.js)
-  try {
-    if (typeof WAuth !== 'undefined') {
-      await WAuth.restoreSession?.();
-    }
-    if (typeof WAdmin !== 'undefined' && WAdmin.isAdmin && WAdmin.isAdmin()) {
-      const wrap = document.getElementById('heroAdminControls');
-      if (wrap) wrap.style.display = 'inline-flex';
-    }
-  } catch(_) {}
-}
+// Slide Editor + Portraits Manager UIs both live in Profile > Admin.
+// This page just CONSUMES the data:
+//   - Carousel reads slides from localStorage (same key the editor writes)
+//   - Meta Hierarchies cards call WDB.heroPortrait() which checks the
+//     cloud override map populated by loadHeroPortraitOverrides() below
 
-// Portraits Manager UI moved to Profile > Admin section (profile.html).
-// We still call WDB.loadHeroPortraitOverrides() at init so cloud-uploaded
-// portraits surface on the homepage Meta Hierarchies grid.
-
-function openSlidesEditor() {
-  renderSlidesEditor();
-  document.getElementById('slidesModal').classList.add('open');
-}
-function closeSlidesEditor() {
-  document.getElementById('slidesModal').classList.remove('open');
-}
-
-let _editingSlides = [];
-
-function renderSlidesEditor() {
-  _editingSlides = JSON.parse(JSON.stringify(_slides));
-  const list = document.getElementById('slidesEditorList');
-  list.innerHTML = _editingSlides.map((s, i) => `
-    <div class="slide-row">
-      <div class="slide-row-head">
-        <span class="num">${i + 1}.</span>
-        <span class="label">Slide ${i + 1}</span>
-        <div class="slide-row-actions">
-          ${i > 0 ? `<button class="row-btn" onclick="moveSlide(${i}, -1)">↑</button>` : ''}
-          ${i < _editingSlides.length - 1 ? `<button class="row-btn" onclick="moveSlide(${i}, 1)">↓</button>` : ''}
-          <button class="row-btn danger" onclick="deleteSlide(${i})">Delete</button>
-        </div>
-      </div>
-      <div class="field full">
-        <label>Eyebrow tag</label>
-        <input type="text" data-idx="${i}" data-key="eyebrow" value="${escapeHtml(s.eyebrow || '')}" placeholder="// DRAFT INTEL">
-      </div>
-      <div class="field full">
-        <label>Headline (use &lt;em&gt;X&lt;/em&gt; for amethyst gradient)</label>
-        <input type="text" data-idx="${i}" data-key="title" value="${escapeHtml(s.title || '')}" placeholder="DOMINATE THE &lt;em&gt;ARENA&lt;/em&gt;">
-      </div>
-      <div class="field full">
-        <label>Sub-headline</label>
-        <textarea data-idx="${i}" data-key="sub" placeholder="Short description sentence…">${escapeHtml(s.sub || '')}</textarea>
-      </div>
-      <div class="field">
-        <label>Primary button label</label>
-        <input type="text" data-idx="${i}" data-key="cta1.label" value="${escapeHtml(s.cta1?.label || '')}" placeholder="Launch Draft Board">
-      </div>
-      <div class="field">
-        <label>Primary button URL</label>
-        <input type="text" data-idx="${i}" data-key="cta1.url" value="${escapeHtml(s.cta1?.url || '')}" placeholder="draft_board.html">
-      </div>
-      <div class="field">
-        <label>Secondary button label</label>
-        <input type="text" data-idx="${i}" data-key="cta2.label" value="${escapeHtml(s.cta2?.label || '')}" placeholder="Scout Opponents">
-      </div>
-      <div class="field">
-        <label>Secondary button URL</label>
-        <input type="text" data-idx="${i}" data-key="cta2.url" value="${escapeHtml(s.cta2?.url || '')}" placeholder="scout.html">
-      </div>
-      <div class="field full">
-        <label>Background image URL (optional)</label>
-        <input type="text" data-idx="${i}" data-key="bg" value="${escapeHtml(s.bg || '')}" placeholder="https://… (leave blank for cinematic dark)">
-      </div>
-    </div>
-  `).join('');
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
-function moveSlide(i, dir) {
-  syncEditorState();
-  const j = i + dir;
-  if (j < 0 || j >= _editingSlides.length) return;
-  const tmp = _editingSlides[i];
-  _editingSlides[i] = _editingSlides[j];
-  _editingSlides[j] = tmp;
-  renderSlidesEditorFromState();
-}
-function deleteSlide(i) {
-  if (!confirm('Delete this slide?')) return;
-  syncEditorState();
-  _editingSlides.splice(i, 1);
-  renderSlidesEditorFromState();
-}
-function addSlide() {
-  syncEditorState();
-  _editingSlides.push({
-    eyebrow: '// NEW',
-    title: 'NEW <em>SLIDE</em>',
-    sub: 'Write something compelling here.',
-    cta1: { label: 'Learn More', url: 'index.html' },
-    cta2: { label: '', url: '' },
-    bg: '',
-  });
-  renderSlidesEditorFromState();
-}
-function syncEditorState() {
-  document.querySelectorAll('#slidesEditorList input, #slidesEditorList textarea').forEach(el => {
-    const idx = Number(el.dataset.idx);
-    const key = el.dataset.key;
-    if (Number.isNaN(idx) || !_editingSlides[idx]) return;
-    if (key.includes('.')) {
-      const [a, b] = key.split('.');
-      _editingSlides[idx][a] = _editingSlides[idx][a] || {};
-      _editingSlides[idx][a][b] = el.value;
-    } else {
-      _editingSlides[idx][key] = el.value;
-    }
-  });
-}
-function renderSlidesEditorFromState() {
-  const tmp = _slides;
-  _slides = _editingSlides;
-  renderSlidesEditor();
-  _slides = tmp;
-}
-function saveSlides() {
-  syncEditorState();
-  if (!_editingSlides.length) {
-    alert('At least one slide is required.');
-    return;
-  }
-  _slides = _editingSlides;
-  try { localStorage.setItem(HERO_SLIDES_KEY, JSON.stringify(_slides)); } catch(_) {}
-  _slideIdx = 0;
-  renderHeroBanner();
-  resetHeroTimer();
-  closeSlidesEditor();
-}
+// Slide editor moved to Profile > Admin > Hero Banner Slides.
 
 // ══════════════════════════════════════════════════════════════
 // META HIERARCHIES
@@ -1285,7 +1131,6 @@ function renderIntelFeed() {
   try { await WDB.loadHeroPortraitOverrides?.(); } catch(_) {}
   await loadMetaData();
   renderIntelFeed();
-  showAdminControls();
 
   // Pause auto-advance when user hovers
   const banner = document.getElementById('heroBanner');

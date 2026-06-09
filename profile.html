@@ -634,6 +634,20 @@ body { background: var(--bg); min-height: 100vh; }
       </div>
     </div>
 
+    <!-- ADMIN: HERO BANNER SLIDES — homepage carousel content -->
+    <div class="admin-mgmt-card" id="adminSlidesCard">
+      <h4>🖼 Admin — Hero Banner Slides</h4>
+      <div class="mgmt-sub">Edit the sliding hero banner on the homepage. Reorder, add, delete slides. Each slide has an eyebrow tag, headline (wrap a word in &lt;em&gt; for the amethyst gradient), sub-headline, two CTAs, and an optional background image URL. Saved to your browser's localStorage.</div>
+      <div class="admin-mgmt-form" style="flex-direction:column;align-items:stretch;gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button class="admin-mgmt-btn" onclick="openSlidesEditor()">Open Slide Editor</button>
+          <span style="font-size:11px;color:var(--text3);flex:1;min-width:200px;">
+            Changes appear on the homepage as soon as you save.
+          </span>
+        </div>
+      </div>
+    </div>
+
     <!-- ADMIN: HERO PORTRAITS — cloud-backed image overrides -->
     <div class="admin-mgmt-card" id="adminPortraitsCard">
       <h4>🖼 Admin — Hero Portraits</h4>
@@ -654,6 +668,151 @@ body { background: var(--bg); min-height: 100vh; }
       <p>Approve team affiliations, assign subscription plans, manage users, and handle hard-delete requests.</p>
       <a href="admin.html" class="admin-go-btn">Open Admin Panel →</a>
     </div>
+
+    <!-- ────────────── HERO BANNER SLIDES EDITOR MODAL ────────────── -->
+    <div id="slidesModalBackdrop" style="display:none;position:fixed;inset:0;background:rgba(5,5,9,0.78);backdrop-filter:blur(12px);z-index:1000;align-items:center;justify-content:center;">
+      <div style="background:var(--surface,#101018);border:0.5px solid rgba(255,255,255,0.10);border-radius:18px;padding:24px;max-width:720px;width:92vw;max-height:88vh;overflow:auto;box-shadow:0 24px 80px rgba(0,0,0,0.6);">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;padding-bottom:14px;border-bottom:0.5px solid rgba(255,255,255,0.06);">
+          <h3 style="font-family:var(--font-display,-apple-system);font-weight:800;font-size:16px;letter-spacing:0.04em;text-transform:uppercase;margin:0;">Edit Hero Slides</h3>
+          <button onclick="closeSlidesEditor()" aria-label="Close" style="margin-left:auto;background:transparent;border:0;color:rgba(255,255,255,0.40);font-size:22px;cursor:pointer;padding:4px 8px;border-radius:6px;">×</button>
+        </div>
+        <div id="slidesEditorList"></div>
+        <div style="display:flex;gap:10px;margin-top:14px;padding-top:16px;border-top:0.5px solid rgba(255,255,255,0.06);align-items:center;">
+          <button onclick="addSlide()" style="background:rgba(255,255,255,0.04);border:0.5px dashed rgba(255,255,255,0.10);border-radius:8px;padding:9px 16px;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.62);cursor:pointer;">+ Add Slide</button>
+          <button onclick="saveSlides()" style="margin-left:auto;background:linear-gradient(135deg,#A888CC 0%,#5E5CE6 100%);border:0;border-radius:9999px;padding:9px 22px;font-size:11px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#fff;cursor:pointer;">Save Slides</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    // ── HERO BANNER SLIDES EDITOR (admin only) ──
+    const HERO_SLIDES_KEY = 'warr_homepage_slides';
+    const DEFAULT_SLIDES = [
+      {
+        eyebrow: '// DRAFT INTEL',
+        title: 'DOMINATE THE <em>ARENA</em>',
+        sub: 'The definitive intelligence platform for professional teams. Built for MPL PH, ID, MY, and SG to win the game before it starts.',
+        cta1: { label: 'Launch Draft Board', url: 'draft_board.html' },
+        cta2: { label: 'Scout Opponents', url: 'scout.html' },
+        bg: '',
+      },
+    ];
+    let _slides = (() => {
+      try {
+        const raw = localStorage.getItem(HERO_SLIDES_KEY);
+        if (raw) { const p = JSON.parse(raw); if (Array.isArray(p) && p.length) return p; }
+      } catch(_) {}
+      return DEFAULT_SLIDES;
+    })();
+    let _editingSlides = [];
+
+    function _slideField(idx, key, label, value, type, placeholder) {
+      const v = (value || '').replace(/"/g, '&quot;');
+      const inputAttr = `data-idx="${idx}" data-key="${key}" placeholder="${placeholder || ''}" style="background:#050509;border:0.5px solid rgba(255,255,255,0.10);border-radius:6px;padding:7px 10px;font-size:12px;color:#F0F0F8;font-family:var(--font-body,inherit);"`;
+      const labelEl = `<label style="font-size:9.5px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.36);">${label}</label>`;
+      if (type === 'textarea') {
+        return `<div style="display:flex;flex-direction:column;gap:4px;grid-column:1/-1;">${labelEl}<textarea ${inputAttr} style="background:#050509;border:0.5px solid rgba(255,255,255,0.10);border-radius:6px;padding:7px 10px;font-size:12px;color:#F0F0F8;resize:vertical;min-height:60px;font-family:var(--font-body,inherit);">${value || ''}</textarea></div>`;
+      }
+      const full = type === 'full' ? 'grid-column:1/-1;' : '';
+      return `<div style="display:flex;flex-direction:column;gap:4px;${full}">${labelEl}<input type="text" value="${v}" ${inputAttr}></div>`;
+    }
+
+    function _escapeHtml(s) {
+      return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function openSlidesEditor() {
+      if (typeof WAdmin === 'undefined' || !WAdmin.isAdmin()) {
+        _adminToast('Admin only', 'error'); return;
+      }
+      document.getElementById('slidesModalBackdrop').style.display = 'flex';
+      renderSlidesEditor();
+    }
+    function closeSlidesEditor() {
+      document.getElementById('slidesModalBackdrop').style.display = 'none';
+    }
+    function renderSlidesEditor() {
+      _editingSlides = JSON.parse(JSON.stringify(_slides));
+      _renderSlidesEditorList();
+    }
+    function _renderSlidesEditorList() {
+      const list = document.getElementById('slidesEditorList');
+      list.innerHTML = _editingSlides.map((s, i) => `
+        <div style="background:rgba(255,255,255,0.02);border:0.5px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px 16px;margin-bottom:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;">
+          <div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+            <span style="font-family:var(--font-mono,monospace);font-size:11px;font-weight:700;color:#A888CC;">${i + 1}.</span>
+            <span style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.36);">Slide ${i + 1}</span>
+            <div style="margin-left:auto;display:flex;gap:6px;">
+              ${i > 0 ? `<button onclick="moveSlide(${i}, -1)" style="font-size:10px;padding:4px 10px;border-radius:6px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.10);color:rgba(255,255,255,0.62);cursor:pointer;">↑</button>` : ''}
+              ${i < _editingSlides.length - 1 ? `<button onclick="moveSlide(${i}, 1)" style="font-size:10px;padding:4px 10px;border-radius:6px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.10);color:rgba(255,255,255,0.62);cursor:pointer;">↓</button>` : ''}
+              <button onclick="deleteSlide(${i})" style="font-size:10px;padding:4px 10px;border-radius:6px;background:rgba(216,120,128,0.08);border:0.5px solid rgba(216,120,128,0.22);color:#D87880;cursor:pointer;">Delete</button>
+            </div>
+          </div>
+          ${_slideField(i, 'eyebrow',    'Eyebrow tag',                                                _escapeHtml(s.eyebrow),     'full', '// DRAFT INTEL')}
+          ${_slideField(i, 'title',      'Headline (wrap a word in &lt;em&gt; for amethyst gradient)', _escapeHtml(s.title),       'full', 'DOMINATE THE &lt;em&gt;ARENA&lt;/em&gt;')}
+          ${_slideField(i, 'sub',        'Sub-headline',                                              _escapeHtml(s.sub),         'textarea', 'Short description sentence…')}
+          ${_slideField(i, 'cta1.label', 'Primary button label',                                      _escapeHtml(s.cta1?.label), '', 'Launch Draft Board')}
+          ${_slideField(i, 'cta1.url',   'Primary button URL',                                        _escapeHtml(s.cta1?.url),   '', 'draft_board.html')}
+          ${_slideField(i, 'cta2.label', 'Secondary button label',                                    _escapeHtml(s.cta2?.label), '', 'Scout Opponents')}
+          ${_slideField(i, 'cta2.url',   'Secondary button URL',                                      _escapeHtml(s.cta2?.url),   '', 'scout.html')}
+          ${_slideField(i, 'bg',         'Background image URL (optional)',                           _escapeHtml(s.bg),          'full', 'https://… (leave blank for cinematic dark)')}
+        </div>
+      `).join('');
+    }
+
+    function moveSlide(i, dir) {
+      syncEditorState();
+      const j = i + dir;
+      if (j < 0 || j >= _editingSlides.length) return;
+      const tmp = _editingSlides[i];
+      _editingSlides[i] = _editingSlides[j];
+      _editingSlides[j] = tmp;
+      _renderSlidesEditorList();
+    }
+    function deleteSlide(i) {
+      if (!confirm('Delete this slide?')) return;
+      syncEditorState();
+      _editingSlides.splice(i, 1);
+      _renderSlidesEditorList();
+    }
+    function addSlide() {
+      syncEditorState();
+      _editingSlides.push({
+        eyebrow: '// NEW',
+        title: 'NEW <em>SLIDE</em>',
+        sub: 'Write something compelling here.',
+        cta1: { label: 'Learn More', url: 'index.html' },
+        cta2: { label: '', url: '' },
+        bg: '',
+      });
+      _renderSlidesEditorList();
+    }
+    function syncEditorState() {
+      document.querySelectorAll('#slidesEditorList input, #slidesEditorList textarea').forEach(el => {
+        const idx = Number(el.dataset.idx);
+        const key = el.dataset.key;
+        if (Number.isNaN(idx) || !_editingSlides[idx]) return;
+        if (key.includes('.')) {
+          const [a, b] = key.split('.');
+          _editingSlides[idx][a] = _editingSlides[idx][a] || {};
+          _editingSlides[idx][a][b] = el.value;
+        } else {
+          _editingSlides[idx][key] = el.value;
+        }
+      });
+    }
+    function saveSlides() {
+      syncEditorState();
+      if (!_editingSlides.length) {
+        alert('At least one slide is required.');
+        return;
+      }
+      _slides = _editingSlides;
+      try { localStorage.setItem(HERO_SLIDES_KEY, JSON.stringify(_slides)); } catch(_) {}
+      _adminToast(`Saved ${_slides.length} slide${_slides.length === 1 ? '' : 's'}`);
+      closeSlidesEditor();
+    }
+    </script>
 
     <!-- ────────────── HERO PORTRAITS MANAGER MODAL ────────────── -->
     <div id="portraitsModalBackdrop" style="display:none;position:fixed;inset:0;background:rgba(5,5,9,0.78);backdrop-filter:blur(12px);z-index:1000;align-items:center;justify-content:center;">
@@ -1327,6 +1486,7 @@ async function init() {
        'adminLeaguesCard',
        'adminTeamsCard',
        'adminMaintCard',
+       'adminSlidesCard',
        'adminPortraitsCard'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'block';
