@@ -53,90 +53,9 @@ body {
 
 /* ── DASHBOARD SHELL ── */
 .dashboard-shell {
-  display: grid;
-  grid-template-columns: 232px 1fr;
-  gap: 0;
+  display: block;
   min-height: calc(100vh - 52px); /* sticky nav is 52px */
 }
-
-/* ── LEFT SIDE RAIL ── */
-.side-rail {
-  border-right: 0.5px solid var(--border);
-  background: linear-gradient(180deg, rgba(7,7,12,0.60) 0%, rgba(7,7,12,0.40) 100%);
-  backdrop-filter: var(--blur-l);
-  -webkit-backdrop-filter: var(--blur-l);
-  padding: 28px 16px;
-  display: flex; flex-direction: column;
-  gap: 4px;
-  position: sticky;
-  top: 52px;
-  height: calc(100vh - 52px);
-}
-.side-rail-brand {
-  display: flex; align-items: center; gap: 10px;
-  padding: 0 8px 24px 8px;
-  border-bottom: 0.5px solid var(--border);
-  margin-bottom: 16px;
-}
-.side-rail-brand-mark {
-  width: 28px; height: 28px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
-  box-shadow:
-    0 0 14px rgba(168,136,204,0.50),
-    inset 0 1px 0 rgba(255,255,255,0.25);
-  display: inline-flex; align-items: center; justify-content: center;
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-size: 14px;
-  color: #fff;
-  letter-spacing: 0;
-}
-.side-rail-brand-text {
-  display: flex; flex-direction: column;
-  line-height: 1.1;
-}
-.side-rail-brand-name {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 13px;
-  letter-spacing: 0.02em;
-  color: var(--text);
-}
-.side-rail-brand-name .dot { color: var(--accent); }
-.side-rail-brand-sub {
-  font-size: 8.5px;
-  font-weight: 600;
-  color: var(--text-3);
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  margin-top: 2px;
-}
-.side-rail-item {
-  display: flex; align-items: center; gap: 12px;
-  padding: 9px 12px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.10em;
-  color: var(--text-2);
-  text-decoration: none;
-  border-radius: 8px;
-  text-transform: uppercase;
-  transition: all 0.18s ease;
-  cursor: pointer;
-}
-.side-rail-item:hover {
-  color: var(--text);
-  background: rgba(255,255,255,0.04);
-}
-.side-rail-item.active {
-  color: var(--text);
-  background: var(--accent-dim);
-  box-shadow: inset 0 0 0 0.5px var(--accent-border);
-}
-.side-rail-item svg { flex-shrink: 0; }
-.side-rail-spacer { flex: 1; }
-.side-rail-footer { padding-top: 16px; border-top: 0.5px solid var(--border); }
 
 /* ── MAIN ── */
 .dashboard-main {
@@ -144,6 +63,7 @@ body {
   display: flex; flex-direction: column;
   gap: 18px;
   max-width: 1400px;
+  margin: 0 auto;
 }
 
 /* ── HERO BANNER (carousel) ── */
@@ -433,21 +353,55 @@ body {
 }
 .hero-card-img {
   position: relative;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 4 / 5;
   border-radius: var(--r);
   overflow: hidden;
   background: var(--surface-3);
   border: 0.5px solid var(--border);
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  isolation: isolate;
 }
 .hero-card:hover .hero-card-img {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   border-color: var(--accent-border);
+  box-shadow:
+    0 8px 24px rgba(0,0,0,0.45),
+    0 0 24px rgba(168,136,204,0.15);
 }
 .hero-card-img img {
+  position: absolute;
+  inset: 0;
   width: 100%; height: 100%;
   object-fit: cover;
   display: block;
+  z-index: 1;
+}
+/* Gradient fallback (always rendered behind the portrait) — gives every
+   card an intentional look even when the PNG is missing. */
+.hero-card-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 56px;
+  letter-spacing: -0.04em;
+  color: rgba(255,255,255,0.08);
+  text-shadow: 0 2px 18px rgba(0,0,0,0.4);
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 30%, var(--hero-tint, rgba(168,136,204,0.30)) 0%, transparent 70%),
+    linear-gradient(180deg, rgba(30,30,42,0.85) 0%, rgba(5,5,9,0.95) 100%);
+}
+/* Glass overlay sits ABOVE the portrait so the bottom of the card is darker
+   and the tier badge / name read cleanly */
+.hero-card-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background:
+    linear-gradient(180deg, rgba(5,5,9,0.0) 50%, rgba(5,5,9,0.55) 78%, rgba(5,5,9,0.92) 100%);
+  pointer-events: none;
 }
 .hero-tier {
   position: absolute;
@@ -750,11 +704,8 @@ body {
 /* ── RESPONSIVE ── */
 @media (max-width: 1100px) {
   .grid-row { grid-template-columns: 1fr; }
-  .intel-feed { order: -1; }
 }
 @media (max-width: 880px) {
-  .dashboard-shell { grid-template-columns: 1fr; }
-  .side-rail { display: none; }
   .dashboard-main { padding: 18px; }
   .hero-banner { height: 280px; }
   .hero-title { font-size: 30px; }
@@ -774,51 +725,6 @@ body {
 <div id="warr-nav-root"></div>
 
 <div class="dashboard-shell">
-
-  <!-- LEFT SIDE RAIL -->
-  <aside class="side-rail">
-    <div class="side-rail-brand">
-      <span class="side-rail-brand-mark">W</span>
-      <div class="side-rail-brand-text">
-        <span class="side-rail-brand-name">WARR<span class="dot">.</span>GG</span>
-        <span class="side-rail-brand-sub">Esports Intelligence</span>
-      </div>
-    </div>
-
-    <a class="side-rail-item active" href="index.html">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12L12 3l9 9"/><path d="M5 10v10h14V10"/></svg>
-      Home
-    </a>
-    <a class="side-rail-item" href="patch_meta.html">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6-6 6 6"/><path d="M6 15l6 6 6-6"/></svg>
-      Leagues
-    </a>
-    <a class="side-rail-item" href="scout.html">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>
-      Live
-    </a>
-    <a class="side-rail-item" href="stats.html">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-8M22 20V14"/></svg>
-      Stats
-    </a>
-    <a class="side-rail-item" href="draft_board.html">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-      Draft
-    </a>
-
-    <div class="side-rail-spacer"></div>
-
-    <div class="side-rail-footer">
-      <a class="side-rail-item" href="profile.html">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
-        Support
-      </a>
-      <a class="side-rail-item" href="profile.html">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        Settings
-      </a>
-    </div>
-  </aside>
 
   <!-- MAIN -->
   <main class="dashboard-main">
@@ -1222,17 +1128,35 @@ function renderMetaHierarchies() {
     return;
   }
 
+  // Role-based tint colors so missing-portrait cards still have intentional color identity.
+  const LANE_TINT = {
+    EXP:    'rgba(216,120,128,0.30)',
+    Jungle: 'rgba(168,136,204,0.32)',
+    Mid:    'rgba(94,160,216,0.32)',
+    Gold:   'rgba(200,144,80,0.32)',
+    Roam:   'rgba(76,184,122,0.30)',
+  };
+  const tint = LANE_TINT[lane] || 'rgba(168,136,204,0.28)';
+
   grid.innerHTML = ranked.map(h => {
     const tier = h.pickRate >= 40 || (h.pickRate >= 20 && h.winRate >= 60) ? 'S+'
                : h.pickRate >= 20 || (h.pickRate >= 10 && h.winRate >= 56) ? 'S'
                : h.pickRate >= 10 ? 'A'
                : 'B';
-    const heroId = h.name.toLowerCase().replace(/['\s.]/g, '');
+    // Portrait files are stored as capitalized names like 'Aamon.png',
+    // 'Yi Sun-shin.png' (spaces kept). Try the literal name first, then
+    // try a lowercased/stripped fallback in onerror.
+    const portraitFile = encodeURIComponent(h.name) + '.png';
+    const portraitFallback = encodeURIComponent(h.name.toLowerCase().replace(/['\s.]/g, '')) + '.png';
+    const initial = (h.name[0] || '?').toUpperCase();
     return `
       <a class="hero-card" href="heroes.html#${encodeURIComponent(h.name)}">
-        <div class="hero-card-img">
+        <div class="hero-card-img" style="--hero-tint: ${tint};">
+          <div class="hero-card-fallback">${initial}</div>
+          <img src="./portraits/${portraitFile}" alt="${h.name}" loading="lazy"
+               onerror="if(this.src.indexOf('${portraitFallback}')<0){this.src='./portraits/${portraitFallback}'}else{this.remove();}">
+          <div class="hero-card-overlay"></div>
           <span class="hero-tier t-${tier.replace('+', '\\+')}">${tier}</span>
-          <img src="./portraits/${heroId}.png" alt="${h.name}" onerror="this.style.opacity=0.3">
         </div>
         <div class="hero-card-name">${h.name}</div>
         <div class="hero-card-stat">${Math.round(h.pickRate)}% PR · ${Math.round(h.winRate)}% WR</div>
