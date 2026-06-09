@@ -2085,7 +2085,11 @@ function renderMatchListBody() {
   let _lastWeekKey = null;
   body.innerHTML = series.map(s => {
     const sk = s.key;
-    const collapsed = _seriesCollapsed[sk] !== false;
+    // Default to EXPANDED for any series the user hasn't explicitly collapsed.
+    // The old behavior (undefined → collapsed) made new matches appear to
+    // "disappear" — you'd save a Playoffs/Day3/BO5 game and see only the
+    // series header because the brand-new sk had no entry in _seriesCollapsed.
+    const collapsed = _seriesCollapsed[sk] === true;
     const lc = LEAGUE_CSS[s.league] || 'lg-other';
     const d = new Date(s.date);
     const day = isNaN(d.getTime()) ? '?' : d.getDate();
@@ -2190,7 +2194,9 @@ function renderMatchListBody() {
 }
 
 function toggleSeries(sk) {
-  _seriesCollapsed[sk] = _seriesCollapsed[sk] !== false ? false : true;
+  // Toggle aligned with new default (expanded). collapsed === true means collapsed;
+  // anything else (undefined, false) is expanded.
+  _seriesCollapsed[sk] = _seriesCollapsed[sk] === true ? false : true;
   renderMatchListBody();
 }
 
@@ -2897,6 +2903,12 @@ function saveMatch() {
   DB_MODULE.upsertMatch(match);
   DB_MODULE.rebuildTeams();
   DB_MODULE.save();
+  // Ensure the just-saved match's series is expanded so the user can see it
+  // immediately. Belt + suspenders alongside the default-expanded behavior.
+  try {
+    const _sk = DB_MODULE.getSeriesId ? DB_MODULE.getSeriesId(match) : null;
+    if (_sk) _seriesCollapsed[_sk] = false;
+  } catch(_) {}
   closeMatchModal();
   renderMatchList();
   toast(`✓ Match saved — ${blueTeam} vs ${redTeam}`);
