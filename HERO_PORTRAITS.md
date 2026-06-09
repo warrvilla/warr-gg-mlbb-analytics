@@ -5,7 +5,24 @@ everywhere on the site.
 
 ---
 
-## TL;DR
+## 🚀 Easiest path: upload via the website (cloud)
+
+If you ran `migrations/001_hero_portrait_storage.sql` and
+`migrations/002_hero_portrait_variants.sql` once in Supabase Studio:
+
+1. Sign in as admin → **Profile → Admin — Hero Portraits → Open Portraits Manager**
+2. Each hero shows TWO upload slots:
+   - **Icon** (square 1:1) — used for small thumbs in pickers / stats / scout
+   - **Portrait** (4:5 taller crop) — used for big aesthetic cards on the homepage
+3. Upload separately. PNG/JPG/WebP, max 512 KB each.
+
+Cloud uploads override the local `./portraits/` files automatically and
+go live site-wide on the next page load. Use the **Reset** button to
+remove the cloud override (reverts to the local PNG).
+
+---
+
+## TL;DR — local file system (the original 132 portraits)
 
 1. **Folder:** `./portraits/`
 2. **Filename:** `<HeroName>.png` — exact case, exact spelling (see Aliases below for the few exceptions).

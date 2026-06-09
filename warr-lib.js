@@ -1156,13 +1156,24 @@ WDB.PORTRAIT_ALIAS = {
   'Yu Zhong':    'YuZhong',
   'Luo Yi':      'luoyi',
 };
-// ── Portrait override system (cloud-backed) ──
-// Once the admin uploads a portrait via the homepage UI, it gets stored in
-// the 'hero-portraits' Supabase Storage bucket and an entry lands in the
-// hero_portrait_overrides table. WDB.heroPortrait below checks that table
-// first (via the cached map), falling back to the local portraits/ folder
-// when no override exists. The result: site-wide live updates without code.
-WDB._portraitOverrides = {};   // {heroName: publicUrl}
+// ── Portrait override system (cloud-backed, with VARIANTS) ──
+// Each hero can have multiple uploaded portrait VARIANTS so the admin can
+// use different aesthetics on different surfaces:
+//   • 'icon'     → square 1:1, for small thumbs in pickers / stats tables
+//   • 'portrait' → 3:4 / 4:5 taller crop, for big aesthetic cards on the
+//                  homepage Meta Hierarchies grid and Heroes detail cards
+//
+// Cloud override resolution (in WDB.heroPortrait):
+//   1. requested variant cloud override (e.g. 'portrait')
+//   2. fallback to 'icon' cloud override (so a card always shows SOMETHING
+//      reasonable even if the portrait variant isn't uploaded yet)
+//   3. local PNG in portraits/<HeroName>.png (the existing 132 files)
+//
+// Storage layout in the bucket:
+//   hero-portraits/icon/<HeroOrAlias>.png
+//   hero-portraits/portrait/<HeroOrAlias>.png
+WDB.PORTRAIT_VARIANTS = ['icon', 'portrait'];
+WDB._portraitOverrides = {};   // {heroName: {variant: publicUrl}}
 WDB._portraitOverridesLoaded = false;
 
 /** Load the override map once per session. Safe to call multiple times. */
@@ -1170,19 +1181,35 @@ WDB.loadHeroPortraitOverrides = async function() {
   if (WDB._portraitOverridesLoaded) return WDB._portraitOverrides;
   if (typeof _sbClient === 'undefined') return {};
   try {
-    const { data, error } = await _sbClient
-      .from('hero_portrait_overrides')
-      .select('hero_name, file_path, updated_at');
-    if (error) throw error;
+    // After migration 002, hero_portrait_overrides has a 'variant' column.
+    // We try selecting it; if the column doesn't exist (migration 002 not
+    // applied yet) we fall back to treating every row as the 'icon' variant.
+    let rows = [];
+    try {
+      const { data, error } = await _sbClient
+        .from('hero_portrait_overrides')
+        .select('hero_name, variant, file_path, updated_at');
+      if (error) throw error;
+      rows = data || [];
+    } catch (e) {
+      // Older schema without variant column
+      const { data, error } = await _sbClient
+        .from('hero_portrait_overrides')
+        .select('hero_name, file_path, updated_at');
+      if (error) throw error;
+      rows = (data || []).map(r => ({ ...r, variant: 'icon' }));
+    }
+
     const map = {};
-    (data || []).forEach(row => {
-      // Resolve public URL for the file in the hero-portraits bucket.
-      // Cache-bust with updated_at so re-uploads show immediately.
+    rows.forEach(row => {
       const { data: pub } = _sbClient.storage
         .from('hero-portraits')
         .getPublicUrl(row.file_path);
       const stamp = row.updated_at ? `?t=${new Date(row.updated_at).getTime()}` : '';
-      map[row.hero_name] = (pub?.publicUrl || '') + stamp;
+      const url = (pub?.publicUrl || '') + stamp;
+      const variant = row.variant || 'icon';
+      if (!map[row.hero_name]) map[row.hero_name] = {};
+      map[row.hero_name][variant] = url;
     });
     WDB._portraitOverrides = map;
     WDB._portraitOverridesLoaded = true;
@@ -1194,62 +1221,90 @@ WDB.loadHeroPortraitOverrides = async function() {
 };
 
 /** Upload a new portrait for a hero. Admin only.
+ *  @param {string} heroName  — e.g. 'Aamon'
+ *  @param {File}   file      — image File from <input type="file">
+ *  @param {string} variant   — 'icon' | 'portrait' (default 'icon')
  *  Returns { url } on success or throws. */
-WDB.uploadHeroPortrait = async function(heroName, file) {
+WDB.uploadHeroPortrait = async function(heroName, file, variant) {
   if (!heroName || !file) throw new Error('heroName and file are required');
   if (typeof _sbClient === 'undefined') throw new Error('Supabase not initialized');
   if (typeof WAdmin === 'undefined' || !WAdmin.isAdmin()) throw new Error('Admin only');
-  // Filename: use the alias (matches the local file convention) + the file's extension.
+  variant = WDB.PORTRAIT_VARIANTS.includes(variant) ? variant : 'icon';
+
+  // Filename: <variant>/<alias-or-name>.<ext>. Using a subpath per variant
+  // keeps the bucket organized and means the icon + portrait of the same hero
+  // can coexist as distinct objects.
   const base = WDB.PORTRAIT_ALIAS[heroName] || heroName;
   const ext = (file.name.split('.').pop() || 'png').toLowerCase();
-  const path = `${base}.${ext}`;
+  const path = `${variant}/${base}.${ext}`;
 
   const { error: upErr } = await _sbClient.storage
     .from('hero-portraits')
     .upload(path, file, { upsert: true, cacheControl: '3600', contentType: file.type });
   if (upErr) throw upErr;
 
-  // Record / update the override row
   const { error: dbErr } = await _sbClient
     .from('hero_portrait_overrides')
     .upsert({
       hero_name: heroName,
+      variant,
       file_path: path,
       updated_at: new Date().toISOString(),
-      updated_by: WAuth.getUser()?.id || null
-    }, { onConflict: 'hero_name' });
+      updated_by: (typeof WAuth !== 'undefined' && WAuth.getUser) ? (WAuth.getUser()?.id || null) : null
+    }, { onConflict: 'hero_name,variant' });
   if (dbErr) throw dbErr;
 
   // Refresh local cache with the new cache-busted URL
   const { data: pub } = _sbClient.storage.from('hero-portraits').getPublicUrl(path);
-  WDB._portraitOverrides[heroName] = (pub?.publicUrl || '') + `?t=${Date.now()}`;
-  return { url: WDB._portraitOverrides[heroName] };
+  const url = (pub?.publicUrl || '') + `?t=${Date.now()}`;
+  if (!WDB._portraitOverrides[heroName]) WDB._portraitOverrides[heroName] = {};
+  WDB._portraitOverrides[heroName][variant] = url;
+  return { url };
 };
 
-/** Remove the portrait override for a hero (reverts to local PNG). Admin only. */
-WDB.deleteHeroPortrait = async function(heroName) {
+/** Remove a single variant of a hero's portrait override (reverts to fallback).
+ *  Admin only. */
+WDB.deleteHeroPortrait = async function(heroName, variant) {
   if (!heroName) throw new Error('heroName is required');
   if (typeof _sbClient === 'undefined') throw new Error('Supabase not initialized');
   if (typeof WAdmin === 'undefined' || !WAdmin.isAdmin()) throw new Error('Admin only');
+  variant = WDB.PORTRAIT_VARIANTS.includes(variant) ? variant : 'icon';
 
   // Find the existing path so we can clean up the storage object too.
   const { data: row } = await _sbClient
     .from('hero_portrait_overrides')
     .select('file_path')
     .eq('hero_name', heroName)
+    .eq('variant', variant)
     .maybeSingle();
   if (row?.file_path) {
     await _sbClient.storage.from('hero-portraits').remove([row.file_path]).catch(() => {});
   }
-  await _sbClient.from('hero_portrait_overrides').delete().eq('hero_name', heroName);
-  delete WDB._portraitOverrides[heroName];
+  await _sbClient.from('hero_portrait_overrides')
+    .delete()
+    .eq('hero_name', heroName)
+    .eq('variant', variant);
+  if (WDB._portraitOverrides[heroName]) {
+    delete WDB._portraitOverrides[heroName][variant];
+    if (!Object.keys(WDB._portraitOverrides[heroName]).length) {
+      delete WDB._portraitOverrides[heroName];
+    }
+  }
 };
 
-/** Returns the portraits/ path for a given hero name.
- *  Checks cloud override first, then falls back to local PNG. */
-WDB.heroPortrait = function(name) {
-  if (WDB._portraitOverrides && WDB._portraitOverrides[name]) {
-    return WDB._portraitOverrides[name];
+/** Returns the best portrait URL for a hero + variant.
+ *  Fallback chain:
+ *    1. requested variant cloud override
+ *    2. 'icon' cloud override (so portrait cards aren't blank if not uploaded)
+ *    3. local portraits/<Name>.png (the existing 132 files)
+ *  @param {string} name     — hero name, e.g. 'Aamon'
+ *  @param {string} variant  — 'icon' (default) | 'portrait' */
+WDB.heroPortrait = function(name, variant) {
+  variant = WDB.PORTRAIT_VARIANTS.includes(variant) ? variant : 'icon';
+  const overrides = WDB._portraitOverrides && WDB._portraitOverrides[name];
+  if (overrides) {
+    if (overrides[variant]) return overrides[variant];
+    if (variant !== 'icon' && overrides.icon) return overrides.icon;
   }
   const base = WDB.PORTRAIT_ALIAS[name] || name;
   return `portraits/${base}.png`;

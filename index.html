@@ -1148,11 +1148,11 @@ function renderMetaHierarchies() {
                : h.pickRate >= 20 || (h.pickRate >= 10 && h.winRate >= 56) ? 'S'
                : h.pickRate >= 10 ? 'A'
                : 'B';
-    // Single source of truth for portrait lookup — handles all alias
-    // exceptions (Yi Sun-shin → YSS, Lapu-Lapu → LapuLapu, X.Borg → Xborg,
-    // etc) in one place. Defined in warr-lib.js.
+    // Use the 'portrait' variant (4:5 taller crop, big aesthetic art) on
+    // the homepage Meta Hierarchies. Falls back to 'icon' override, then
+    // the local PNG, all handled inside WDB.heroPortrait.
     const portraitUrl = (typeof WDB !== 'undefined' && WDB.heroPortrait)
-      ? WDB.heroPortrait(h.name)
+      ? WDB.heroPortrait(h.name, 'portrait')
       : `portraits/${h.name}.png`;
     const initial = (h.name[0] || '?').toUpperCase();
     return `

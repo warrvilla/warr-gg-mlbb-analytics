@@ -682,14 +682,16 @@ body { background: var(--bg); min-height: 100vh; }
     </div>
 
     <script>
-    // ── HERO PORTRAITS MANAGER (admin only) ──
+    // ── HERO PORTRAITS MANAGER (admin only, variant-aware) ──
+    // Each hero shows TWO variant slots: 'icon' (square 1:1, used as small
+    // thumbs everywhere) and 'portrait' (taller crop 3:4 or 4:5, used on big
+    // aesthetic cards like the homepage Meta Hierarchies grid).
     let _portraitsSearchTerm = '';
 
     async function openPortraitsManager() {
       if (typeof WAdmin === 'undefined' || !WAdmin.isAdmin()) {
         _adminToast('Admin only', 'error'); return;
       }
-      // Ensure the cloud override map is loaded before showing the grid.
       try { await WDB.loadHeroPortraitOverrides?.(); } catch(_) {}
       document.getElementById('portraitsModalBackdrop').style.display = 'flex';
       renderPortraitsGrid();
@@ -700,6 +702,35 @@ body { background: var(--bg); min-height: 100vh; }
     function filterPortraitsGrid(v) {
       _portraitsSearchTerm = (v || '').toLowerCase();
       renderPortraitsGrid();
+    }
+    function _hasVariant(heroName, variant) {
+      return !!(WDB._portraitOverrides && WDB._portraitOverrides[heroName] && WDB._portraitOverrides[heroName][variant]);
+    }
+    function _variantSlot(safeName, variant, ratio, label, hint) {
+      const has = _hasVariant(safeName.replace(/\\'/g, "'"), variant);
+      const url = WDB.heroPortrait(safeName.replace(/\\'/g, "'"), variant);
+      const initial = (safeName[0] || '?').toUpperCase();
+      const ratioCss = variant === 'portrait' ? '4/5' : '1/1';
+      return `
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div style="font-size:8.5px;letter-spacing:0.10em;text-transform:uppercase;color:rgba(255,255,255,0.36);font-weight:700;display:flex;align-items:center;gap:6px;">
+            ${label}
+            ${has ? '<span style="padding:1px 5px;font-size:7.5px;background:linear-gradient(135deg,#A888CC,#5E5CE6);color:#fff;border-radius:3px;letter-spacing:0.06em;">Cloud</span>' : ''}
+          </div>
+          <div class="variant-slot-img" data-variant="${variant}" style="aspect-ratio:${ratioCss};border-radius:8px;background:linear-gradient(180deg,#1E1E2A 0%,#0A0A12 100%);overflow:hidden;border:0.5px solid ${has ? 'rgba(168,136,204,0.30)' : 'rgba(255,255,255,0.06)'};position:relative;">
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-display,-apple-system);font-weight:900;font-size:28px;color:rgba(255,255,255,0.10);">${initial}</div>
+            <img src="${url}" alt="${safeName}" onerror="this.remove()" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+          </div>
+          <div style="font-size:8px;color:rgba(255,255,255,0.28);font-family:var(--font-mono,'SF Mono',monospace);">${hint}</div>
+          <div style="display:flex;gap:3px;margin-top:2px;">
+            <label style="flex:1;text-align:center;cursor:pointer;font-size:9.5px;padding:4px 6px;border-radius:5px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.10);color:rgba(255,255,255,0.62);">
+              Upload
+              <input type="file" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="uploadPortrait('${safeName}', '${variant}', this)">
+            </label>
+            ${has ? `<button onclick="resetPortrait('${safeName}', '${variant}')" style="font-size:9.5px;padding:4px 6px;border-radius:5px;background:rgba(216,120,128,0.08);border:0.5px solid rgba(216,120,128,0.22);color:#D87880;cursor:pointer;">Reset</button>` : ''}
+          </div>
+        </div>
+      `;
     }
     function renderPortraitsGrid() {
       const grid = document.getElementById('portraitsGrid');
@@ -714,36 +745,32 @@ body { background: var(--bg); min-height: 100vh; }
         .filter(h => roleFilter === 'all' || (h.r || '').includes(roleFilter))
         .filter(h => !_portraitsSearchTerm || h.n.toLowerCase().includes(_portraitsSearchTerm));
 
-      const overrideCount = Object.keys(WDB._portraitOverrides || {}).length;
-      if (status) status.textContent = `${heroes.length} heroes shown · ${overrideCount} with cloud override`;
+      // Count overrides across all variants
+      let iconCount = 0, portraitCount = 0;
+      Object.entries(WDB._portraitOverrides || {}).forEach(([_, v]) => {
+        if (v.icon) iconCount++;
+        if (v.portrait) portraitCount++;
+      });
+      if (status) status.textContent = `${heroes.length} heroes shown · ${iconCount} icons · ${portraitCount} portraits`;
 
       grid.innerHTML = heroes.map(h => {
-        const hasOverride = !!(WDB._portraitOverrides && WDB._portraitOverrides[h.n]);
-        const url = WDB.heroPortrait(h.n);
-        const initial = h.n[0]?.toUpperCase() || '?';
         const safeName = h.n.replace(/'/g, "\\'");
         return `
-          <div class="portrait-tile" data-name="${h.n}" style="position:relative;">
-            <div class="portrait-tile-img" style="aspect-ratio:1/1;border-radius:10px;background:linear-gradient(180deg,#1E1E2A 0%,#0A0A12 100%);overflow:hidden;border:0.5px solid ${hasOverride ? 'rgba(168,136,204,0.22)' : 'rgba(255,255,255,0.06)'};position:relative;">
-              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-display,-apple-system);font-weight:900;font-size:36px;color:rgba(255,255,255,0.10);">${initial}</div>
-              <img src="${url}" alt="${h.n}" onerror="this.remove()" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
-              ${hasOverride ? '<span style="position:absolute;top:6px;right:6px;padding:2px 6px;font-size:8px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;background:linear-gradient(135deg,#A888CC,#5E5CE6);color:#fff;border-radius:4px;">Cloud</span>' : ''}
+          <div class="portrait-tile" data-name="${h.n}" style="position:relative;padding:10px;border-radius:12px;background:rgba(255,255,255,0.02);border:0.5px solid rgba(255,255,255,0.06);">
+            <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px;">
+              <div style="font-size:12px;font-weight:700;color:#F0F0F8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.n}</div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.36);flex-shrink:0;">${h.r}</div>
             </div>
-            <div style="margin-top:6px;font-size:11px;font-weight:700;color:#F0F0F8;">${h.n}</div>
-            <div style="font-size:9px;color:rgba(255,255,255,0.36);">${h.r}</div>
-            <div style="display:flex;gap:4px;margin-top:6px;">
-              <label style="flex:1;text-align:center;cursor:pointer;font-size:10px;padding:4px 10px;border-radius:6px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.10);color:rgba(255,255,255,0.62);">
-                Upload
-                <input type="file" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="uploadPortrait('${safeName}', this)">
-              </label>
-              ${hasOverride ? `<button onclick="resetPortrait('${safeName}')" style="font-size:10px;padding:4px 10px;border-radius:6px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.10);color:#D87880;cursor:pointer;">Reset</button>` : ''}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              ${_variantSlot(safeName, 'icon',     '1/1', 'Icon',     '1:1 · 400×400 ideal')}
+              ${_variantSlot(safeName, 'portrait', '4/5', 'Portrait', '4:5 · 400×500 ideal')}
             </div>
           </div>
         `;
       }).join('');
     }
 
-    async function uploadPortrait(heroName, input) {
+    async function uploadPortrait(heroName, variant, input) {
       const file = input.files?.[0];
       if (!file) return;
       if (file.size > 512 * 1024) {
@@ -752,17 +779,23 @@ body { background: var(--bg); min-height: 100vh; }
         return;
       }
       const tile = input.closest('.portrait-tile');
-      const imgDiv = tile?.querySelector('.portrait-tile-img');
+      const imgDiv = tile?.querySelector(`.variant-slot-img[data-variant="${variant}"]`);
       if (imgDiv) imgDiv.style.opacity = '0.55';
       try {
-        const { url } = await WDB.uploadHeroPortrait(heroName, file);
+        const { url } = await WDB.uploadHeroPortrait(heroName, file, variant);
         if (imgDiv) {
           const img = imgDiv.querySelector('img');
-          if (img) img.src = url;
+          if (img) { img.src = url; }
+          else {
+            const newImg = document.createElement('img');
+            newImg.src = url;
+            newImg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;';
+            imgDiv.appendChild(newImg);
+          }
           imgDiv.style.opacity = '1';
         }
         renderPortraitsGrid();
-        _adminToast(`Uploaded ${heroName} portrait`);
+        _adminToast(`Uploaded ${heroName} ${variant}`);
       } catch (e) {
         alert('Upload failed: ' + (e.message || e));
         if (imgDiv) imgDiv.style.opacity = '1';
@@ -770,12 +803,12 @@ body { background: var(--bg); min-height: 100vh; }
       input.value = '';
     }
 
-    async function resetPortrait(heroName) {
-      if (!confirm(`Remove cloud portrait for ${heroName}? It will revert to the local PNG (or fallback).`)) return;
+    async function resetPortrait(heroName, variant) {
+      if (!confirm(`Remove ${variant} portrait for ${heroName}?`)) return;
       try {
-        await WDB.deleteHeroPortrait(heroName);
+        await WDB.deleteHeroPortrait(heroName, variant);
         renderPortraitsGrid();
-        _adminToast(`Reset ${heroName} portrait`);
+        _adminToast(`Reset ${heroName} ${variant}`);
       } catch (e) {
         alert('Reset failed: ' + (e.message || e));
       }
