@@ -713,8 +713,61 @@ body { background: var(--bg); min-height: 100vh; }
       if (type === 'textarea') {
         return `<div style="display:flex;flex-direction:column;gap:4px;grid-column:1/-1;">${labelEl}<textarea ${inputAttr} style="background:#050509;border:0.5px solid rgba(255,255,255,0.10);border-radius:6px;padding:7px 10px;font-size:12px;color:#F0F0F8;resize:vertical;min-height:60px;font-family:var(--font-body,inherit);">${value || ''}</textarea></div>`;
       }
+      // Special-case the 'bg' field: pair the URL input with an Upload
+      // button + thumbnail preview so admin can upload from local disk
+      // and not have to hunt for a public host.
+      if (key === 'bg') {
+        const thumb = value
+          ? `<div style="margin-top:6px;width:100%;height:88px;border-radius:8px;background:#050509 url('${v}') center/cover no-repeat;border:0.5px solid rgba(255,255,255,0.10);"></div>`
+          : '';
+        return `
+          <div style="display:flex;flex-direction:column;gap:4px;grid-column:1/-1;">
+            ${labelEl}
+            <div style="display:flex;gap:6px;align-items:stretch;">
+              <input type="text" value="${v}" id="slide-bg-input-${idx}" ${inputAttr} style="background:#050509;border:0.5px solid rgba(255,255,255,0.10);border-radius:6px;padding:7px 10px;font-size:12px;color:#F0F0F8;flex:1;font-family:var(--font-body,inherit);">
+              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:10.5px;font-weight:600;padding:7px 12px;border-radius:6px;background:rgba(168,136,204,0.10);border:0.5px solid rgba(168,136,204,0.22);color:#A888CC;white-space:nowrap;">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Upload
+                <input type="file" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="uploadSlideBg(${idx}, this)">
+              </label>
+            </div>
+            ${thumb}
+            <div style="font-size:9.5px;color:rgba(255,255,255,0.36);font-family:var(--font-mono,'SF Mono',monospace);">PNG / JPG / WebP · Max 512 KB · ~1600×900px for crisp banner</div>
+          </div>
+        `;
+      }
       const full = type === 'full' ? 'grid-column:1/-1;' : '';
       return `<div style="display:flex;flex-direction:column;gap:4px;${full}">${labelEl}<input type="text" value="${v}" ${inputAttr}></div>`;
+    }
+
+    async function uploadSlideBg(idx, input) {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (file.size > 512 * 1024) {
+        alert('File is too large. Max 512 KB. Try compressing at tinypng.com first.');
+        input.value = '';
+        return;
+      }
+      const label = input.closest('label');
+      const labelText = label ? label.textContent.trim() : '';
+      if (label) {
+        label.style.opacity = '0.55';
+        // We can't easily change the SVG inline; just swap text to indicate state.
+        const span = label.querySelector('span');
+      }
+      try {
+        const { url } = await WDB.uploadSlideBackground(file);
+        // Sync editor state so we don't lose unsaved changes elsewhere,
+        // then patch this one slide's bg and re-render the editor.
+        syncEditorState();
+        if (_editingSlides[idx]) _editingSlides[idx].bg = url;
+        _renderSlidesEditorList();
+        _adminToast(`Uploaded slide ${idx + 1} background`);
+      } catch (e) {
+        alert('Upload failed: ' + (e.message || e));
+        if (label) label.style.opacity = '1';
+      }
+      input.value = '';
     }
 
     function _escapeHtml(s) {

@@ -1299,6 +1299,30 @@ WDB.deleteHeroPortrait = async function(heroName, variant) {
   }
 };
 
+/** Upload a homepage hero-banner slide background image. Admin only.
+ *  Stored in the existing hero-portraits bucket under a slides/ prefix
+ *  so we don't need another bucket / RLS setup. Returns { url }.
+ *  Filename is timestamped so re-uploads don't collide. */
+WDB.uploadSlideBackground = async function(file) {
+  if (!file) throw new Error('file is required');
+  if (typeof _sbClient === 'undefined') throw new Error('Supabase not initialized');
+  if (typeof WAdmin === 'undefined' || !WAdmin.isAdmin()) throw new Error('Admin only');
+  const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+  const safeBase = (file.name.replace(/\.[^.]+$/, '') || 'slide')
+    .replace(/[^A-Za-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40) || 'slide';
+  const path = `slides/${Date.now()}-${safeBase}.${ext}`;
+
+  const { error: upErr } = await _sbClient.storage
+    .from('hero-portraits')
+    .upload(path, file, { upsert: false, cacheControl: '3600', contentType: file.type });
+  if (upErr) throw upErr;
+
+  const { data: pub } = _sbClient.storage.from('hero-portraits').getPublicUrl(path);
+  return { url: pub?.publicUrl || '' };
+};
+
 /** Returns the best portrait URL for a hero + variant.
  *  Fallback chain:
  *    1. requested variant cloud override
