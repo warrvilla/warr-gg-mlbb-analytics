@@ -742,16 +742,10 @@ body {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>
         </button>
       </div>
-      <div class="hero-admin-controls" id="heroAdminControls" style="display:none;position:absolute;right:24px;top:20px;z-index:3;display:none;gap:8px;">
-        <button class="hero-admin-edit show" onclick="openSlidesEditor()">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          Edit Slides
-        </button>
-        <button class="hero-admin-edit show" onclick="openPortraitsManager()">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-          Manage Portraits
-        </button>
-      </div>
+      <button class="hero-admin-edit" id="heroAdminEdit" onclick="openSlidesEditor()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Edit Slides
+      </button>
     </section>
 
     <!-- ────────────── META HIER + INTEL FEED ────────────── -->
@@ -812,32 +806,6 @@ body {
     </section>
 
   </main>
-</div>
-
-<!-- ────────────── ADMIN PORTRAIT MANAGER MODAL ────────────── -->
-<div class="modal-backdrop" id="portraitsModal">
-  <div class="modal-box" style="max-width:980px;">
-    <div class="modal-head">
-      <h3 class="modal-title">Hero Portraits</h3>
-      <input id="portraitsSearch" placeholder="Search heroes…" style="margin-left:18px;background:var(--bg);border:0.5px solid var(--border-2);border-radius:6px;padding:6px 10px;font-size:12px;color:var(--text);width:200px;" oninput="filterPortraitsGrid(this.value)">
-      <select id="portraitsRoleFilter" style="background:var(--bg);border:0.5px solid var(--border-2);border-radius:6px;padding:6px 10px;font-size:12px;color:var(--text);margin-left:8px;" onchange="renderPortraitsGrid()">
-        <option value="all">All roles</option>
-        <option>Tank</option>
-        <option>Fighter</option>
-        <option>Assassin</option>
-        <option>Mage</option>
-        <option>Marksman</option>
-        <option>Support</option>
-      </select>
-      <button class="modal-close" onclick="closePortraitsManager()" aria-label="Close">×</button>
-    </div>
-    <div id="portraitsStatusBar" style="font-size:11px;color:var(--text-3);margin-bottom:10px;font-family:var(--font-mono);"></div>
-    <div id="portraitsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;max-height:60vh;overflow:auto;padding-right:4px;"></div>
-    <div class="modal-foot" style="margin-top:14px;">
-      <span style="font-size:11px;color:var(--text-3);">PNG/JPG/WebP · Max 512 KB · 500×500px recommended</span>
-      <button class="save-slides" onclick="closePortraitsManager()" style="margin-left:auto;">Done</button>
-    </div>
-  </div>
 </div>
 
 <!-- ────────────── ADMIN SLIDE EDITOR MODAL ────────────── -->
@@ -964,106 +932,9 @@ async function showAdminControls() {
   } catch(_) {}
 }
 
-// ══════════════════════════════════════════════════════════════
-// HERO PORTRAITS MANAGER (admin only)
-// ══════════════════════════════════════════════════════════════
-let _portraitsSearchTerm = '';
-
-function openPortraitsManager() {
-  document.getElementById('portraitsModal').classList.add('open');
-  renderPortraitsGrid();
-}
-function closePortraitsManager() {
-  document.getElementById('portraitsModal').classList.remove('open');
-}
-function filterPortraitsGrid(v) {
-  _portraitsSearchTerm = (v || '').toLowerCase();
-  renderPortraitsGrid();
-}
-
-function renderPortraitsGrid() {
-  const grid = document.getElementById('portraitsGrid');
-  const status = document.getElementById('portraitsStatusBar');
-  if (!grid) return;
-  if (typeof WDB === 'undefined' || !WDB.HERO_ROSTER) {
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-3);padding:24px;">Hero roster not loaded.</div>';
-    return;
-  }
-  const roleFilter = document.getElementById('portraitsRoleFilter')?.value || 'all';
-  const heroes = WDB.HERO_ROSTER
-    .filter(h => roleFilter === 'all' || (h.r || '').includes(roleFilter))
-    .filter(h => !_portraitsSearchTerm || h.n.toLowerCase().includes(_portraitsSearchTerm));
-
-  // Status — how many heroes have a cloud override
-  const overrideCount = Object.keys(WDB._portraitOverrides || {}).length;
-  if (status) status.textContent = `${heroes.length} heroes shown · ${overrideCount} with cloud override`;
-
-  grid.innerHTML = heroes.map(h => {
-    const hasOverride = !!(WDB._portraitOverrides && WDB._portraitOverrides[h.n]);
-    const url = WDB.heroPortrait(h.n);
-    const initial = h.n[0]?.toUpperCase() || '?';
-    const safeName = h.n.replace(/'/g, "\\'");
-    return `
-      <div class="portrait-tile" data-name="${h.n}" style="position:relative;">
-        <div class="portrait-tile-img" style="aspect-ratio:1/1;border-radius:10px;background:linear-gradient(180deg,#1E1E2A 0%,#0A0A12 100%);overflow:hidden;border:0.5px solid ${hasOverride ? 'var(--accent-border)' : 'var(--border)'};position:relative;">
-          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:900;font-size:36px;color:rgba(255,255,255,0.10);">${initial}</div>
-          <img src="${url}" alt="${h.n}" onerror="this.remove()" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
-          ${hasOverride ? '<span style="position:absolute;top:6px;right:6px;padding:2px 6px;font-size:8px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;background:linear-gradient(135deg,#A888CC,#5E5CE6);color:#fff;border-radius:4px;">Cloud</span>' : ''}
-        </div>
-        <div style="margin-top:6px;font-size:11px;font-weight:700;color:var(--text);">${h.n}</div>
-        <div style="font-size:9px;color:var(--text-3);">${h.r}</div>
-        <div style="display:flex;gap:4px;margin-top:6px;">
-          <label class="row-btn" style="flex:1;text-align:center;cursor:pointer;">
-            Upload
-            <input type="file" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="uploadPortrait('${safeName}', this)">
-          </label>
-          ${hasOverride ? `<button class="row-btn danger" onclick="resetPortrait('${safeName}')">Reset</button>` : ''}
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-async function uploadPortrait(heroName, input) {
-  const file = input.files?.[0];
-  if (!file) return;
-  if (file.size > 512 * 1024) {
-    alert('File is too large. Max 512 KB.');
-    input.value = '';
-    return;
-  }
-  const tile = input.closest('.portrait-tile');
-  const imgDiv = tile?.querySelector('.portrait-tile-img');
-  if (imgDiv) imgDiv.style.opacity = '0.55';
-  try {
-    const { url } = await WDB.uploadHeroPortrait(heroName, file);
-    // Update the tile image immediately
-    if (imgDiv) {
-      const img = imgDiv.querySelector('img');
-      if (img) img.src = url;
-      imgDiv.style.opacity = '1';
-      imgDiv.style.borderColor = 'var(--accent-border)';
-    }
-    renderPortraitsGrid(); // re-render to show "Cloud" badge + "Reset" button
-    // Also refresh the homepage meta hierarchies if data is loaded
-    if (typeof renderMetaHierarchies === 'function') renderMetaHierarchies();
-  } catch (e) {
-    alert('Upload failed: ' + (e.message || e));
-    if (imgDiv) imgDiv.style.opacity = '1';
-  }
-  input.value = '';
-}
-
-async function resetPortrait(heroName) {
-  if (!confirm(`Remove cloud portrait for ${heroName}? It will revert to the local PNG (or fallback).`)) return;
-  try {
-    await WDB.deleteHeroPortrait(heroName);
-    renderPortraitsGrid();
-    if (typeof renderMetaHierarchies === 'function') renderMetaHierarchies();
-  } catch (e) {
-    alert('Reset failed: ' + (e.message || e));
-  }
-}
+// Portraits Manager UI moved to Profile > Admin section (profile.html).
+// We still call WDB.loadHeroPortraitOverrides() at init so cloud-uploaded
+// portraits surface on the homepage Meta Hierarchies grid.
 
 function openSlidesEditor() {
   renderSlidesEditor();

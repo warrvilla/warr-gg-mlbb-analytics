@@ -634,12 +634,153 @@ body { background: var(--bg); min-height: 100vh; }
       </div>
     </div>
 
+    <!-- ADMIN: HERO PORTRAITS — cloud-backed image overrides -->
+    <div class="admin-mgmt-card" id="adminPortraitsCard">
+      <h4>🖼 Admin — Hero Portraits</h4>
+      <div class="mgmt-sub">Upload custom portraits per hero. Uploads go to your Supabase Storage bucket and replace the default PNG site-wide on the next page load. Max 512 KB per file. PNG / JPG / WebP, 500×500px recommended.</div>
+      <div class="admin-mgmt-form" style="flex-direction:column;align-items:stretch;gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button class="admin-mgmt-btn" onclick="openPortraitsManager()">Open Portraits Manager</button>
+          <span style="font-size:11px;color:var(--text3);flex:1;min-width:200px;">
+            One-time setup: run <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:10px;">migrations/001_hero_portrait_storage.sql</code> in Supabase Studio first.
+          </span>
+        </div>
+      </div>
+    </div>
+
     <!-- ADMIN PANEL CARD (only visible for wrrenvillapando@gmail.com) -->
     <div class="admin-access-card" id="adminAccessCard">
       <h4>⚙ Admin Panel</h4>
       <p>Approve team affiliations, assign subscription plans, manage users, and handle hard-delete requests.</p>
       <a href="admin.html" class="admin-go-btn">Open Admin Panel →</a>
     </div>
+
+    <!-- ────────────── HERO PORTRAITS MANAGER MODAL ────────────── -->
+    <div id="portraitsModalBackdrop" style="display:none;position:fixed;inset:0;background:rgba(5,5,9,0.78);backdrop-filter:blur(12px);z-index:1000;align-items:center;justify-content:center;">
+      <div style="background:var(--surface,#101018);border:0.5px solid rgba(255,255,255,0.10);border-radius:18px;padding:24px;max-width:980px;width:92vw;max-height:88vh;overflow:auto;box-shadow:0 24px 80px rgba(0,0,0,0.6);">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;padding-bottom:14px;border-bottom:0.5px solid rgba(255,255,255,0.06);flex-wrap:wrap;">
+          <h3 style="font-family:var(--font-display,-apple-system);font-weight:800;font-size:16px;letter-spacing:0.04em;text-transform:uppercase;margin:0;">Hero Portraits</h3>
+          <input id="portraitsSearch" placeholder="Search heroes…" style="background:#050509;border:0.5px solid rgba(255,255,255,0.10);border-radius:6px;padding:6px 10px;font-size:12px;color:#F0F0F8;width:180px;" oninput="filterPortraitsGrid(this.value)">
+          <select id="portraitsRoleFilter" style="background:#050509;border:0.5px solid rgba(255,255,255,0.10);border-radius:6px;padding:6px 10px;font-size:12px;color:#F0F0F8;" onchange="renderPortraitsGrid()">
+            <option value="all">All roles</option>
+            <option>Tank</option>
+            <option>Fighter</option>
+            <option>Assassin</option>
+            <option>Mage</option>
+            <option>Marksman</option>
+            <option>Support</option>
+          </select>
+          <button onclick="closePortraitsManager()" aria-label="Close" style="margin-left:auto;background:transparent;border:0;color:rgba(255,255,255,0.40);font-size:22px;cursor:pointer;padding:4px 8px;border-radius:6px;">×</button>
+        </div>
+        <div id="portraitsStatusBar" style="font-size:11px;color:rgba(255,255,255,0.40);margin-bottom:10px;font-family:'SF Mono',monospace;"></div>
+        <div id="portraitsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;max-height:60vh;overflow:auto;padding-right:4px;"></div>
+        <div style="display:flex;gap:10px;margin-top:14px;padding-top:16px;border-top:0.5px solid rgba(255,255,255,0.06);align-items:center;">
+          <span style="font-size:11px;color:rgba(255,255,255,0.40);">PNG/JPG/WebP · Max 512 KB · 500×500px recommended</span>
+          <button onclick="closePortraitsManager()" style="margin-left:auto;background:linear-gradient(135deg,#A888CC 0%,#5E5CE6 100%);border:0;border-radius:9999px;padding:9px 22px;font-size:11px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#fff;cursor:pointer;">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    // ── HERO PORTRAITS MANAGER (admin only) ──
+    let _portraitsSearchTerm = '';
+
+    async function openPortraitsManager() {
+      if (typeof WAdmin === 'undefined' || !WAdmin.isAdmin()) {
+        _adminToast('Admin only', 'error'); return;
+      }
+      // Ensure the cloud override map is loaded before showing the grid.
+      try { await WDB.loadHeroPortraitOverrides?.(); } catch(_) {}
+      document.getElementById('portraitsModalBackdrop').style.display = 'flex';
+      renderPortraitsGrid();
+    }
+    function closePortraitsManager() {
+      document.getElementById('portraitsModalBackdrop').style.display = 'none';
+    }
+    function filterPortraitsGrid(v) {
+      _portraitsSearchTerm = (v || '').toLowerCase();
+      renderPortraitsGrid();
+    }
+    function renderPortraitsGrid() {
+      const grid = document.getElementById('portraitsGrid');
+      const status = document.getElementById('portraitsStatusBar');
+      if (!grid) return;
+      if (typeof WDB === 'undefined' || !WDB.HERO_ROSTER) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.36);padding:24px;">Hero roster not loaded.</div>';
+        return;
+      }
+      const roleFilter = document.getElementById('portraitsRoleFilter')?.value || 'all';
+      const heroes = WDB.HERO_ROSTER
+        .filter(h => roleFilter === 'all' || (h.r || '').includes(roleFilter))
+        .filter(h => !_portraitsSearchTerm || h.n.toLowerCase().includes(_portraitsSearchTerm));
+
+      const overrideCount = Object.keys(WDB._portraitOverrides || {}).length;
+      if (status) status.textContent = `${heroes.length} heroes shown · ${overrideCount} with cloud override`;
+
+      grid.innerHTML = heroes.map(h => {
+        const hasOverride = !!(WDB._portraitOverrides && WDB._portraitOverrides[h.n]);
+        const url = WDB.heroPortrait(h.n);
+        const initial = h.n[0]?.toUpperCase() || '?';
+        const safeName = h.n.replace(/'/g, "\\'");
+        return `
+          <div class="portrait-tile" data-name="${h.n}" style="position:relative;">
+            <div class="portrait-tile-img" style="aspect-ratio:1/1;border-radius:10px;background:linear-gradient(180deg,#1E1E2A 0%,#0A0A12 100%);overflow:hidden;border:0.5px solid ${hasOverride ? 'rgba(168,136,204,0.22)' : 'rgba(255,255,255,0.06)'};position:relative;">
+              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-display,-apple-system);font-weight:900;font-size:36px;color:rgba(255,255,255,0.10);">${initial}</div>
+              <img src="${url}" alt="${h.n}" onerror="this.remove()" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
+              ${hasOverride ? '<span style="position:absolute;top:6px;right:6px;padding:2px 6px;font-size:8px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;background:linear-gradient(135deg,#A888CC,#5E5CE6);color:#fff;border-radius:4px;">Cloud</span>' : ''}
+            </div>
+            <div style="margin-top:6px;font-size:11px;font-weight:700;color:#F0F0F8;">${h.n}</div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.36);">${h.r}</div>
+            <div style="display:flex;gap:4px;margin-top:6px;">
+              <label style="flex:1;text-align:center;cursor:pointer;font-size:10px;padding:4px 10px;border-radius:6px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.10);color:rgba(255,255,255,0.62);">
+                Upload
+                <input type="file" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="uploadPortrait('${safeName}', this)">
+              </label>
+              ${hasOverride ? `<button onclick="resetPortrait('${safeName}')" style="font-size:10px;padding:4px 10px;border-radius:6px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.10);color:#D87880;cursor:pointer;">Reset</button>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function uploadPortrait(heroName, input) {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (file.size > 512 * 1024) {
+        alert('File is too large. Max 512 KB.');
+        input.value = '';
+        return;
+      }
+      const tile = input.closest('.portrait-tile');
+      const imgDiv = tile?.querySelector('.portrait-tile-img');
+      if (imgDiv) imgDiv.style.opacity = '0.55';
+      try {
+        const { url } = await WDB.uploadHeroPortrait(heroName, file);
+        if (imgDiv) {
+          const img = imgDiv.querySelector('img');
+          if (img) img.src = url;
+          imgDiv.style.opacity = '1';
+        }
+        renderPortraitsGrid();
+        _adminToast(`Uploaded ${heroName} portrait`);
+      } catch (e) {
+        alert('Upload failed: ' + (e.message || e));
+        if (imgDiv) imgDiv.style.opacity = '1';
+      }
+      input.value = '';
+    }
+
+    async function resetPortrait(heroName) {
+      if (!confirm(`Remove cloud portrait for ${heroName}? It will revert to the local PNG (or fallback).`)) return;
+      try {
+        await WDB.deleteHeroPortrait(heroName);
+        renderPortraitsGrid();
+        _adminToast(`Reset ${heroName} portrait`);
+      } catch (e) {
+        alert('Reset failed: ' + (e.message || e));
+      }
+    }
+    </script>
 
     <!-- Admin toast -->
     <div id="adminToast" class="admin-toast"></div>

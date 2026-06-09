@@ -74,6 +74,27 @@
 .ctrl-input { width: 160px; cursor: text; }
 .ctrl-input::placeholder { color: var(--text4); }
 
+/* Secondary action button that lives in the controls row alongside selects.
+   Same pill geometry as ctrl-select so the row stays visually balanced. */
+.ctrl-action {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; font-size: 11px; font-weight: 600;
+  background: rgba(118,118,128,0.10);
+  border: 0.5px solid rgba(255,255,255,0.10);
+  border-radius: var(--pill);
+  color: var(--text2);
+  font-family: var(--font-body);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.ctrl-action:hover {
+  background: rgba(168,136,204,0.10);
+  border-color: var(--accent-border);
+  color: var(--text);
+}
+.ctrl-action:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* Hero card grid */
 .hero-grid {
   display: grid; gap: 12px;
@@ -368,10 +389,14 @@
       </select>
       <input class="ctrl-input" id="searchIn" placeholder="Search hero…" oninput="onFilter()">
       <span class="header-count" id="countBadge" style="margin-left:auto;font-size:11px;color:var(--text3);align-self:center;white-space:nowrap;">— heroes</span>
+      <div style="width:1px;height:18px;background:var(--border);margin:0 4px;" aria-hidden="true"></div>
+      <button class="ctrl-action" id="heroesPdfBtn" onclick="exportHeroesPDF()" title="Export currently filtered heroes as PDF">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        Export PDF
+      </button>
       <button class="admin-toggle" id="adminToggle" onclick="toggleAdminMode()" style="font-size:11px;padding:6px 12px;">
         <span>✎</span> Edit curation
       </button>
-      <button class="btn btn-accent" id="heroesPdfBtn" onclick="exportHeroesPDF()" style="font-size:11px;padding:6px 14px;" title="Export currently filtered heroes as PDF">Export PDF</button>
     </div>
 
     <!-- Grid -->
