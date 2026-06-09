@@ -1984,14 +1984,32 @@ function getFilteredSeries() {
     s.redTeam  = g1.redTeam;
     s.seriesFormat = g1.seriesFormat || s.seriesFormat;
     s.date = s.games.map(g=>g.date).filter(Boolean).sort()[0] || s.date;
+    // Track latest savedAt across games for sort tiebreaker. Falls back to 0
+    // for matches that pre-date this field; those just sort to the bottom by
+    // savedAt but still get their real date for the primary sort.
+    s._savedAt = Math.max(...s.games.map(g => Number(g.savedAt) || 0), 0);
   });
 
   return Object.values(map).sort((a,b) => {
-    if (matchSort==='date')   return new Date(b.date) - new Date(a.date);
+    // Primary sort: by date desc. Invalid dates (NaN) get coerced to 0
+    // (epoch) so they don't poison the comparison. Tiebreaker: savedAt desc
+    // so a freshly saved match shows above older-saved matches that share
+    // its date (e.g. you backfill an old Playoffs day 3 → it appears at the
+    // top of that day's group, not mixed in with stale matches).
+    if (matchSort==='date') {
+      const da = new Date(a.date).getTime(); const db = new Date(b.date).getTime();
+      const dAa = isNaN(da) ? 0 : da; const dBb = isNaN(db) ? 0 : db;
+      if (dBb !== dAa) return dBb - dAa;
+      return (b._savedAt||0) - (a._savedAt||0);
+    }
     if (matchSort==='blue')   return a.blueTeam.localeCompare(b.blueTeam);
     if (matchSort==='red')    return a.redTeam.localeCompare(b.redTeam);
     if (matchSort==='league') return (a.league||'').localeCompare(b.league||'');
-    return new Date(b.date) - new Date(a.date);
+    // Default fallback — same logic as 'date'
+    const da = new Date(a.date).getTime(); const db = new Date(b.date).getTime();
+    const dAa = isNaN(da) ? 0 : da; const dBb = isNaN(db) ? 0 : db;
+    if (dBb !== dAa) return dBb - dAa;
+    return (b._savedAt||0) - (a._savedAt||0);
   });
 }
 
@@ -2985,33 +3003,15 @@ function saveMatch() {
     }
   }, 50);
 
-  // ── DIAGNOSTIC TOAST ──
-  // If the match is in DB but not visible, the user can see at a glance.
-  // total = how many matches exist in localStorage
-  // visible = how many the current view (after filter reset) shows
-  // If visible doesn't include the new one, there's a bug in getFilteredSeries.
-  const totalMatches = DB_MODULE.getMatches().length;
+  // Quiet diagnostic — only surfaces a warning if the match is somehow NOT
+  // in the rendered set after all the defensive resets. Normal saves get
+  // the clean "Match saved" toast.
   const visibleSeries = getFilteredSeries();
-  const visibleGames = visibleSeries.reduce((t,s)=>t+s.games.length, 0);
   const matchVisible = visibleSeries.some(s => s.games.some(g => g.id === match.id));
   const baseMsg = `✓ Match saved — ${blueTeam} vs ${redTeam}`;
-  const diag = matchVisible
-    ? ` · ${totalMatches} matches in DB, showing here`
-    : ` · ⚠ In DB (${totalMatches} total) but NOT showing — check console, refresh page`;
-  toast(filterAdjustments.length
-    ? `${baseMsg} · Filters reset (${filterAdjustments.join(', ')})${diag}`
-    : `${baseMsg}${diag}`);
-
-  // Log the saved match shape so we (you in DevTools) can see exactly what was
-  // saved and why it might be filtered or rendered weird.
-  console.log('[Scout saveMatch]', {
-    saved: match,
-    totalMatches,
-    visibleSeries: visibleSeries.length,
-    visibleGames,
-    matchVisible,
-    filters: { league: leagueFilter, season: seasonFilter, patch: patchFilter, search: matchSearch }
-  });
+  const filterMsg = filterAdjustments.length ? ` · Filters reset (${filterAdjustments.join(', ')})` : '';
+  const warnMsg = matchVisible ? '' : ' · ⚠ Not visible — check date/filter';
+  toast(`${baseMsg}${filterMsg}${warnMsg}`);
 
   // Auto-sync to cloud (non-blocking)
   _setSyncStatus('syncing');
