@@ -2964,10 +2964,13 @@ function saveMatch() {
   document.getElementById('matchListStatic')?.remove();
 
   closeMatchModal();
-  renderMatchList();
+  // CANONICAL refresh path: showView is the same path the sidebar buttons use,
+  // and dispatches to renderMatchList. Using it instead of calling renderMatchList
+  // directly avoids any state mismatch with currentView.
+  showView('matches');
 
   // (5) Scroll the saved match into view + brief highlight so the user
-  //     visually sees it land.
+  //     visually sees it land. Delay to next frame so DOM is settled.
   setTimeout(() => {
     const main = document.getElementById('mainArea');
     if (main) main.scrollTop = 0;
@@ -2980,12 +2983,35 @@ function saveMatch() {
         setTimeout(() => { card.style.boxShadow = ''; }, 1800);
       }
     }
-  }, 30);
+  }, 50);
 
+  // ── DIAGNOSTIC TOAST ──
+  // If the match is in DB but not visible, the user can see at a glance.
+  // total = how many matches exist in localStorage
+  // visible = how many the current view (after filter reset) shows
+  // If visible doesn't include the new one, there's a bug in getFilteredSeries.
+  const totalMatches = DB_MODULE.getMatches().length;
+  const visibleSeries = getFilteredSeries();
+  const visibleGames = visibleSeries.reduce((t,s)=>t+s.games.length, 0);
+  const matchVisible = visibleSeries.some(s => s.games.some(g => g.id === match.id));
   const baseMsg = `✓ Match saved — ${blueTeam} vs ${redTeam}`;
+  const diag = matchVisible
+    ? ` · ${totalMatches} matches in DB, showing here`
+    : ` · ⚠ In DB (${totalMatches} total) but NOT showing — check console, refresh page`;
   toast(filterAdjustments.length
-    ? `${baseMsg} · Filters reset (${filterAdjustments.join(', ')}) so it's visible`
-    : baseMsg);
+    ? `${baseMsg} · Filters reset (${filterAdjustments.join(', ')})${diag}`
+    : `${baseMsg}${diag}`);
+
+  // Log the saved match shape so we (you in DevTools) can see exactly what was
+  // saved and why it might be filtered or rendered weird.
+  console.log('[Scout saveMatch]', {
+    saved: match,
+    totalMatches,
+    visibleSeries: visibleSeries.length,
+    visibleGames,
+    matchVisible,
+    filters: { league: leagueFilter, season: seasonFilter, patch: patchFilter, search: matchSearch }
+  });
 
   // Auto-sync to cloud (non-blocking)
   _setSyncStatus('syncing');
