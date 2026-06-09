@@ -1143,18 +1143,18 @@ function renderMetaHierarchies() {
                : h.pickRate >= 20 || (h.pickRate >= 10 && h.winRate >= 56) ? 'S'
                : h.pickRate >= 10 ? 'A'
                : 'B';
-    // Portrait files are stored as capitalized names like 'Aamon.png',
-    // 'Yi Sun-shin.png' (spaces kept). Try the literal name first, then
-    // try a lowercased/stripped fallback in onerror.
-    const portraitFile = encodeURIComponent(h.name) + '.png';
-    const portraitFallback = encodeURIComponent(h.name.toLowerCase().replace(/['\s.]/g, '')) + '.png';
+    // Single source of truth for portrait lookup — handles all alias
+    // exceptions (Yi Sun-shin → YSS, Lapu-Lapu → LapuLapu, X.Borg → Xborg,
+    // etc) in one place. Defined in warr-lib.js.
+    const portraitUrl = (typeof WDB !== 'undefined' && WDB.heroPortrait)
+      ? WDB.heroPortrait(h.name)
+      : `portraits/${h.name}.png`;
     const initial = (h.name[0] || '?').toUpperCase();
     return `
       <a class="hero-card" href="heroes.html#${encodeURIComponent(h.name)}">
         <div class="hero-card-img" style="--hero-tint: ${tint};">
           <div class="hero-card-fallback">${initial}</div>
-          <img src="./portraits/${portraitFile}" alt="${h.name}" loading="lazy"
-               onerror="if(this.src.indexOf('${portraitFallback}')<0){this.src='./portraits/${portraitFallback}'}else{this.remove();}">
+          <img src="${portraitUrl}" alt="${h.name}" loading="lazy" onerror="this.remove()">
           <div class="hero-card-overlay"></div>
           <span class="hero-tier t-${tier.replace('+', '\\+')}">${tier}</span>
         </div>
