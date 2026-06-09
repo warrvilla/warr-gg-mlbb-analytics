@@ -915,12 +915,12 @@ body { background: var(--bg); min-height: 100vh; }
       grid.innerHTML = heroes.map(h => {
         const safeName = h.n.replace(/'/g, "\\'");
         return `
-          <div class="portrait-tile" data-name="${h.n}" style="position:relative;padding:10px;border-radius:12px;background:rgba(255,255,255,0.02);border:0.5px solid rgba(255,255,255,0.06);">
+          <div class="portrait-tile" data-name="${h.n}" style="position:relative;padding:10px;border-radius:12px;background:rgba(255,255,255,0.02);border:0.5px solid rgba(255,255,255,0.06);overflow:hidden;min-width:0;">
             <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px;">
               <div style="font-size:12px;font-weight:700;color:#F0F0F8;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.n}</div>
               <div style="font-size:9px;color:rgba(255,255,255,0.36);flex-shrink:0;">${h.r}</div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0;">
               ${_variantSlot(safeName, 'icon',     '1/1', 'Icon',     '1:1 · 400×400 ideal')}
               ${_variantSlot(safeName, 'portrait', '4/5', 'Portrait', '4:5 · 400×500 ideal')}
             </div>
@@ -937,22 +937,16 @@ body { background: var(--bg); min-height: 100vh; }
         input.value = '';
         return;
       }
+      // Dim the slot during upload so the user sees progress feedback.
+      // Avoid manual DOM manipulation of the img element — that was leaving
+      // the new <img> briefly unstyled before CSS applied, causing it to
+      // overflow its slot and visually overlap adjacent hero cards.
+      // Single source of truth: call renderPortraitsGrid() after upload.
       const tile = input.closest('.portrait-tile');
       const imgDiv = tile?.querySelector(`.variant-slot-img[data-variant="${variant}"]`);
       if (imgDiv) imgDiv.style.opacity = '0.55';
       try {
-        const { url } = await WDB.uploadHeroPortrait(heroName, file, variant);
-        if (imgDiv) {
-          const img = imgDiv.querySelector('img');
-          if (img) { img.src = url; }
-          else {
-            const newImg = document.createElement('img');
-            newImg.src = url;
-            newImg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;';
-            imgDiv.appendChild(newImg);
-          }
-          imgDiv.style.opacity = '1';
-        }
+        await WDB.uploadHeroPortrait(heroName, file, variant);
         renderPortraitsGrid();
         _adminToast(`Uploaded ${heroName} ${variant}`);
       } catch (e) {
