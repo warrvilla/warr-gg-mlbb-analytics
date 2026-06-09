@@ -1319,12 +1319,18 @@ async function init() {
       try { await WAdmin.loadExtraAdmins(); } catch(e) { /* silent */ }
     }
     if (WAdmin.isAdmin()) {
-      const ac = document.getElementById('adminAccessCard');
-      if (ac) ac.style.display = 'block';
-      const lc = document.getElementById('adminLeaguesCard');
-      if (lc) lc.style.display = 'block';
-      const tc = document.getElementById('adminTeamsCard');
-      if (tc) tc.style.display = 'block';
+      // Un-hide every admin management card — they default to display:none
+      // and only become visible for admins. Easier to iterate by id than
+      // toggle individual lookups (and ensures new admin cards just need
+      // their id added below).
+      ['adminAccessCard',
+       'adminLeaguesCard',
+       'adminTeamsCard',
+       'adminMaintCard',
+       'adminPortraitsCard'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'block';
+      });
       // Load data for admin panels (async)
       if (typeof loadAdminLeagues === 'function') loadAdminLeagues();
       if (typeof loadAdminTeams   === 'function') loadAdminTeams();
