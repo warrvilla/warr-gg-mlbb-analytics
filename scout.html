@@ -2879,6 +2879,17 @@ function saveMatch() {
     red:  _tr !== '' ? Math.max(0, Number(_tr)|0) : null,
   } : null;
 
+  // Tag the match with _createdBy at save time. loadFromSupabase uses this
+  // to identify which local matches belong to the current user and should
+  // be PRESERVED across cloud reloads. Without this, any locally-saved
+  // match would be silently deleted on next page reload if the cloud
+  // upsert hadn't completed yet — exactly the "match disappeared" bug.
+  const _currentUserId = (typeof WAuth !== 'undefined' && WAuth.getUser) ? (WAuth.getUser()?.id || null) : null;
+  // Preserve existing _createdBy when editing an old match (don't accidentally
+  // re-tag someone else's match as ours during an edit).
+  const _existingMatch = editingMatchId ? DB_MODULE.getMatches().find(m => m.id === editingMatchId) : null;
+  const _createdBy = (_existingMatch && _existingMatch._createdBy) ? _existingMatch._createdBy : _currentUserId;
+
   const match = {
     id: editingMatchId || 'match_' + Date.now(),
     league, seriesId,
@@ -2897,6 +2908,7 @@ function saveMatch() {
     // Phase-2 optional fields. Saved only when entered; report sections check before rendering.
     ...(firstBlood ? { firstBlood } : {}),
     ...(towers     ? { towers }     : {}),
+    _createdBy,
     savedAt: Date.now(),
   };
 
