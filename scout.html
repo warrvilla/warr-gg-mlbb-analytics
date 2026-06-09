@@ -2164,7 +2164,7 @@ function renderMatchListBody() {
       </div>`;
     }).join('');
 
-    return groupHdr + `<div class="series-card">
+    return groupHdr + `<div class="series-card" data-series-key="${sk}">
       <div class="series-header" onclick="toggleSeries('${sk}')">
         <div class="series-date-col">
           <div class="series-date-day">${day}</div>
@@ -2915,52 +2915,78 @@ function saveMatch() {
   DB_MODULE.upsertMatch(match);
   DB_MODULE.rebuildTeams();
   DB_MODULE.save();
-  // Ensure the just-saved match's series is expanded so the user can see it
-  // immediately. Belt + suspenders alongside the default-expanded behavior.
-  try {
-    const _sk = DB_MODULE.getSeriesId ? DB_MODULE.getSeriesId(match) : null;
-    if (_sk) _seriesCollapsed[_sk] = false;
-  } catch(_) {}
 
-  // ── AUTO-ADJUST FILTERS IF THE SAVED MATCH WOULD BE HIDDEN ──
-  // Without this, a coach saving (say) an MPL PH Playoffs match while the
-  // view is filtered to MPL ID / Season 17 / patch 1.9.28 just sees the
-  // match silently disappear. Detect mismatch, relax the filters, and tell
-  // the user we did so. We DO NOT touch the saved match data — only filters
-  // (which are view-only UI state).
+  // ── DEFENSIVE FORCED REFRESH ──
+  // User-reported bug: toast says saved but the match log doesn't update.
+  // Most likely cause: filters silently exclude the saved match, OR the user
+  // is on a different view, OR the matchListStatic static structure was built
+  // with stale state. Take all three hammers at once:
+
+  // (1) Compute what filter mismatches would hide the saved match — for the
+  //     toast message — then unconditionally reset all filters to 'all'.
+  //     Unconditional reset is safer than conditional: covers cases where the
+  //     match might match the current filters technically but UI selects got
+  //     out of sync.
   const filterAdjustments = [];
-  if (leagueFilter !== 'all' && leagueFilter !== match.league){
-    filterAdjustments.push(`League → All`);
-    leagueFilter = 'all';
-  }
-  if (seasonFilter !== 'all' && seasonFilter !== (match.season||'')){
-    filterAdjustments.push(`Season → All`);
-    seasonFilter = 'all';
-  }
-  if (patchFilter !== 'all' && patchFilter !== (match.patch||'')){
-    filterAdjustments.push(`Patch → All`);
-    patchFilter = 'all';
-  }
-  if (matchSearch && !match.blueTeam.toLowerCase().includes(matchSearch.toLowerCase())
-                   && !match.redTeam.toLowerCase().includes(matchSearch.toLowerCase())
-                   && !(match.notes||'').toLowerCase().includes(matchSearch.toLowerCase())){
+  if (leagueFilter !== 'all' && leagueFilter !== match.league)         filterAdjustments.push(`League → All`);
+  if (seasonFilter !== 'all' && seasonFilter !== (match.season||''))   filterAdjustments.push(`Season → All`);
+  if (patchFilter  !== 'all' && patchFilter  !== (match.patch||''))    filterAdjustments.push(`Patch → All`);
+  if (matchSearch
+      && !match.blueTeam.toLowerCase().includes(matchSearch.toLowerCase())
+      && !match.redTeam.toLowerCase().includes(matchSearch.toLowerCase())
+      && !(match.notes||'').toLowerCase().includes(matchSearch.toLowerCase())){
     filterAdjustments.push(`Search cleared`);
-    matchSearch = '';
-    const _ms = document.getElementById('matchSearchInput'); if (_ms) _ms.value = '';
   }
-  // Reflect filter changes in the UI selects too.
-  if (filterAdjustments.length){
-    const _lf = document.getElementById('leagueFilterSelect'); if (_lf) _lf.value = leagueFilter;
-    const _sf = document.getElementById('seasonFilterSelect'); if (_sf) _sf.value = seasonFilter;
-    const _pf = document.getElementById('patchFilterSelect');  if (_pf) _pf.value = patchFilter;
-  }
+  leagueFilter = 'all'; seasonFilter = 'all'; patchFilter = 'all'; matchSearch = '';
+
+  // (2) Sync EVERY known UI control to the reset state. League uses sidebar
+  //     buttons + a mobile dropdown, not a single select, so we have to clear
+  //     active class on all sb-* buttons and set the All button active.
+  const _ms = document.getElementById('matchSearchInput');     if (_ms) _ms.value = '';
+  const _sf = document.getElementById('seasonFilterSelect');  if (_sf) _sf.value = 'all';
+  const _pf = document.getElementById('patchFilterSelect');   if (_pf) _pf.value = 'all';
+  const _mob= document.getElementById('mobileLeagueSelect');  if (_mob) _mob.value = 'all';
+  document.querySelectorAll('.sidebar-btn[id^="sb-"]').forEach(el => {
+    const id = el.id.replace('sb-','');
+    if (!['matches','teams','meta'].includes(id)) el.classList.remove('active');
+  });
+  document.getElementById('sb-all')?.classList.add('active');
+
+  // (3) Force the just-saved match's series open. seriesId on the match object
+  //     is the same key getFilteredSeries groups under.
+  try { if (match.seriesId) _seriesCollapsed[match.seriesId] = false; } catch(_) {}
+
+  // (4) Switch view to matches and FORCE the static structure to rebuild
+  //     by destroying matchListStatic first. Otherwise the early-return in
+  //     renderMatchList keeps a stale shell.
+  currentView = 'matches';
+  ['matches','teams','meta'].forEach(x => document.getElementById('sb-'+x)?.classList.toggle('active', x==='matches'));
+  document.getElementById('matchListStatic')?.remove();
 
   closeMatchModal();
   renderMatchList();
+
+  // (5) Scroll the saved match into view + brief highlight so the user
+  //     visually sees it land.
+  setTimeout(() => {
+    const main = document.getElementById('mainArea');
+    if (main) main.scrollTop = 0;
+    if (match.seriesId){
+      const card = document.querySelector(`[data-series-key="${match.seriesId}"]`);
+      if (card){
+        card.scrollIntoView({behavior:'smooth', block:'start'});
+        card.style.transition = 'box-shadow .4s ease';
+        card.style.boxShadow = '0 0 0 2px var(--accent), 0 8px 32px rgba(168,136,204,0.35)';
+        setTimeout(() => { card.style.boxShadow = ''; }, 1800);
+      }
+    }
+  }, 30);
+
   const baseMsg = `✓ Match saved — ${blueTeam} vs ${redTeam}`;
   toast(filterAdjustments.length
     ? `${baseMsg} · Filters reset (${filterAdjustments.join(', ')}) so it's visible`
     : baseMsg);
+
   // Auto-sync to cloud (non-blocking)
   _setSyncStatus('syncing');
   _cloudSaveMatch(match);
