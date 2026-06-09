@@ -1252,7 +1252,14 @@ WDB.uploadHeroPortrait = async function(heroName, file, variant) {
       updated_at: new Date().toISOString(),
       updated_by: (typeof WAuth !== 'undefined' && WAuth.getUser) ? (WAuth.getUser()?.id || null) : null
     }, { onConflict: 'hero_name,variant' });
-  if (dbErr) throw dbErr;
+  if (dbErr) {
+    // Friendlier error when migration 002 hasn't been run yet.
+    const msg = (dbErr.message || '').toLowerCase();
+    if (msg.includes("'variant'") || msg.includes('variant')) {
+      throw new Error("Database needs an upgrade — run migrations/002_hero_portrait_variants.sql in Supabase Studio → SQL Editor, then try again. (Schema is missing the 'variant' column.)");
+    }
+    throw dbErr;
+  }
 
   // Refresh local cache with the new cache-busted URL
   const { data: pub } = _sbClient.storage.from('hero-portraits').getPublicUrl(path);
