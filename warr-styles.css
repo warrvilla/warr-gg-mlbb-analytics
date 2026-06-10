@@ -173,6 +173,9 @@ body::before {
 .nav-brand-mark {
   width: 22px; height: 22px;
   display: inline-flex; align-items: center; justify-content: center;
+  object-fit: contain;
+  /* Fallback look while the image hasn't been added — keeps the brand
+     gradient W look so the nav never renders empty. */
   border-radius: 6px;
   background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
   box-shadow:
@@ -180,6 +183,14 @@ body::before {
     inset 0 1px 0 rgba(255,255,255,0.25);
   font-family: var(--font-display);
   font-size: 11px; font-weight: 900; color: #fff; letter-spacing: 0;
+}
+/* When the brand mark is an <img> AND it loaded successfully, drop the
+   gradient/inset shadow so the actual logo shines. The .loaded class is
+   added in warr-nav.js on img.onload. */
+img.nav-brand-mark.loaded {
+  background: none;
+  box-shadow: 0 0 12px rgba(168,136,204,0.30);
+  border-radius: 4px;
 }
 .nav-brand-text {
   display: inline-flex; align-items: baseline;

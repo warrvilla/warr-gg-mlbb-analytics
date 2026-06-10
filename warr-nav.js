@@ -55,6 +55,9 @@
     nav.topnav .nav-brand-mark {
       width: 22px; height: 22px;
       display: inline-flex; align-items: center; justify-content: center;
+      object-fit: contain;
+      /* When the logo image hasn't been added to ./assets/ yet, fall back to
+         the previous gradient W look so the nav never renders broken. */
       border-radius: 6px;
       background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
       box-shadow:
@@ -62,6 +65,14 @@
         inset 0 1px 0 rgba(255,255,255,0.25);
       font-family: -apple-system,'SF Pro Display','Inter','Helvetica Neue',sans-serif;
       font-size: 11px; font-weight: 900; color: #fff; letter-spacing: 0;
+    }
+    /* Once an <img> is used, drop the gradient + box-shadow so the image
+       shows clean. The img.nav-brand-mark.loaded class is added on successful
+       load — see warr-nav.js mountCanonical(). */
+    nav.topnav img.nav-brand-mark.loaded {
+      background: none;
+      box-shadow: 0 0 12px rgba(168,136,204,0.30);
+      border-radius: 4px;
     }
     nav.topnav .nav-brand-text {
       display: inline-flex; align-items: baseline; gap: 0;
@@ -175,7 +186,7 @@
     return `
 <nav class="topnav">
   <a class="nav-brand" href="index.html" aria-label="Warr.GG home">
-    <span class="nav-brand-mark">W</span>
+    <img class="nav-brand-mark" src="assets/logo-white.png" alt="WARR.GG" onload="this.classList.add('loaded')" onerror="this.outerHTML='<span class=&quot;nav-brand-mark&quot;>W</span>'">
     <span class="nav-brand-text">WARR<span class="dot">.</span>GG</span>
   </a>
   <div class="nav-links">
