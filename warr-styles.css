@@ -170,12 +170,25 @@ body::before {
   flex-shrink: 0;
   margin-right: 16px;
 }
+/* Shared geometry for both <img> and <span> fallback. */
 .nav-brand-mark {
   width: 22px; height: 22px;
   display: inline-flex; align-items: center; justify-content: center;
+}
+/* <img> form: render the logo straight, no gradient/text styling so the
+   gradient W never flashes through during PNG load. */
+img.nav-brand-mark {
   object-fit: contain;
-  /* Fallback look while the image hasn't been added — keeps the brand
-     gradient W look so the nav never renders empty. */
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+}
+img.nav-brand-mark.loaded {
+  box-shadow: 0 0 12px rgba(168,136,204,0.25);
+}
+/* <span> form: only used as the onerror fallback when the logo file isn't
+   deployed yet. Keeps the brand W look so the nav never renders empty. */
+span.nav-brand-mark {
   border-radius: 6px;
   background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
   box-shadow:
@@ -183,14 +196,6 @@ body::before {
     inset 0 1px 0 rgba(255,255,255,0.25);
   font-family: var(--font-display);
   font-size: 11px; font-weight: 900; color: #fff; letter-spacing: 0;
-}
-/* When the brand mark is an <img> AND it loaded successfully, drop the
-   gradient/inset shadow so the actual logo shines. The .loaded class is
-   added in warr-nav.js on img.onload. */
-img.nav-brand-mark.loaded {
-  background: none;
-  box-shadow: 0 0 12px rgba(168,136,204,0.30);
-  border-radius: 4px;
 }
 .nav-brand-text {
   display: inline-flex; align-items: baseline;
