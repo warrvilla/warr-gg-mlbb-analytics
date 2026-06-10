@@ -872,6 +872,7 @@ select {
     <button class="mode-btn" id="slMY" onclick="setScoutLeague('MPL MY')">MPL MY</button>
     <button class="mode-btn" id="slID" onclick="setScoutLeague('MPL ID')">MPL ID</button>
     <button class="mode-btn" id="slSG" onclick="setScoutLeague('MPL SG')">MPL SG</button>
+    <button class="mode-btn" id="slKH" onclick="setScoutLeague('MPL KH')">MPL KH</button>
     <button class="mode-btn" id="slMSC" onclick="setScoutLeague('MSC')">MSC</button>
     <button class="mode-btn" id="slMS" onclick="setScoutLeague('M-Series')">M-Series</button>
     <button class="mode-btn" id="slScrims" onclick="setScoutLeague('Scrims')">Scrims</button>
@@ -3597,7 +3598,7 @@ function setScoutLeague(league) {
   ['slAll','slPH','slMY','slID','slSG','slMSC','slMS','slScrims'].forEach(id=>{
     document.getElementById(id)?.classList.remove('active');
   });
-  const map = {'all':'slAll','MPL PH':'slPH','MPL MY':'slMY','MPL ID':'slID','MPL SG':'slSG','MSC':'slMSC','M-Series':'slMS','Scrims':'slScrims'};
+  const map = {'all':'slAll','MPL PH':'slPH','MPL MY':'slMY','MPL ID':'slID','MPL SG':'slSG','MPL KH':'slKH','MSC':'slMSC','M-Series':'slMS','Scrims':'slScrims'};
   document.getElementById(map[league])?.classList.add('active');
   updateScoutBadges();
   toast(`Scout data: ${league==='all'?'All Leagues':league}`);

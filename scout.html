@@ -942,6 +942,7 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
 .lg-mplid { background: rgba(240,82,82,.12); color: #f87171; border: 1px solid rgba(240,82,82,.25); }
 .lg-mplsg { background: rgba(34,209,122,.12); color: #4ade80; border: 1px solid rgba(34,209,122,.25); }
 .lg-msc { background: rgba(244,165,52,.12); color: #fbbf24; border: 1px solid rgba(244,165,52,.25); }
+.lg-mplkh { background: rgba(56,189,248,.12); color: #38bdf8; border: 1px solid rgba(56,189,248,.25); }
 .lg-mseries { background: rgba(34,211,238,.12); color: #22d3ee; border: 1px solid rgba(34,211,238,.25); }
 .lg-scrims { background: rgba(251,146,60,.12); color: #fb923c; border: 1px solid rgba(251,146,60,.25); }
 .lg-other { background: var(--surface3); color: var(--text3); border: 1px solid var(--border); }
@@ -1272,6 +1273,7 @@ body::after {
       <option value="MPL MY">MPL MY</option>
       <option value="MPL ID">MPL ID</option>
       <option value="MPL SG">MPL SG</option>
+      <option value="MPL KH">MPL KH</option>
       <option value="MSC">MSC</option>
       <option value="M-Series">M-Series</option>
       <option value="Scrims">Scrims</option>
@@ -1294,6 +1296,9 @@ body::after {
     </button>
     <button class="sidebar-btn desktop-only" id="sb-MPL SG" onclick="setLeagueFilter('MPL SG')">
       <div class="league-dot" style="background:#4ade80;box-shadow:0 0 5px #4ade8066;"></div> MPL SG
+    </button>
+    <button class="sidebar-btn desktop-only" id="sb-MPL KH" onclick="setLeagueFilter('MPL KH')">
+      <div class="league-dot" style="background:#38bdf8;box-shadow:0 0 5px #38bdf866;"></div> MPL KH
     </button>
     <button class="sidebar-btn desktop-only" id="sb-MSC" onclick="setLeagueFilter('MSC')">
       <div class="league-dot" style="background:#fbbf24;box-shadow:0 0 5px #fbbf2466;"></div> MSC
@@ -1326,9 +1331,9 @@ const STORAGE_KEY = 'warr_scout_data';
 const DRAFT_KEY = 'mlbb_draft_data';
 
 // LEAGUES is mutable — extended at runtime by loadCustomLeagues() with admin-added leagues from Supabase.
-let LEAGUES = ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series','Scrims','Other'];
-const LEAGUE_CSS = {'MPL PH':'lg-mplph','MPL MY':'lg-mplmy','MPL ID':'lg-mplid','MPL SG':'lg-mplsg','MSC':'lg-msc','M-Series':'lg-mseries','Scrims':'lg-scrims','Other':'lg-other'};
-const LEAGUE_COLOR = {'MPL PH':'#60a5fa','MPL MY':'#c084fc','MPL ID':'#f87171','MPL SG':'#4ade80','MSC':'#fbbf24','M-Series':'#22d3ee','Scrims':'#fb923c','Other':'#4f5d78'};
+let LEAGUES = ['MPL PH','MPL MY','MPL ID','MPL SG','MPL KH','MSC','M-Series','Scrims','Other'];
+const LEAGUE_CSS = {'MPL PH':'lg-mplph','MPL MY':'lg-mplmy','MPL ID':'lg-mplid','MPL SG':'lg-mplsg','MPL KH':'lg-mplkh','MSC':'lg-msc','M-Series':'lg-mseries','Scrims':'lg-scrims','Other':'lg-other'};
+const LEAGUE_COLOR = {'MPL PH':'#60a5fa','MPL MY':'#c084fc','MPL ID':'#f87171','MPL SG':'#4ade80','MPL KH':'#38bdf8','MSC':'#fbbf24','M-Series':'#22d3ee','Scrims':'#fb923c','Other':'#4f5d78'};
 
 // Fallback palette used for admin-added leagues (in rotation)
 const _CUSTOM_LEAGUE_PALETTE = ['#f472b6','#a3e635','#fde047','#38bdf8','#f97316','#10b981','#e879f9','#94a3b8'];

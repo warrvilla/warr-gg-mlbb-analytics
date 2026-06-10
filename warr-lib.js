@@ -240,7 +240,7 @@ window.WAdmin = {
   ADMIN_EMAIL: 'wrrenvillapando@gmail.com',
 
   // Leagues that require admin auth to write/delete
-  LOCKED_LEAGUES: ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series'],
+  LOCKED_LEAGUES: ['MPL PH','MPL MY','MPL ID','MPL SG','MPL KH','MSC','M-Series'],
 
   // Check if the currently signed-in user is the admin
   isAdmin() {
@@ -278,7 +278,7 @@ const WDB = {
   // ── SCOUT MATCHES — public leagues shared; Scrims/Other private to creator ─────
 
   // Leagues visible to ALL users
-  PUBLIC_LEAGUES: ['MPL PH','MPL MY','MPL ID','MPL SG','MSC','M-Series'],
+  PUBLIC_LEAGUES: ['MPL PH','MPL MY','MPL ID','MPL SG','MPL KH','MSC','M-Series'],
 
   // Cross-page cache backed by sessionStorage so that navigating between
   // pages (which are full page reloads in this app) doesn't refetch the
