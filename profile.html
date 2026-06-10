@@ -733,7 +733,10 @@ body { background: var(--bg); min-height: 100vh; }
               </label>
             </div>
             ${thumb}
-            <div style="font-size:9.5px;color:rgba(255,255,255,0.36);font-family:var(--font-mono,'SF Mono',monospace);">PNG / JPG / WebP · Max 512 KB · ~1600×900px for crisp banner</div>
+            <div style="font-size:9.5px;color:rgba(255,255,255,0.36);font-family:var(--font-mono,'SF Mono',monospace);line-height:1.45;">
+              PNG / JPG / WebP · Max 512 KB<br>
+              Recommended: <strong style="color:rgba(255,255,255,0.62);">1800 × 600 px (3:1)</strong>. Banner renders ~1400×360 — your right ~35% shows uncovered so put hero art there.
+            </div>
           </div>
         `;
       }
@@ -775,10 +778,19 @@ body { background: var(--bg); min-height: 100vh; }
       return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
 
-    function openSlidesEditor() {
+    async function openSlidesEditor() {
       if (typeof WAdmin === 'undefined' || !WAdmin.isAdmin()) {
         _adminToast('Admin only', 'error'); return;
       }
+      // Pull the freshest cloud copy before opening so the admin is never
+      // editing a stale localStorage cache that's behind the live site.
+      try {
+        const cloudSlides = await WDB.loadHomepageSlides?.();
+        if (cloudSlides && cloudSlides.length) {
+          _slides = cloudSlides;
+          try { localStorage.setItem(HERO_SLIDES_KEY, JSON.stringify(_slides)); } catch(_) {}
+        }
+      } catch(_) {}
       document.getElementById('slidesModalBackdrop').style.display = 'flex';
       renderSlidesEditor();
     }
@@ -855,15 +867,27 @@ body { background: var(--bg); min-height: 100vh; }
         }
       });
     }
-    function saveSlides() {
+    async function saveSlides() {
       syncEditorState();
       if (!_editingSlides.length) {
         alert('At least one slide is required.');
         return;
       }
       _slides = _editingSlides;
+      // Always mirror to localStorage as an offline / fast-paint cache.
       try { localStorage.setItem(HERO_SLIDES_KEY, JSON.stringify(_slides)); } catch(_) {}
-      _adminToast(`Saved ${_slides.length} slide${_slides.length === 1 ? '' : 's'}`);
+      // And push to Supabase so EVERY visitor sees the new slides.
+      try {
+        await WDB.saveHomepageSlides(_slides);
+        _adminToast(`Saved ${_slides.length} slide${_slides.length === 1 ? '' : 's'} (live for all visitors)`);
+      } catch (e) {
+        const msg = (e && e.message) || String(e);
+        if (msg.includes('homepage_slides') || msg.toLowerCase().includes('relation')) {
+          alert("Saved locally, but cloud sync failed — run migrations/003_homepage_slides.sql in Supabase Studio to enable cloud sync for all visitors.");
+        } else {
+          alert('Saved locally, but cloud sync failed: ' + msg);
+        }
+      }
       closeSlidesEditor();
     }
     </script>

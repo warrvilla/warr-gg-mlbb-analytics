@@ -103,11 +103,18 @@ body {
   z-index: 0;
 }
 .hero-bg-overlay {
+  /* Dark scrim ONLY on the left to keep text readable. Fades to fully
+     transparent by 65%, so the right ~35% of the banner image shows
+     uncolored. No amethyst tint on the right — that was washing the
+     image out. */
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(90deg, rgba(5,5,9,0.92) 0%, rgba(5,5,9,0.65) 45%, rgba(5,5,9,0.10) 100%),
-    radial-gradient(ellipse 60% 80% at 100% 50%, rgba(168,136,204,0.18) 0%, transparent 70%);
+  background: linear-gradient(90deg,
+    rgba(5,5,9,0.90) 0%,
+    rgba(5,5,9,0.55) 35%,
+    rgba(5,5,9,0.15) 55%,
+    rgba(5,5,9,0.00) 70%
+  );
   z-index: 1;
 }
 .hero-stars {
@@ -811,13 +818,13 @@ body {
 // ══════════════════════════════════════════════════════════════
 // HERO BANNER CAROUSEL
 // ══════════════════════════════════════════════════════════════
-// Slides are stored in localStorage under HERO_SLIDES_KEY. The hardcoded
-// defaults below ship with the page so anonymous visitors see something
-// reasonable. The admin can override via the Edit Slides modal.
+// Source-of-truth chain for slides:
+//   1. Supabase homepage_slides table (set by admin in Profile → Slides)
+//   2. localStorage HERO_SLIDES_KEY (cache from last admin edit on this browser)
+//   3. DEFAULT_SLIDES (hardcoded — shown to anonymous first-time visitors)
 //
-// TODO (when ready for prod): swap localStorage for a Supabase table
-// `homepage_slides` (RLS: SELECT public, INSERT/UPDATE admin only) so
-// all visitors see the same slides.
+// On init we render from (2) immediately for instant paint, then refresh
+// from (1) in the background so other visitors see the admin's latest edits.
 const HERO_SLIDES_KEY = 'warr_homepage_slides';
 const DEFAULT_SLIDES = [
   {
@@ -1125,8 +1132,22 @@ function renderIntelFeed() {
 // INIT
 // ══════════════════════════════════════════════════════════════
 (async () => {
+  // Paint immediately from localStorage / defaults so the banner shows
+  // without waiting on the network.
   renderHeroBanner();
   resetHeroTimer();
+  // Then pull the latest slides from the cloud — this is what makes
+  // admin edits visible to ALL visitors, not just the editor's browser.
+  try {
+    const cloudSlides = await WDB.loadHomepageSlides?.();
+    if (cloudSlides && cloudSlides.length) {
+      _slides = cloudSlides;
+      try { localStorage.setItem(HERO_SLIDES_KEY, JSON.stringify(_slides)); } catch(_) {}
+      _slideIdx = 0;
+      renderHeroBanner();
+      resetHeroTimer();
+    }
+  } catch(_) {}
   // Load portrait overrides BEFORE rendering anything that uses portraits,
   // so admin-uploaded portraits replace the local PNGs everywhere.
   try { await WDB.loadHeroPortraitOverrides?.(); } catch(_) {}

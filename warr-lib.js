@@ -1299,6 +1299,44 @@ WDB.deleteHeroPortrait = async function(heroName, variant) {
   }
 };
 
+// ── Homepage hero-banner slides (cloud-synced) ──
+// Single-row table keyed 'default' that holds the entire slides array as
+// JSONB. WDB.loadHomepageSlides() pulls them on the homepage; the editor
+// in profile.html calls WDB.saveHomepageSlides() and also mirrors to
+// localStorage as an offline fallback.
+
+WDB.loadHomepageSlides = async function() {
+  if (typeof _sbClient === 'undefined') return null;
+  try {
+    const { data, error } = await _sbClient
+      .from('homepage_slides')
+      .select('slides, updated_at')
+      .eq('id', 'default')
+      .maybeSingle();
+    if (error) throw error;
+    if (data && Array.isArray(data.slides) && data.slides.length) return data.slides;
+    return null;
+  } catch (e) {
+    console.warn('[WDB] loadHomepageSlides failed:', e.message);
+    return null;
+  }
+};
+
+WDB.saveHomepageSlides = async function(slides) {
+  if (!Array.isArray(slides) || !slides.length) throw new Error('slides must be a non-empty array');
+  if (typeof _sbClient === 'undefined') throw new Error('Supabase not initialized');
+  if (typeof WAdmin === 'undefined' || !WAdmin.isAdmin()) throw new Error('Admin only');
+  const { error } = await _sbClient
+    .from('homepage_slides')
+    .upsert({
+      id: 'default',
+      slides,
+      updated_at: new Date().toISOString(),
+      updated_by: (typeof WAuth !== 'undefined' && WAuth.getUser) ? (WAuth.getUser()?.id || null) : null
+    }, { onConflict: 'id' });
+  if (error) throw error;
+};
+
 /** Upload a homepage hero-banner slide background image. Admin only.
  *  Stored in the existing hero-portraits bucket under a slides/ prefix
  *  so we don't need another bucket / RLS setup. Returns { url }.
