@@ -1255,7 +1255,7 @@ function getHeroLanesAB(h) {
 // ═══════ SESSION STATE ═══════
 let pName='You',pSide='blue',aiSide='red',diff='hard';
 let ST={step:0,bb:[],rb:[],bp:[],rp:[],hist:[]};
-let af='All',alane='All',sq='',aiThink=false,done=false,laneAssignmentsAB={};
+let af='All',alane='All',sq='',aiThink=false,done=false,laneAssignmentsAB={},laneManualAB={};
 let heroFilterModeAB = 'lane'; // 'lane' | 'role'
 let _side='blue',_diff='hard';
 let aiMode='generic',enemyTeamName='',enemyProfile=null,aiArchetype=null;
@@ -1504,7 +1504,7 @@ function rematch(){document.getElementById('result').classList.remove('show');in
 // ═══════ INIT ═══════
 function initBattle(){
   ST={step:0,bb:[],rb:[],bp:[],rp:[],hist:[]};
-  aiThink=false;done=false;af='All';alane='All';sq='';laneAssignmentsAB={};
+  aiThink=false;done=false;af='All';alane='All';sq='';laneAssignmentsAB={};laneManualAB={};
   document.getElementById('srch').value='';
   document.getElementById('anaBtn').disabled=true;
   document.getElementById('logEntries').innerHTML='';
@@ -1604,6 +1604,56 @@ function canPickHero(h,myPicks){
   if(!opts.length||opts[0]==='Flex')return taken.size<5;
   return opts.some(l=>l==='Flex'||!taken.has(l));
 }
+// ── DYNAMIC LANE RESOLUTION ──
+// Re-resolve a team's lane assignments from scratch (manual locks respected).
+// A flex hero's lane READ must update as the comp fills out: Baxia picked
+// first reads Roam, but once a dedicated roamer lands, Baxia re-reads Jungle.
+// The old commit-time greedy lock froze the first guess for the whole draft,
+// which made the AI model the wrong board against flex picks.
+function resolveTeamLanesAB(team){
+  if(!team||!team.length)return;
+  const fixed={},flexIdx=[];
+  team.forEach((p,i)=>{
+    if(laneManualAB[p.id]&&laneAssignmentsAB[p.id]&&laneAssignmentsAB[p.id]!=='Flex')fixed[i]=laneAssignmentsAB[p.id];
+    else flexIdx.push(i);
+  });
+  const ALL5=['Gold','Jungle','Mid','EXP','Roam'];
+  const opts=team.map(p=>{const o=getHeroLanesAB(p).filter(l=>l!=='Flex');return o.length?o:ALL5.slice();});
+  let best=null,bestScore=-1;
+  const used=new Set(Object.values(fixed)),cur={};
+  const order=flexIdx.slice().sort((a,b)=>opts[a].length-opts[b].length);
+  const dfs=(k,score)=>{
+    if(k===order.length){if(score>bestScore){bestScore=score;best=Object.assign({},cur);}return;}
+    const i=order[k];
+    let any=false;
+    for(let oi=0;oi<opts[i].length;oi++){
+      const l=opts[i][oi];
+      if(used.has(l))continue;
+      any=true;
+      used.add(l);cur[i]=l;
+      dfs(k+1,score+(4-Math.min(oi,3))); // prefer each hero's primary lane
+      used.delete(l);delete cur[i];
+    }
+    if(!any){cur[i]=null;dfs(k+1,score);delete cur[i];} // contradictory comp — leave open
+  };
+  dfs(0,0);
+  if(best)flexIdx.forEach(i=>{
+    const l=best[i];
+    if(l)laneAssignmentsAB[team[i].id]=l;
+    else delete laneAssignmentsAB[team[i].id];
+  });
+}
+// Is this team's lane read still ambiguous (a non-locked hero with 2+ open lanes)?
+function laneReadAmbiguousAB(team){
+  const assigned=new Set(team.map(p=>laneAssignmentsAB[p.id]).filter(l=>l&&l!=='Flex'));
+  return team.some(p=>{
+    if(laneManualAB[p.id])return false;
+    const o=getHeroLanesAB(p).filter(l=>l!=='Flex');
+    const open=o.filter(l=>!assigned.has(l)||laneAssignmentsAB[p.id]===l);
+    return open.length>=2;
+  });
+}
+
 function iu(h){return`./portraits/${h.id}.png`;}
 function iun(h){const n=(h.name||'').replace(/ /g,'_').replace(/[^a-zA-Z0-9_.]/g,'');return`./portraits/${n}.png`;}
 function fb(h){const c=encodeURIComponent(h.color||'#3b82f6'),t=encodeURIComponent((h.name||'?').substring(0,2).toUpperCase());return`data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128'><circle cx='64' cy='64' r='64' fill='%231e2028'/><circle cx='64' cy='64' r='62' fill='none' stroke='${c}' stroke-width='3'/><text x='64' y='76' text-anchor='middle' fill='${c}' font-size='36' font-weight='700' font-family='Arial'>${t}</text></svg>`;}
@@ -1650,6 +1700,9 @@ function cycleLaneAB(heroId,event){
     idx=(idx+1)%order.length;
   }
   laneAssignmentsAB[heroId]=order[idx];
+  // User's explicit lane choice is authoritative — the auto-resolver must not
+  // override it. Cycling back to Flex releases the lock.
+  if(order[idx]==='Flex')delete laneManualAB[heroId];else laneManualAB[heroId]=true;
   renderSlots();
 }
 function psl(h,active,side,lbl){
@@ -1772,13 +1825,11 @@ function commit(h){
   ST.hist.push({step:ST.step,hero:h,type:s.type,team:s.team,prevLaneAssign});
   if(s.type==='ban'){s.team==='blue'?ST.bb.push(h):ST.rb.push(h);}
   else{
-    // ── STRICT AUTO-LANE ASSIGNMENT ──
-    // Lock this hero into the first available lane from its options that a teammate
-    // doesn't already own — guarantees the 5-role composition (EXP/Jungle/Mid/Gold/Roam).
-    const sameTeam=s.team==='blue'?ST.bp:ST.rp;
-    const chosenLane=pickLaneForHero(h,sameTeam);
-    if(chosenLane&&chosenLane!=='Flex')laneAssignmentsAB[h.id]=chosenLane;
+    // ── DYNAMIC LANE ASSIGNMENT ──
+    // Push first, then re-resolve the WHOLE team's lanes. Flex reads update as
+    // the comp fills; the user's manual lane cycles stay locked.
     s.team==='blue'?ST.bp.push(h):ST.rp.push(h);
+    resolveTeamLanesAB(s.team==='blue'?ST.bp:ST.rp);
   }
   // Track EVERY AI ban across recent matches so future games diversify ban pools.
   if(s.type==='ban'&&s.team===aiSide){
@@ -1812,6 +1863,8 @@ function undoPick(){
     cnt++;if(cnt===1&&DRAFT_ORDER[l.step]?.team===pSide)break;
   }
   done=false;document.getElementById('anaBtn').disabled=(ST.bp.length+ST.rp.length)<6;
+  // Re-normalize both ledgers — resolution depends on full team state.
+  resolveTeamLanesAB(ST.bp);resolveTeamLanesAB(ST.rp);
   document.getElementById('result').classList.remove('show');
   renderAll();updateTurn();toast('Undone');
 }
@@ -3042,7 +3095,11 @@ function draftBrainAB(step){
       const lns=getHeroLanesAB(h).filter(l=>l!=='Flex');
       const primaryLn=lns[0];
       if(isP2&&primaryLn&&oppNeeded.includes(primaryLn)&&['S','A'].includes(_dbTier(h.name))){
-        comp.lane=0.32;why.lane=`their best remaining ${primaryLn} option — lane-targeted deny`;
+        // If their flex picks leave the lane read ambiguous, a lane-targeted ban
+        // is a guess — discount it instead of overcommitting to one read.
+        const amb=laneReadAmbiguousAB(oppP);
+        comp.lane=amb?0.16:0.32;
+        why.lane=`their best remaining ${primaryLn} option — lane-targeted deny${amb?' (flex read uncertain)':''}`;
       }
       comp.meta=ev.presence(h.name)*0.25;
       // ENEMY mode: mimic their real ban habits (phased)
