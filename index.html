@@ -939,8 +939,13 @@ function renderMetaHierarchies() {
   if (!grid || !label) return;
 
   const all = _metaMatchesCache || [];
-  // Filter by region (leagueFilter style)
-  let matches = all;
+  // COMPETITIVE DATA ONLY: loadMatches() also returns the viewer's own private
+  // matches (Scrims / Other / AI Battle practice games). Those must never feed
+  // the meta display — AI Battle drafts were polluting "Global".
+  const isPublic = m => (typeof WDB !== 'undefined' && WDB.PUBLIC_LEAGUES)
+    ? WDB.PUBLIC_LEAGUES.includes(m.league || '')
+    : !['Scrims','Other','AI Battle',''].includes(m.league || '');
+  let matches = all.filter(isPublic);
   if (_metaRegion !== 'all') matches = matches.filter(m => m.league === _metaRegion);
 
   if (!matches.length) {
@@ -951,35 +956,47 @@ function renderMetaHierarchies() {
     return;
   }
 
-  // Latest patch for label
-  const patches = [...new Set(matches.map(m => m.patch).filter(Boolean))].sort().reverse();
-  const labelText = `${_metaRegion === 'all' ? 'Global' : _metaRegion} Performance · ${patches.length ? `Patch ${patches[0]}` : `${matches.length} games`}`;
+  // Honest label: only claim a patch when the data is actually that patch.
+  const patches = [...new Set(matches.map(m => m.patch).filter(Boolean))]
+    .sort((a, b) => String(b).localeCompare(String(a), undefined, { numeric: true }));
+  const singlePatch = patches.length === 1;
+  const labelText = `${_metaRegion === 'all' ? 'Global' : _metaRegion} Performance · ` +
+    (singlePatch ? `Patch ${patches[0]} · ${matches.length}g` : `${matches.length} games${patches.length ? ` · up to patch ${patches[0]}` : ''}`);
   label.textContent = labelText;
 
-  // Aggregate pick counts per hero in the selected lane
+  // Aggregate per hero in the selected lane — recency-weighted (90-day
+  // half-life) so the display tracks the CURRENT meta, not all-time history.
   const lane = _metaLane;
+  const now = Date.now();
+  const wOf = m => { const t = Date.parse(m.date || ''); if (!t) return 0.7; return Math.pow(0.5, Math.max(0, (now - t) / 864e5) / 90); };
   const heroStats = {};
+  let totalW = 0;
   matches.forEach(m => {
-    [...(m.bluePicks||[]), ...(m.redPicks||[])].forEach(p => {
-      const name = p?.name; const heroLane = p?.lane;
-      if (!name || heroLane !== lane) return;
-      if (!heroStats[name]) heroStats[name] = { picks: 0, wins: 0 };
-      heroStats[name].picks++;
-      const won = (m.bluePicks||[]).some(bp => bp.name === name) ? m.winner === 'blue' : m.winner === 'red';
-      if (won) heroStats[name].wins++;
+    const w = wOf(m);
+    totalW += w;
+    [[m.bluePicks || [], 'blue'], [m.redPicks || [], 'red']].forEach(([picks, side]) => {
+      picks.forEach(p => {
+        const name = p?.name; const heroLane = p?.lane;
+        if (!name || heroLane !== lane) return;
+        if (!heroStats[name]) heroStats[name] = { w: 0, winW: 0, games: 0 };
+        heroStats[name].w += w;
+        heroStats[name].games++;
+        if (m.winner === side) heroStats[name].winW += w;
+      });
     });
   });
 
-  const totalGames = matches.length;
+  const haveDepth = Object.values(heroStats).some(s => s.games >= 2);
   const ranked = Object.entries(heroStats)
-    .map(([name, s]) => ({
-      name,
-      pickRate: (s.picks / totalGames) * 100,
-      winRate: s.picks ? (s.wins / s.picks) * 100 : 0,
-      games: s.picks
-    }))
-    .filter(h => h.games >= 1)
-    .sort((a, b) => (b.pickRate * 2 + b.winRate) - (a.pickRate * 2 + a.winRate))
+    .map(([name, s]) => {
+      const pickRate = totalW > 0 ? (s.w / totalW) * 100 : 0;
+      const winRate = s.w > 0 ? (s.winW / s.w) * 100 : 0;
+      // Rank on shrunk WR so a 1-game 100% can't outrank a 15-game 60%.
+      const shrunkWR = ((s.winW + 0.5 * 4) / (s.w + 4)) * 100;
+      return { name, pickRate, winRate, games: s.games, _rank: pickRate * 2 + shrunkWR };
+    })
+    .filter(h => haveDepth ? h.games >= 2 : h.games >= 1)
+    .sort((a, b) => b._rank - a._rank)
     .slice(0, 5);
 
   if (!ranked.length) {
@@ -1018,7 +1035,7 @@ function renderMetaHierarchies() {
           <span class="hero-tier t-${tier.replace('+', '\\+')}">${tier}</span>
         </div>
         <div class="hero-card-name">${h.name}</div>
-        <div class="hero-card-stat">${Math.round(h.pickRate)}% PR · ${Math.round(h.winRate)}% WR</div>
+        <div class="hero-card-stat">${Math.round(h.pickRate)}% PR · ${Math.round(h.winRate)}% WR · ${h.games}g</div>
       </a>
     `;
   }).join('');
