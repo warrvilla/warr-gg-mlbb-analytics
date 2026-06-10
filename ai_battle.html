@@ -2208,7 +2208,8 @@ function getTeamComp(picks) {
   const comp = { Tank:0, Fighter:0, Mage:0, Marksman:0, Support:0, Assassin:0 };
   picks.forEach(h => {
     const r = getHeroRole(h.name);
-    if (r in comp) comp[r]++;
+    const key = r === 'MM' ? 'Marksman' : r; // role string is 'MM', comp key is 'Marksman'
+    if (key in comp) comp[key]++;
   });
   return comp;
 }
@@ -2738,483 +2739,533 @@ function renderCoachPanel(){
   panel.innerHTML=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;color:#A888CC;">COACH SUGGESTIONS — ${cur.type.toUpperCase()}</span><span style="font-size:9px;color:var(--text3);">${intel.n} games of scout data</span></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;">${chips}</div>`;
 }
 
-function localAI(step){
-  const usedIds=[...ST.bb,...ST.rb,...ST.bp,...ST.rp].map(h=>h.id);
-  const bannedSet=new Set([...ST.bb,...ST.rb].map(h=>h.id));
-  const avail=HEROES.filter(h=>!usedIds.includes(h.id));
+// ═══════════════════════════════════════════════════════════════════════════
+// DRAFT BRAIN v2 — slot-aware coach pipeline (full spec: DRAFT_LOGIC.md)
+//
+//   LEGAL → NEEDS → INTENT → CANDIDATES → RANK → EXPLAIN
+//
+// Signal discipline (§6): lanes decide LEGALITY, roles decide NEEDS,
+// scout patterns decide INTENT + CANDIDATES, matchup/tier/synergy WR
+// decide RANK. No signal votes outside its stage — this is what replaces
+// the old ~1000-line additive scoring engine.
+// ═══════════════════════════════════════════════════════════════════════════
+const LANES5=['Gold','Jungle','Mid','EXP','Roam'];
+
+function _dbTier(name){return getEffectiveTier(name);}
+function _dbTierScore(name){return({S:100,A:78,B:55,C:32,D:15})[_dbTier(name)]||30;}
+function _roleAB(name){const r=getHeroRole(name);return r==='MM'?'Marksman':r;}
+
+// ── per-turn memo (getLearnedCounters / tendencies parse localStorage — cache per turn) ──
+let _btc=null;
+function _LC(n){if(!_btc)_btc={lc:{}};return _btc.lc[n]||(_btc.lc[n]=getLearnedCounters(n));}
+function _FAVS(){if(!_btc)_btc={lc:{}};return _btc.favs||(_btc.favs=getHumanTendencies());}
+function _COMBOS(){if(!_btc)_btc={lc:{}};return _btc.combos||(_btc.combos=getHumanComboThreats());}
+
+// ═══════ EVIDENCE HIERARCHY (§7) ═══════
+// team-on-side → team → league → overall → patch sheet.
+// Confidence blend weight = g/(g+k); recency half-life 90 days.
+let _evCacheAB2=null,_evKeyAB2='';
+function evidenceAB(){
+  const enemyName=(aiMode==='enemy'&&enemyProfile)?enemyProfile.name:'';
+  let mt=0;try{const r=localStorage.getItem(SCOUT_KEY_AB);mt=r?r.length:0;}catch(_){}
+  const key=mt+'|'+scoutLeagueAB+'|'+enemyName;
+  if(_evCacheAB2&&_evKeyAB2===key)return _evCacheAB2;
+  const db=loadScoutAB();
+  const all=(db.matches||[]).filter(m=>m.league!=='AI Battle'); // self-play never pollutes evidence
+  const now=Date.now();
+  const wOf=m=>{const t=Date.parse(m.date||'');if(!t)return 0.7;return Math.pow(0.5,Math.max(0,(now-t)/864e5)/90);};
+  const mkScope=()=>({g:0,pick:{},ban:{},win:{},pickN:{}});
+  const ov=mkScope(),lg=mkScope(),tm=mkScope(),tmB=mkScope(),tmR=mkScope();
+  // League scope: explicit selector wins, else the enemy team's dominant league
+  let lgName=scoutLeagueAB!=='all'?scoutLeagueAB:'';
+  if(!lgName&&enemyName){
+    const cnt={};all.forEach(m=>{if(m.blueTeam===enemyName||m.redTeam===enemyName)cnt[m.league||'']=(cnt[m.league||'']||0)+1;});
+    lgName=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+  }
+  const addSide=(sc,m,w,isBlue)=>{
+    sc.g+=w;
+    const won=m.winner===(isBlue?'blue':'red');
+    ((isBlue?m.bluePicks:m.redPicks)||[]).forEach(p=>{const n=p.name||p;if(!n)return;sc.pick[n]=(sc.pick[n]||0)+w;sc.pickN[n]=(sc.pickN[n]||0)+1;if(won)sc.win[n]=(sc.win[n]||0)+w;});
+    ((isBlue?m.blueBans:m.redBans)||[]).forEach(b=>{const n=typeof b==='string'?b:(b?.name||'');if(n)sc.ban[n]=(sc.ban[n]||0)+w;});
+  };
+  all.forEach(m=>{
+    const w=wOf(m);
+    addSide(ov,m,w,true);addSide(ov,m,w,false);
+    if(lgName&&m.league===lgName){addSide(lg,m,w,true);addSide(lg,m,w,false);}
+    if(enemyName){
+      if(m.blueTeam===enemyName){addSide(tm,m,w,true);addSide(tmB,m,w,true);}
+      if(m.redTeam===enemyName){addSide(tm,m,w,false);addSide(tmR,m,w,false);}
+    }
+  });
+  const h0=n=>HEROES.find(x=>x.name===n);
+  const rate=(map,sc,n)=>sc.g>0?(((map==='pick'?sc.pick:sc.ban)[n])||0)/sc.g:0;
+  // Blend broad→specific: each scope overrides the layer below it by exactly
+  // as much confidence as its sample earns. No cliffs (§7).
+  const blend=(map,n,side,teamAware,prior)=>{
+    let r=prior;
+    const chain=[{s:ov,k:6},{s:lg,k:6}];
+    if(teamAware){chain.push({s:tm,k:4});if(side)chain.push({s:side==='blue'?tmB:tmR,k:3});}
+    chain.forEach(({s,k})=>{if(s.g<=0)return;const conf=s.g/(s.g+k);r=conf*rate(map,s,n)+(1-conf)*r;});
+    return r;
+  };
+  _evCacheAB2={
+    leagueName:lgName,teamGames:tm.g,ovGames:ov.g,
+    pickRate:(n,side)=>blend('pick',n,side,true,((h0(n)?.pr||0)/100)*0.5),
+    banRate:(n,side)=>blend('ban',n,side,true,((h0(n)?.br||0)/100)*0.5),
+    metaBanRate:n=>blend('ban',n,null,false,(h0(n)?.br||0)/100),
+    teamPickRate:(n,side)=>{const s=side==='blue'?tmB:side==='red'?tmR:tm;return s.g>0?((s.pick[n]||0)/s.g):null;},
+    teamBanRate:(n,side)=>{const s=side==='blue'?tmB:side==='red'?tmR:tm;return s.g>0?((s.ban[n]||0)/s.g):null;},
+    teamEverPicked:n=>!!tm.pickN[n],
+    leaguePickRate:n=>lg.g>0?((lg.pick[n]||0)/lg.g):(ov.g>0?((ov.pick[n]||0)/ov.g):0),
+    heroWR:n=>{const s=lg.g>0?lg:ov;const p=s.pick[n]||0;if(p<=0)return 0.5;const wr=(s.win[n]||0)/p;const conf=p/(p+3);return conf*wr+(1-conf)*0.5;},
+    presence:n=>{const p=blend('pick',n,null,false,(h0(n)?.pr||0)/100);const b=blend('ban',n,null,false,(h0(n)?.br||0)/100);return Math.min(1,p+b);},
+  };
+  _evKeyAB2=key;
+  return _evCacheAB2;
+}
+
+// ═══════ LANE LEDGER (§5) — duplicate lanes structurally impossible ═══════
+function _laneOptsAB(p){
+  const a=laneAssignmentsAB[p.id];
+  if(a&&a!=='Flex')return[a];
+  const o=getHeroLanesAB(p).filter(l=>l!=='Flex');
+  return o.length?o:LANES5.slice();
+}
+// Bipartite check: after adding cand, does a valid 1-per-lane assignment still exist?
+function laneFeasibleAB(myP,cand){
+  const team=cand?[...myP,cand]:myP.slice();
+  if(team.length>5)return false;
+  const opts=team.map(_laneOptsAB);
+  const order=opts.map((_,i)=>i).sort((a,b)=>opts[a].length-opts[b].length);
+  const used=new Set();
+  const bt=k=>{
+    if(k===order.length)return true;
+    for(const l of opts[order[k]]){
+      if(used.has(l))continue;
+      used.add(l);
+      if(bt(k+1))return true;
+      used.delete(l);
+    }
+    return false;
+  };
+  return bt(0);
+}
+
+// ═══════ NEEDS AUDIT (§4) — roles only ═══════
+const _SETTERS_AB=new Set(['Atlas','Tigreal','Khufra','Franco','Minotaur','Johnson','Akai','Lolita','Gatotkaca','Hylos','Belerick','Grock','Baxia','Carmilla','Edith','Chip','Kalea','Chou','Jawhead','Ruby','Guinevere','Kaja','Mathilda','Khaleed','Hilda','Minsitthar','Selena','Kadita','Vexana','Aurora','Eudora','Yve','Pharsa','Luo Yi']);
+const _MAGIC_NONMAGE_AB=new Set(['Esmeralda','Guinevere','Karina','Gusion','Joy','Silvanna','Uranus','Belerick','Bane','Kaja','Gloo','Baxia','Hylos','Mathilda','Faramis','Angela','Floryn','Estes','Rafaela','Diggie','Carmilla','Kimmy']);
+function needsAuditAB(myP){
+  const names=myP.map(h=>h.name);
+  const comp={Tank:0,Fighter:0,Assassin:0,Mage:0,Marksman:0,Support:0};
+  names.forEach(n=>{const r=_roleAB(n);if(r in comp)comp[r]++;});
+  const frontline=comp.Tank>0||comp.Fighter>0;
+  const setter=names.some(n=>_SETTERS_AB.has(n))||comp.Tank>0;
+  const phys=comp.Marksman+comp.Assassin+comp.Fighter;
+  const magic=comp.Mage+names.filter(n=>_MAGIC_NONMAGE_AB.has(n)&&_roleAB(n)!=='Mage').length;
+  const gates=[];
+  if(!frontline)gates.push('frontline');
+  if(!setter)gates.push('setter');
+  if(phys===0)gates.push('physical damage');
+  if(magic===0)gates.push('magic damage');
+  return{comp,frontline,setter,phys,magic,gates};
+}
+function _fixesGateAB(h,gates){
+  const r=_roleAB(h.name);
+  if(gates.includes('frontline')&&(r==='Tank'||r==='Fighter'))return'frontline';
+  if(gates.includes('setter')&&(_SETTERS_AB.has(h.name)||r==='Tank'))return'setter';
+  if(gates.includes('physical damage')&&(r==='Marksman'||r==='Assassin'||r==='Fighter'))return'physical damage';
+  if(gates.includes('magic damage')&&(r==='Mage'||_MAGIC_NONMAGE_AB.has(h.name)))return'magic damage';
+  return null;
+}
+
+// ═══════ RANK helpers — WR signals only (§6) ═══════
+function vsScoreAB(hName,oppNames){
+  let s=0;
+  oppNames.forEach(on=>{
+    const beats=_LC(on).find(x=>x.name===hName);
+    if(beats)s+=((beats.wr||0.5)-0.5)*2*Math.min((beats.count||1)/8,1)*100;
+    const loses=_LC(hName).find(x=>x.name===on);
+    if(loses)s-=((loses.wr||0.5)-0.5)*2*Math.min((loses.count||1)/8,1)*110;
+    const da=(getDraftedAgainst(on)||[]).find(x=>x.name===hName);
+    if(da)s+=(((da.wr||0.5))-0.5)*2*Math.min((da.count||1)/5,1)*45;
+  });
+  return Math.round(s);
+}
+function synScoreAB(hName,myNames){
+  let s=0;
+  myNames.forEach(mn=>{
+    const sy=(getScoutSynergies(mn)||[]).find(x=>x.name===hName)||(getScoutSynergies(hName)||[]).find(x=>x.name===mn);
+    if(sy)s+=(((sy.wr||0.5))-0.5)*2*Math.min((sy.count||1)/6,1)*70;
+  });
+  return Math.round(s);
+}
+// Blind risk: worst still-available counter to this hero (counter-timing, §3)
+function blindRiskAB(hName,usedIds){
+  let worst=0,by='';
+  _LC(hName).forEach(c=>{
+    const ch=HEROES.find(x=>x.name===c.name);
+    if(!ch||usedIds.has(ch.id))return;
+    const sev=((c.wr||0.5)-0.5)*2*Math.min((c.count||1)/6,1);
+    if(sev>worst){worst=sev;by=c.name;}
+  });
+  return{risk:worst,by};
+}
+function flexCountAB(h){return getHeroLanesAB(h).filter(l=>l!=='Flex').length;}
+function _scarcestLaneAB(neededLanes,pool){
+  let best=null,bestC=Infinity;
+  neededLanes.forEach(L=>{
+    const c=pool.filter(h=>getHeroLanesAB(h).includes(L)&&['S','A'].includes(_dbTier(h.name))).length;
+    if(c<bestC){bestC=c;best=L;}
+  });
+  return{lane:best,count:bestC===Infinity?0:bestC};
+}
+
+// ═══════ OPPONENT PREDICTION (§8) — predict-then-deny ═══════
+// Runs the human's own draft incentives against THEIR board state.
+function predictOppAB(oppP,myP,usedIds,n){
+  const favs=_FAVS();
+  const oppNames=oppP.map(h=>h.name),myNames=myP.map(h=>h.name);
+  const ev=evidenceAB();
+  return HEROES.filter(h=>!usedIds.has(h.id)&&oppP.length<5&&laneFeasibleAB(oppP,h))
+    .map(h=>{
+      const fav=favs.find(f=>f.name===h.name);
+      const comfort=fav?Math.min(fav.count||0,8)*(fav.wr||0.5)*9:0;
+      const meta=ev.presence(h.name)*45;
+      const counter=Math.max(0,vsScoreAB(h.name,myNames))*0.55;
+      const syn=Math.max(0,synScoreAB(h.name,oppNames))*0.4;
+      return{hero:h,score:comfort+meta+counter+syn+_dbTierScore(h.name)*0.35};
+    }).sort((a,b)=>b.score-a.score).slice(0,n||3);
+}
+
+// ═══════ IDENTITY (§4) + anti-meta counter-triangle (§9) ═══════
+const ARCH_COUNTER_AB={dive:'teamfight',poke:'dive',teamfight:'poke',pickoff:'teamfight',turtle:'dive'};
+function identityAB(myP){return myP.length>=2?inferArchetype(myP.map(h=>h.name)):aiArchetype;}
+
+// ═══════ THE BRAIN ═══════
+// Returns full decision context: {hero, reason, conf, intent, question, shortlist, audit, prediction}
+function draftBrainAB(step){
+  _btc=null; // reset per-turn memo
+  const usedIds=new Set([...ST.bb,...ST.rb,...ST.bp,...ST.rp].map(h=>h.id));
+  const bannedIdSet=new Set([...ST.bb,...ST.rb].map(h=>h.id));
+  const avail=HEROES.filter(h=>!usedIds.has(h.id));
   const myP=step.team==='blue'?ST.bp:ST.rp;
   const oppP=step.team==='blue'?ST.rp:ST.bp;
-  const {needed:myNeeded,cl:myCovered}=needs(myP);
-  const {needed:oppNeeded}=needs(oppP);
-  const epSide=step.team;
-  const isRedSide=step.team==='red';
-  const arch=ARCH_DEFS[aiArchetype]||null;
-  // Phase detection: steps 0-5 = ban1, 6-11 = pick1, 12-15 = ban2, 16-19 = pick2
-  const isPhase2=ST.step>=12;
-  const isPhase2Ban=step.type==='ban'&&isPhase2;
-
-  // Difficulty-scaled randomness (lower = more deterministic)
-  const randRange={normal:32,hard:12,gm:4}[diff]??16;
-
-  // Ban memory: soft penalty for heroes AI banned first in recent games
-  let recentBans=[];
-  try{recentBans=JSON.parse(localStorage.getItem('warr_ab_ban_history')||'[]');}catch(e){}
-
-  // Enemy profile identity (team selected by user)
+  const myNames=myP.map(h=>h.name),oppNames=oppP.map(h=>h.name);
+  const {needed:myNeeded}=needs(myP),{needed:oppNeeded}=needs(oppP);
+  const ev=evidenceAB();
   const ep=(aiMode==='enemy'&&enemyProfile)?enemyProfile:null;
-  const epSideKey=epSide==='blue'?'blue':'red';
-  const epCore=ep?[...new Set([...(epSideKey==='blue'?ep.blueSideCore||[]:ep.redSideCore||[]),...(ep.topPicks||[]).slice(0,6)])]:[];
-  const epBans=ep?(ep.topBans||[]).slice(0,6):[];
-  const epName=ep?(ep.name||ep.team||''):'';
-  // Phase-specific ban patterns from scout
-  const epBanPhase1=ep?(epSideKey==='blue'?ep.blueBanPhase1||[]:ep.redBanPhase1||[]):[];
-  const epBanPhase2=ep?(epSideKey==='blue'?ep.blueBanPhase2||[]:ep.redBanPhase2||[]):[];
-  // Pick frequency: how often this team actually picks each hero (0..1)
-  const epPickFreq=ep?(epSideKey==='blue'?ep.bluePickFreq||{}:ep.redPickFreq||{}):{};
+  const side=step.team;
+  const gm=diff==='gm',hardPlus=diff!=='normal';
+  const randRange={normal:34,hard:12,gm:5}[diff]??14;
+  const idx=ST.step;
+  const audit=needsAuditAB(myP);
+  const picksLeft=5-myP.length;
+  const arch=ARCH_DEFS[identityAB(myP)]||null;
+  const prediction=hardPlus?predictOppAB(oppP,myP,usedIds,gm?8:3):[];
+  let recentBans=[];try{recentBans=JSON.parse(localStorage.getItem('warr_ab_ban_history')||'[]');}catch(_){}
 
-  // Load tendency data once
-  const humanFavs=getHumanTendencies();
-  const humanCombos=getHumanComboThreats();
-  const humanFavIds=new Set(humanFavs.slice(0,8).map(f=>HEROES.find(h=>h.name===f.name)?.id).filter(Boolean));
+  // GM: opponent identity read → counter-archetype bias (§9 anti-meta)
+  let counterArch=null;
+  if(gm&&oppNames.length>=2){
+    const oppKey=inferArchetype(oppNames);
+    counterArch=ARCH_DEFS[ARCH_COUNTER_AB[oppKey]]||null;
+  }
+  // Our key carry (win-condition anchor for protect logic)
+  const keyCarry=myP.slice().sort((a,b)=>{
+    const v=x=>(({Marksman:2,Mage:1.8,Assassin:1.5})[_roleAB(x.name)]||1)*_dbTierScore(x.name);
+    return v(b)-v(a);
+  })[0]||null;
 
-  // Phase-aware enemy pick data from scout profile
-  const _epSideForPhase=step.team; // AI's side
-  const epPhase1=ep?(_epSideForPhase==='blue'?ep.bluePhase1||[]:ep.redPhase1||[]):[];
-  const epPhase2=ep?(_epSideForPhase==='blue'?ep.bluePhase2||[]:ep.redPhase2||[]):[];
-  const epPickPos=ep?(_epSideForPhase==='blue'?ep.bluePickPos||{}:ep.redPickPos||{}):{}; // per-team avg pick position
-  // Current draft phase for picks: early (myP.length<=2) vs late (myP.length>=3)
-  const pickPhase=myP.length<=2?1:2;
+  const fin=(hero,reason,conf,intent,question,shortlist)=>{
+    return{hero,reason,conf,intent,question,shortlist:shortlist||[],audit,needed:myNeeded,
+      prediction:prediction.slice(0,3).map(p=>p.hero.name)};
+  };
 
-  // Precompute scout synergy combos + league-wide pick/ban frequency in one pass
-  const scoutCombosAI={};
-  // leaguePickFreq / leagueBanFreq: appearances / (totalMatches × 2 sides) → 0..1 rate per side-slot
-  const leaguePickFreq={};
-  const leagueBanFreq={};
-  try{
-    const _sdb=loadScoutAB();
-    const _sdbM=_sdb.matches||[];
-    const _leagueTotal=_sdbM.length*2; // total side-slots across all matches
-    _sdbM.forEach(mx=>{
-      [[mx.bluePicks||[],'blue'],[mx.redPicks||[],'red']].forEach(([picks,side])=>{
-        const names=picks.map(p=>p.name).filter(Boolean);
-        const won=mx.winner===side;
-        // Synergy combos
-        for(let i=0;i<names.length;i++)for(let j=i+1;j<names.length;j++){
-          const key=[names[i],names[j]].sort().join('+');
-          if(!scoutCombosAI[key])scoutCombosAI[key]={wins:0,count:0};
-          scoutCombosAI[key].count++;if(won)scoutCombosAI[key].wins++;
-        }
-        // League pick frequency — count per side-slot
-        names.forEach(n=>{leaguePickFreq[n]=(leaguePickFreq[n]||0)+1;});
-      });
-      // League ban frequency — count per side-slot
-      [[mx.blueBans||[],'blue'],[mx.redBans||[],'red']].forEach(([bans])=>{
-        bans.forEach(b=>{const n=typeof b==='string'?b:(b?.name||b);if(n)leagueBanFreq[n]=(leagueBanFreq[n]||0)+1;});
-      });
-    });
-    // Normalize both: appearances / total-side-slots
-    if(_leagueTotal>0){
-      Object.keys(leaguePickFreq).forEach(n=>{leaguePickFreq[n]/=_leagueTotal;});
-      Object.keys(leagueBanFreq).forEach(n=>{leagueBanFreq[n]/=_leagueTotal;});
-    }
-  }catch(e){}
-
+  // ═══════ BAN TURN ═══════
   if(step.type==='ban'){
-    // ── BAN SCORING — INTENT-CATEGORIZED ─────────────────────────────────────
-    // Every ban must classify into ONE of these intent categories:
-    //   MUST-BAN       : patch-broken hero, no reliable counterplay
-    //   PROTECT-BAN    : hero hard-counters one of OUR existing picks (win-cond defense)
-    //   COMBO-BREAK    : hero is part of a high-WR scout combo we want to dismantle
-    //   COMFORT-DENY   : high-WR favorite of this enemy team / human player
-    //   PHASE1-DENY    : enemy always opens phase 1 with this hero → deny pre-lock
-    //   LANE-DENY      : enemy still needs this lane AND hero is top option for it
-    //   ARCH-COUNTER   : hero directly counters our archetype gameplan
-    //   HABIT-MIRROR   : this enemy team reliably bans this hero (mirror their prep)
-    // HARD RULE: If a ban would hit one of OUR unfilled lanes (primary or flex) AND
-    // NONE of the strategic categories apply → reject. "Just a good hero" is never
-    // enough of a reason to shrink our own pool.
-    const scored=avail.map(h=>{
-      const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
-      const ts={S:100,A:75,B:50,C:25}[t]||20;
-      const isMustBan=h.mp==='mustban';
-      const isHighPick=h.mp==='highpick';
-      if(!isMustBan&&!isHighPick&&['C','D'].includes(t))return null;
-      const ln=lane(h);
-      const heroLns=getHeroLanesAB(h);
+    const isP2=idx>=12;
+    const myBans=side==='blue'?ST.bb:ST.rb;
+    const banNum=myBans.length+1; // 1..3 in P1, then 4..5 in P2
+    const favs=_FAVS(),combos=_COMBOS();
 
-      // ── LANE GEOMETRY ──
-      // PRIMARY-LANE soft checks (matches coach intuition — a hero is judged by the
-      // lane it actually plays, not every speculative secondary slot getHeroLanesAB
-      // might list). Strategic bypasses (must/protect/comfort/combo) can override.
-      const laneFilledByOpp=ln!=='Flex'&&!oppNeeded.includes(ln);
-      const aiStillNeedsLane=ln!=='Flex'&&myNeeded.includes(ln);
-      const aiLaneCovered=ln!=='Flex'&&!myNeeded.includes(ln)&&!laneFilledByOpp;
-      // ALL-LANES hard waste check: every concrete lane this hero can play is filled
-      // in opp's lineup → opp literally has no slot for this hero. Used by Filter 1
-      // below as a hard reject that no strategic bypass can salvage. This is what
-      // catches the original "I filled Mid, AI still bans a flex Mid hero" bug
-      // without making the AI conservative on heroes whose primary is open.
-      const playableLns=heroLns.filter(L=>L!=='Flex');
-      const oppCannotPick=playableLns.length>0&&playableLns.every(L=>!oppNeeded.includes(L));
-      // Flex-aware: does ANY playable lane of this hero overlap with OUR unfilled lanes?
-      const hitsOwnNeed=heroLns.some(L=>L!=='Flex'&&myNeeded.includes(L));
-      // STRICT SELF-BAN PROTECTION (kept): hero hits our lane AND enemy has that lane filled
-      const wasteSelfBan=heroLns.some(L=>L!=='Flex'&&myNeeded.includes(L)&&!oppNeeded.includes(L));
-      if(wasteSelfBan&&!isMustBan)return null;
-
-      // ── INTENT CLASSIFICATION ──
-      // PROTECT-BAN: this hero counters one of our existing picks
-      const victimP=myP.find(p=>scoutCounters(h.name,p.name));
-      const isProtectBan=!!victimP;
-      // COMBO-BREAK: hero belongs to a high-WR scout combo threat
-      const matchedCombo=humanCombos.find(cb=>cb.a===h.name||cb.b===h.name);
-      const isComboBreak=!!matchedCombo&&(matchedCombo.wr||0.6)>=0.6;
-      // COMFORT-DENY: enemy has a real track record on this hero
-      const favEntry=humanFavs.find(f=>f.name===h.name);
-      const isComfortDeny=!!favEntry&&(favEntry.count||0)>=3&&(favEntry.wr||0)>=0.55;
-      // PHASE1-DENY: enemy opens phase 1 with this hero (deny before they lock)
-      const isPhase1Deny=epPhase1.includes(h.name)&&!isPhase2Ban;
-      // LANE-DENY: enemy still needs this lane and hero is S/A-tier in that lane
-      const isLaneDeny=ln!=='Flex'&&oppNeeded.includes(ln)&&['S','A'].includes(t);
-      // ARCH-COUNTER: hero counters our drafted archetype
-      const isArchCounter=!!arch&&arch.counters.includes(h.name);
-      // HABIT-MIRROR: this specific enemy team reliably bans this hero
-      const isHabitMirror=!!ep&&(epBanPhase1.includes(h.name)||epBanPhase2.includes(h.name));
-
-      const strategicReasons=[];
-      if(isMustBan)strategicReasons.push('must');
-      if(isProtectBan)strategicReasons.push('protect');
-      if(isComboBreak)strategicReasons.push('combo');
-      if(isComfortDeny)strategicReasons.push('comfort');
-      if(isPhase1Deny)strategicReasons.push('phase1');
-      if(isLaneDeny)strategicReasons.push('lane');
-      if(isArchCounter)strategicReasons.push('arch');
-      if(isHabitMirror)strategicReasons.push('habit');
-      const hasStrategicReason=strategicReasons.length>0;
-
-      // ── HARD FILTERS ──
-      // Filter 0 (HARD WASTE): every concrete lane this hero can play is already
-      // filled in opp's lineup → opp literally cannot pick this hero, the ban is
-      // wasted regardless of strategic category. Only must-ban (broken meta)
-      // bypasses, since those get auto-removed on principle.
-      if(oppCannotPick&&!isMustBan)return null;
-      // Filter 1 (PRIMARY-LANE WASTE): hero's primary lane is filled in opp's lineup.
-      // Soft check — strategic bypasses (protect/comfort/combo) can still let it
-      // through if opp could realistically still pick it for their primary lane.
-      if(laneFilledByOpp&&!isMustBan&&!isProtectBan&&!isComfortDeny&&!isComboBreak)return null;
-      // Filter 2: Both teams done with this lane (no one needs it) → tier-only ban is waste
-      if(aiLaneCovered&&!hasStrategicReason)return null;
-      // Filter 3: Ban hits OUR unfilled lane AND no strategic category applies → reject
-      // This is the "don't ban a Jungle when we still need Jungle just because Jungle is strong" rule.
-      if(hitsOwnNeed&&!hasStrategicReason)return null;
-      // Filter 4: Primary lane is ours to fill AND no strategic reason → reject (even stricter)
-      if(aiStillNeedsLane&&!hasStrategicReason)return null;
-
-      // Category priority (higher number wins when multiple apply)
-      const catRank=isMustBan?100:isProtectBan?(isPhase2Ban?85:70):isComboBreak?68:isComfortDeny?62:isPhase1Deny?55:isArchCounter?50:isLaneDeny?42:isHabitMirror?38:0;
-      const category=isMustBan?'must':isProtectBan?'protect':isComboBreak?'combo':isComfortDeny?'comfort':isPhase1Deny?'phase1':isArchCounter?'arch':isLaneDeny?'lane':isHabitMirror?'habit':'tier';
-
-      // ── ENEMY TEAM MODE: scout ban patterns drive the frequency base score ──
-      if(ep){
-        const epSideCount=epSideKey==='blue'?(ep.blueSideCount||0):(ep.redSideCount||0);
-        const thinBanData=epSideCount<4;
-        const epHasPhasedBans=epBanPhase1.length>0||epBanPhase2.length>0;
-        const inP1=epBanPhase1.includes(h.name);
-        const inP2=epBanPhase2.includes(h.name);
-        const inAny=epBans.includes(h.name);
-        // Thick data + hero never banned → team doesn't ban this hero (unless hard strategic reason)
-        if(!thinBanData&&epHasPhasedBans&&!inP1&&!inP2&&!inAny&&!isMustBan&&!isProtectBan)return null;
-        let banFreqScore;
-        if(thinBanData&&!epHasPhasedBans){
-          const leagueBanF=leagueBanFreq[h.name]??0;
-          banFreqScore=leagueBanF*300;
-        }else{
-          banFreqScore=inP1&&!isPhase2Ban?500
-            :inP2&&isPhase2Ban?480
-            :inP1&&isPhase2Ban?100
-            :inAny&&!isPhase2Ban?60
-            :inAny?80
-            :0;
-        }
-        const mustBonus=isMustBan?200:0;
-        const protectBonus=isProtectBan?(isPhase2Ban?90:45):0;
-        const comboBonus=isComboBreak?Math.round((matchedCombo.wr||0.6)*75):0;
-        const comfortBonus=isComfortDeny?Math.round((favEntry.score||0)*18):0;
-        const laneDenyBonus=isLaneDeny?22:0;
-        const archBonus=isArchCounter?30:0;
-        const banMemory=recentBans.includes(h.name)?-30:0;
-        return{hero:h,category,catRank,victimP,matchedCombo,favEntry,score:banFreqScore+ts*0.2+mustBonus+protectBonus+comboBonus+comfortBonus+laneDenyBonus+archBonus+banMemory+Math.random()*randRange};
-      }
-
-      // ── GENERIC AI MODE ──
-      const mustBonus=isMustBan?60:0;
-      const protectBonus=isProtectBan?(isPhase2Ban?90:45):0;
-      const comboBonus=isComboBreak?Math.round((matchedCombo.wr||0.6)*75):0;
-      const comfortBonus=isComfortDeny?Math.round((favEntry.score||0)*18):0;
-      const phase1DenyBonus=isPhase1Deny?35:0;
-      const laneDenyBonus=isLaneDeny?22:0;
-      const archBonus=isArchCounter?30:0;
-      const habitBonus=isHabitMirror?15:0;
-      const highPickBonus=isHighPick?18:0;
-      const banMemory=recentBans.includes(h.name)?-30:0;
-      // Soft dampener for own-lane bans even with a reason (still prefer off-lane when possible)
-      const ownLaneDampen=aiStillNeedsLane&&!isMustBan&&!isProtectBan&&!isComboBreak?-15:0;
-      const protectsCombo=isPhase2Ban&&myP.length>=2?myP.reduce((best,p)=>{
-        const threat=myP.filter(q=>q!==p).some(q=>{const ck=[p.name,q.name].sort().join('+');const cb=scoutCombosAI[ck];return cb&&cb.count>=2&&(cb.wins/cb.count)>=0.65;});
-        return best||(threat&&scoutCounters(h.name,p.name)?35:0);
-      },0):0;
-      return{hero:h,category,catRank,victimP,matchedCombo,favEntry,score:ts+mustBonus+protectBonus+comboBonus+comfortBonus+phase1DenyBonus+laneDenyBonus+archBonus+habitBonus+highPickBonus+protectsCombo+ownLaneDampen+banMemory+Math.random()*randRange};
-    }).filter(Boolean).sort((a,b)=>b.score-a.score);
-
-    const best=scored[0];
-    // SAFE FALLBACK POOL: when scored is empty (everything got filtered in late
-    // P2 etc.), still respect the lane-waste check before grabbing a fallback.
-    // The old version went straight to avail.find(S-tier) which is how Fanny
-    // got banned with Jungle already filled — she's S-tier in scout data so
-    // the fallback grabbed her regardless of whether opp could even pick her.
-    const _safePool=avail.filter(_h=>{
-      const _lns=getHeroLanesAB(_h);
-      const _playable=_lns.filter(L=>L!=='Flex');
-      // Pass Filter 0 equivalent: at least one open opp lane (or pure-Flex hero).
-      return _playable.length===0 || _playable.some(L=>oppNeeded.includes(L));
+    // LEGAL — hard waste filters: never bypassed except literal must-ban
+    const legal=avail.filter(h=>{
+      const lns=getHeroLanesAB(h).filter(l=>l!=='Flex');
+      const oppCannot=lns.length>0&&lns.every(L=>!oppNeeded.includes(L));
+      if(oppCannot&&h.mp!=='mustban')return false;            // opp literally can't pick it
+      const wasteSelf=lns.some(L=>myNeeded.includes(L)&&!oppNeeded.includes(L));
+      if(wasteSelf&&h.mp!=='mustban')return false;            // only shrinks OUR pool
+      return true;
     });
-    const h=best?.hero
-      || _safePool.find(x=>x.mp==='mustban')
-      || _safePool.find(x=>['S'].includes(_scoutTierCache?.[x.name]?.tier||TIER_LIST[x.name]?.tier||x.tier))
-      || _safePool[0]
-      // Final last-resort: a literal must-ban hero (broken meta) regardless of
-      // lane waste — those get auto-banned on principle.
-      || avail.find(x=>x.mp==='mustban')
-      || avail[0];
-    const ln=lane(h);
-    const _banT=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
-    const cat=best?.category||(h.mp==='mustban'?'must':'tier');
-    const _victimP=best?.victimP||myP.find(p=>scoutCounters(h.name,p.name));
-    const _comboE=best?.matchedCombo||humanCombos.find(cb=>cb.a===h.name||cb.b===h.name);
-    const _comboPartner=_comboE?(_comboE.a===h.name?_comboE.b:_comboE.a):null;
-    const _favE=best?.favEntry||humanFavs.find(f=>f.name===h.name);
-    // Reasoning text is tagged with the winning intent category so you can audit decisions
-    h._r=cat==='must'||h.mp==='mustban'
-      ?`[MUST-BAN] Broken at this patch — no comp has reliable counterplay. Auto-first-ban`
-      :cat==='protect'&&_victimP
-      ?`[PROTECT-BAN] ${h.name} hard-counters your ${_victimP.name} — remove it to protect your win condition${isPhase2Ban?' (Phase 2 security)':''}`
-      :cat==='combo'&&_comboE&&_comboPartner
-      ?`[COMBO-BREAK] Breaks the ${_comboE.a}+${_comboE.b} combo (${Math.round((_comboE.wr||0.6)*100)}% WR in scout data) — they cannot run it without both`
-      :cat==='comfort'&&_favE
-      ?`[COMFORT-DENY] ${epName||'They'} went ${Math.round((_favE.wr||0)*100)}% WR on ${h.name} across ${_favE.count||0} games — deny their specialty`
-      :cat==='phase1'&&epName
-      ?`[PHASE1-DENY] ${epName} locks ${h.name} early every series (avg pick pos ${((epPickPos[h.name]??0)).toFixed(1)}) — deny pre-lock`
-      :cat==='arch'&&arch
-      ?`[ARCH-COUNTER] ${h.name} is a direct answer to your ${arch.label} gameplan — ban before they read your strategy`
-      :cat==='lane'
-      ?`[LANE-DENY] ${h.name} (${_banT}-tier ${ln}) — enemy still needs ${ln}, this is their best option in it`
-      :cat==='habit'&&epName
-      ?`[HABIT-MIRROR] ${epName} reliably bans ${h.name} — mirror their prep, it's built into their draft identity`
-      :`[TIER-BAN] ${h.name} is a ${_banT}-tier threat — no specific target, generic pool pressure`;
-    h._c='high';return h;
+
+    // P(opponent picks it) — from prediction (their incentives), comfort, presence
+    const predMax=prediction[0]?.score||1;
+    const pOf=h=>{
+      const e=prediction.find(p=>p.hero.id===h.id);
+      if(e)return 0.35+0.65*(e.score/predMax);
+      const f=favs.find(x=>x.name===h.name);
+      if(f)return Math.min(0.6,0.15+(f.count||0)*0.05);
+      return Math.min(0.5,ev.presence(h.name)*0.6);
+    };
+    // What do we protect? Our shown picks — or, before we have any, our PLANNED first picks
+    let planned=myNames;
+    if(!myNames.length){
+      planned=avail.filter(h=>['S','A'].includes(_dbTier(h.name)))
+        .sort((a,b)=>(_dbTierScore(b.name)+ev.presence(b.name)*100)-(_dbTierScore(a.name)+ev.presence(a.name)*100))
+        .slice(0,3).map(h=>h.name);
+    }
+    const cands=legal.map(h=>{
+      // damage components — tagged so the winning intent names itself
+      let comp={must:0,protect:0,combo:0,comfort:0,preempt:0,lane:0,meta:0,mimic:0};
+      let why={};
+      if(h.mp==='mustban'){comp.must=1;why.must='patch-broken — no reliable counterplay';}
+      planned.forEach(pn=>{
+        const c=_LC(pn).find(x=>x.name===h.name);
+        if(c){const v=((c.wr||0.5)-0.5)*2*Math.min((c.count||1)/6,1);
+          if(v>comp.protect){comp.protect=v;why.protect=`hard-counters ${myNames.length?'your':'your planned'} ${pn} (${Math.round((c.wr||0.5)*100)}% in scout data)`;}}
+      });
+      const cb=combos.find(c=>c.a===h.name||c.b===h.name);
+      if(cb&&(cb.wr||0)>=0.6){comp.combo=(cb.wr-0.55)*1.6+0.18;why.combo=`breaks ${cb.a}+${cb.b} (${Math.round(cb.wr*100)}% WR pair, ${cb.count}g)`;}
+      const f=favs.find(x=>x.name===h.name);
+      if(f&&(f.count||0)>=3&&(f.wr||0)>=0.55){comp.comfort=(f.wr-0.5)*1.4+Math.min(f.count,8)*0.02;why.comfort=`${pName}'s comfort — ${Math.round(f.wr*100)}% WR over ${f.count}g`;}
+      const pr=pOf(h);
+      if(pr>=0.65){comp.preempt=(pr-0.5)*1.2;why.preempt=`predicted next pick for ${pName} — deny before lock`;}
+      // Signature protection: never pre-empt-ban a hero we run ourselves unless
+      // the OPPONENT picks before we do (then banning denies their steal).
+      if(comp.preempt>0&&ep){
+        const ownRate=ev.teamPickRate(h.name,side);
+        if(ownRate&&ownRate>=0.4){
+          const nextPick=DRAFT_ORDER.slice(idx+1).find(s2=>s2.type==='pick');
+          if(nextPick&&nextPick.team===side){comp.preempt=0;delete why.preempt;}
+        }
+      }
+      const lns=getHeroLanesAB(h).filter(l=>l!=='Flex');
+      const primaryLn=lns[0];
+      if(isP2&&primaryLn&&oppNeeded.includes(primaryLn)&&['S','A'].includes(_dbTier(h.name))){
+        comp.lane=0.32;why.lane=`their best remaining ${primaryLn} option — lane-targeted deny`;
+      }
+      comp.meta=ev.presence(h.name)*0.25;
+      // ENEMY mode: mimic their real ban habits (phased)
+      if(ep){
+        const bp1=side==='blue'?(ep.blueBanPhase1||[]):(ep.redBanPhase1||[]);
+        const bp2=side==='blue'?(ep.blueBanPhase2||[]):(ep.redBanPhase2||[]);
+        const tr=ev.teamBanRate(h.name,side);
+        if(!isP2&&bp1.includes(h.name)){comp.mimic=1.0;why.mimic=`${ep.name} opens phase-1 bans with ${h.name} — on pattern`;}
+        else if(isP2&&bp2.includes(h.name)){comp.mimic=0.95;why.mimic=`${ep.name}'s phase-2 ban pattern`;}
+        else if(tr&&tr>0.2){comp.mimic=Math.min(0.7,tr);why.mimic=`${ep.name} bans this ${Math.round(tr*100)}% of games`;}
+      }
+      // BAN EQUITY (§9): P(pick) × damage. Slot ladder tunes the emphasis.
+      const dmg=Math.max(comp.must*0.95,comp.protect,comp.combo,comp.comfort,comp.lane,comp.meta);
+      let score=pr*dmg*420;
+      score+=comp.must*260;
+      if(!isP2){
+        if(banNum===1)score+=comp.comfort*120+comp.must*80;       // open: broken/comfort
+        if(banNum===2)score+=comp.protect*150;                    // protect the plan
+        if(banNum===3)score+=comp.combo*140+comp.comfort*60;      // dismantle pairs
+        score+=comp.preempt*120;
+      }else{
+        score+=comp.protect*200+comp.preempt*160+comp.lane*150;   // surgical phase
+      }
+      if(ep)score+=comp.mimic*(ep?320:0);                         // emulation dominates in ENEMY mode
+      if(recentBans.includes(h.name))score-=25;
+      score+=Math.random()*randRange;
+      // winning tag
+      const tags=Object.entries(comp).filter(([k])=>k!=='meta').sort((a,b)=>b[1]-a[1]);
+      const tag=(tags[0]&&tags[0][1]>0.05)?tags[0][0]:'meta';
+      return{h,score,tag,why,pr};
+    }).sort((a,b)=>b.score-a.score);
+
+    const best=cands[0];
+    // Fallback ladder: legal S-tier → legal anything → raw must-ban → raw first
+    const hero=best?.h
+      ||legal.find(x=>['S'].includes(_dbTier(x.name)))
+      ||legal[0]
+      ||avail.find(x=>x.mp==='mustban')
+      ||avail[0];
+    const tag=best?best.tag:'meta';
+    const why=best?best.why:{};
+    const tagLabel={must:'MUST-BAN',protect:'PROTECT',combo:'COMBO-BREAK',comfort:'COMFORT-DENY',preempt:'PRE-EMPT',lane:'LANE-DENY',mimic:'TEAM HABIT',meta:'META PRESSURE'}[tag];
+    const detail=why[tag]||`${_dbTier(hero.name)}-tier, ${Math.round(ev.presence(hero.name)*100)}% draft presence — pool pressure`;
+    hero._evBrain=true;
+    const question=isP2
+      ?'Phase-2 ban: which lanes do they have left, and what dismantles our win condition?'
+      :`Ban ${banNum}/3: ${banNum===1?'broken meta or their best hero':banNum===2?'protect our draft plan':'dismantle their pairs and comfort'}`;
+    const reason=`[${tagLabel}] ${detail}`;
+    const conf=best&&cands[1]&&(best.score-cands[1].score)>30?'high':best?'medium':'low';
+    const shortlist=cands.slice(0,10).map(c=>({name:c.h.name,lanes:getHeroLanesAB(c.h).join('/'),tier:_dbTier(c.h.name),score:Math.round(c.score),note:(c.why[c.tag]||'meta pressure'),tag:c.tag,pPick:Math.round(c.pr*100)}));
+    return fin(hero,reason,conf,isP2?'BAN-P2':'BAN-P1',question,shortlist);
   }
 
-  // ── PICK SCORING ─────────────────────────────────────────────────────────
-  // Two modes:
-  //   ENEMY TEAM mode (ep): scout pick frequency + phase = PRIMARY score.
-  //     Heroes the team never picks are hard-blocked.
-  //     Heroes they always pick in phase 1 score highest in phase 1.
-  //     Tier is a tiebreaker (×0.15 weight only).
-  //   GENERIC AI mode (!ep): tier + strategic signals drive the score.
-  const hasTeamData=epCore.length>=3;
-  const epHasFreqData=ep&&Object.keys(epPickFreq).length>0;
-  const scored=avail.filter(h=>{
-    const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
-    if(ep) return true; // frequency gate handles filtering below
-    return h.mp!=='off'||['S','A','B'].includes(t)||(hasTeamData&&epCore.includes(h.name));
-  }).map(h=>{
-    const heroLanes=getHeroLanesAB(h);
-    const effectiveLane=heroLanes.find(l=>myNeeded.includes(l))||heroLanes[0]||'Flex';
-    const ln=effectiveLane;
-    const t=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
-    const ts={S:100,A:78,B:55,C:30}[t]||30;
-    // ── STRICT HARD LANE BLOCK ──
-    // Reject a hero whose effective lane is already occupied by a teammate, OR whose only
-    // options are already-covered lanes (no flex path into an open slot).
-    // For teammates without an explicit lane assignment, fall back to their
-    // hero's first observed/default lane so they don't silently disappear
-    // from takenLanes — that was letting AI pick duplicate-lane heroes.
-    const _laneOf = p => {
-      const assigned = laneAssignmentsAB[p.id];
-      if (assigned) return assigned;
-      const opts = getHeroLanesAB(p);
-      return (opts && opts[0]) || 'Flex';
-    };
-    const takenLanes=new Set(myP.map(_laneOf).filter(l=>l!=='Flex'));
-    if(ln!=='Flex'&&takenLanes.has(ln))return null;
-    if(myNeeded.length>0&&!heroLanes.some(l=>l==='Flex'||myNeeded.includes(l)))return null;
-    // Final guard — explicit canPickHero check using the same lane source.
-    if(!canPickHero(h,myP))return null;
-
-    // ── ENEMY TEAM MODE ──────────────────────────────────────────────────
-    if(ep){
-      // How many matches exist on this specific side for the team
-      const epSideCount=epSideKey==='blue'?(ep.blueSideCount||0):(ep.redSideCount||0);
-      const thinData=epSideCount<5; // fewer than 5 side-games = not enough to hard-block
-      const heroFreq=epPickFreq[h.name]??null;
-      const leagueFreq=leaguePickFreq[h.name]??0;
-      // Smart block: only block if 5+ games AND team never picked it AND it's also rare league-wide
-      // (prevents blocking heroes the team has simply never faced an occasion to pick yet)
-      if(epHasFreqData&&!thinData&&heroFreq===null&&leagueFreq<0.06)return null;
-      // Frequency blend:
-      //   - Team has data + thick dataset → use team freq directly
-      //   - Team has data + thin dataset → blend 65% team / 35% league to stabilise thin samples
-      //   - Team never picked this hero → use 30% of league freq (not zero — they might try it)
-      let freq;
-      if(heroFreq!==null){
-        freq=thinData?(heroFreq*0.65+leagueFreq*0.35):heroFreq;
-      }else{
-        freq=leagueFreq*0.3;
-      }
-      // Soft penalty for heroes the team has never picked (with enough data to be confident)
-      const neverPickedPenalty=epHasFreqData&&!thinData&&heroFreq===null?-150:0;
-      const inP1=epPhase1.includes(h.name);
-      const inP2=epPhase2.includes(h.name);
-      const inCore=epCore.includes(h.name);
-      const teamPickPos=epPickPos[h.name]??2.0;
-      // Primary score = pick frequency × 500 (picked every game = 500, 20% rate = 100)
-      const freqScore=freq*500;
-      // Phase bonus: right hero at the right phase
-      const phaseBonus=inP1&&pickPhase===1?120:inP2&&pickPhase===2?100:inP1&&pickPhase===2?20:inP2&&pickPhase===1?-60:0;
-      // Position bonus: confirmed early pick (avgPos ≤1) in phase 1 gets extra
-      const posBonus=teamPickPos<=1.0&&pickPhase===1?60:teamPickPos>=3.5&&pickPhase===1?-80:0;
-      // Fill needed lane still applies — a team won't skip their needed lane
-      const fillsNeeded=ln!=='Flex'&&myNeeded.includes(ln)?40:0;
-      // Counter bonus: Phase 2 = full weight, Phase 1 = 45% weight (real teams do counter in P1 too)
-      const counterMult=isRedSide?1.2:1.0;
-      const countersOppFull=Math.round(oppP.reduce((sum,op)=>{const cl=fullCounterList(op.name).find(x=>x.name===h.name);return sum+(cl?Math.round((cl.wr||0.65)*40):0);},0)*counterMult);
-      const countersOpp=pickPhase===2?countersOppFull:Math.round(countersOppFull*0.45);
-      const vuln=oppP.reduce((sum,op)=>{const cl=fullCounterList(h.name).find(x=>x.name===op.name);return sum+(cl?-Math.round((cl.wr||0.65)*20):0);},0);
-      // DRAFTED-AGAINST: heroes typically picked opposite oppP's heroes (frequency signal).
-      // High count + high WR = proven cross-team response in real scout matches.
-      const draftedAgainstBonus=Math.round(oppP.reduce((sum,op)=>{
-        const da=getDraftedAgainst(op.name).find(x=>x.name===h.name);
-        if(!da)return sum;
-        const sampleW=Math.min(da.count/5,1); // ≥5 games = full weight
-        return sum+Math.round((da.wr||0.5)*30*sampleW);
-      },0)*counterMult);
-      // Tier weight raised — quality matters, not just frequency
-      const tierTB=ts*0.35;
-      const laBonus=diff!=='normal'?_pickLookAheadBonus(h,myP,oppP,bannedSet,ST.step,step.team,humanFavs):0;
-      return{hero:h,score:freqScore+phaseBonus+posBonus+fillsNeeded+countersOpp+vuln+draftedAgainstBonus+tierTB+neverPickedPenalty+laBonus+Math.random()*randRange};
+  // ═══════ PICK TURN ═══════
+  // LEGAL (§5): feasibility via lane ledger — no scoring can override this
+  let legal=avail.filter(h=>myP.length<5&&laneFeasibleAB(myP,h));
+  // ENEMY pool gate (§6): thick data + never picked + rare league-wide → not their hero
+  if(ep){
+    const sideGames=side==='blue'?(ep.blueSideCount||0):(ep.redSideCount||0);
+    if(sideGames>=5){
+      const gated=legal.filter(h=>ev.teamEverPicked(h.name)||ev.leaguePickRate(h.name)>=0.06);
+      if(gated.length>=6)legal=gated;
     }
+  }
 
-    // ── GENERIC AI MODE ──────────────────────────────────────────────────
-    const fillsNeeded=ln!=='Flex'&&myNeeded.includes(ln)?42:0;
-    const epIdx=epCore.indexOf(h.name);
-    const teamPickPos=epPickPos[h.name]??(_pickPositionCache?.[h.name]??2.0);
-    const inPhase1=epPhase1.includes(h.name),inPhase2=epPhase2.includes(h.name);
-    const phaseMatch=(pickPhase===1&&inPhase1)||(pickPhase===2&&inPhase2);
-    const phaseMismatch=(pickPhase===1&&inPhase2&&!inPhase1)||(pickPhase===2&&inPhase1&&!inPhase2);
-    const teamPickBase=epIdx>=0?Math.max(0,130-epIdx*15):0;
-    const teamPick=teamPickBase+(phaseMatch?35:0)+(phaseMismatch?-35:0)
-      +(teamPickPos<=1.0&&pickPhase===1?25:0)
-      +(teamPickPos>=3.5&&pickPhase===1?-50:0);
-    const counterMult=isRedSide?1.2:1.0;
-    const countersOpp=Math.round(oppP.reduce((sum,op)=>{const cl=fullCounterList(op.name).find(x=>x.name===h.name);return sum+(cl?Math.round((cl.wr||0.65)*40):0);},0)*counterMult);
-    const vuln=oppP.reduce((sum,op)=>{const cl=fullCounterList(h.name).find(x=>x.name===op.name);return sum+(cl?-Math.round((cl.wr||0.65)*28):0);},0);
-    // DRAFTED-AGAINST: frequency signal — heroes that real teams typically pick opposite oppP's heroes.
-    // Sample-weighted so a 3-game 100% WR doesn't out-rank a 20-game 65% WR.
-    const draftedAgainstBonus=Math.round(oppP.reduce((sum,op)=>{
-      const da=getDraftedAgainst(op.name).find(x=>x.name===h.name);
-      if(!da)return sum;
-      const sampleW=Math.min(da.count/5,1);
-      return sum+Math.round((da.wr||0.5)*32*sampleW);
-    },0)*counterMult);
-    const beatsHumanFavs=humanFavs.slice(0,5).filter(f=>{const lc=getLearnedCounters(f.name);return lc.some(x=>x.name===h.name);}).length*15;
-    const synergyBonus=myP.reduce((sum,ex)=>{const key=[h.name,ex.name].sort().join('+');const cb=scoutCombosAI[key];return sum+(cb&&cb.count>=2&&(cb.wins/cb.count)>=0.6?Math.round((cb.wins/cb.count)*30):0);},0);
-    const _squishyCarries=myP.filter(p=>{const r=getHeroRole(p.name);return r==='Marksman'||r==='Mage';});
-    const _hasProtector=myP.some(p=>{const r=getHeroRole(p.name);return r==='Support'||r==='Tank';});
-    const carryProtectBonus=_squishyCarries.length>0&&!_hasProtector?_squishyCarries.reduce((best,carry)=>{
-      const key=[h.name,carry.name].sort().join('+');const cb=scoutCombosAI[key];if(!cb||cb.count<2)return best;
-      const wr=cb.wins/cb.count;const r=getHeroRole(h.name);if(r!=='Support'&&r!=='Tank')return best;
-      return Math.max(best,Math.round(wr*45));
-    },0):0;
-    const metaBonus=h.mp==='highpick'?25:h.mp==='mustban'?10:0;
-    const archBonus=arch?((arch.roleWeights[getHeroRole(h.name)]||0)*10+(arch.heroKeys.includes(h.name)?25:0)):0;
-    const avgPickPos=_pickPositionCache?.[h.name]??2.0;
-    const isEarlyDraft=myP.length<=1&&oppP.length<=1;
-    const hasCounterReason=countersOpp>0||beatsHumanFavs>0;
-    const pickTimingAdj=isEarlyDraft&&avgPickPos>=3.5&&!hasCounterReason?-50:isEarlyDraft&&avgPickPos<=1.0?18:0;
-    const compAdj=compScoreAdjust(h,myP);
-    const laBonus=diff!=='normal'?_pickLookAheadBonus(h,myP,oppP,bannedSet,ST.step,step.team,humanFavs):0;
-    const mistakeNudge=diff==='normal'&&t==='B'?Math.random()*22:0;
-    return{hero:h,score:ts+fillsNeeded+teamPick+countersOpp+vuln+beatsHumanFavs+synergyBonus+carryProtectBonus+metaBonus+archBonus+pickTimingAdj+compAdj+laBonus+mistakeNudge+Math.random()*randRange};
-  }).sort((a,b)=>b.score-a.score);
+  // INTENT (§3): the slot question
+  const slotMap={6:'FIRST',7:'SECURE',8:'SECURE',9:'CORE',10:'CORE',11:'CLOSE',16:'COUNTER',17:'FIX',18:'FIX',19:'EXECUTE'};
+  let intent=slotMap[idx]||'FIX';
+  const liveGates=picksLeft<=2?audit.gates:[];
+  const mustFix=liveGates.length>0&&liveGates.length>=picksLeft;
+  if(mustFix&&intent!=='EXECUTE')intent='FIX';
 
-  // SAFER PICK FALLBACK — when scored is empty, prefer a hero that
-  // actually fills one of our needed lanes over the first-alphabetical
-  // hero in avail. avail[0] was producing terrible picks (Aamon, etc.)
-  // in edge cases.
-  const _safePickPool = avail.filter(_h => {
-    const _lns = getHeroLanesAB(_h);
-    return _lns.some(L => L==='Flex' || myNeeded.includes(L));
-  });
-  const h = scored[0]?.hero
-    || _safePickPool.find(x => ['S'].includes(_scoutTierCache?.[x.name]?.tier || TIER_LIST[x.name]?.tier || x.tier))
-    || _safePickPool[0]
-    || avail[0];
-  const ln=lane(h);
-  const countered=oppP.filter(op=>fullCounterList(op.name).some(x=>x.name===h.name));
-  const learnedFor=countered.filter(op=>getLearnedCounters(op.name).some(x=>x.name===h.name));
-  const comp=getTeamComp(myP);
-  const hasFrontline=comp.Tank>0||comp.Fighter>0;
-  const role=getHeroRole(h.name);
-  const needsFrontline=!hasFrontline&&(role==='Tank'||role==='Fighter');
-  const isTeamPick=epCore.includes(h.name);
-  const synergyWith=myP.find(ex=>{const key=[h.name,ex.name].sort().join('+');const cb=scoutCombosAI[key];return cb&&cb.count>=2&&(cb.wins/cb.count)>=0.6;});
-  const fitsArch=arch&&(arch.heroKeys.includes(h.name)||(arch.roleWeights[role]||0)>=2);
-  const _avgPos=_pickPositionCache?.[h.name]??2.0;
-  const isPriorityPick=_avgPos<=1.0;
-  const _pickT=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
-  const _lanesLeft=myNeeded.length;
-  const _oppAssassins=oppP.filter(p=>getHeroRole(p.name)==='Assassin');
-  const _synergyWR=synergyWith?(()=>{const key=[h.name,synergyWith.name].sort().join('+');const cb=scoutCombosAI[key];return cb?Math.round(cb.wins/cb.count*100):0;})():0;
-  const _inPhase1=epPhase1.includes(h.name);
-  // Carry protection reasoning context
-  const _protectedCarry=myP.find(carry=>{
-    const r=getHeroRole(carry.name);
-    if(r!=='Marksman'&&r!=='Mage')return false;
-    const pr=getHeroRole(h.name);if(pr!=='Support'&&pr!=='Tank')return false;
-    const key=[h.name,carry.name].sort().join('+');
-    const cb=scoutCombosAI[key];
-    return cb&&cb.count>=2&&(cb.wins/cb.count)>=0.6;
-  });
-  const _protectWR=_protectedCarry?(()=>{const key=[h.name,_protectedCarry.name].sort().join('+');const cb=scoutCombosAI[key];return cb?Math.round(cb.wins/cb.count*100):0;})():0;
-  const _teamPickPos=epPickPos[h.name]??_avgPos;
-  h._r=isTeamPick&&inPhase1&&pickPhase===1&&epName
-    ?`${epName} locks ${h.name} here — on schedule with their Phase 1 pattern (avg pos ${_teamPickPos.toFixed(1)})`
-    :isTeamPick&&epName
-    ?`${epName} signature pick — consistent with their scouted draft identity`
-    :countered.length&&isPhase2
-    ?`Counter-pick — ${h.name} answers ${countered.slice(0,2).map(x=>x.name).join(' + ')} in the ${ln} lane${learnedFor.length?' (confirmed in your scout data)':''}`
-    :countered.length
-    ?`${h.name} counters ${countered.slice(0,2).map(x=>x.name).join(' + ')}${learnedFor.length?' — confirmed matchup from your scout data':''}`
-    :_protectedCarry
-    ?`Scout data says ${h.name}+${_protectedCarry.name} wins ${_protectWR}% — ${_protectedCarry.name} needs a protector and this is the proven pairing`
-    :needsFrontline&&_oppAssassins.length
-    ?`No frontline yet — ${_oppAssassins.map(a=>a.name).join('/')} reaches your carries unchecked. ${h.name} is the answer`
-    :needsFrontline
-    ?`${h.name} anchors your frontline. Without a tank/fighter your team cannot survive sustained fights`
-    :synergyWith
-    ?`${h.name}+${synergyWith.name} wins ${_synergyWR}% in your scout data — building the proven combo`
-    :isPriorityPick&&pickPhase===1
-    ?`Consistent Phase 1 lock across your scout data (avg pick pos ${_avgPos.toFixed(1)}) — secure now before it gets banned`
-    :fitsArch&&pickPhase===1
-    ?`${arch.emoji} Phase 1 ${arch.label} piece — ${arch.desc.charAt(0).toLowerCase()+arch.desc.slice(1)}`
-    :fitsArch
-    ?`${arch.emoji} Completes the ${arch.label} gameplan — ${arch.desc.charAt(0).toLowerCase()+arch.desc.slice(1)}`
-    :_lanesLeft===1
-    ?`Completes your comp — fills the last open lane (${ln}) to make your team ready`
-    :myNeeded.includes(ln)
-    ?`Best available ${_pickT}-tier option for your open ${ln} lane`
-    :`${_pickT}-tier flex — strongest remaining pick for the current board state`;
-  h._c=isTeamPick?'high':countered.length?'high':needsFrontline?'high':synergyWith?'high':isPriorityPick?'high':fitsArch?'high':'medium';return h;
+  const scarce=_scarcestLaneAB(myNeeded,legal);
+  // Counter-timing discipline (§3): phase-1 counters discounted, R5 dominant
+  const counterW={FIRST:0.15,SECURE:0.4,CORE:0.5,CLOSE:0.5,COUNTER:1.15,FIX:0.85,EXECUTE:1.35}[intent]||0.6;
+
+  // GM threat check (§8): who punishes our key carry if we don't act now?
+  let threat=null;
+  if(gm&&keyCarry&&['CORE','CLOSE','FIX'].includes(intent)){
+    const tc=_LC(keyCarry.name)
+      .map(c=>({c,ch:HEROES.find(x=>x.name===c.name)}))
+      .filter(x=>x.ch&&!usedIds.has(x.ch.id)&&laneFeasibleAB(oppP,x.ch)&&(x.c.wr||0)>=0.6)
+      .sort((a,b)=>(b.c.wr||0)-(a.c.wr||0))[0];
+    if(tc)threat={name:tc.ch.name,wr:tc.c.wr};
+  }
+
+  // CANDIDATES + RANK — features once, weights per intent
+  const phase1=ep?((side==='blue'?ep.bluePhase1:ep.redPhase1)||[]):[];
+  const phase2=ep?((side==='blue'?ep.bluePhase2:ep.redPhase2)||[]):[];
+  const pickPhase=myP.length<=2?1:2;
+  const mkCand=h=>{
+    const notes=[];
+    const t=_dbTierScore(h.name);
+    const tier=_dbTier(h.name);
+    const meta=ev.presence(h.name);
+    const wr=ev.heroWR(h.name);
+    const vs=vsScoreAB(h.name,oppNames);
+    const syn=synScoreAB(h.name,myNames);
+    const br=blindRiskAB(h.name,usedIds);
+    const flex=flexCountAB(h);
+    const gateFix=_fixesGateAB(h,audit.gates);
+    const fillsScarce=!!(scarce.lane&&getHeroLanesAB(h).includes(scarce.lane));
+    const teamRate=ep?ev.teamPickRate(h.name,side):null;
+    const phaseFit=ep?(pickPhase===1?phase1.includes(h.name):phase2.includes(h.name)):false;
+    const archFit=arch?((arch.roleWeights[getHeroRole(h.name)]||0)*8+(arch.heroKeys.includes(h.name)?20:0)):0;
+    const cArchFit=counterArch?((counterArch.roleWeights[getHeroRole(h.name)]||0)*6+(counterArch.heroKeys.includes(h.name)?12:0)):0;
+    const banMagnet=ev.metaBanRate(h.name);
+    let s=0;
+    switch(intent){
+      case'FIRST':
+        s=t*0.9+meta*120+banMagnet*95-br.risk*150+(flex>=2?28:0)+archFit*0.5;
+        if(banMagnet>=0.3)notes.push(`${Math.round(banMagnet*100)}% ban rate — steal it before it's gone`);
+        if(flex>=2)notes.push(`flexes ${getHeroLanesAB(h).filter(l=>l!=='Flex').join('/')} — comp stays hidden`);
+        if(br.risk>0.15)notes.push(`risk: ${br.by} still open (${Math.round((br.risk/2+0.5)*100)}%)`);
+        else notes.push('blind-safe — no reliable counter left in pool');
+        break;
+      case'SECURE':
+        s=t*0.9+meta*95+vs*counterW-br.risk*110+(flex>=2?15:0)+archFit*0.6+cArchFit;
+        if(meta>=0.4)notes.push(`${Math.round(meta*100)}% draft presence — priority that won't survive next ban phase`);
+        if(vs>15)notes.push('already favorable vs their opener');
+        break;
+      case'CORE':
+        s=t*0.75+syn*1.1+vs*counterW+(fillsScarce?14:0)+archFit+cArchFit;
+        if(syn>15)notes.push(`proven pair with ${myNames.join('/')} in scout data`);
+        if(arch&&archFit>=20)notes.push(`${arch.label} core piece`);
+        if(vs>15)notes.push(`answers their ${oppNames.slice(0,2).join('+')}`);
+        break;
+      case'CLOSE':
+        s=t*0.7+(fillsScarce?45:0)-br.risk*120+vs*counterW+syn*0.4;
+        if(fillsScarce)notes.push(`${scarce.lane} pool is thinnest (${scarce.count} S/A options left) — secure before P2 bans strand us`);
+        if(br.risk<0.1)notes.push('safe close — no live counter');
+        break;
+      case'COUNTER':
+        s=vs*counterW+t*0.45+syn*0.4-br.risk*40;
+        if(vs>0)notes.push(`counter-slot: +${vs} matchup edge vs their shown comp`);
+        break;
+      case'FIX':
+        s=(gateFix?70:0)+vs*counterW+syn*0.7+t*0.5-(idx<19?br.risk*120:0);
+        if(gateFix)notes.push(`fixes missing ${gateFix}`);
+        if(vs>15)notes.push(`+${vs} matchup edge`);
+        if(idx<19&&br.risk>0.2)notes.push(`careful — would hand R5 an easy ${br.by} answer`);
+        break;
+      case'EXECUTE':
+        s=vs*counterW+syn*0.6+t*0.35+(gateFix?85:0);
+        notes.push(`last pick — full-board edge ${vs>=0?'+':''}${vs} vs all ${oppNames.length} enemies, nothing left to answer it`);
+        if(gateFix)notes.push(`also fixes ${gateFix}`);
+        break;
+    }
+    // Shared layers
+    if(wr>0.55)s+=(wr-0.5)*60;
+    if(teamRate!==null&&teamRate!==undefined){s+=teamRate*260;if(teamRate>=0.4)notes.unshift(`${ep.name} runs this ${Math.round(teamRate*100)}% of ${side}-side games`);}
+    if(phaseFit){s+=45;notes.push(`on their phase-${pickPhase} schedule`);}
+    if(threat){
+      if(h.name===threat.name){s+=45;notes.unshift(`steals ${threat.name} — their best answer to your ${keyCarry.name} (${Math.round(threat.wr*100)}%)`);}
+      else if(_LC(threat.name).some(x=>x.name===h.name)){s+=16;notes.push(`covers the ${threat.name} threat`);}
+    }
+    if(prediction.length&&prediction[0].hero.id===h.id&&intent!=='EXECUTE'){s+=20;notes.push(`also denies ${pName}'s predicted pick`);}
+    s+=Math.random()*randRange;
+    return{h,score:s,notes,tier,vs,syn,gateFix,fillsScarce};
+  };
+
+  // Rung ladder: primary filter per intent → relax explicitly if empty
+  const rungs={
+    FIRST:[h=>['S','A'].includes(_dbTier(h.name)),h=>['S','A','B'].includes(_dbTier(h.name)),()=>true],
+    SECURE:[h=>['S','A'].includes(_dbTier(h.name)),h=>['S','A','B'].includes(_dbTier(h.name)),()=>true],
+    CORE:[h=>['S','A','B'].includes(_dbTier(h.name)),()=>true],
+    CLOSE:[h=>['S','A','B'].includes(_dbTier(h.name)),()=>true],
+    COUNTER:[h=>vsScoreAB(h.name,oppNames)>10,h=>['S','A','B'].includes(_dbTier(h.name)),()=>true],
+    FIX:[h=>!liveGates.length||_fixesGateAB(h,audit.gates),h=>['S','A','B'].includes(_dbTier(h.name)),()=>true],
+    EXECUTE:[h=>!liveGates.length||_fixesGateAB(h,audit.gates)||vsScoreAB(h.name,oppNames)>20,()=>true],
+  }[intent]||[()=>true];
+
+  let pool=[],rungUsed=0;
+  for(let r=0;r<rungs.length;r++){
+    pool=legal.filter(rungs[r]);
+    if(pool.length){rungUsed=r;break;}
+  }
+  let cands=pool.map(mkCand).sort((a,b)=>b.score-a.score);
+
+  // GM two-step lookahead (§9) on pivot slots — re-rank top 6 by end-state
+  if(gm&&['CORE','FIX','CLOSE'].includes(intent)&&cands.length>1){
+    cands.slice(0,6).forEach(c=>{c.score+=_pickLookAheadBonus(c.h,myP,oppP,bannedIdSet,idx,side,_FAVS())*0.6;});
+    cands.sort((a,b)=>b.score-a.score);
+  }
+
+  const best=cands[0];
+  const hero=best?.h
+    ||legal.sort((a,b)=>_dbTierScore(b.name)-_dbTierScore(a.name))[0]
+    ||avail.filter(h=>laneFeasibleAB(myP,h))[0]
+    ||avail[0];
+  const lnPick=pickLaneForHero(hero,myP);
+  const lead={
+    FIRST:'First pick',SECURE:'Securing priority',CORE:'Core pick',
+    CLOSE:'Closing phase 1',COUNTER:'Counter pick',FIX:mustFix?'Comp fix (forced)':'Final-phase pick',EXECUTE:'Last pick',
+  }[intent];
+  const notes=(best?.notes||[]).slice(0,2);
+  const reason=`${lead} — ${hero.name}${lnPick&&lnPick!=='Flex'?` (${lnPick})`:''}: ${notes.length?notes.join('; '):`best available ${_dbTier(hero.name)}-tier for the board state`}`;
+  const margin=best&&cands[1]?best.score-cands[1].score:0;
+  const conf=rungUsed>0?'low':margin>30?'high':'medium';
+  const question={
+    FIRST:'Which ban-magnet meta hero do we steal that is blind-safe and keeps our comp hidden?',
+    SECURE:'Which remaining priority do we secure without revealing the plan or inviting a counter?',
+    CORE:'Which pick completes our core or builds a proven pair, responding to what they have shown?',
+    CLOSE:'Which scarcest-lane hero closes phase 1 so phase-2 bans cannot strand us?',
+    COUNTER:'Their comp is showing — which counter hits hardest while filling an open lane?',
+    FIX:'Final two picks must clear every comp deficit and leave no easy last-pick target. What fixes the most?',
+    EXECUTE:'The unanswerable pick — best matchup spread vs all five enemies. Nothing else matters.',
+  }[intent];
+  const shortlist=cands.slice(0,12).map(c=>({
+    name:c.h.name,lanes:getHeroLanesAB(c.h).filter(l=>l!=='Flex').join('/'),tier:c.tier,
+    score:Math.round(c.score),vs:c.vs,syn:c.syn,note:c.notes[0]||'',gateFix:c.gateFix||'',
+  }));
+  return fin(hero,reason,conf,intent,question,shortlist);
+}
+
+// ═══════ PUBLIC ENTRY — same contract as before ═══════
+function localAI(step){
+  const ctx=draftBrainAB(step);
+  const h=ctx.hero;
+  h._r=ctx.reason;
+  h._c=ctx.conf;
+  h._brainCtx=ctx;
+  return h;
 }
 
 
@@ -3246,194 +3297,115 @@ function buildMeta(){
 }
 
 async function claudeAI(step){
-  const usedIds=[...ST.bb,...ST.rb,...ST.bp,...ST.rp].map(h=>h.id);
-  const avail=HEROES.filter(h=>!usedIds.includes(h.id));
+  // ═══════ PATH C — Claude reasons ON TOP of the brain ═══════
+  // The pipeline (draftBrainAB) already did LEGAL + NEEDS + INTENT and produced
+  // a vetted, evidence-annotated shortlist. Claude gets the slot question and
+  // the shortlist — real coach reasoning over pre-filtered candidates, so a
+  // hallucinated or illegal answer is structurally impossible to commit.
+  const ctx=draftBrainAB(step);
+  const usedIds=new Set([...ST.bb,...ST.rb,...ST.bp,...ST.rp].map(h=>h.id));
   const myP=step.team==='blue'?ST.bp:ST.rp;
   const oppP=step.team==='blue'?ST.rp:ST.bp;
   const myB=step.team==='blue'?ST.bb:ST.rb;
   const oppB=step.team==='blue'?ST.rb:ST.bb;
-  const {needed,cl:myCovered}=needs(myP);
-  const {needed:oppNeeded,cl:oppCovered}=needs(oppP);
-  const mem=loadMem();
-  // Annotate each hero with primary|flex lanes so the model sees every playable slot.
-  const topA=avail.filter(h=>h.mp!=='off'||['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier)).slice(0,42).map(h=>{
-    const d=mem[h.name];const wr=d&&d.wins+d.losses>0?`,WR:${Math.round(d.wins/(d.wins+d.losses)*100)}%`:'';
-    const lns=getHeroLanesAB(h);const primary=lns[0]||'Flex';
-    const flex=lns.slice(1).filter(l=>l!=='Flex').join('/');
-    const laneStr=flex?`${primary}|${flex}`:primary;
-    const tier=_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
-    return`${h.name}(${laneStr},${tier}${wr})`;
-  }).join(', ');
-  // Strictly-filtered pick candidates: only heroes that can legally fill a needed lane right now.
-  const takenMine=new Set(myP.map(p=>effectiveLaneAB(p)).filter(l=>l!=='Flex'));
-  const pickCandidates=step.type==='pick'?avail.filter(h=>{
-    const lns=getHeroLanesAB(h);
-    if(!lns.length)return false;
-    if(lns[0]==='Flex')return needed.length===0;
-    return lns.some(l=>l!=='Flex'&&!takenMine.has(l)&&needed.includes(l));
-  }).slice(0,30).map(h=>{
-    const lns=getHeroLanesAB(h);
-    const fits=lns.filter(l=>l!=='Flex'&&needed.includes(l)&&!takenMine.has(l)).join('/')||lns[0];
-    const tier=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
-    return`${h.name}[${fits}|${tier}]`;
-  }).join(', '):'';
-  const humanFavsGM=getHumanTendencies().slice(0,5);
-  const humanCombosGM=getHumanComboThreats().slice(0,3);
-  const tendencyStr=humanFavsGM.length?`Human comfort picks: ${humanFavsGM.map(f=>f.name+'('+Math.round(f.wr*100)+'%WR,'+f.count+'g)').join(', ')}`:''
-  const comboStr=humanCombosGM.length?`Human win combos: ${humanCombosGM.map(c=>c.a+'+'+c.b+'('+Math.round(c.wr*100)+'%WR)').join(', ')}`:''
-  const gmEx=diff==='gm'?`\nGRANDMASTER: ${tendencyStr}${comboStr?'. '+comboStr:''} Exploit human tendencies — deny comfort picks, break combos, think 2-3 picks ahead. Opponent lane gaps: [${oppNeeded.join('/')||'none'}].`:'';
-  const humanTeam=pName||'Human';
-  const aiScout=buildScoutAB(humanTeam);
-  // Counter context for prompt
-  const myCounterTargets=oppP.map(op=>{
-    const ctrs=avail.filter(h=>scoutCounters(h.name,op.name)&&!usedIds.includes(h.id));
-    return ctrs.length?`${op.name}→countered by [${ctrs.slice(0,3).map(h=>h.name).join(',')}]`:'';
-  }).filter(Boolean).join('; ');
-  const theyCounter=myP.map(mp=>{
-    const ctrs=oppP.filter(op=>scoutCounters(op.name,mp.name));
-    return ctrs.length?`${mp.name} is countered by their ${ctrs.map(h=>h.name).join('+')}`:''
-  }).filter(Boolean).join('; ');
+  const {needed:myNeeded}=needs(myP);
+  const {needed:oppNeeded}=needs(oppP);
+  const audit=ctx.audit;
+  const ep=(aiMode==='enemy'&&enemyProfile)?enemyProfile:null;
 
-  let prompt=`You are an elite MLBB drafter AI vs ${pName}. You control ${step.team.toUpperCase()} side. WIN this draft.
+  if(!ctx.shortlist.length)return localAIFromCtx(ctx); // nothing to deliberate
 
-META: ${buildMeta()}${aiScout?'\n'+aiScout:''}
+  const tick=v=>v?'OK':'MISSING';
+  const auditStr=`frontline:${tick(audit.frontline)} setter:${tick(audit.setter)} physDmg:${audit.phys>0?'OK':'MISSING'} magicDmg:${audit.magic>0?'OK':'MISSING'}`;
+  const slotLabel=DRAFT_ORDER[ST.step]?.label||'';
+  const candLines=ctx.shortlist.map((c,i)=>{
+    const bits=[`${c.lanes}|${c.tier}`];
+    if(typeof c.vs==='number'&&c.vs!==0)bits.push(`matchup ${c.vs>0?'+':''}${c.vs}`);
+    if(typeof c.syn==='number'&&c.syn>0)bits.push(`synergy +${c.syn}`);
+    if(c.gateFix)bits.push(`fixes ${c.gateFix}`);
+    if(typeof c.pPick==='number')bits.push(`P(they pick) ${c.pPick}%`);
+    if(c.tag)bits.push(`intent:${c.tag}`);
+    return`${i+1}. ${c.name} [${bits.join(', ')}]${c.note?` — ${c.note}`:''}`;
+  }).join('\n');
 
-DRAFT STATE:
-You(${step.team}): picks=[${myP.map(h=>h.name+'('+effectiveLaneAB(h)+')').join(',')||'None'}] bans=[${myB.map(h=>h.name).join(',')||'None'}]
-  lanes_covered=[${myCovered.join(',')||'none'}] lanes_needed=[${needed.join(',')||'TEAM COMPLETE'}]
-Human(${step.team==='blue'?'red':'blue'}): picks=[${oppP.map(h=>h.name+'('+effectiveLaneAB(h)+')').join(',')||'None'}] bans=[${oppB.map(h=>h.name).join(',')||'None'}]
-  lanes_covered=[${oppCovered.join(',')||'none'}] lanes_needed=[${oppNeeded.join(',')||'none'}]
-${myCounterTargets?'Counter opportunities: '+myCounterTargets:''}
-${theyCounter?'Threats to our picks: '+theyCounter:''}
-Available (format Hero(primary|flex,tier[,WR])): ${topA}${step.type==='pick'&&pickCandidates?`
-VALID pick candidates — heroes that can fill a currently-needed lane — YOU MUST CHOOSE FROM THIS LIST: ${pickCandidates}`:''}
-${gmEx}
+  const seriesCtx=(()=>{try{
+    const sm=JSON.parse(localStorage.getItem('warr_ab_series')||'null');
+    if(sm&&sm.games&&sm.games.length)return`SERIES (BO5 game ${sm.games.length+1}): previous results ${sm.games.map(g=>g.won?'W':'L').join('-')}. Do not repeat a losing comp; expect respect-bans on heroes that just won.`;
+  }catch(_){}return'';})();
 
-ROLE COMPOSITION RULES (HARD — non-negotiable):
-• Every MLBB team MUST field EXACTLY ONE of each: EXP, Jungle, Mid, Gold, Roam. Five roles, no duplicates, no gaps.
-• Your lanes_covered=[${myCovered.join(',')||'none'}]. Your lanes_needed=[${needed.join(',')||'none'}].
-• NEVER pick a hero whose only playable lane(s) are already in lanes_covered.
-• A flex hero is valid ONLY if at least one of its listed lanes is in lanes_needed.
-• NEVER ban a hero whose lane is already filled on BOTH teams unless they are must-ban.
+  const epBlock=ep?`
+YOU ARE EMULATING "${ep.name}" (scouted team — draft like THEM, not like a generic optimizer):
+Win condition: ${ep.winCondition||'unknown'} | Their ${step.team}-side core: ${(step.team==='blue'?ep.blueSideCore:ep.redSideCore||[]).slice(0,6).join(', ')||'see candidates'}
+Candidates already carry their pick/ban frequencies — when in doubt, choose what THEY historically do.`:'';
 
-${step.type==='ban'
-  ?`BAN DECISION TREE — every ban MUST classify into exactly ONE intent category, and the category MUST appear in the "reason" field as [TAG]:
-• [MUST-BAN]     patch-broken hero, no reliable counterplay
-• [PROTECT-BAN]  hero hard-counters one of YOUR existing picks (defend win condition)
-• [COMBO-BREAK]  hero is part of a high-WR combo with opponent's pick
-• [COMFORT-DENY] hero is a high-WR specialty of the HUMAN player — deny their comfort
-• [PHASE1-DENY]  HUMAN locks this hero early every series — deny pre-lock
-• [LANE-DENY]    enemy still needs this lane [${oppNeeded.join('/')||'none'}] AND hero is S/A-tier in it
-• [ARCH-COUNTER] hero is a known counter to YOUR team archetype
-HARD RULES (non-negotiable):
-(A) If none of the above categories apply AND the hero's lane (primary OR flex) is in YOUR lanes_needed [${needed.join('/')||'none'}] → DO NOT BAN. Choose a different hero.
-(B) If the hero's lane is already filled by the enemy AND you still need that lane → DO NOT BAN (example: enemy has Jungle, you still need Jungle → never ban a Jungle hero). Exception: MUST-BAN or PROTECT-BAN override.
-(C) If BOTH teams have the lane filled → ban is waste unless MUST-BAN.
-(D) Never repeat a ban just because the hero is strong in a vacuum — strategic category is required.
-Diversify across matches — avoid repeating identical bans every game when multiple valid options exist.`
-  :`PICK PRIORITY: (1) Fill your lanes_needed [${needed.join('/')||'none'}] — ANY pick that does NOT fill a needed lane is invalid. (2) Counter-pick opponent heroes. (3) Prefer high-tier heroes that synergize. (4) Avoid heroes your opponent already counters. Choose ONLY from the VALID pick candidates list above.`}
+  const prompt=`You are a Grandmaster MPL coach drafting in MLBB tournament mode. ${step.team.toUpperCase()} side, turn ${slotLabel} (${step.type.toUpperCase()}).
 
-Return ONLY JSON: {"hero":"ExactName","reason":"<20 words, specific — name the hero and why>","confidence":"high|medium|low"}`;
+SLOT QUESTION (this is the ONLY question this turn answers): ${ctx.question}
 
-  // ── enemy mode prompt override ──
-  if(aiMode==='enemy'&&enemyProfile){
-    const ep=enemyProfile;
-    const epCtx=buildEnemyPromptCtx(step);
-    const usedIds2=[...ST.bb,...ST.rb,...ST.bp,...ST.rp].map(h=>h.id);
-    const epAvail=ep.topPicks.filter(n=>{const hh=HEROES.find(h=>h.name===n);return hh&&!usedIds2.includes(hh.id);}).slice(0,6);
-    const epBanAvail=ep.topBans.filter(n=>{const hh=HEROES.find(h=>h.name===n);return hh&&!usedIds2.includes(hh.id);}).slice(0,4);
-    prompt=`${epCtx}
+BOARD:
+Your picks: [${myP.map(h=>`${h.name}(${effectiveLaneAB(h)})`).join(', ')||'none'}] | your bans: [${myB.map(h=>h.name).join(', ')||'none'}]
+Lanes you still need: [${myNeeded.join(', ')||'team complete'}] | comp audit: ${auditStr}
+Opponent "${ep?'their scouted rival':pName}" picks: [${oppP.map(h=>`${h.name}(${effectiveLaneAB(h)})`).join(', ')||'none'}] | their bans: [${oppB.map(h=>h.name).join(', ')||'none'}]
+Opponent open lanes: [${oppNeeded.join(', ')||'none'}]${ctx.prediction.length?`
+Predicted opponent next moves: ${ctx.prediction.join(' > ')}`:''}
+${seriesCtx}${epBlock}
 
-DRAFT STATE (${step.team} side is ${ep.name}):
-Their picks=[${myP.map(h=>h.name).join(',')||'none'}] bans=[${myB.map(h=>h.name).join(',')||'none'}] lanes_needed=[${needed.join(',')||'none'}]
-Opponent picks=[${oppP.map(h=>h.name).join(',')||'none'}]
-Signature heroes still available: [${epAvail.join(', ')||'all gone'}]
-Known ban targets still available: [${epBanAvail.join(', ')||'all banned'}]
-Available pool (top): ${topA}
+CANDIDATES — pre-vetted by the draft engine (legal lanes, waste-bans filtered, evidence attached). You MUST choose from this list:
+${candLines}
 
-${step.type==='ban'
-  ?`BAN as ${ep.name}: Pick from their known bans [${epBanAvail.slice(0,3).join(', ')||'none left'}]. If all gone, ban hero that threatens their signature picks.`
-  :`PICK as ${ep.name}: Choose their comfort heroes first [${epAvail.join(', ')||'none left'}]. Match their archetype: ${ep.winCondition||'their historical style'}.`}
+Engine's own choice: ${ctx.hero.name} — "${ctx.reason}"
 
-JSON only: {"hero":"ExactName","reason":"<12 words>","confidence":"high|medium|low"}`;
-  }
+YOUR JOB: apply coach judgment the engine can't — comp identity coherence, timing windows, what the opponent is TRYING to do, trap avoidance (e.g. a pick that invites an unanswerable last-pick counter). Agree with the engine when it's right; override only with a concrete draft argument.
 
-  // ── STRICT VALIDATOR: enforce 5-role composition on Claude's output ──
-  // Returns {ok:true, hero} if valid, or {ok:false, reason} if it violates lane rules.
-  const validateClaudePick=(h)=>{
-    if(!h)return{ok:false,reason:'not found'};
-    if(usedIds.includes(h.id))return{ok:false,reason:'already used'};
-    if(step.type==='pick'){
-      if(needed.length>0&&!canPickHero(h,myP))return{ok:false,reason:`${h.name} cannot fill any needed lane`};
-      const heroLanes=getHeroLanesAB(h);
-      const takenSet=new Set(myP.map(pp=>effectiveLaneAB(pp)).filter(l=>l!=='Flex'));
-      const effLane=heroLanes.find(l=>l!=='Flex'&&!takenSet.has(l)&&needed.includes(l))
-                 ||heroLanes.find(l=>l!=='Flex'&&!takenSet.has(l))
-                 ||heroLanes[0]||'Flex';
-      if(needed.length>0&&(effLane==='Flex'||takenSet.has(effLane)||!needed.includes(effLane)))
-        return{ok:false,reason:`${h.name} would duplicate ${effLane} (needed: ${needed.join('/')})`};
-    } else if(step.type==='ban'){
-      const ln=lane(h);
-      const hLns=getHeroLanesAB(h);
-      const isMustBanV=h.mp==='mustban';
-      // Waste 1: both teams already have this lane filled → ban benefits nobody.
-      const bothFilled=ln!=='Flex'&&!needed.includes(ln)&&!oppNeeded.includes(ln);
-      // Waste 2: AI still needs a lane this hero covers AND enemy already has that lane →
-      // banning removes an AI option with zero impact on the enemy. Strict reject.
-      const wasteSelf=hLns.some(L=>L!=='Flex'&&needed.includes(L)&&!oppNeeded.includes(L));
-      if((bothFilled||wasteSelf)&&!isMustBanV){
-        const why=wasteSelf?`we still need ${hLns.find(L=>L!=='Flex'&&needed.includes(L)&&!oppNeeded.includes(L))} and enemy already has that lane filled`:`${ln} already filled on both sides`;
-        return{ok:false,reason:`${h.name} wastes our ban — ${why}`};
-      }
-      // Waste 3: hero's lane (primary or flex) is in our lanes_needed AND no strategic
-      // category applies. Validate the categories Claude should have reasoned through:
-      const hitsOwnNeed=hLns.some(L=>L!=='Flex'&&needed.includes(L));
-      if(hitsOwnNeed&&!isMustBanV){
-        const _humanFavsV=getHumanTendencies();
-        const _humanCombosV=getHumanComboThreats();
-        const _favV=_humanFavsV.find(f=>f.name===h.name);
-        const _comboV=_humanCombosV.find(cb=>cb.a===h.name||cb.b===h.name);
-        const isProtect=myP.some(p=>scoutCounters(h.name,p.name));
-        const isCombo=!!_comboV&&(_comboV.wr||0.6)>=0.6;
-        const isComfort=!!_favV&&(_favV.count||0)>=3&&(_favV.wr||0)>=0.55;
-        const _arch=ARCH_DEFS[aiArchetype]||null;
-        const isArch=!!_arch&&_arch.counters.includes(h.name);
-        const tierV=_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier;
-        const isLaneDeny=ln!=='Flex'&&oppNeeded.includes(ln)&&['S','A'].includes(tierV);
-        const hasReason=isProtect||isCombo||isComfort||isArch||isLaneDeny;
-        if(!hasReason){
-          const hitLane=hLns.find(L=>L!=='Flex'&&needed.includes(L));
-          return{ok:false,reason:`${h.name} hits our own ${hitLane} lane and has no strategic category (not must/protect/combo/comfort/lane/arch) — choose a different ban`};
-        }
-      }
+Return ONLY JSON: {"hero":"ExactNameFromList","reason":"<22 words, name the strategic factor>","confidence":"high|medium|low"}`;
+
+  const shortNames=new Set(ctx.shortlist.map(c=>c.name.toLowerCase()));
+  const validate=h=>{
+    if(!h)return{ok:false,reason:'hero not found'};
+    if(usedIds.has(h.id))return{ok:false,reason:`${h.name} is already picked or banned`};
+    if(step.type==='pick'&&!laneFeasibleAB(myP,h))return{ok:false,reason:`${h.name} cannot fit any open lane (needed: ${myNeeded.join('/')})`};
+    if(step.type==='ban'){
+      const lns=getHeroLanesAB(h).filter(l=>l!=='Flex');
+      const oppCannot=lns.length>0&&lns.every(L=>!oppNeeded.includes(L));
+      if(oppCannot&&h.mp!=='mustban')return{ok:false,reason:`wasted ban — opponent has no lane left for ${h.name}`};
+      const wasteSelf=lns.some(L=>myNeeded.includes(L)&&!oppNeeded.includes(L));
+      if(wasteSelf&&h.mp!=='mustban')return{ok:false,reason:`${h.name} only shrinks our own pool`};
     }
+    if(!shortNames.has(h.name.toLowerCase()))return{ok:false,reason:`${h.name} is not in the candidate list — choose from the list`};
+    return{ok:true};
+  };
+
+  const askOnce=async(hint)=>{
+    const finalPrompt=hint?`${prompt}\n\nCORRECTION: ${hint} Choose again, strictly from the candidate list.`:prompt;
+    const d=await callClaude({model:'claude-sonnet-4-6',max_tokens:180,messages:[{role:'user',content:finalPrompt}]});
+    const raw=(d.content||[]).map(x=>x.text||'').join('');
+    const m=raw.match(/\{[\s\S]*?\}/);if(!m)return{ok:false,reason:'no JSON in reply'};
+    let p;try{p=JSON.parse(m[0]);}catch(_){return{ok:false,reason:'malformed JSON'};}
+    const h=HEROES.find(hh=>hh.name.toLowerCase()===(p.hero||'').toLowerCase());
+    const v=validate(h);
+    if(!v.ok)return v;
+    h._r=p.reason||ctx.reason;h._c=p.confidence||ctx.conf;h._brainCtx=ctx;
     return{ok:true,hero:h};
   };
 
-  const parseClaudeOnce=async(extraHint)=>{
-    const finalPrompt=extraHint?`${prompt}\n\nCORRECTION: ${extraHint} Pick again — respect the composition rules strictly.`:prompt;
-    const d=await callClaude({model:'claude-sonnet-4-6',max_tokens:160,messages:[{role:'user',content:finalPrompt}]});
-    const raw=(d.content||[]).map(x=>x.text||'').join('');
-    const m=raw.match(/\{[\s\S]*?\}/);if(!m)return{ok:false,reason:'no JSON'};
-    let p;try{p=JSON.parse(m[0]);}catch(e){return{ok:false,reason:'bad JSON'};}
-    const h=HEROES.find(hh=>hh.name.toLowerCase()===(p.hero||'').toLowerCase());
-    const v=validateClaudePick(h);
-    if(!v.ok)return v;
-    h._r=p.reason||'';h._c=p.confidence||'medium';return{ok:true,hero:h};
-  };
-
   try{
-    let res=await parseClaudeOnce();
-    // One re-prompt attempt if Claude broke the lane rules.
-    if(!res.ok&&res.reason&&res.reason.length<200){
-      res=await parseClaudeOnce(`Your previous answer was rejected: ${res.reason}.`);
-    }
+    let res=await askOnce();
+    if(!res.ok&&res.reason&&res.reason.length<200)res=await askOnce(`Previous answer rejected: ${res.reason}.`);
     if(res.ok)return res.hero;
-    return localAI(step);
+    return localAIFromCtx(ctx);
   }catch(e){
-    return localAI(step); // silent fallback — no key or API error
+    return localAIFromCtx(ctx); // no key / API error → brain answers alone
   }
 }
+
+// Reuse an already-computed brain decision without re-running the pipeline.
+function localAIFromCtx(ctx){
+  const h=ctx.hero;
+  h._r=ctx.reason;h._c=ctx.conf;h._brainCtx=ctx;
+  return h;
+}
+
+
 
 // ═══════ UI FEEDBACK ═══════
 function showThink(show,step){
