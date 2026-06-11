@@ -208,10 +208,44 @@ body>*{position:relative;z-index:1;}
           </button>
         </form>
         <div class="invite-note">
-          Don't have an account? Contact the admin to get an invite link sent to your email.
+          New to Warr.GG? <button type="button" onclick="showPanel('signup')" style="background:none;border:none;color:#A888CC;font-weight:700;font-size:inherit;cursor:pointer;text-decoration:underline;font-family:inherit;">Create a free account</button> — 3 AI analyses a month, full draft arena, no card needed.
         </div>
         <div style="text-align:center;margin-top:12px;">
           <button type="button" onclick="showPanel('reset')" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;text-decoration:underline;font-family:var(--font-body);">Forgot password / First time? Set your password</button>
+        </div>
+      </div>
+
+      <!-- ── SIGN UP PANEL ── -->
+      <div id="panelSignup" style="display:none;">
+        <div class="auth-mode-label">
+          Create Your Account
+          <small>Free forever — 3 AI deep analyses a month, the full draft arena, and unlimited scouting</small>
+        </div>
+        <form onsubmit="handleSignUp(event)">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-input" id="suEmail" type="email" placeholder="your@email.com" required autocomplete="email"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <div class="input-wrap">
+              <input class="form-input" id="suPassword" type="password" placeholder="Min. 8 characters" required minlength="8" autocomplete="new-password"/>
+              <button type="button" class="pw-toggle" onclick="togglePw('suPassword',this)">Show</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirm Password</label>
+            <div class="input-wrap">
+              <input class="form-input" id="suConfirm" type="password" placeholder="Repeat password" required autocomplete="new-password"/>
+              <button type="button" class="pw-toggle" onclick="togglePw('suConfirm',this)">Show</button>
+            </div>
+          </div>
+          <button class="submit-btn" id="signupBtn" type="submit">
+            <span id="signupBtnTxt">Create Account</span>
+          </button>
+        </form>
+        <div style="text-align:center;margin-top:14px;">
+          <button type="button" onclick="showPanel('signin')" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;text-decoration:underline;font-family:var(--font-body);">Already have an account? Sign in</button>
         </div>
       </div>
 
@@ -378,13 +412,14 @@ body>*{position:relative;z-index:1;}
       return;
     }
 
-    const redir = new URLSearchParams(location.search).get('redirect') || 'draft_board.html';
+    const redir = new URLSearchParams(location.search).get('redirect') || '/ai_battle';
     window.location.href = redir;
     return;
   }
 })();
 
 function showPanel(mode) {
+  document.getElementById('panelSignup').style.display  = mode === 'signup'  ? '' : 'none';
   document.getElementById('panelSignIn').style.display  = mode === 'signin'  ? '' : 'none';
   document.getElementById('panelInvite').style.display  = mode === 'invite'  ? '' : 'none';
   document.getElementById('panelReset').style.display   = mode === 'reset'   ? '' : 'none';
@@ -409,9 +444,43 @@ async function handleSignIn(e) {
   }
   showMsg('Signed in — redirecting…', 'ok');
   setTimeout(() => {
-    const redir = new URLSearchParams(location.search).get('redirect') || 'draft_board.html';
+    const redir = new URLSearchParams(location.search).get('redirect') || '/ai_battle';
     window.location.href = redir;
   }, 600);
+}
+
+// ── SIGN UP (self-service registration) ───────────────────────
+async function handleSignUp(e) {
+  e.preventDefault();
+  const email    = document.getElementById('suEmail').value.trim();
+  const password = document.getElementById('suPassword').value;
+  const confirm  = document.getElementById('suConfirm').value;
+  const btn = document.getElementById('signupBtn'), txt = document.getElementById('signupBtnTxt');
+  clearMsg();
+  if (password !== confirm) { showMsg("Passwords don't match", 'err'); return; }
+  if (password.length < 8)  { showMsg('Password must be at least 8 characters', 'err'); return; }
+  setLoading(btn, txt, true, 'Creating account…');
+  const { data, error } = await WAuth._sb().auth.signUp({
+    email, password,
+    options: { emailRedirectTo: location.origin + '/auth' },
+  });
+  if (error) {
+    showMsg(friendlyErr(error.message), 'err');
+    setLoading(btn, txt, false, 'Create Account');
+    return;
+  }
+  if (data && data.session) {
+    // Email confirmation disabled → signed in immediately. Reload: the
+    // boot check sees a user without a display_name and opens the
+    // profile-setup panel automatically.
+    showMsg('Account created — setting up your profile…', 'ok');
+    setTimeout(() => location.reload(), 600);
+  } else {
+    // Email confirmation required → the confirm link returns here with
+    // type=signup, which the boot check routes into the setup panel.
+    showMsg('Account created! Check your email and click the confirmation link to finish.', 'ok');
+    setLoading(btn, txt, false, 'Create Account');
+  }
 }
 
 // ── ACCEPT INVITE + PROFILE SETUP ─────────────────────────────
