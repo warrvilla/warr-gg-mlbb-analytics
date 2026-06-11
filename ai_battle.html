@@ -779,6 +779,11 @@ input:focus, .search-input:focus {
 
 @media (max-height: 880px){ #setup{padding-top:10px;} }
 @media (max-height: 740px){ #setup{padding-top:8px;} }
+
+/* ═══ ARENA HEADER DIET — one bar instead of four strips ═══ */
+.bh{display:none !important;}        /* names live on the team panels */
+.seq-bar{display:none !important;}   /* redundant with Step N/20 */
+.phase-bar{padding:10px 26px 6px;}
 </style>
 <script src="warr-theme.js"></script>
 </head>
@@ -895,17 +900,17 @@ input:focus, .search-input:focus {
 <div id="battle">
   <div class="bh">
     <div class="bh-side" id="bhL"><span class="bh-name" id="bhPName" style="color:var(--blue);">YOU</span><span class="bh-tag tag-you">HUMAN</span></div>
-    <div class="bh-center">
-      <div class="bh-wp">WIN PROBABILITY <strong id="wpVal">50%</strong><span id="wpDelta" class="wp-delta"></span></div>
-      <div class="bh-vs">VS</div>
-    </div>
+    <div class="bh-center"><div class="bh-vs">VS</div></div>
     <div class="bh-side r"><span class="bh-name" id="bhAIName" style="color:var(--ai);">WARR.GG AI</span><span class="bh-tag tag-ai" id="bhAITag">AI</span></div>
   </div>
   <div id="enemyBanner" style="display:none;background:rgba(240,82,82,.08);border-bottom:1px solid rgba(240,82,82,.2);padding:5px 16px;font-size:10px;color:var(--red);font-weight:600;text-align:center;"></div>
   <div id="mapBanner" style="display:none;background:rgba(94,160,216,.07);border-bottom:1px solid rgba(94,160,216,.18);padding:4px 16px;font-size:10px;color:var(--blue);text-align:center;"></div>
   <div class="phase-bar">
     <div class="phase-lbl" id="phaseLbl">Ban Phase I</div>
-    <div class="turn-tag turn-you" id="turnTag">YOUR TURN — BAN</div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;">
+      <div class="turn-tag turn-you" id="turnTag">YOUR TURN — BAN</div>
+      <div class="bh-wp">WIN PROBABILITY <strong id="wpVal">50%</strong><span id="wpDelta" class="wp-delta"></span></div>
+    </div>
     <div style="display:flex;gap:8px;align-items:center;"><span class="dif" id="difBadge"></span><span style="font-size:9px;color:var(--text3);" id="stepCtr">Step 1/20</span></div>
   </div>
   <div class="seq-bar" id="seqBar"></div>
