@@ -641,6 +641,47 @@ input:focus, .search-input:focus {
 }
 
 /* ═══════════════════════════════════════════════════════ */
+
+/* ═══ WAR ROOM SETUP ═══ */
+.engine-pill{display:inline-flex;align-items:center;gap:7px;padding:5px 14px;border-radius:999px;
+  background:rgba(168,136,204,.08);border:0.5px solid rgba(168,136,204,.3);
+  font-size:9px;font-weight:700;letter-spacing:.18em;color:#A888CC;margin-bottom:12px;text-transform:uppercase;}
+.engine-dot{width:6px;height:6px;border-radius:50%;background:#4ade80;box-shadow:0 0 8px #4ade80;animation:enginePulse 2s ease infinite;}
+@keyframes enginePulse{0%,100%{opacity:1}50%{opacity:.35}}
+.setup-hd{text-align:center;}
+.setup-sub{letter-spacing:.22em;text-transform:uppercase;font-size:10px;}
+.setup-grid{display:grid;grid-template-columns:1fr 1.25fr 0.85fr;gap:12px;margin-bottom:12px;align-items:start;}
+@media(max-width:900px){.setup-grid{grid-template-columns:1fr;}}
+.setup-card-engine{border-color:rgba(76,184,122,.25)!important;}
+.opt-card{position:relative;}
+.lv-badge{position:absolute;top:6px;right:8px;font-size:7.5px;font-weight:700;letter-spacing:.12em;color:var(--text3);font-family:var(--font-mono,monospace);}
+.specs-list{display:flex;flex-direction:column;}
+.specs-row{display:flex;align-items:center;justify-content:space-between;padding:8px 2px;
+  border-bottom:0.5px solid rgba(255,255,255,.05);font-size:11px;color:var(--text3);}
+.specs-row:last-child{border-bottom:none;}
+.specs-row strong{color:var(--text);font-weight:600;font-size:11.5px;}
+.specs-row .ok{color:#4ade80;}
+.specs-row .warn{color:#fbbf24;}
+.specs-note{margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(74,222,128,.06);
+  border:0.5px solid rgba(74,222,128,.2);font-size:9.5px;color:#4ade80;line-height:1.45;}
+.start-btn{display:block;width:100%;max-width:520px;margin:22px auto 0;padding:16px 20px;border:none;cursor:pointer;
+  border-radius:14px;background:linear-gradient(135deg,#A888CC,#5E5CE6);color:#fff;
+  font-size:15px;font-weight:800;letter-spacing:.35em;text-transform:uppercase;text-indent:.35em;
+  box-shadow:0 8px 40px rgba(94,92,230,.35),0 0 0 1px rgba(255,255,255,.08) inset;
+  transition:transform .15s ease,box-shadow .15s ease;}
+.start-btn:hover{transform:translateY(-2px);box-shadow:0 12px 52px rgba(94,92,230,.5),0 0 0 1px rgba(255,255,255,.12) inset;}
+.start-sub{text-align:center;font-size:8.5px;letter-spacing:.2em;color:var(--text3);margin-top:10px;text-transform:uppercase;}
+
+/* ═══ ARENA STATUS BAR ═══ */
+.bh{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.bh-name{font-size:20px;font-weight:800;letter-spacing:-0.02em;font-family:var(--font-head,inherit);text-transform:uppercase;}
+.bh-center{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.bh-wp{font-size:8px;font-weight:700;letter-spacing:.14em;color:var(--text3);text-transform:uppercase;
+  display:flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;
+  background:var(--surface2,rgba(255,255,255,.03));border:0.5px solid rgba(255,255,255,.07);}
+.bh-wp strong{font-size:12px;letter-spacing:0;color:#4ade80;font-family:var(--font-mono,monospace);}
+.wp-delta{font-size:8.5px;letter-spacing:0;font-family:var(--font-mono,monospace);color:var(--text3);}
+@media(max-width:700px){.bh-name{font-size:14px;}}
 </style>
 <script src="warr-theme.js"></script>
 </head>
@@ -658,48 +699,57 @@ input:focus, .search-input:focus {
 <!-- SETUP SCREEN -->
 <div id="setup">
   <div class="setup-hd">
+    <div class="engine-pill"><span class="engine-dot"></span>DRAFT BRAIN V2 ACTIVE</div>
     <div class="setup-title">AI <span>Draft</span> Battle</div>
-    <div class="setup-sub">1v1 vs Warr.GG AI · Powered by your scout data</div>
+    <div class="setup-sub">MPL DRAFT SIMULATION · WAR ROOM</div>
   </div>
-  <div class="setup-card">
-    <div class="card-title">Your Name</div>
-    <input class="name-in" id="nameIn" value="You" maxlength="20" placeholder="Enter your name..."/>
-  </div>
-  <div class="setup-card">
-    <div class="card-title">Choose Your Side</div>
-    <div class="grid3">
-      <div class="opt-card sel-blue" id="sc-blue" onclick="setSide('blue')"><div class="opt-name">BLUE SIDE</div><div class="opt-desc">First pick advantage</div></div>
-      <div class="opt-card" id="sc-red" onclick="setSide('red')"><div class="opt-name">RED SIDE</div><div class="opt-desc">Last pick advantage</div></div>
-      <div class="opt-card" id="sc-random" onclick="setSide('random')"><div class="opt-name">RANDOM</div><div class="opt-desc">Let fate decide</div></div>
+
+  <div class="setup-grid">
+    <!-- COL 1: PLAYER PROFILE -->
+    <div class="setup-card">
+      <div class="card-title">⌖ Player Profile</div>
+      <input class="name-in" id="nameIn" value="You" maxlength="20" placeholder="Enter your name..."/>
+      <div class="card-title" style="margin-top:14px;">Side Selection</div>
+      <div class="grid3">
+        <div class="opt-card sel-blue" id="sc-blue" onclick="setSide('blue')"><div class="opt-name">BLUE</div><div class="opt-desc">First pick</div></div>
+        <div class="opt-card" id="sc-red" onclick="setSide('red')"><div class="opt-name">RED</div><div class="opt-desc">Last pick</div></div>
+        <div class="opt-card" id="sc-random" onclick="setSide('random')"><div class="opt-name">RAND</div><div class="opt-desc">Coin flip</div></div>
+      </div>
     </div>
-  </div>
-  <div class="setup-card">
-    <div class="card-title">Scout Data Source</div>
-    <div style="display:flex;flex-wrap:wrap;gap:5px;">
-      <button class="scout-lb active" onclick="setScoutLB('all')">All Leagues</button>
-      <button class="scout-lb" onclick="setScoutLB('MPL PH')">MPL PH</button>
-      <button class="scout-lb" onclick="setScoutLB('MPL MY')">MPL MY</button>
-      <button class="scout-lb" onclick="setScoutLB('MPL ID')">MPL ID</button>
-      <button class="scout-lb" onclick="setScoutLB('MPL SG')">MPL SG</button>
-      <button class="scout-lb" onclick="setScoutLB('MPL KH')">MPL KH</button>
-      <button class="scout-lb" onclick="setScoutLB('MSC')">MSC</button>
-      <button class="scout-lb" onclick="setScoutLB('M-Series')">M-Series</button>
-      <button class="scout-lb" onclick="setScoutLB('Scrims')">Scrims Only</button>
+
+    <!-- COL 2: DRAFT ENGINE -->
+    <div class="setup-card setup-card-engine">
+      <div class="card-title">◈ Draft Engine</div>
+      <div class="grid3">
+        <div class="opt-card" id="dc-normal" onclick="setDiff('normal')"><span class="lv-badge">LV.01</span><div class="opt-name">Normal</div><div class="opt-desc">Brain pipeline, human variance</div></div>
+        <div class="opt-card sel-gold" id="dc-hard" onclick="setDiff('hard')"><span class="lv-badge">LV.02</span><div class="opt-name">Hard</div><div class="opt-desc">+ opponent prediction</div></div>
+        <div class="opt-card" id="dc-gm" onclick="setDiff('gm')"><span class="lv-badge">LV.03</span><div class="opt-name">Grandmaster</div><div class="opt-desc">Full GM layer · ban equity · lookahead</div></div>
+      </div>
+      <div class="card-title" style="margin-top:14px;">Scout Data Source</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;">
+        <button class="scout-lb active" onclick="setScoutLB('all')">All Pro Leagues</button>
+        <button class="scout-lb" onclick="setScoutLB('MPL PH')">MPL PH</button>
+        <button class="scout-lb" onclick="setScoutLB('MPL MY')">MPL MY</button>
+        <button class="scout-lb" onclick="setScoutLB('MPL ID')">MPL ID</button>
+        <button class="scout-lb" onclick="setScoutLB('MPL SG')">MPL SG</button>
+        <button class="scout-lb" onclick="setScoutLB('MPL KH')">MPL KH</button>
+        <button class="scout-lb" onclick="setScoutLB('MSC')">MSC</button>
+        <button class="scout-lb" onclick="setScoutLB('M-Series')">M-Series</button>
+        <button class="scout-lb" onclick="setScoutLB('Scrims')">Scrims</button>
+      </div>
+      <div id="scoutStatusAB" style="margin-top:8px;font-size:10px;color:var(--text3);"></div>
     </div>
-    <div id="scoutStatusAB" style="margin-top:8px;font-size:10px;color:var(--text3);"></div>
-  </div>
-  <div class="setup-card">
-    <div class="card-title">AI Difficulty</div>
-    <div class="grid3">
-      <div class="opt-card" id="dc-normal" onclick="setDiff('normal')"><div class="opt-name">Normal</div><div class="opt-desc">Rule-based scoring</div></div>
-      <div class="opt-card sel-gold" id="dc-hard" onclick="setDiff('hard')"><div class="opt-name">Hard</div><div class="opt-desc">Full Warr.GG AI reasoning</div></div>
-      <div class="opt-card" id="dc-gm" onclick="setDiff('gm')"><div class="opt-name">Grandmaster</div><div class="opt-desc">AI + counter-strategy + memory</div></div>
+
+    <!-- COL 3: TACTICAL SPECS (live, from your data) -->
+    <div class="setup-card">
+      <div class="card-title">▦ Tactical Specs</div>
+      <div id="specsCard" class="specs-list"><div class="specs-row"><span>Loading…</span><span></span></div></div>
     </div>
   </div>
 
   <!-- MAP SELECTION -->
   <div class="setup-card">
-    <div class="card-title">Map <span style="font-weight:400;color:var(--text3);">— optional, affects team WR context</span></div>
+    <div class="card-title">▣ Battle Map <span style="font-weight:400;color:var(--text3);">— optional, weighs team map WR into the simulation</span></div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
       <div class="opt-card" id="map-none" onclick="setMap('')" style="text-align:center;padding:8px 4px;">
         <div class="opt-name" style="font-size:10px;">Any</div>
@@ -722,7 +772,7 @@ input:focus, .search-input:focus {
 
   <!-- ENEMY TEAM MODE -->
   <div class="setup-card" style="position:relative;z-index:2;">
-    <div class="card-title">AI Opponent Mode</div>
+    <div class="card-title">⌁ Opponent Protocol</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
       <div class="opt-card sel-gold" id="mode-generic" onclick="setAIMode('generic')" style="text-align:left;">
         <div><div class="opt-name">Generic AI</div><div class="opt-desc">Optimizes to beat you</div></div>
@@ -749,14 +799,18 @@ input:focus, .search-input:focus {
     <div style="font-size:9px;color:var(--text3);">Set a global key in <a href="/admin" style="color:var(--blue);">Admin Panel</a> to enable AI for all users.</div>
   </div>
 
-  <button class="start-btn" onclick="startBattle()">Start Battle</button>
+  <button class="start-btn" onclick="startBattle()">INITIATE DRAFT</button>
+  <div class="start-sub">PROTOCOL SYNCED WITH YOUR SCOUT DATA — <span id="startSubGames">0 matches loaded</span></div>
 </div>
 
 <!-- BATTLE SCREEN -->
 <div id="battle">
   <div class="bh">
     <div class="bh-side" id="bhL"><span class="bh-name" id="bhPName" style="color:var(--blue);">YOU</span><span class="bh-tag tag-you">HUMAN</span></div>
-    <div class="bh-vs">VS</div>
+    <div class="bh-center">
+      <div class="bh-wp">WIN PROBABILITY <strong id="wpVal">50%</strong><span id="wpDelta" class="wp-delta"></span></div>
+      <div class="bh-vs">VS</div>
+    </div>
     <div class="bh-side r"><span class="bh-name" id="bhAIName" style="color:var(--ai);">WARR.GG AI</span><span class="bh-tag tag-ai" id="bhAITag">AI</span></div>
   </div>
   <div id="enemyBanner" style="display:none;background:rgba(240,82,82,.08);border-bottom:1px solid rgba(240,82,82,.2);padding:5px 16px;font-size:10px;color:var(--red);font-weight:600;text-align:center;"></div>
@@ -1119,7 +1173,7 @@ let _scoutTierCache = null;
   });
   console.log('[AI Battle] Scout tiers applied:', Object.keys(dt).length, 'heroes');
 })();
-
+try{setTimeout(renderSpecsAB,300);}catch(_){}
 
 // ── PICK TIMING FROM SCOUT DATA ──────────────────────────
 // Computes avg pick order (0=first pick, 4=last pick) per hero across all matches
@@ -1197,6 +1251,7 @@ function buildScoutAB(teamName) {
 }
 
 function setScoutLB(l) {
+  setTimeout(renderSpecsAB,0);
   scoutLeagueAB = l;
   document.querySelectorAll('.scout-lb').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.scout-lb').forEach(b => {
@@ -1584,7 +1639,7 @@ function initBattle(){
   const dmap={normal:'Normal',hard:'Hard',gm:'Grandmaster'};
   const dcls={normal:'dif dif-n',hard:'dif dif-h',gm:'dif dif-g'};
   const db=document.getElementById('difBadge');db.textContent=dmap[diff];db.className=dcls[diff];
-  updateMemChip();renderAll();updateTurn();
+  _wpPrev=50;updateMemChip();renderAll();updateTurn();
   setTimeout(()=>triggerAI(),600);
 }
 
@@ -1817,6 +1872,7 @@ function setLaneAB(l){alane=l;af='All';renderPool();}
 document.getElementById('srch').addEventListener('input',e=>{sq=e.target.value;renderPool();});
 
 function updateTurn(){
+  updateWinProbAB();
   const el=document.getElementById('turnTag'),h=document.getElementById('hintTxt');
   const cur=DRAFT_ORDER[ST.step];
   if(!cur||done){el.textContent='DRAFT COMPLETE';el.className='turn-tag turn-done';h.textContent='Click Analyze for full breakdown';try{renderCoachPanel();}catch(_){}return;}
@@ -2814,7 +2870,7 @@ function renderCoachPanel(){
     return `<div onclick="pick('${h.id}')" style="cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;padding:6px 9px;border:0.5px solid ${col}55;border-radius:8px;background:${col}10;min-width:0;transition:transform .12s ease;" onmouseover="this.style.transform='translateY(-1px)';this.style.background='${col}22';" onmouseout="this.style.transform='translateY(0)';this.style.background='${col}10';" title="Click to ${cur.type}: ${c.name}"><div style="display:flex;align-items:center;gap:6px;width:100%;"><span style="font-size:8px;font-weight:700;letter-spacing:.06em;color:${col};">${lbl}</span><span style="font-size:8px;color:var(--text3);margin-left:auto;font-family:var(--font-mono);">${c.lanes||''}${c.tier?' · '+c.tier:''}</span></div><div style="font-size:12px;font-weight:700;color:var(--text);margin-top:2px;">${star}${c.name}</div><div style="font-size:9px;color:var(--text2);margin-top:2px;line-height:1.35;">${note}</div></div>`;
   }).join('');
   panel.style.display='block';
-  panel.innerHTML=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;color:#A888CC;">COACH — ${cur.type==='ban'?(ctx.intent==='BAN-P2'?'PHASE 2 BAN':'BAN'):ctx.intent}</span><span style="font-size:9px;color:var(--text3);">${scoutIntel().n} games of scout data</span></div><div style="font-size:9.5px;color:var(--text2);margin-bottom:7px;line-height:1.4;">${ctx.question||''}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;">${chips}</div>`;
+  panel.innerHTML=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;"><span style="font-size:10px;font-weight:700;letter-spacing:.08em;color:#A888CC;">✦ AI COACH — ${cur.type==='ban'?(ctx.intent==='BAN-P2'?'PHASE 2 BAN':'BAN'):ctx.intent}</span><span style="font-size:9px;color:var(--text3);margin-left:auto;">${scoutIntel().n} MATCHES SCOUTED</span></div><div style="font-size:9.5px;color:var(--text2);margin-bottom:7px;line-height:1.4;">${ctx.question||''}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;">${chips}</div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3351,6 +3407,63 @@ function draftBrainAB(step,opts){
     score:Math.round(c.score),vs:c.vs,syn:c.syn,note:c.notes[0]||'',gateFix:c.gateFix||'',
   }));
   return fin(hero,reason,conf,intent,question,shortlist);
+}
+
+// ═══════ LIVE WIN PROBABILITY (status bar) ═══════
+// Local estimator from the brain's own signals — tier quality, matchup
+// edge, synergy, and comp-gate deficits. Indicative, not gospel; the full
+// Analyze run remains the deep evaluation.
+let _wpPrev=50;
+function liveWinProbAB(){
+  const my=pSide==='blue'?ST.bp:ST.rp, ai=pSide==='blue'?ST.rp:ST.bp;
+  if(!my.length&&!ai.length)return 50;
+  _btc=null;
+  const myN=my.map(h=>h.name),aiN=ai.map(h=>h.name);
+  const tierSum=t=>t.reduce((a,h)=>a+_dbTierScore(h.name),0);
+  let edge=(tierSum(my)-tierSum(ai))*0.30;
+  myN.forEach(n=>{edge+=vsScoreAB(n,aiN)*0.45;});
+  const synSum=(names)=>names.reduce((a,n,i)=>a+synScoreAB(n,names.slice(0,i)),0);
+  edge+=(synSum(myN)-synSum(aiN))*0.35;
+  if(my.length>=4||ai.length>=4){
+    edge+=(needsAuditAB(ai).gates.length-needsAuditAB(my).gates.length)*9;
+  }
+  return Math.max(18,Math.min(82,Math.round(50+Math.max(-32,Math.min(32,edge*0.22)))));
+}
+function updateWinProbAB(){
+  const el=document.getElementById('wpVal');if(!el)return;
+  try{
+    const wp=liveWinProbAB();
+    el.textContent=wp+'%';
+    el.style.color=wp>=55?'#4ade80':wp>=45?'#fbbf24':'#f87171';
+    const d=document.getElementById('wpDelta');
+    if(d){const diff=wp-_wpPrev;d.textContent=diff?`(${diff>0?'+':''}${diff})`:'';d.style.color=diff>0?'#4ade80':diff<0?'#f87171':'var(--text3)';}
+    _wpPrev=wp;
+  }catch(_){}
+}
+
+// ═══════ TACTICAL SPECS CARD (setup screen) ═══════
+function renderSpecsAB(){
+  const el=document.getElementById('specsCard');if(!el)return;
+  try{
+    const db=loadScoutAB();
+    const real=(db.matches||[]).filter(m=>m.league!=='AI Battle');
+    const scoped=scoutLeagueAB==='all'?real:real.filter(m=>m.league===scoutLeagueAB);
+    const heroes=new Set();
+    scoped.forEach(m=>{[...(m.bluePicks||[]),...(m.redPicks||[])].forEach(p2=>{const n=p2&&(p2.name||p2);if(n)heroes.add(n);});});
+    const intel=scoutIntel();
+    const counterPairs=Object.keys(intel.counters||{}).length;
+    const hasKey=typeof WDB!=='undefined'&&WDB.getAdminApiKeySync?!!WDB.getAdminApiKeySync():false;
+    const isAdm=typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin();
+    el.innerHTML=`
+      <div class="specs-row"><span>Scout matches</span><strong>${scoped.length}</strong></div>
+      <div class="specs-row"><span>Scope</span><strong>${scoutLeagueAB==='all'?'All leagues':scoutLeagueAB}</strong></div>
+      <div class="specs-row"><span>Heroes with data</span><strong>${heroes.size}</strong></div>
+      <div class="specs-row"><span>Counter matchups</span><strong>${counterPairs}</strong></div>
+      <div class="specs-row"><span>Engine</span><strong class="${hasKey?'ok':'warn'}">${hasKey?'Brain + Claude':'Local brain'}</strong></div>
+      ${isAdm?'<div class="specs-note">✓ Admin verified — full simulation parameters unlocked.</div>':''}`;
+    const sg=document.getElementById('startSubGames');
+    if(sg)sg.textContent=`${scoped.length} match${scoped.length===1?'':'es'} loaded`;
+  }catch(e){el.innerHTML='<div class="specs-row"><span>No scout data yet</span><span></span></div>';}
 }
 
 // ═══════ PUBLIC ENTRY — same contract as before ═══════
