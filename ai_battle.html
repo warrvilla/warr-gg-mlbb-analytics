@@ -735,6 +735,41 @@ input:focus, .search-input:focus {
 .action-bar{background:transparent;padding:11px 16px;}
 #coachPanel{border-top:0.5px solid rgba(168,136,204,0.16) !important;}
 @media(max-width:900px){.draft-layout{padding:8px 10px 4px;gap:8px;}.logbar,#breakdownPanel{margin:4px 10px 8px;}}
+
+/* ═══ FRONT-PAGE DESIGN LANGUAGE — cinematic, not settings-menu ═══ */
+.setup-hd{position:relative;}
+.setup-hd::before{content:'';position:absolute;left:50%;top:-60px;transform:translateX(-50%);
+  width:560px;height:240px;max-width:90vw;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(168,136,204,.15) 0%,rgba(94,92,230,.07) 45%,transparent 72%);
+  pointer-events:none;z-index:-1;}
+.engine-pill{font-family:var(--font-mono);background:var(--accent-dim);border-color:var(--accent-border);}
+.setup-title{font-family:var(--font-display);font-weight:900;font-size:36px;line-height:1.0;
+  letter-spacing:-0.02em;text-transform:none;}
+.setup-title span{font-style:normal;background:linear-gradient(135deg,#A888CC 0%,#5E5CE6 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
+.setup-sub{font-family:var(--font-body);font-size:12px;color:rgba(240,240,248,.5);
+  letter-spacing:0;text-transform:none;margin-top:8px;max-width:520px;margin-left:auto;margin-right:auto;line-height:1.5;display:block;}
+@media(max-height:880px){.setup-title{font-size:28px;}.setup-sub{display:block;font-size:11px;}}
+@media(max-height:740px){.setup-sub{display:none;}}
+
+/* dash-card glass treatment for every setup card */
+.setup-card{background:var(--glass);backdrop-filter:var(--blur-sm);-webkit-backdrop-filter:var(--blur-sm);
+  border:0.5px solid var(--glass-border);border-radius:18px;
+  box-shadow:0 8px 32px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05);
+  position:relative;}
+.setup-card::before{content:'';position:absolute;top:0;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--glass-shine),transparent);pointer-events:none;}
+.setup-card-engine{border-color:rgba(168,136,204,.22)!important;}
+.card-title{letter-spacing:.14em;}
+.opt-card{background:rgba(255,255,255,.025);border:1px solid var(--glass-border);border-radius:12px;}
+.opt-card:hover{transform:translateY(-1px);border-color:var(--glass-border2);}
+.name-in{background:rgba(255,255,255,.03);border:0.5px solid var(--glass-border2);border-radius:10px;}
+.scout-lb{border-radius:999px;}
+
+/* arena cards inherit the same silk glass */
+.team-panel,.pool-section{background:var(--glass) !important;backdrop-filter:var(--blur-sm);-webkit-backdrop-filter:var(--blur-sm);
+  box-shadow:0 8px 32px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04);}
+.logbar,#breakdownPanel{background:var(--glass) !important;backdrop-filter:var(--blur-sm);-webkit-backdrop-filter:var(--blur-sm);}
 </style>
 <script src="warr-theme.js"></script>
 </head>
@@ -752,9 +787,9 @@ input:focus, .search-input:focus {
 <!-- SETUP SCREEN -->
 <div id="setup">
   <div class="setup-hd">
-    <div class="engine-pill"><span class="engine-dot"></span>DRAFT BRAIN V2 ACTIVE</div>
-    <div class="setup-title">AI <span>Draft</span> Battle</div>
-    <div class="setup-sub">MPL DRAFT SIMULATION · WAR ROOM</div>
+    <div class="engine-pill"><span class="engine-dot"></span>PRACTICE ARENA · DRAFT BRAIN V2</div>
+    <div class="setup-title">Win the game <span>before it starts</span></div>
+    <div class="setup-sub">Full MPL-format draft simulation against your own scout data — every ban, every counter, every read.</div>
   </div>
 
   <div class="setup-grid">
