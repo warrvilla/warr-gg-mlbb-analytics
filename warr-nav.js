@@ -152,7 +152,6 @@
   //
   // Keep labels short and aligned with index.html's cinematic top bar.
   const NAV_LINKS = [
-    { href: '/draft_board',  label: 'Draft'     },
     { href: '/ai_battle',    label: 'AI Battle' },
     { href: '/scout',        label: 'Scout'     },
     { href: '/stats',        label: 'Analysis'  },

@@ -811,7 +811,14 @@ input:focus, .search-input:focus {
     <div class="setup-card">
       <div class="card-title">⌖ Player Profile</div>
       <input class="name-in" id="nameIn" value="You" maxlength="20" placeholder="Enter your name..."/>
-      <div class="card-title" style="margin-top:14px;">Side Selection</div>
+      <div class="card-title" style="margin-top:14px;">Series Format</div>
+      <div class="grid3" style="grid-template-columns:repeat(4,1fr);">
+        <div class="opt-card sel-gold" id="fmt-1" onclick="setFormat(1)"><div class="opt-name">Single</div></div>
+        <div class="opt-card" id="fmt-3" onclick="setFormat(3)"><div class="opt-name">BO3</div></div>
+        <div class="opt-card" id="fmt-5" onclick="setFormat(5)"><div class="opt-name">BO5</div></div>
+        <div class="opt-card" id="fmt-7" onclick="setFormat(7)"><div class="opt-name">BO7</div></div>
+      </div>
+      <div class="card-title" style="margin-top:14px;">Side Selection <span style="font-weight:400;color:var(--text3);">— game 1; series alternate</span></div>
       <div class="grid3">
         <div class="opt-card sel-blue" id="sc-blue" onclick="setSide('blue')"><div class="opt-name">BLUE</div><div class="opt-desc">First pick</div></div>
         <div class="opt-card" id="sc-red" onclick="setSide('red')"><div class="opt-name">RED</div><div class="opt-desc">Last pick</div></div>
@@ -918,7 +925,7 @@ input:focus, .search-input:focus {
       <div class="turn-tag turn-you" id="turnTag">YOUR TURN — BAN</div>
       <div class="bh-wp">WIN PROBABILITY <strong id="wpVal">50%</strong><span id="wpDelta" class="wp-delta"></span></div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;"><span class="dif" id="difBadge"></span><span style="font-size:9px;color:var(--text3);" id="stepCtr">Step 1/20</span></div>
+    <div style="display:flex;gap:8px;align-items:center;"><span id="seriesChip" style="display:none;font-size:8.5px;font-weight:700;letter-spacing:.08em;color:var(--gold);background:var(--gold-dim);border:1px solid var(--gold-border);padding:2px 8px;border-radius:999px;"></span><span class="dif" id="difBadge"></span><span style="font-size:9px;color:var(--text3);" id="stepCtr">Step 1/20</span></div>
   </div>
   <div class="seq-bar" id="seqBar"></div>
   <div class="draft-layout">
@@ -993,7 +1000,9 @@ input:focus, .search-input:focus {
     <div class="rpicks"><div class="rpt">Warr.GG AI Picks</div><div id="rpAI"></div></div>
     <div class="rasummary" id="rasummary"></div>
     <div class="rbreakdown" id="rbreakdown"></div>
+    <div id="rseries" style="display:none;font-size:12px;color:var(--text2);margin:8px 0 2px;letter-spacing:.04em;"></div>
     <div class="rbtns">
+      <button class="rbtn rbp" id="rnextBtn" onclick="nextSeriesGame()" style="display:none;background:linear-gradient(135deg,#A888CC,#5E5CE6);">Next Game →</button>
       <button class="rbtn rbp" onclick="this.textContent='Analyzing…';this.disabled=true;runAnalysis().finally(()=>{this.textContent='Full Analysis';this.disabled=false;})">Full Analysis</button>
       <button class="rbtn rbs" onclick="captureResult()" title="Save as PNG">📸 Screenshot</button>
       <button class="rbtn rbs" onclick="rematch()">↺ Rematch</button>
@@ -1664,6 +1673,31 @@ function buildEnemyPromptCtx(step){
 }
 
 let p2Name='Player 2';
+
+// ═══════ SERIES MODE (BO1/3/5/7) — ported from Draft Board ═══════
+let seriesLen=1;
+let SERIES=null; // {len, gameNum, me, opp, games:[{won}]} — persisted for the brain's BO memory
+function setFormat(n){
+  seriesLen=n;
+  [1,3,5,7].forEach(x=>{const el=document.getElementById('fmt-'+x);if(el)el.className='opt-card'+(x===n?' sel-gold':'');});
+}
+function _seriesNeed(){return Math.floor(seriesLen/2)+1;}
+function _seriesSave(){try{localStorage.setItem('warr_ab_series',JSON.stringify(SERIES));}catch(_){}}
+function _seriesClear(){SERIES=null;try{localStorage.removeItem('warr_ab_series');}catch(_){}}
+function _seriesChip(){
+  const el=document.getElementById('seriesChip');if(!el)return;
+  if(!SERIES||SERIES.len<=1){el.style.display='none';return;}
+  el.style.display='inline-flex';
+  el.textContent=`BO${SERIES.len} · GAME ${SERIES.gameNum} · ${SERIES.me}-${SERIES.opp}`;
+}
+function nextSeriesGame(){
+  if(!SERIES)return;
+  SERIES.gameNum++;
+  pSide=pSide==='blue'?'red':'blue';  // alternate sides like a real series
+  aiSide=pSide==='blue'?'red':'blue';
+  document.getElementById('result').classList.remove('show');
+  initBattle();
+}
 function startBattle(){
   pName=document.getElementById('nameIn').value.trim()||'You';
   p2Name=(document.getElementById('p2In')?.value||'').trim()||'Player 2';
@@ -1672,12 +1706,14 @@ function startBattle(){
   diff=_diff;
   _battleMap=_selectedMap;
   if(aiMode==='enemy'&&!enemyProfile){toast('Select a scouted enemy team first','error');return;}
+  if(seriesLen>1){SERIES={len:seriesLen,gameNum:1,me:0,opp:0,games:[]};_seriesSave();}
+  else _seriesClear();
   document.getElementById('setup').style.display='none';
   document.getElementById('battle').style.display='flex';
   document.getElementById('result').classList.remove('show');
   initBattle();
 }
-function goSetup(){document.getElementById('result').classList.remove('show');document.getElementById('battle').style.display='none';document.getElementById('setup').style.display='block';}
+function goSetup(){_seriesClear();const sc=document.getElementById('seriesChip');if(sc)sc.style.display='none';document.getElementById('result').classList.remove('show');document.getElementById('battle').style.display='none';document.getElementById('setup').style.display='block';}
 function rematch(){document.getElementById('result').classList.remove('show');initBattle();}
 
 // ═══════ INIT ═══════
@@ -1749,7 +1785,7 @@ function initBattle(){
   const dmap={normal:'Normal',hard:'Hard',gm:'Grandmaster'};
   const dcls={normal:'dif dif-n',hard:'dif dif-h',gm:'dif dif-g'};
   const db=document.getElementById('difBadge');db.textContent=dmap[diff];db.className=dcls[diff];
-  _wpPrev=50;updateMemChip();renderAll();updateTurn();
+  _wpPrev=50;_seriesChip();updateMemChip();renderAll();updateTurn();
   setTimeout(()=>triggerAI(),600);
 }
 
@@ -3882,6 +3918,27 @@ function showResult(){
     pName,'AI'
   );
   const pw=localResult.winner===pSide;
+  // ── SERIES BOOKKEEPING ──
+  if(SERIES&&SERIES.len>1){
+    SERIES.games.push({won:pw});
+    pw?SERIES.me++:SERIES.opp++;
+    _seriesSave();_seriesChip();
+    const need=_seriesNeed();
+    const decided=SERIES.me>=need||SERIES.opp>=need;
+    const sline=document.getElementById('rseries');
+    if(sline){
+      sline.style.display='block';
+      sline.innerHTML=decided
+        ?`<strong style="color:${SERIES.me>need-1?'var(--green)':'var(--red)'};">SERIES ${SERIES.me>SERIES.opp?'WON':'LOST'} ${SERIES.me}–${SERIES.opp}</strong> · BO${SERIES.len}`
+        :`BO${SERIES.len} · Game ${SERIES.gameNum} done · <strong>${SERIES.me}–${SERIES.opp}</strong> · next game swaps sides`;
+    }
+    const nbtn=document.getElementById('rnextBtn');
+    if(nbtn)nbtn.style.display=decided?'none':'inline-block';
+    if(decided)_seriesClear();
+  }else{
+    const sline=document.getElementById('rseries');if(sline)sline.style.display='none';
+    const nbtn=document.getElementById('rnextBtn');if(nbtn)nbtn.style.display='none';
+  }
   // Record learning — track human picks with isHuman=true and pass opponent picks
   recordOutcome(aip,aiSide==='blue'?ST.bb:ST.rb,!pw,false,pp);
   recordOutcome(pp,pSide==='blue'?ST.bb:ST.rb,pw,true,aip);

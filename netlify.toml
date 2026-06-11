@@ -6,14 +6,19 @@
 # ── Clean URLs: /heroes instead of /heroes.html ──
 # 200 rewrites keep the pretty path in the address bar; the old .html URLs
 # keep working (bookmarks, old links) — they just won't be shown by the nav.
+# Draft Board retired — merged into AI Battle
 [[redirects]]
   from = "/draft"
-  to = "/draft_board.html"
-  status = 200
+  to = "/ai_battle"
+  status = 301
 [[redirects]]
   from = "/draft_board"
-  to = "/draft_board.html"
-  status = 200
+  to = "/ai_battle"
+  status = 301
+[[redirects]]
+  from = "/draft_board.html"
+  to = "/ai_battle"
+  status = 301
 [[redirects]]
   from = "/ai_battle"
   to = "/ai_battle.html"
