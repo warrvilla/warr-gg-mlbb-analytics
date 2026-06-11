@@ -32,7 +32,8 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html{font-size:14px;}
-body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;overflow-x:hidden;}
+html,body{height:100%;}
+body {background: var(--bg);color:var(--text);font-family:var(--font-body);height:100vh;height:100dvh;overflow:hidden;}
 
 /* TOPBAR */
 .topbar{background:rgba(8,11,16,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom: 0.5px solid rgba(255,255,255,0.07);padding:0 20px;display:flex;align-items:center;gap:12px;height:52px;position:sticky;top:0;z-index:100;}
@@ -47,7 +48,7 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
 .mem-chip{font-size:9px;padding:2px 8px;border-radius:10px;background:var(--ai-dim);border:1px solid var(--ai-border);color:var(--ai);font-weight:600;letter-spacing:.3px;}
 
 /* SETUP */
-#setup{max-width:1180px;margin:16px auto;padding:0 clamp(12px, 4vw, 20px);}
+#setup{max-width:1180px;margin:10px auto;padding:0 clamp(12px, 4vw, 20px);width:100%;}
 .setup-hd{text-align:center;margin-bottom:14px;}
 .setup-title{font-family:var(--font-head);font-size:23px;font-weight:700;letter-spacing:0.18em;color:var(--text);text-transform:uppercase;}
 .setup-title span{color:var(--purple);}
@@ -346,7 +347,7 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
 }
 
 /* ── FLEX PAGE LAYOUT FIX ── */
-.page-body { display: flex; flex-direction: column; height: calc(100vh - var(--nav-h)); overflow: hidden; padding-top: 0; }
+.page-body { display: flex; flex-direction: column; height: calc(100vh - var(--nav-h)); height: calc(100dvh - var(--nav-h)); overflow: hidden; padding-top: 0; }
 /* #battle starts hidden via inline style; these flex properties apply when JS sets display:flex */
 #battle { flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
 #setup { overflow-y: auto; flex: 1; }
@@ -686,6 +687,30 @@ input:focus, .search-input:focus {
 .bh-wp strong{font-size:12px;letter-spacing:0;color:#4ade80;font-family:var(--font-mono,monospace);}
 .wp-delta{font-size:8.5px;letter-spacing:0;font-family:var(--font-mono,monospace);color:var(--text3);}
 @media(max-width:700px){.bh-name{font-size:14px;}}
+
+/* ═══ ONE-VIEWPORT GUARANTEE — compress on short screens ═══ */
+@media (max-height: 880px) {
+  .setup-hd { margin-bottom: 8px !important; }
+  .setup-sub { display: none; }
+  .engine-pill { margin-bottom: 5px; padding: 3px 10px; }
+  .setup-title { font-size: 19px; }
+  .setup-card { padding: 9px 12px; margin-bottom: 8px; }
+  .setup-grid .setup-card { margin-bottom: 8px; height: calc(100% - 8px); }
+  .card-title { margin-bottom: 6px; }
+  .opt-card { padding: 6px 6px; }
+  .opt-desc { font-size: 8.5px; }
+  .specs-row { padding: 4px 2px; font-size: 10.5px; }
+  .specs-note { margin-top: 6px; padding: 6px 8px; }
+  .scout-lb { padding: 3px 8px; font-size: 9px; }
+  .name-in { padding: 8px 12px; }
+  .start-btn { margin-top: 8px; padding: 11px 20px; font-size: 13px; }
+  .start-sub { margin-top: 5px; }
+}
+@media (max-height: 740px) {
+  .opt-desc { display: none; }
+  .specs-note { display: none; }
+  .start-sub { display: none; }
+}
 </style>
 <script src="warr-theme.js"></script>
 </head>
