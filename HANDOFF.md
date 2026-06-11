@@ -78,7 +78,15 @@ FREE_MONTHLY_CALLS, ADMIN_EMAIL.
   heartbeat — migration 008, MRR, age demographics, signup trend,
   Copy Sponsor Snapshot button).
 - Supabase: signups enabled + email confirmation ON (owner did this).
-- Migrations status: 004–006 RUN; **007 & 008 pending** as of session end.
+- Migrations status: 004–006 RUN; **007, 008, 009 pending**.
+  009 = future-proof scout privacy (public unless Scrims/Other/AI Battle).
+- Nav: auth chip shows Admin link only when WAdmin.isAdmin(); Sign Out
+  confirms. Scout LANDS ON Teams view (click team → full report). Free
+  users can only log/delete Scrims/AI Battle (official leagues hidden in
+  entry modal; MPL already admin-write + creator-delete only).
+- #7 (player/team performance) ALREADY BUILT: scout team report →
+  Per-Lane Roster (player → hero pool + WR + KDA) + Top Picks + first
+  turtle/lord/blood, blue/red WR. Works for own team + enemies, scrim+MPL.
 - Owner's next session starts with: run 007+008, push, full stranger-
   account test (signup → confirm email → draft → 3 analyses → cap →
   grant Pro → expiry shows → delete).
