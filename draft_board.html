@@ -886,7 +886,7 @@ select {
     <button class="sb-btn sb-btn-export" onclick="exportMatchData()">Export</button>
     <button class="sb-btn" id="saveDraftBtn" onclick="saveDraftToCloud()" style="border-color:rgba(76,184,122,.35);background:rgba(76,184,122,.07);color:var(--neon);" title="Save draft">💾 Save</button>
     <button class="sb-btn" id="myDraftsBtn" onclick="showDraftsModal()" style="border-color:rgba(94,160,216,.35);background:rgba(94,160,216,.07);color:var(--blue);" title="Load draft">📁 Drafts</button>
-    <span id="dbTokenDisplay" style="font-size:10px;color:#7ecfff;margin-left:4px;cursor:pointer;" onclick="location.href='profile.html'" title="AI tokens remaining — click to upgrade"></span>
+    <span id="dbTokenDisplay" style="font-size:10px;color:#7ecfff;margin-left:4px;cursor:pointer;" onclick="location.href='/profile'" title="AI tokens remaining — click to upgrade"></span>
     <div style="margin-left:auto;display:flex;gap:5px;align-items:center;">
       <input type="file" id="dataSheetInput" accept=".xlsx" style="display:none;" onchange="loadDataSheet(event)">
       <button class="db-btn" onclick="loadFromSupabase()" style="font-size:9px;letter-spacing:.08em;">Sync</button>

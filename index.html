@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <link rel="icon" type="image/jpeg" href="assets/favicon.jpg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Warr.GG — MLBB esports intelligence for MPL coaches. Scout-driven drafting, AI practice drafts, hero analytics, and meta tracking.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Warr.GG">
+<meta property="og:title" content="Warr.GG — MLBB Esports Intelligence">
+<meta property="og:description" content="Scout-driven drafting, AI practice drafts, hero analytics, and meta tracking for MPL coaches.">
+<meta property="og:url" content="https://warr-gg.one/">
+<meta property="og:image" content="https://warr-gg.one/assets/logo.png">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#050509">
 <title>Warr.GG — MLBB Esports Intelligence</title>
 <link rel="stylesheet" href="warr-styles.css">
 <style>
@@ -806,7 +815,7 @@ body {
           </span>
         </div>
       </div>
-      <a class="cta-primary" href="ai_battle.html">
+      <a class="cta-primary" href="/ai_battle">
         Challenge AI
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </a>
@@ -1030,7 +1039,7 @@ function renderMetaHierarchies() {
       : `portraits/${h.name}.png`;
     const initial = (h.name[0] || '?').toUpperCase();
     return `
-      <a class="hero-card" href="heroes.html#${encodeURIComponent(h.name)}">
+      <a class="hero-card" href="/heroes#${encodeURIComponent(h.name)}">
         <div class="hero-card-img" style="--hero-tint: ${tint};">
           <div class="hero-card-fallback">${initial}</div>
           <img src="${portraitUrl}" alt="${h.name}" loading="lazy" onerror="this.remove()">

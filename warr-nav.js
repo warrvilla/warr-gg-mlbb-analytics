@@ -152,24 +152,26 @@
   //
   // Keep labels short and aligned with index.html's cinematic top bar.
   const NAV_LINKS = [
-    { href: 'draft_board.html',  label: 'Draft'     },
-    { href: 'ai_battle.html',    label: 'AI Battle' },
-    { href: 'scout.html',        label: 'Scout'     },
-    { href: 'stats.html',        label: 'Analysis'  },
-    { href: 'patch_meta.html',   label: 'Meta'      },
-    { href: 'heroes.html',       label: 'Heroes'    },
-    { href: 'profile.html',      label: 'Profile'   },
-    { href: 'team_manager.html', label: 'Teams'     },
+    { href: '/draft_board',  label: 'Draft'     },
+    { href: '/ai_battle',    label: 'AI Battle' },
+    { href: '/scout',        label: 'Scout'     },
+    { href: '/stats',        label: 'Analysis'  },
+    { href: '/patch_meta',   label: 'Meta'      },
+    { href: '/heroes',       label: 'Heroes'    },
+    { href: '/profile',      label: 'Profile'   },
+    { href: '/team_manager', label: 'Teams'     },
   ];
 
-  // Identify current page from URL path. Falls back to 'index.html'.
+  // Identify current page from URL path — works for both /heroes and
+  // /heroes.html so the active state survives old links and local files.
   function currentPage() {
-    const path = (location.pathname || '').split('/').pop() || 'index.html';
-    return path.toLowerCase();
+    const path = ((location.pathname || '').split('/').pop() || 'index')
+      .toLowerCase().replace(/\.html$/, '');
+    return path || 'index';
   }
 
   function isActive(href) {
-    return href.toLowerCase() === currentPage();
+    return href.replace(/^\//, '').replace(/\.html$/, '').toLowerCase() === currentPage();
   }
 
   // ── Render canonical nav HTML ────────────────────────────────────
@@ -190,7 +192,7 @@
 
     return `
 <nav class="topnav">
-  <a class="nav-brand" href="index.html" aria-label="Warr.GG home">
+  <a class="nav-brand" href="/" aria-label="Warr.GG home">
     <img class="nav-brand-mark" src="assets/logo.png" alt="WARR.GG" onload="this.classList.add('loaded')" onerror="this.outerHTML='<span class=&quot;nav-brand-mark&quot;>W</span>'">
     <span class="nav-brand-text">WARR<span class="dot">.</span>GG</span>
   </a>

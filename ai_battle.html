@@ -746,7 +746,7 @@ input:focus, .search-input:focus {
   <div class="setup-card" id="apiKeyCard" style="display:none;">
     <div class="card-title">API Key <span style="font-weight:400;color:var(--text3);">— admin only</span></div>
     <div id="apiKeyStatus" style="margin-bottom:8px;font-size:10px;color:var(--text3);">Checking…</div>
-    <div style="font-size:9px;color:var(--text3);">Set a global key in <a href="admin.html" style="color:var(--blue);">Admin Panel</a> to enable AI for all users.</div>
+    <div style="font-size:9px;color:var(--text3);">Set a global key in <a href="/admin" style="color:var(--blue);">Admin Panel</a> to enable AI for all users.</div>
   </div>
 
   <button class="start-btn" onclick="startBattle()">Start Battle</button>
@@ -852,7 +852,24 @@ input:focus, .search-input:focus {
 
 // ═══════ API HELPER ═══════
 async function callClaude(body){
-  // Use admin-set global key (shared for all users); no per-user key allowed
+  // 1) Server-side proxy — the API key lives in a Netlify env var and never
+  //    reaches the browser. Requires a logged-in session.
+  try{
+    const sess=await _sbClient.auth.getSession();
+    const token=sess?.data?.session?.access_token||'';
+    if(token){
+      const pr=await fetch('/api/claude',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'x-supabase-anon':WARR_CONFIG.supabaseAnonKey},
+        body:JSON.stringify(body),
+      });
+      if(pr.ok)return await pr.json();
+      if(pr.status!==503&&pr.status!==404)throw new Error('PROXY_'+pr.status);
+      // 503/404 → proxy not deployed/configured yet → legacy fallback below
+    }
+  }catch(e){if(String(e&&e.message||'').startsWith('PROXY_'))throw e;}
+  // 2) LEGACY fallback: locally stored key. Kept for local dev only — once
+  //    the Netlify env var is set, this path never runs.
   const key = (typeof WDB !== 'undefined' && WDB.getAdminApiKeySync)
     ? WDB.getAdminApiKeySync()
     : localStorage.getItem('warr_api_key') || '';

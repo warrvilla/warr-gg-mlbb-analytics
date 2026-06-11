@@ -1,0 +1,82 @@
+# ═══════ Warr.GG — Netlify configuration ═══════
+
+[functions]
+  directory = "netlify/functions"
+
+# ── Clean URLs: /heroes instead of /heroes.html ──
+# 200 rewrites keep the pretty path in the address bar; the old .html URLs
+# keep working (bookmarks, old links) — they just won't be shown by the nav.
+[[redirects]]
+  from = "/draft"
+  to = "/draft_board.html"
+  status = 200
+[[redirects]]
+  from = "/draft_board"
+  to = "/draft_board.html"
+  status = 200
+[[redirects]]
+  from = "/ai_battle"
+  to = "/ai_battle.html"
+  status = 200
+[[redirects]]
+  from = "/scout"
+  to = "/scout.html"
+  status = 200
+[[redirects]]
+  from = "/stats"
+  to = "/stats.html"
+  status = 200
+[[redirects]]
+  from = "/patch_meta"
+  to = "/patch_meta.html"
+  status = 200
+[[redirects]]
+  from = "/heroes"
+  to = "/heroes.html"
+  status = 200
+[[redirects]]
+  from = "/profile"
+  to = "/profile.html"
+  status = 200
+[[redirects]]
+  from = "/team_manager"
+  to = "/team_manager.html"
+  status = 200
+[[redirects]]
+  from = "/teams"
+  to = "/team_manager.html"
+  status = 200
+[[redirects]]
+  from = "/auth"
+  to = "/auth.html"
+  status = 200
+[[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 200
+[[redirects]]
+  from = "/league_manager"
+  to = "/league_manager.html"
+  status = 200
+[[redirects]]
+  from = "/counters"
+  to = "/counters.html"
+  status = 200
+[[redirects]]
+  from = "/top100"
+  to = "/top100.html"
+  status = 200
+[[redirects]]
+  from = "/meta_export"
+  to = "/meta_export.html"
+  status = 200
+
+# ── Security headers ──
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"

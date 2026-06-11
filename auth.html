@@ -444,7 +444,7 @@ async function handleInviteSetup(e) {
   if (profErr) console.warn('Profile save warning:', profErr.message);
 
   showMsg('Account ready — taking you in…', 'ok');
-  setTimeout(() => { window.location.href = 'draft_board.html'; }, 800);
+  setTimeout(() => { window.location.href = '/draft_board'; }, 800);
 }
 
 // ── HELPERS ───────────────────────────────────────────────────
@@ -505,7 +505,7 @@ async function handleSetNewPassword() {
   const { error } = await WAuth._sb().auth.updateUser({ password });
   if (error) { showMsg(friendlyErr(error.message), 'err'); setLoading(btn, txt, false, 'Save Password & Sign In'); return; }
   showMsg('Password set! Signing you in…', 'ok');
-  setTimeout(() => { window.location.href = 'draft_board.html'; }, 800);
+  setTimeout(() => { window.location.href = '/draft_board'; }, 800);
 }
 
 function checkPwStrength(pw) {

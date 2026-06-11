@@ -392,7 +392,7 @@ body { background: var(--bg); min-height: 100vh; }
   <div id="signinGate" class="signin-gate" style="display:none;">
     <h2>Sign in to manage your profile</h2>
     <p>Create an account to save your display name, team affiliation, and track your AI analysis tokens.</p>
-    <a href="auth.html">Sign In / Register</a>
+    <a href="/auth">Sign In / Register</a>
   </div>
 
   <!-- MAIN CONTENT (shown when authenticated) -->
@@ -608,7 +608,7 @@ body { background: var(--bg); min-height: 100vh; }
     <!-- ADMIN: TEAM/PLAYER MANAGEMENT (admin-only) -->
     <div class="admin-mgmt-card" id="adminTeamsCard">
       <h4>👥 Admin — Teams & Players</h4>
-      <div class="mgmt-sub">Register official team rosters. Added teams appear in scout team pickers and enable player-tagged hero pool stats. For deeper roster edits, open the full <a href="team_manager.html" style="color:var(--gold);">Team Manager</a>.</div>
+      <div class="mgmt-sub">Register official team rosters. Added teams appear in scout team pickers and enable player-tagged hero pool stats. For deeper roster edits, open the full <a href="/team_manager" style="color:var(--gold);">Team Manager</a>.</div>
       <div class="admin-mgmt-form">
         <input class="admin-mgmt-input" id="adminNewPlayerIgn"  placeholder="Player IGN (e.g. Sanford)" />
         <input class="admin-mgmt-input" id="adminNewPlayerReal" placeholder="Real name (optional)" />
@@ -667,7 +667,7 @@ body { background: var(--bg); min-height: 100vh; }
     <div class="admin-access-card" id="adminAccessCard">
       <h4>⚙ Admin Panel</h4>
       <p>Approve team affiliations, assign subscription plans, manage users, and handle hard-delete requests.</p>
-      <a href="admin.html" class="admin-go-btn">Open Admin Panel →</a>
+      <a href="/admin" class="admin-go-btn">Open Admin Panel →</a>
     </div>
 
     <!-- ────────────── HERO BANNER SLIDES EDITOR MODAL ────────────── -->
@@ -1443,7 +1443,7 @@ async function signOut() {
   if (typeof WAuth !== 'undefined' && WAuth.signOut) {
     await WAuth.signOut();
   }
-  window.location.href = 'auth.html';
+  window.location.href = '/auth';
 }
 
 // ══════════════════════════════════════════════
@@ -1517,11 +1517,11 @@ function updateAuthChip(user) {
   const chip = document.getElementById('authChip');
   if (!chip) return;
   if (user) {
-    chip.innerHTML = `<a href="profile.html" class="cta-secondary" style="padding:7px 18px;font-size:13px;">
+    chip.innerHTML = `<a href="/profile" class="cta-secondary" style="padding:7px 18px;font-size:13px;">
       ${user.email ? user.email.split('@')[0] : 'Profile'}
     </a>`;
   } else {
-    chip.innerHTML = `<a href="auth.html" class="cta-secondary" style="padding:7px 18px;font-size:13px;">Sign In</a>`;
+    chip.innerHTML = `<a href="/auth" class="cta-secondary" style="padding:7px 18px;font-size:13px;">Sign In</a>`;
   }
 }
 
