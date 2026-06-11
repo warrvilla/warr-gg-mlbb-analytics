@@ -871,13 +871,20 @@ input:focus, .search-input:focus {
   <!-- ENEMY TEAM MODE -->
   <div class="setup-card" style="position:relative;z-index:2;">
     <div class="card-title">⌁ Opponent Protocol</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
       <div class="opt-card sel-gold" id="mode-generic" onclick="setAIMode('generic')" style="text-align:left;">
-        <div><div class="opt-name">Generic AI</div><div class="opt-desc">Optimizes to beat you</div></div>
+        <div><div class="opt-name">VS AI</div><div class="opt-desc">Optimizes to beat you</div></div>
       </div>
       <div class="opt-card" id="mode-enemy" onclick="setAIMode('enemy')" style="text-align:left;">
-        <div><div class="opt-name">Enemy Team</div><div class="opt-desc">Mimics a scouted team</div></div>
+        <div><div class="opt-name">VS Enemy Team</div><div class="opt-desc">AI mimics a scouted team</div></div>
       </div>
+      <div class="opt-card" id="mode-pvp" onclick="setAIMode('pvp')" style="text-align:left;">
+        <div><div class="opt-name">VS Player</div><div class="opt-desc">2 coaches, pass &amp; play</div></div>
+      </div>
+    </div>
+    <div id="pvpPanel" style="display:none;">
+      <input class="name-in" id="p2In" value="Player 2" maxlength="20" placeholder="Player 2 name..." style="border-color:rgba(216,120,128,.35);"/>
+      <div style="margin-top:6px;font-size:10px;color:var(--text3);">Hotseat draft — Player 1 takes the side chosen above, Player 2 takes the other. Coach suggestions follow whoever is on the clock.</div>
     </div>
     <div id="enemyTeamPanel" style="display:none;">
       <div style="position:relative;">
@@ -1471,8 +1478,12 @@ function setAIMode(m){
   aiMode=m;
   document.getElementById('mode-generic').className='opt-card'+(m==='generic'?' sel-gold':'');
   document.getElementById('mode-enemy').className='opt-card'+(m==='enemy'?' sel-gold':'');
+  const pvpEl=document.getElementById('mode-pvp');
+  if(pvpEl)pvpEl.className='opt-card'+(m==='pvp'?' sel-gold':'');
   document.getElementById('mode-enemy').style.borderColor=m==='enemy'?'var(--red)':'';
   document.getElementById('enemyTeamPanel').style.display=m==='enemy'?'block':'none';
+  const pp=document.getElementById('pvpPanel');
+  if(pp)pp.style.display=m==='pvp'?'block':'none';
   if(m==='enemy') populateEnemyDrop('');
 }
 function getAllScoutedTeams(){
@@ -1652,8 +1663,10 @@ function buildEnemyPromptCtx(step){
   ].filter(Boolean).join('\n');
 }
 
+let p2Name='Player 2';
 function startBattle(){
   pName=document.getElementById('nameIn').value.trim()||'You';
+  p2Name=(document.getElementById('p2In')?.value||'').trim()||'Player 2';
   pSide=_side==='random'?(Math.random()<.5?'blue':'red'):_side;
   aiSide=pSide==='blue'?'red':'blue';
   diff=_diff;
@@ -1688,8 +1701,9 @@ function initBattle(){
   }
   const ib=pSide==='blue';
   const isEnemy=aiMode==='enemy'&&enemyProfile;
-  const aiName=isEnemy?enemyProfile.name:'Warr.GG AI';
-  const aiColor=isEnemy?'var(--red)':'var(--ai)';
+  const isPvp=aiMode==='pvp';
+  const aiName=isPvp?p2Name:(isEnemy?enemyProfile.name:'Warr.GG AI');
+  const aiColor=isPvp?'var(--red)':(isEnemy?'var(--red)':'var(--ai)');
   document.getElementById('blueLabel').textContent=ib?pName:aiName;
   document.getElementById('blueLabel').style.color=ib?'var(--blue)':aiColor;
   document.getElementById('redLabel').textContent=ib?aiName:pName;
@@ -1697,7 +1711,7 @@ function initBattle(){
   document.getElementById('bhPName').textContent=pName;
   document.getElementById('bhAIName').textContent=aiName;
   document.getElementById('bhAIName').style.color=aiColor;
-  document.getElementById('bhAITag').textContent=isEnemy?'ENEMY':'AI';
+  document.getElementById('bhAITag').textContent=isPvp?'P2':(isEnemy?'ENEMY':'AI');
   document.getElementById('bhAITag').style.cssText=isEnemy?'background:rgba(240,82,82,.12);color:var(--red);border:1px solid rgba(240,82,82,.3);':'';
   // Determine AI archetype: infer from scout identity, else random
   const _aiSide=pSide==='blue'?'red':'blue';
@@ -1707,7 +1721,10 @@ function initBattle(){
 
   const banner=document.getElementById('enemyBanner');
   banner.style.display='block';
-  if(isEnemy){
+  if(isPvp){
+    banner.style.background='rgba(94,160,216,.07)';banner.style.borderColor='rgba(94,160,216,.18)';banner.style.color='var(--blue)';
+    banner.innerHTML=`PVP HOTSEAT — ${pName} (${pSide.toUpperCase()}) vs ${p2Name} (${aiSide.toUpperCase()}) · pass the device between turns`;
+  }else if(isEnemy){
     banner.style.background='rgba(240,82,82,.08)';banner.style.borderColor='rgba(240,82,82,.2)';banner.style.color='var(--red)';
     banner.innerHTML=`Simulating ${enemyProfile.name} · ${enemyProfile.t.gamesPlayed}g scouted · WR ${enemyProfile.t.winRate||0}%<span style="opacity:.65;margin-left:10px;">${_arch.emoji} ${_arch.label}: ${_arch.desc}</span>`;
   }else{
@@ -1832,7 +1849,7 @@ function updateTokenDisplay(){
   const el=document.getElementById('tokenDisplay');
   if(el){el.textContent=`⚡ ${rem}/${plan.tokensPerMonth} tokens`;el.style.color=rem<=2?'#ff6b6b':rem<=5?'#ffaa44':'#7ecfff';}
 }
-function isMyTurn(){return DRAFT_ORDER[ST.step]?.team===pSide;}
+function isMyTurn(){if(aiMode==='pvp')return true;return DRAFT_ORDER[ST.step]?.team===pSide;}
 function updateMemChip(){const m=loadMem();const c=Object.keys(m).length;const el=document.getElementById('memChip');if(el)el.textContent=c>0?`AI Memory: ${c} heroes`:'AI Memory: empty';}
 
 // ═══════ RENDER ═══════
@@ -1971,7 +1988,12 @@ function updateTurn(){
   if(!cur||done){el.textContent='DRAFT COMPLETE';el.className='turn-tag turn-done';h.textContent='Click Analyze for full breakdown';try{renderCoachPanel();}catch(_){}return;}
   const isp=cur.team===pSide;
   const act=cur.type.toUpperCase();
-  if(isp){el.textContent=`YOUR TURN — ${act}`;el.className='turn-tag turn-you';h.textContent=cur.type==='ban'?'Click a hero to ban':'Click a hero to pick';}
+  if(aiMode==='pvp'){
+    const who=isp?pName:p2Name;
+    el.textContent=`${who.toUpperCase()} — ${act}`;
+    el.className='turn-tag '+(isp?'turn-you':'turn-ai');
+    h.textContent=cur.type==='ban'?`${who}: click a hero to ban`:`${who}: click a hero to pick`;
+  }else if(isp){el.textContent=`YOUR TURN — ${act}`;el.className='turn-tag turn-you';h.textContent=cur.type==='ban'?'Click a hero to ban':'Click a hero to pick';}
   else{el.textContent=`AI TURN — ${act}`;el.className='turn-tag turn-ai';h.textContent='AI deciding...';}
   try{renderCoachPanel();}catch(_){}
 }
@@ -2061,6 +2083,7 @@ function renderBreakdownPanel(){
 
 // ═══════ AI ENGINE ═══════
 function triggerAI(){
+  if(aiMode==='pvp')return; // hotseat — no AI turns
   if(done||aiThink||ST.step>=20)return;
   if(DRAFT_ORDER[ST.step]?.team===aiSide)setTimeout(()=>aiTurn(),200);
 }
@@ -2935,7 +2958,7 @@ function renderCoachPanel(){
   }
   const cur=DRAFT_ORDER[ST.step];
   if(!cur){panel.style.display='none';return;}
-  const isHumanTurn=cur.team===pSide;
+  const isHumanTurn=aiMode==='pvp'?true:cur.team===pSide;
   if(!isHumanTurn){
     panel.style.display='block';
     panel.innerHTML=`<div style="font-size:11px;color:var(--text3);text-align:center;padding:2px 0;">AI evaluating ${cur.type}... your suggestions return after their move.</div>`;
@@ -3731,8 +3754,9 @@ function saveMatchToScout(pp, aip, pBans, aiBans, playerWon){
   try{
     const db=loadScoutAB();
     const isBlue=pSide==='blue';
-    const blueTeam=isBlue?pName:'AI ('+diff+')';
-    const redTeam=isBlue?'AI ('+diff+')':pName;
+    const aiTeamName=aiMode==='pvp'?p2Name:'AI ('+diff+')';
+    const blueTeam=isBlue?pName:aiTeamName;
+    const redTeam=isBlue?aiTeamName:pName;
     const winner=playerWon?pSide:aiSide;
 
     // Build picks with lane assignments — scout format: [{name, lane}]
