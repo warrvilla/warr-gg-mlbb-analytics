@@ -2770,27 +2770,34 @@ function renderCoachPanel(){
   const cur=DRAFT_ORDER[ST.step];
   if(!cur){panel.style.display='none';return;}
   const isHumanTurn=cur.team===pSide;
-  // During AI turn show a thinking placeholder so the panel doesn't flicker.
   if(!isHumanTurn){
     panel.style.display='block';
     panel.innerHTML=`<div style="font-size:11px;color:var(--text3);text-align:center;padding:2px 0;">AI evaluating ${cur.type}... your suggestions return after their move.</div>`;
     return;
   }
-  const sugg=computeCoachSuggestions(cur);
-  if(!sugg.length){
+  // Same brain as the AI, flipped to YOUR perspective: your slot question,
+  // your vetted shortlist, the AI (or scouted team) as the modeled opponent.
+  let ctx=null;
+  try{ctx=draftBrainAB(cur,{forHuman:true});}catch(e){console.warn('[Coach] brain failed',e);}
+  const list=((ctx&&ctx.shortlist)||[]).slice(0,5);
+  if(!list.length){
     panel.style.display='block';
     panel.innerHTML=`<div style="font-size:11px;color:var(--text3);text-align:center;padding:2px 0;">No strong suggestions — pick from the pool above.</div>`;
     return;
   }
-  const intel=scoutIntel();
-  const catColor=c=>({counter:'#5EA0D8',synergy:'#4CB87A',protect:'#D87880',comfort:'#C89050',must:'#D87880',lane:'#5EA0D8',fit:'#A888CC',response:'#A888CC',tier:'#A888CC'}[c]||'#A888CC');
-  const catLabel=c=>({counter:'COUNTER',synergy:'SYNERGY',protect:'PROTECT',comfort:'COMFORT',must:'MUST-BAN',lane:'LANE-DENY',fit:'LANE FIT',response:'RESPONSE',tier:'TIER'}[c]||'PICK');
-  const chips=sugg.map(s=>{
-    const col=catColor(s.category);
-    return `<div onclick="pick('${s.hero.id}')" style="cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;padding:6px 9px;border:0.5px solid ${col}55;border-radius:8px;background:${col}10;min-width:0;transition:transform .12s ease;" onmouseover="this.style.transform='translateY(-1px)';this.style.background='${col}22';" onmouseout="this.style.transform='translateY(0)';this.style.background='${col}10';" title="Click to ${cur.type}: ${s.hero.name}"><div style="display:flex;align-items:center;gap:6px;width:100%;"><span style="font-size:8px;font-weight:700;letter-spacing:.06em;color:${col};">${catLabel(s.category)}</span><span style="font-size:8px;color:var(--text3);margin-left:auto;font-family:var(--font-mono);">${s.score}</span></div><div style="font-size:12px;font-weight:700;color:var(--text);margin-top:2px;">${s.hero.name}</div><div style="font-size:9px;color:var(--text2);margin-top:2px;line-height:1.35;">${s.reason}</div></div>`;
+  const tagColor=t=>({must:'#D87880',protect:'#D87880',combo:'#C89050',comfort:'#C89050',preempt:'#5EA0D8',lane:'#5EA0D8',mimic:'#A888CC',meta:'#A888CC'}[t]||'#A888CC');
+  const intentColor={FIRST:'#A888CC',SECURE:'#5EA0D8',CORE:'#4CB87A',CLOSE:'#C89050',COUNTER:'#5EA0D8',FIX:'#D87880',EXECUTE:'#D87880','BAN-P1':'#D87880','BAN-P2':'#D87880'};
+  const chips=list.map((c,i)=>{
+    const h=HEROES.find(x=>x.name===c.name);
+    if(!h)return'';
+    const col=cur.type==='ban'?tagColor(c.tag):(intentColor[ctx.intent]||'#A888CC');
+    const lbl=cur.type==='ban'?String(c.tag||'ban').toUpperCase():(c.gateFix?'FIX':ctx.intent);
+    const star=i===0?'<span style="color:#C89050;">★</span> ':'';
+    const note=c.note||(cur.type==='ban'?'pool pressure':'solid for the board state');
+    return `<div onclick="pick('${h.id}')" style="cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;padding:6px 9px;border:0.5px solid ${col}55;border-radius:8px;background:${col}10;min-width:0;transition:transform .12s ease;" onmouseover="this.style.transform='translateY(-1px)';this.style.background='${col}22';" onmouseout="this.style.transform='translateY(0)';this.style.background='${col}10';" title="Click to ${cur.type}: ${c.name}"><div style="display:flex;align-items:center;gap:6px;width:100%;"><span style="font-size:8px;font-weight:700;letter-spacing:.06em;color:${col};">${lbl}</span><span style="font-size:8px;color:var(--text3);margin-left:auto;font-family:var(--font-mono);">${c.lanes||''}${c.tier?' · '+c.tier:''}</span></div><div style="font-size:12px;font-weight:700;color:var(--text);margin-top:2px;">${star}${c.name}</div><div style="font-size:9px;color:var(--text2);margin-top:2px;line-height:1.35;">${note}</div></div>`;
   }).join('');
   panel.style.display='block';
-  panel.innerHTML=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;color:#A888CC;">COACH SUGGESTIONS — ${cur.type.toUpperCase()}</span><span style="font-size:9px;color:var(--text3);">${intel.n} games of scout data</span></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;">${chips}</div>`;
+  panel.innerHTML=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;color:#A888CC;">COACH — ${cur.type==='ban'?(ctx.intent==='BAN-P2'?'PHASE 2 BAN':'BAN'):ctx.intent}</span><span style="font-size:9px;color:var(--text3);">${scoutIntel().n} games of scout data</span></div><div style="font-size:9.5px;color:var(--text2);margin-bottom:7px;line-height:1.4;">${ctx.question||''}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;">${chips}</div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2976,8 +2983,8 @@ function _scarcestLaneAB(neededLanes,pool){
 
 // ═══════ OPPONENT PREDICTION (§8) — predict-then-deny ═══════
 // Runs the human's own draft incentives against THEIR board state.
-function predictOppAB(oppP,myP,usedIds,n){
-  const favs=_FAVS();
+function predictOppAB(oppP,myP,usedIds,n,favsOverride){
+  const favs=favsOverride||_FAVS();
   const oppNames=oppP.map(h=>h.name),myNames=myP.map(h=>h.name);
   const ev=evidenceAB();
   return HEROES.filter(h=>!usedIds.has(h.id)&&oppP.length<5&&laneFeasibleAB(oppP,h))
@@ -2997,7 +3004,8 @@ function identityAB(myP){return myP.length>=2?inferArchetype(myP.map(h=>h.name))
 
 // ═══════ THE BRAIN ═══════
 // Returns full decision context: {hero, reason, conf, intent, question, shortlist, audit, prediction}
-function draftBrainAB(step){
+function draftBrainAB(step,opts){
+  const forHuman=!!(opts&&opts.forHuman);
   _btc=null; // reset per-turn memo
   const usedIds=new Set([...ST.bb,...ST.rb,...ST.bp,...ST.rp].map(h=>h.id));
   const bannedIdSet=new Set([...ST.bb,...ST.rb].map(h=>h.id));
@@ -3007,15 +3015,26 @@ function draftBrainAB(step){
   const myNames=myP.map(h=>h.name),oppNames=oppP.map(h=>h.name);
   const {needed:myNeeded}=needs(myP),{needed:oppNeeded}=needs(oppP);
   const ev=evidenceAB();
-  const ep=(aiMode==='enemy'&&enemyProfile)?enemyProfile:null;
+  // Perspective: AI turns emulate the scouted team and model the HUMAN as
+  // the opponent. Coach suggestions (forHuman) flip both: no emulation of
+  // the enemy team for OUR picks, and the opponent model becomes the AI /
+  // scouted team. Suggestions always run at full strength, deterministic.
+  const ep=(!forHuman&&aiMode==='enemy'&&enemyProfile)?enemyProfile:null;
+  const epOpp=(forHuman&&aiMode==='enemy'&&enemyProfile)?enemyProfile:null;
   const side=step.team;
-  const gm=diff==='gm',hardPlus=diff!=='normal';
-  const randRange={normal:34,hard:12,gm:5}[diff]??14;
+  const oppSideAB=side==='blue'?'red':'blue';
+  const oppLabel=forHuman?(epOpp?epOpp.name:'the AI'):pName;
+  const oppFavs=forHuman
+    ?(epOpp?Object.entries((oppSideAB==='blue'?epOpp.bluePickFreq:epOpp.redPickFreq)||{})
+        .map(([n,f])=>({name:n,wr:0.55,count:Math.round(f*10)})).filter(x=>x.count>=2):[])
+    :null; // null → predictOppAB falls back to human tendencies
+  const gm=forHuman?true:diff==='gm',hardPlus=forHuman?true:diff!=='normal';
+  const randRange=forHuman?0:({normal:34,hard:12,gm:5}[diff]??14);
   const idx=ST.step;
   const audit=needsAuditAB(myP);
   const picksLeft=5-myP.length;
   const arch=ARCH_DEFS[identityAB(myP)]||null;
-  const prediction=hardPlus?predictOppAB(oppP,myP,usedIds,gm?8:3):[];
+  const prediction=hardPlus?predictOppAB(oppP,myP,usedIds,gm?8:3,oppFavs):[];
   let recentBans=[];try{recentBans=JSON.parse(localStorage.getItem('warr_ab_ban_history')||'[]');}catch(_){}
 
   // GM: opponent identity read → counter-archetype bias (§9 anti-meta)
@@ -3040,7 +3059,8 @@ function draftBrainAB(step){
     const isP2=idx>=12;
     const myBans=side==='blue'?ST.bb:ST.rb;
     const banNum=myBans.length+1; // 1..3 in P1, then 4..5 in P2
-    const favs=_FAVS(),combos=_COMBOS();
+    const favs=forHuman?(oppFavs||[]):_FAVS();
+    const combos=forHuman?[]:_COMBOS(); // combo data tracks the human only
 
     // LEGAL — hard waste filters: never bypassed except literal must-ban
     const legal=avail.filter(h=>{
@@ -3081,9 +3101,9 @@ function draftBrainAB(step){
       const cb=combos.find(c=>c.a===h.name||c.b===h.name);
       if(cb&&(cb.wr||0)>=0.6){comp.combo=(cb.wr-0.55)*1.6+0.18;why.combo=`breaks ${cb.a}+${cb.b} (${Math.round(cb.wr*100)}% WR pair, ${cb.count}g)`;}
       const f=favs.find(x=>x.name===h.name);
-      if(f&&(f.count||0)>=3&&(f.wr||0)>=0.55){comp.comfort=(f.wr-0.5)*1.4+Math.min(f.count,8)*0.02;why.comfort=`${pName}'s comfort — ${Math.round(f.wr*100)}% WR over ${f.count}g`;}
+      if(f&&(f.count||0)>=3&&(f.wr||0)>=0.55){comp.comfort=(f.wr-0.5)*1.4+Math.min(f.count,8)*0.02;why.comfort=`${oppLabel}'s comfort — ${Math.round(f.wr*100)}% WR over ${f.count}g`;}
       const pr=pOf(h);
-      if(pr>=0.65){comp.preempt=(pr-0.5)*1.2;why.preempt=`predicted next pick for ${pName} — deny before lock`;}
+      if(pr>=0.65){comp.preempt=(pr-0.5)*1.2;why.preempt=`predicted next pick for ${oppLabel} — deny before lock`;}
       // Signature protection: never pre-empt-ban a hero we run ourselves unless
       // the OPPONENT picks before we do (then banning denies their steal).
       if(comp.preempt>0&&ep){
@@ -3257,7 +3277,7 @@ function draftBrainAB(step){
       if(h.name===threat.name){s+=45;notes.unshift(`steals ${threat.name} — their best answer to your ${keyCarry.name} (${Math.round(threat.wr*100)}%)`);}
       else if(_LC(threat.name).some(x=>x.name===h.name)){s+=16;notes.push(`covers the ${threat.name} threat`);}
     }
-    if(prediction.length&&prediction[0].hero.id===h.id&&intent!=='EXECUTE'){s+=20;notes.push(`also denies ${pName}'s predicted pick`);}
+    if(prediction.length&&prediction[0].hero.id===h.id&&intent!=='EXECUTE'){s+=20;notes.push(`also denies ${oppLabel}'s predicted pick`);}
     s+=Math.random()*randRange;
     return{h,score:s,notes,tier,vs,syn,gateFix,fillsScarce};
   };
@@ -3282,7 +3302,7 @@ function draftBrainAB(step){
 
   // GM two-step lookahead (§9) on pivot slots — re-rank top 6 by end-state
   if(gm&&['CORE','FIX','CLOSE'].includes(intent)&&cands.length>1){
-    cands.slice(0,6).forEach(c=>{c.score+=_pickLookAheadBonus(c.h,myP,oppP,bannedIdSet,idx,side,_FAVS())*0.6;});
+    cands.slice(0,6).forEach(c=>{c.score+=_pickLookAheadBonus(c.h,myP,oppP,bannedIdSet,idx,side,forHuman?(oppFavs||[]):_FAVS())*0.6;});
     cands.sort((a,b)=>b.score-a.score);
   }
 
