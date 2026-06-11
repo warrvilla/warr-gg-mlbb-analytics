@@ -196,12 +196,46 @@ body { background: var(--bg); min-height: 100vh; }
   transition: transform .3s ease; z-index: 9999; white-space: nowrap;
   box-shadow: var(--shadow);
 }
+
+/* ═══ TEAMS PAGE — front-page design language ═══ */
+.tm-hd{text-align:center;margin:6px 0 22px;position:relative;}
+.tm-hd::before{content:'';position:absolute;left:50%;top:-50px;transform:translateX(-50%);
+  width:520px;height:220px;max-width:90vw;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(168,136,204,.14) 0%,rgba(94,92,230,.06) 45%,transparent 72%);
+  pointer-events:none;}
+.tm-pill{display:inline-flex;align-items:center;gap:7px;padding:4px 12px;border-radius:999px;
+  background:rgba(168,136,204,.08);border:0.5px solid rgba(168,136,204,.3);
+  font-family:var(--font-mono,monospace);font-size:8.5px;font-weight:700;letter-spacing:.18em;
+  color:#A888CC;margin-bottom:10px;text-transform:uppercase;}
+.tm-dot{width:6px;height:6px;border-radius:50%;background:#4ade80;box-shadow:0 0 8px #4ade80;}
+.tm-title{font-family:var(--font-display,-apple-system);font-weight:900;font-size:32px;line-height:1;
+  letter-spacing:-0.02em;color:var(--text);}
+.tm-title em{font-style:normal;background:linear-gradient(135deg,#A888CC 0%,#5E5CE6 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.tm-sub{font-size:12px;color:rgba(240,240,248,.5);margin-top:8px;max-width:480px;margin-left:auto;margin-right:auto;line-height:1.5;}
+/* silk-glass cards */
+.card{background:var(--glass,rgba(16,16,26,.68)) !important;
+  backdrop-filter:var(--blur-sm,blur(24px));-webkit-backdrop-filter:var(--blur-sm,blur(24px));
+  border:0.5px solid var(--glass-border,rgba(255,255,255,.07)) !important;border-radius:18px !important;
+  box-shadow:0 8px 32px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05);position:relative;}
+.card::before{content:'';position:absolute;top:0;left:10%;right:10%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--glass-shine,rgba(255,255,255,.11)),transparent);pointer-events:none;border-radius:18px 18px 0 0;}
+.team-list>*{transition:transform .12s ease;}
+.team-list>*:hover{transform:translateX(2px);}
 </style>
 </head>
 <body>
 
 <!-- NAV -->
 <div id="warr-nav-root"></div><div class="page-wrap">
+
+  <!-- HERO HEADER -->
+  <div class="tm-hd">
+    <div class="tm-pill"><span class="tm-dot"></span>ROSTER INTELLIGENCE</div>
+    <div class="tm-title">Teams &amp; <em>Rosters</em></div>
+    <div class="tm-sub">Every scouted organization, every player, every hero pool — the foundation your draft intel is built on.</div>
+  </div>
+
   <!-- View mode tabs + page actions -->
   <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
     <button class="btn btn-accent" id="viewTeamsBtn" onclick="setViewMode('teams')">By Team</button>

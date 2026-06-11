@@ -105,6 +105,13 @@
       box-shadow: inset 0 0 0 0.5px rgba(168,136,204,0.24);
     }
     nav.topnav .nav-right { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-shrink: 0; }
+    nav.topnav .nav-profile-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 0.5px solid rgba(255,255,255,0.12); color: var(--text2,#aab);
+      background: rgba(255,255,255,0.04); transition: all .15s ease; text-decoration: none;
+    }
+    nav.topnav .nav-profile-btn:hover { color: #A888CC; border-color: rgba(168,136,204,0.4); background: rgba(168,136,204,0.1); }
     nav.topnav .theme-switcher { display: inline-flex; gap: 2px; padding: 3px; border-radius: 8px; background: rgba(255,255,255,.04); }
     nav.topnav .theme-btn {
       width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
@@ -156,9 +163,7 @@
     { href: '/ai_battle',    label: 'AI Battle' },
     { href: '/scout',        label: 'Scout'     },
     { href: '/stats',        label: 'Analysis'  },
-    { href: '/patch_meta',   label: 'Meta'      },
     { href: '/heroes',       label: 'Heroes'    },
-    { href: '/profile',      label: 'Profile'   },
     { href: '/team_manager', label: 'Teams'     },
   ];
 
@@ -212,6 +217,9 @@
         <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z"/></svg>
       </button>
     </div>
+    <a class="nav-profile-btn" href="/profile" title="Profile & plan" aria-label="Profile">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+    </a>
     <div id="authChip"></div>
   </div>
   <button class="mobile-menu-btn" id="warrMobileBtn" aria-label="Menu">

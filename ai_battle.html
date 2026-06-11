@@ -48,8 +48,11 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);heigh
 .mem-chip{font-size:9px;padding:2px 8px;border-radius:10px;background:var(--ai-dim);border:1px solid var(--ai-border);color:var(--ai);font-weight:600;letter-spacing:.3px;}
 
 /* SETUP */
-#setup{max-width:1180px;margin:0 auto;padding:12px clamp(12px, 4vw, 20px);width:100%;
+#setup{max-width:none;margin:0;padding:12px 0;width:100%;
   display:flex;flex-direction:column;}
+/* Inner width wrapper — the SCROLLBAR belongs to full-width #setup (viewport
+   edge on PC), while content stays centered at 1180px. */
+.setup-inner{max-width:1180px;margin:0 auto;width:100%;padding:0 clamp(12px,4vw,20px);}
 /* Overflow-safe vertical centering: ::before/::after are flex spacers that
    ALWAYS exist (the old auto-margin trick broke when .start-sub was hidden
    on short screens — all the free space dumped to the top). */
@@ -799,6 +802,7 @@ input:focus, .search-input:focus {
 
 <!-- SETUP SCREEN -->
 <div id="setup">
+  <div class="setup-inner">
   <div class="setup-hd">
     <div class="engine-pill"><span class="engine-dot"></span>PRACTICE ARENA · DRAFT BRAIN V2</div>
     <div class="setup-title">Win the game <span>before it starts</span></div>
@@ -902,6 +906,7 @@ input:focus, .search-input:focus {
 
   <button class="start-btn" onclick="startBattle()">INITIATE DRAFT</button>
   <div class="start-sub">PROTOCOL SYNCED WITH YOUR SCOUT DATA — <span id="startSubGames">0 matches loaded</span></div>
+  </div><!-- /setup-inner -->
 </div>
 
 <!-- BATTLE SCREEN -->
@@ -2163,8 +2168,13 @@ async function aiTurn(){
   const s=DRAFT_ORDER[ST.step];if(s.team!==aiSide)return;
   aiThink=true;showThink(true,s);renderPool();
   try{
+    // Cost control: per-turn Claude reasoning is a paid/admin perk. Free
+    // accounts get the full local Draft Brain (same pipeline, no API cost).
     const hasKey=typeof WDB!=='undefined'&&WDB.getAdminApiKeySync?!!WDB.getAdminApiKeySync():!!localStorage.getItem('warr_api_key');
-    const hero=(!hasKey||diff==='normal')?localAI(s):await claudeAI(s);
+    const _sub=(typeof WDB!=='undefined'&&WDB.getSubscription)?WDB.getSubscription():{plan:'free'};
+    const _isAdm=typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin();
+    const cloudOK=hasKey&&(_isAdm||_sub.plan!=='free');
+    const hero=(!cloudOK||diff==='normal')?localAI(s):await claudeAI(s);
     // Compress the "thinking" beat — was 350ms, now 150ms. The compute itself
     // (localAI/claudeAI) already takes time so the indicator still flashes.
     await new Promise(r=>setTimeout(r,150));

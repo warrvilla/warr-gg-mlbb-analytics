@@ -962,9 +962,10 @@ WDB.saveHeroRelation = async function(hero, type, heroes) {
 // 3-tier: free (10 tokens/mo) / pro (50/mo) / team (200/mo)
 // ═══════════════════════════════════════════════════════════════
 WDB.PLANS = {
-  free:  { label: 'Free',  tokensPerMonth: 10,  price: 0     },
-  pro:   { label: 'Pro',   tokensPerMonth: 50,  price: 9.99  },
-  team:  { label: 'Team',  tokensPerMonth: 200, price: 29.99 },
+  free:  { label: 'Free', tokensPerMonth: 2,   price: 0,  currency: '₱' },
+  pro:   { label: 'Pro',  tokensPerMonth: 150, price: 10, currency: '₱' },
+  // legacy 'team' accounts map to Pro
+  team:  { label: 'Pro',  tokensPerMonth: 150, price: 10, currency: '₱' },
 };
 
 WDB.getSubscription = function() {

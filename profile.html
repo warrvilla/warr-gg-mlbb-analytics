@@ -558,39 +558,36 @@ body { background: var(--bg); min-height: 100vh; }
     <div class="plans-grid" id="plansGrid">
       <div class="plan-card" id="planCard-free" onclick="selectPlanPreview('free')">
         <div class="plan-name" style="color:var(--text2);">Free</div>
-        <div class="plan-price" style="color:var(--text);">$0<span>/mo</span></div>
+        <div class="plan-price" style="color:var(--text);">₱0<span>/mo</span></div>
         <ul class="plan-features">
-          <li>10 AI analyses / month</li>
-          <li>Local AI draft engine</li>
-          <li>Scout data (unlimited)</li>
-          <li>Draft board</li>
+          <li>2 AI deep analyses / month</li>
+          <li>Full Draft Brain AI Battle (PvP + vs AI + vs scouted teams)</li>
+          <li>Scout & Heroes — unlimited</li>
+          <li>Series mode (BO3/BO5/BO7)</li>
         </ul>
         <button class="plan-cta" onclick="event.stopPropagation()">Current Plan</button>
       </div>
 
       <div class="plan-card" id="planCard-pro" onclick="selectPlanPreview('pro')">
-        <div class="plan-popular">Popular</div>
+        <div class="plan-popular">Best Value</div>
         <div class="plan-name" style="color:var(--purple);">Pro</div>
-        <div class="plan-price" style="color:var(--purple);">$9.99<span>/mo</span></div>
+        <div class="plan-price" style="color:var(--purple);">₱10<span>/mo</span></div>
         <ul class="plan-features">
-          <li>50 AI analyses / month</li>
-          <li>GPT-powered draft coach</li>
-          <li>Advanced scout patterns</li>
-          <li>Priority support</li>
+          <li>150 AI deep analyses / month</li>
+          <li>Claude-powered AI Battle reasoning (Hard & GM)</li>
+          <li>Everything in Free</li>
+          <li>Direct support from the dev</li>
         </ul>
-        <button class="plan-cta" onclick="event.stopPropagation();upgradePlan('pro')">Upgrade to Pro</button>
+        <button class="plan-cta" onclick="event.stopPropagation();upgradePlan('pro')">Get Pro — ₱10/mo</button>
       </div>
 
-      <div class="plan-card" id="planCard-team" onclick="selectPlanPreview('team')">
-        <div class="plan-name" style="color:var(--gold);">Team</div>
-        <div class="plan-price" style="color:var(--gold);">$29.99<span>/mo</span></div>
-        <ul class="plan-features">
-          <li>200 AI analyses / month</li>
-          <li>Team roster management</li>
-          <li>MPL scout integration</li>
-          <li>Coaching export tools</li>
-        </ul>
-        <button class="plan-cta" onclick="event.stopPropagation();upgradePlan('team')">Upgrade to Team</button>
+      <div class="plan-card" id="planCard-contact">
+        <div class="plan-name" style="color:var(--gold);">Upgrade / Questions</div>
+        <div class="plan-price" style="color:var(--gold);font-size:15px;line-height:1.4;padding:6px 0;">Activation is manual for now — message me and I'll set your account to Pro.</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
+          <a href="mailto:wrrenvillapando@gmail.com?subject=Warr.GG%20Pro%20Upgrade" style="display:block;text-align:center;padding:10px;border-radius:10px;background:linear-gradient(135deg,#A888CC,#5E5CE6);color:#fff;font-size:12px;font-weight:700;text-decoration:none;">✉ Email Me</a>
+          <span style="font-size:10px;color:var(--text3);text-align:center;">Instagram & TikTok contact coming soon</span>
+        </div>
       </div>
     </div>
 
@@ -1466,11 +1463,13 @@ function upgradePlan(plan) {
   if (current === plan) { toast('Already on this plan', 'error'); return; }
 
   const planData = WDB.PLANS[plan];
-  const msg = planData.price === 0
-    ? `Switch to ${planData.label} plan?`
-    : `Upgrade to ${planData.label} for $${planData.price}/month?`;
-
-  if (!confirm(msg + '\n\n(Contact admin or subscribe via payment link to activate.)')) return;
+  if (planData.price > 0) {
+    // Manual activation: paid plans are assigned by the admin after contact.
+    location.href = 'mailto:wrrenvillapando@gmail.com?subject=Warr.GG%20Pro%20Upgrade&body=' +
+      encodeURIComponent('Hi! I want to upgrade to Pro (₱10/mo). My account email: ' + (document.getElementById('emailInput')?.value || ''));
+    return;
+  }
+  if (!confirm(`Switch to ${planData.label} plan?`)) return;
 
   // For Free downgrade, allow directly; for paid plans, note admin must approve
   if (plan === 'free') {
