@@ -651,7 +651,7 @@ input:focus, .search-input:focus {
 @keyframes enginePulse{0%,100%{opacity:1}50%{opacity:.35}}
 .setup-hd{text-align:center;}
 .setup-sub{letter-spacing:.22em;text-transform:uppercase;font-size:10px;}
-.setup-grid{display:grid;grid-template-columns:1fr 1.3fr 0.8fr;gap:10px;margin-bottom:0;align-items:stretch;}
+.setup-grid{display:grid;grid-template-columns:1fr 1.45fr;gap:10px;margin-bottom:0;align-items:stretch;}
 .setup-grid .setup-card{margin-bottom:10px;height:calc(100% - 10px);}
 .setup-grid2{display:grid;grid-template-columns:1.15fr 1fr;gap:10px;}
 .setup-grid2 .setup-card{margin-bottom:10px;}
@@ -769,11 +769,6 @@ input:focus, .search-input:focus {
       <div id="scoutStatusAB" style="margin-top:8px;font-size:10px;color:var(--text3);"></div>
     </div>
 
-    <!-- COL 3: TACTICAL SPECS (live, from your data) -->
-    <div class="setup-card">
-      <div class="card-title">▦ Tactical Specs</div>
-      <div id="specsCard" class="specs-list"><div class="specs-row"><span>Loading…</span><span></span></div></div>
-    </div>
   </div>
 
   <!-- MAP + OPPONENT — one row -->
@@ -823,13 +818,6 @@ input:focus, .search-input:focus {
   </div>
 
   </div><!-- /setup-grid2 -->
-
-  <!-- API KEY — admin only -->
-  <div class="setup-card" id="apiKeyCard" style="display:none;">
-    <div class="card-title">API Key <span style="font-weight:400;color:var(--text3);">— admin only</span></div>
-    <div id="apiKeyStatus" style="margin-bottom:8px;font-size:10px;color:var(--text3);">Checking…</div>
-    <div style="font-size:9px;color:var(--text3);">Set a global key in <a href="/admin" style="color:var(--blue);">Admin Panel</a> to enable AI for all users.</div>
-  </div>
 
   <button class="start-btn" onclick="startBattle()">INITIATE DRAFT</button>
   <div class="start-sub">PROTOCOL SYNCED WITH YOUR SCOUT DATA — <span id="startSubGames">0 matches loaded</span></div>
@@ -3473,29 +3461,15 @@ function updateWinProbAB(){
   }catch(_){}
 }
 
-// ═══════ TACTICAL SPECS CARD (setup screen) ═══════
+// ═══════ SETUP SUBLINE — match count under INITIATE DRAFT ═══════
 function renderSpecsAB(){
-  const el=document.getElementById('specsCard');if(!el)return;
   try{
     const db=loadScoutAB();
     const real=(db.matches||[]).filter(m=>m.league!=='AI Battle');
     const scoped=scoutLeagueAB==='all'?real:real.filter(m=>m.league===scoutLeagueAB);
-    const heroes=new Set();
-    scoped.forEach(m=>{[...(m.bluePicks||[]),...(m.redPicks||[])].forEach(p2=>{const n=p2&&(p2.name||p2);if(n)heroes.add(n);});});
-    const intel=scoutIntel();
-    const counterPairs=Object.keys(intel.counters||{}).length;
-    const hasKey=typeof WDB!=='undefined'&&WDB.getAdminApiKeySync?!!WDB.getAdminApiKeySync():false;
-    const isAdm=typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin();
-    el.innerHTML=`
-      <div class="specs-row"><span>Scout matches</span><strong>${scoped.length}</strong></div>
-      <div class="specs-row"><span>Scope</span><strong>${scoutLeagueAB==='all'?'All leagues':scoutLeagueAB}</strong></div>
-      <div class="specs-row"><span>Heroes with data</span><strong>${heroes.size}</strong></div>
-      <div class="specs-row"><span>Counter matchups</span><strong>${counterPairs}</strong></div>
-      <div class="specs-row"><span>Engine</span><strong class="${hasKey?'ok':'warn'}">${hasKey?'Brain + Claude':'Local brain'}</strong></div>
-      ${isAdm?'<div class="specs-note">✓ Admin verified — full simulation parameters unlocked.</div>':''}`;
     const sg=document.getElementById('startSubGames');
     if(sg)sg.textContent=`${scoped.length} match${scoped.length===1?'':'es'} loaded`;
-  }catch(e){el.innerHTML='<div class="specs-row"><span>No scout data yet</span><span></span></div>';}
+  }catch(_){}
 }
 
 // ═══════ PUBLIC ENTRY — same contract as before ═══════

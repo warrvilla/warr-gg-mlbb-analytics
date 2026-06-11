@@ -688,6 +688,17 @@ body { background: var(--bg); min-height: 100vh; }
       </div>
     </div>
 
+    <!-- ADMIN: AI ENGINE KEY — moved here from AI Battle setup -->
+    <div class="admin-mgmt-card" id="adminApiKeyCard">
+      <h4>🔑 Admin — AI Engine Key</h4>
+      <div class="mgmt-sub">Anthropic API key powering Claude-backed draft reasoning. Stored for the site via Supabase. <strong>Preferred setup:</strong> put the key in Netlify env var <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:10px;">ANTHROPIC_API_KEY</code> (server-side proxy — key never reaches browsers); this field is the legacy/local fallback.</div>
+      <div class="admin-mgmt-form">
+        <input class="admin-mgmt-input" id="profApiKeyInput" type="password" placeholder="sk-ant-..." style="flex:1;" />
+        <button class="admin-mgmt-btn" onclick="profSaveApiKey()">Save Key</button>
+      </div>
+      <div id="profApiKeyStatus" style="font-size:11px;color:var(--text3);margin-top:8px;">Checking…</div>
+    </div>
+
     <!-- ADMIN PANEL CARD (only visible for wrrenvillapando@gmail.com) -->
     <div class="admin-access-card" id="adminAccessCard">
       <h4>⚙ Admin Panel</h4>
@@ -1114,7 +1125,7 @@ const PROFILE_TAB_MAP = {
   account: ['accountCard'],
   leagues: ['adminLeaguesCard'],
   teams:   ['adminTeamsCard'],
-  site:    ['adminMaintCard', 'adminSlidesCard', 'adminPortraitsCard', 'adminAccessCard'],
+  site:    ['adminMaintCard', 'adminSlidesCard', 'adminPortraitsCard', 'adminApiKeyCard', 'adminAccessCard'],
 };
 const PROFILE_ADMIN_TABS = ['leagues', 'teams', 'site'];
 let _activePTab = (location.hash || '').replace('#', '') in PROFILE_TAB_MAP
@@ -1142,6 +1153,31 @@ function setProfileTab(tab) {
 
 // Live filter for the admin team/player list — no more scrolling a wall
 // of rosters to find one player.
+async function profSaveApiKey() {
+  const inp = document.getElementById('profApiKeyInput');
+  const st = document.getElementById('profApiKeyStatus');
+  const key = (inp.value || '').trim();
+  if (!key) { st.textContent = 'Enter a key first.'; st.style.color = 'var(--red, #f87171)'; return; }
+  try {
+    await WDB.setAdminApiKey(key);
+    inp.value = '';
+    st.textContent = '✓ Key saved — Claude-backed AI active (legacy mode). For best security, also set the Netlify env var and remove this one.';
+    st.style.color = '#4ade80';
+  } catch (e) {
+    st.textContent = '✗ ' + (e.message || 'Save failed');
+    st.style.color = 'var(--red, #f87171)';
+  }
+}
+async function profApiKeyStatusCheck() {
+  const st = document.getElementById('profApiKeyStatus');
+  if (!st) return;
+  try {
+    const key = (typeof WDB !== 'undefined' && WDB.getAdminApiKey) ? await WDB.getAdminApiKey() : '';
+    st.textContent = key ? '✓ A key is currently set (legacy browser mode).' : 'No legacy key set. If the Netlify env var is configured, the server proxy handles everything — nothing needed here.';
+    st.style.color = key ? '#4ade80' : 'var(--text3)';
+  } catch (_) { st.textContent = '—'; }
+}
+
 function filterAdminTeamList(q) {
   q = (q || '').toLowerCase().trim();
   document.querySelectorAll('#adminTeamList > *').forEach(el => {
@@ -1624,6 +1660,7 @@ async function init() {
       // Reveal the admin tabs — the cards themselves are managed by the
       // profile tab system (setProfileTab), one section at a time.
       document.querySelectorAll('.ptab-admin').forEach(b => b.style.display = 'inline-flex');
+      if (typeof profApiKeyStatusCheck === 'function') profApiKeyStatusCheck();
       // Load data for admin panels (async)
       if (typeof loadAdminLeagues === 'function') loadAdminLeagues();
       if (typeof loadAdminTeams   === 'function') loadAdminTeams();
