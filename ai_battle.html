@@ -48,15 +48,17 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);heigh
 .mem-chip{font-size:9px;padding:2px 8px;border-radius:10px;background:var(--ai-dim);border:1px solid var(--ai-border);color:var(--ai);font-weight:600;letter-spacing:.3px;}
 
 /* SETUP */
-#setup{max-width:none;margin:0;padding:12px 0;width:100%;
+#setup{max-width:none;margin:0;padding:0;width:100%;
   display:flex;flex-direction:column;}
-/* Inner width wrapper — the SCROLLBAR belongs to full-width #setup (viewport
-   edge on PC), while content stays centered at 1180px. */
-.setup-inner{max-width:1180px;margin:0 auto;width:100%;padding:0 clamp(12px,4vw,20px);}
-/* Overflow-safe vertical centering: ::before/::after are flex spacers that
-   ALWAYS exist (the old auto-margin trick broke when .start-sub was hidden
-   on short screens — all the free space dumped to the top). */
-#setup::before,#setup::after{content:'';flex:1 0 0;min-height:0;}
+/* Inner width wrapper — full-width #setup owns the scrollbar (viewport edge
+   on PC); margin:auto centers the content block when it fits and collapses
+   to 0 when it overflows, so scrolling always reaches the very bottom. The
+   vertical padding lives INSIDE the scrolling content — flex scroll
+   containers clip their own bottom padding, which was cutting the
+   INITIATE DRAFT button. */
+.setup-inner{max-width:1180px;margin:auto;width:100%;
+  padding:18px clamp(12px,4vw,20px) 32px;}
+/* Vertical centering is handled by .setup-inner{margin:auto} — no spacers. */
 .setup-hd{text-align:center;margin-bottom:14px;}
 .setup-title{font-family:var(--font-head);font-size:23px;font-weight:700;letter-spacing:0.18em;color:var(--text);text-transform:uppercase;}
 .setup-title span{color:var(--purple);}
@@ -310,7 +312,7 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);heigh
   .topbar { padding: 0 10px; gap: 4px; flex-wrap: nowrap; overflow-x: auto; }
   .tab-btn { padding: 3px 7px; font-size: 10px; flex-shrink: 0; }
   .setup-title { font-size: 24px; }
-  #setup { padding: 0 12px; margin: 20px auto; }
+  #setup { padding: 0; margin: 0; } .setup-inner { padding-left: 12px; padding-right: 12px; }
   .grid3 { grid-template-columns: 1fr; }
 .hero-grid { gap: 5px; padding: 10px 12px; }
   .hero-grid.lane-filtered { display: flex; flex-direction: row; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 8px; gap: 6px; }
@@ -779,8 +781,8 @@ input:focus, .search-input:focus {
   box-shadow:0 8px 32px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04);}
 .logbar,#breakdownPanel{background:var(--glass) !important;backdrop-filter:var(--blur-sm);-webkit-backdrop-filter:var(--blur-sm);}
 
-@media (max-height: 880px){ #setup{padding-top:10px;} }
-@media (max-height: 740px){ #setup{padding-top:8px;} }
+@media (max-height: 880px){ .setup-inner{padding-top:10px;} }
+@media (max-height: 740px){ .setup-inner{padding-top:8px;} }
 
 /* ═══ ARENA HEADER DIET — one bar instead of four strips ═══ */
 .bh{display:none !important;}        /* names live on the team panels */
