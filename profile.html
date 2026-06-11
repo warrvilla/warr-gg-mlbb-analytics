@@ -196,6 +196,15 @@ body { background: var(--bg); min-height: 100vh; }
 }
 .mpl-teams li { padding: 2px 0; break-inside: avoid; }
 
+/* ── PROFILE TABS ── */
+.ptab-bar{position:sticky;top:calc(var(--nav-h,56px) + 8px);z-index:40;display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;padding:6px;margin:0 0 18px;background:var(--glass);backdrop-filter:var(--blur-sm);-webkit-backdrop-filter:var(--blur-sm);border:0.5px solid var(--glass-border);border-radius:999px;box-shadow:var(--glass-shadow);scrollbar-width:none;}
+.ptab-bar::-webkit-scrollbar{display:none;}
+.ptab{flex-shrink:0;padding:7px 16px;border-radius:999px;border:0.5px solid transparent;background:transparent;color:var(--text3);font-size:12px;font-weight:600;letter-spacing:-0.01em;cursor:pointer;transition:color .15s ease,background .15s ease;font-family:inherit;white-space:nowrap;}
+.ptab:hover{color:var(--text2);}
+.ptab.active{background:linear-gradient(135deg,rgba(168,136,204,.18),rgba(94,92,230,.18));color:var(--text);border-color:rgba(168,136,204,.35);}
+.ptab-admin{display:none;color:#C89050;}
+.ptab-admin.active{color:var(--text);border-color:rgba(200,144,80,.4);background:linear-gradient(135deg,rgba(200,144,80,.16),rgba(168,136,204,.12));}
+
 /* ── Admin approve note ── */
 .admin-note {
   font-size: 11px; color: var(--text3);
@@ -419,7 +428,21 @@ body { background: var(--bg); min-height: 100vh; }
         </div>
       </div>
 
-      <div class="divider"></div>
+    </div>
+
+    <!-- TAB BAR — one section at a time instead of a 10-card scroll -->
+    <div class="ptab-bar" id="ptabBar">
+      <button class="ptab active" data-ptab="profile" onclick="setProfileTab('profile')">Profile</button>
+      <button class="ptab" data-ptab="pool" onclick="setProfileTab('pool')">Hero Pool</button>
+      <button class="ptab" data-ptab="plan" onclick="setProfileTab('plan')">Plan &amp; Tokens</button>
+      <button class="ptab" data-ptab="account" onclick="setProfileTab('account')">Account</button>
+      <button class="ptab ptab-admin" data-ptab="leagues" onclick="setProfileTab('leagues')">Leagues</button>
+      <button class="ptab ptab-admin" data-ptab="teams" onclick="setProfileTab('teams')">Teams &amp; Players</button>
+      <button class="ptab ptab-admin" data-ptab="site" onclick="setProfileTab('site')">Site Content</button>
+    </div>
+
+    <!-- EDIT PROFILE -->
+    <div class="profile-card" id="editProfileCard">
       <div class="section-label">Edit Profile</div>
 
       <div class="field-group">
@@ -514,7 +537,7 @@ body { background: var(--bg); min-height: 100vh; }
     </div>
 
     <!-- TOKEN & SUBSCRIPTION PANEL -->
-    <div class="tokens-panel">
+    <div class="tokens-panel" id="tokensPanel">
       <div class="tokens-header">
         <span class="tokens-title">AI Analysis Tokens</span>
         <span class="tokens-reset" id="tokenResetLabel">Resets monthly</span>
@@ -531,8 +554,8 @@ body { background: var(--bg); min-height: 100vh; }
     </div>
 
     <!-- PLAN CARDS -->
-    <div class="section-label" style="margin-bottom:14px;">Subscription Plans</div>
-    <div class="plans-grid">
+    <div class="section-label" id="plansLabel" style="margin-bottom:14px;">Subscription Plans</div>
+    <div class="plans-grid" id="plansGrid">
       <div class="plan-card" id="planCard-free" onclick="selectPlanPreview('free')">
         <div class="plan-name" style="color:var(--text2);">Free</div>
         <div class="plan-price" style="color:var(--text);">$0<span>/mo</span></div>
@@ -615,6 +638,8 @@ body { background: var(--bg); min-height: 100vh; }
         <input class="admin-mgmt-input" id="adminNewPlayerTeam" placeholder="Team name (e.g. ECHO)" />
         <button class="admin-mgmt-btn" onclick="adminSavePlayer()">+ Add Player</button>
       </div>
+      <input class="admin-mgmt-input" id="adminTeamFilter" placeholder="Filter teams or players…"
+             oninput="filterAdminTeamList(this.value)" style="margin:10px 0 8px;width:100%;" />
       <div class="admin-list" id="adminTeamList">
         <div class="admin-empty">Loading teams…</div>
       </div>
@@ -1050,7 +1075,7 @@ body { background: var(--bg); min-height: 100vh; }
     <div id="adminToast" class="admin-toast"></div>
 
     <!-- SIGN OUT + DANGER ZONE -->
-    <div class="profile-card" style="margin-top:20px;">
+    <div class="profile-card" id="accountCard" style="margin-top:20px;">
       <div class="section-label">Account</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;">
         <button onclick="exportProfileData()" style="padding:9px 16px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:12px;cursor:pointer;">
@@ -1078,6 +1103,52 @@ body { background: var(--bg); min-height: 100vh; }
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="warr-lib.js"></script>
 <script src="warr-nav.js"></script>
+<script>
+// ═══════ PROFILE TABS ═══════
+// One section visible at a time. Admin tabs render only for admins; deep
+// links work via #tabname (e.g. profile.html#teams).
+const PROFILE_TAB_MAP = {
+  profile: ['editProfileCard'],
+  pool:    ['heroPoolCard'],
+  plan:    ['tokensPanel', 'plansLabel', 'plansGrid'],
+  account: ['accountCard'],
+  leagues: ['adminLeaguesCard'],
+  teams:   ['adminTeamsCard'],
+  site:    ['adminMaintCard', 'adminSlidesCard', 'adminPortraitsCard', 'adminAccessCard'],
+};
+const PROFILE_ADMIN_TABS = ['leagues', 'teams', 'site'];
+let _activePTab = (location.hash || '').replace('#', '') in PROFILE_TAB_MAP
+  ? (location.hash || '').replace('#', '') : 'profile';
+
+function setProfileTab(tab) {
+  if (!PROFILE_TAB_MAP[tab]) tab = 'profile';
+  const isAdm = (typeof WAdmin !== 'undefined' && WAdmin.isAdmin && WAdmin.isAdmin());
+  if (PROFILE_ADMIN_TABS.includes(tab) && !isAdm) tab = 'profile';
+  _activePTab = tab;
+  Object.entries(PROFILE_TAB_MAP).forEach(([t, ids]) => {
+    const show = t === tab;
+    const adminPane = PROFILE_ADMIN_TABS.includes(t);
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      // '' restores the stylesheet default (keeps .plans-grid as grid);
+      // admin cards default to display:none in CSS so they need 'block'.
+      el.style.display = show ? (adminPane ? 'block' : '') : 'none';
+    });
+  });
+  document.querySelectorAll('.ptab').forEach(b => b.classList.toggle('active', b.dataset.ptab === tab));
+  try { history.replaceState(null, '', '#' + tab); } catch(_) {}
+}
+
+// Live filter for the admin team/player list — no more scrolling a wall
+// of rosters to find one player.
+function filterAdminTeamList(q) {
+  q = (q || '').toLowerCase().trim();
+  document.querySelectorAll('#adminTeamList > *').forEach(el => {
+    el.style.display = !q || el.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+</script>
 <script>
 // ── MPL team list (must match select options) ──
 const MPL_TEAMS = [
@@ -1550,19 +1621,9 @@ async function init() {
       try { await WAdmin.loadExtraAdmins(); } catch(e) { /* silent */ }
     }
     if (WAdmin.isAdmin()) {
-      // Un-hide every admin management card — they default to display:none
-      // and only become visible for admins. Easier to iterate by id than
-      // toggle individual lookups (and ensures new admin cards just need
-      // their id added below).
-      ['adminAccessCard',
-       'adminLeaguesCard',
-       'adminTeamsCard',
-       'adminMaintCard',
-       'adminSlidesCard',
-       'adminPortraitsCard'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'block';
-      });
+      // Reveal the admin tabs — the cards themselves are managed by the
+      // profile tab system (setProfileTab), one section at a time.
+      document.querySelectorAll('.ptab-admin').forEach(b => b.style.display = 'inline-flex');
       // Load data for admin panels (async)
       if (typeof loadAdminLeagues === 'function') loadAdminLeagues();
       if (typeof loadAdminTeams   === 'function') loadAdminTeams();
@@ -1580,6 +1641,7 @@ async function init() {
     const lp = localGet();
     if (lp.displayName) {
       main.style.display = 'block';
+      setProfileTab(_activePTab);
       setSyncStatus('local', 'Not signed in — data saved locally');
       renderProfile();
       loadHeroPool();
@@ -1588,6 +1650,7 @@ async function init() {
     }
   } else {
     main.style.display = 'block';
+    setProfileTab(_activePTab);
     setSyncStatus('synced', 'Synced with Warr.GG');
     renderProfile();
     // Load hero pool — prefer Supabase profile's hero_pool if present
