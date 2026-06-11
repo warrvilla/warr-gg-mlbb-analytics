@@ -152,6 +152,7 @@
   //
   // Keep labels short and aligned with index.html's cinematic top bar.
   const NAV_LINKS = [
+    { href: '/',             label: 'Home'      },
     { href: '/ai_battle',    label: 'AI Battle' },
     { href: '/scout',        label: 'Scout'     },
     { href: '/stats',        label: 'Analysis'  },
@@ -170,7 +171,8 @@
   }
 
   function isActive(href) {
-    return href.replace(/^\//, '').replace(/\.html$/, '').toLowerCase() === currentPage();
+    const h = href === '/' ? 'index' : href.replace(/^\//, '').replace(/\.html$/, '').toLowerCase();
+    return h === currentPage();
   }
 
   // ── Render canonical nav HTML ────────────────────────────────────

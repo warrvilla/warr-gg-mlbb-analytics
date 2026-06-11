@@ -50,11 +50,10 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);heigh
 /* SETUP */
 #setup{max-width:1180px;margin:0 auto;padding:12px clamp(12px, 4vw, 20px);width:100%;
   display:flex;flex-direction:column;}
-/* Overflow-safe vertical centering: auto margins collapse to 0 when the
-   content is taller than the viewport (then #setup just scrolls), and
-   split the free space evenly when it fits — no more top-hug + bottom gap. */
-#setup > .setup-hd{margin-top:auto;}
-#setup > .start-sub{margin-bottom:auto;}
+/* Overflow-safe vertical centering: ::before/::after are flex spacers that
+   ALWAYS exist (the old auto-margin trick broke when .start-sub was hidden
+   on short screens — all the free space dumped to the top). */
+#setup::before,#setup::after{content:'';flex:1 0 0;min-height:0;}
 .setup-hd{text-align:center;margin-bottom:14px;}
 .setup-title{font-family:var(--font-head);font-size:23px;font-weight:700;letter-spacing:0.18em;color:var(--text);text-transform:uppercase;}
 .setup-title span{color:var(--purple);}
@@ -822,10 +821,54 @@ input:focus, .search-input:focus {
       <div class="grid3">
         <div class="opt-card sel-blue" id="sc-blue" onclick="setSide('blue')"><div class="opt-name">BLUE</div><div class="opt-desc">First pick</div></div>
         <div class="opt-card" id="sc-red" onclick="setSide('red')"><div class="opt-name">RED</div><div class="opt-desc">Last pick</div></div>
-        <div class="opt-card" id="sc-random" onclick="setSide('random')"><div class="opt-name">RAND</div><div class="opt-desc">Coin flip</div></div>
+        <div class="opt-card" id="sc-random" onclick="setSide('random')"><div class="opt-name">RANDOM</div><div class="opt-desc">Coin flip</div></div>
       </div>
     </div>
 
+    <!-- COL 2: OPPONENT PROTOCOL -->
+  <!-- ENEMY TEAM MODE -->
+  <div class="setup-card" style="position:relative;z-index:2;">
+    <div class="card-title">⌁ Opponent Protocol</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+      <div class="opt-card sel-gold" id="mode-generic" onclick="setAIMode('generic')" style="text-align:left;">
+        <div><div class="opt-name">VS AI</div><div class="opt-desc">Optimizes to beat you</div></div>
+      </div>
+      <div class="opt-card" id="mode-enemy" onclick="setAIMode('enemy')" style="text-align:left;">
+        <div><div class="opt-name">VS Enemy Team</div><div class="opt-desc">AI mimics a scouted team</div></div>
+      </div>
+      <div class="opt-card" id="mode-pvp" onclick="setAIMode('pvp')" style="text-align:left;">
+        <div><div class="opt-name">VS Player</div><div class="opt-desc">2 coaches, pass &amp; play</div></div>
+      </div>
+    </div>
+    <div id="pvpPanel" style="display:none;">
+      <input class="name-in" id="p2In" value="Player 2" maxlength="20" placeholder="Player 2 name..." style="border-color:rgba(216,120,128,.35);"/>
+      <div style="margin-top:6px;font-size:10px;color:var(--text3);">Hotseat draft — Player 1 takes the side chosen above, Player 2 takes the other. Coach suggestions follow whoever is on the clock.</div>
+    </div>
+    <div id="enemyTeamPanel" style="display:none;">
+      <div id="enemyLeagueRow" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
+        <button class="scout-lb active" onclick="setEnemyLeague('all',this)">All</button>
+        <button class="scout-lb" onclick="setEnemyLeague('MPL PH',this)">PH</button>
+        <button class="scout-lb" onclick="setEnemyLeague('MPL MY',this)">MY</button>
+        <button class="scout-lb" onclick="setEnemyLeague('MPL ID',this)">ID</button>
+        <button class="scout-lb" onclick="setEnemyLeague('MPL SG',this)">SG</button>
+        <button class="scout-lb" onclick="setEnemyLeague('MPL KH',this)">KH</button>
+        <button class="scout-lb" onclick="setEnemyLeague('MSC',this)">MSC</button>
+        <button class="scout-lb" onclick="setEnemyLeague('M-Series',this)">M-Series</button>
+        <button class="scout-lb" onclick="setEnemyLeague('Scrims',this)">Scrims</button>
+      </div>
+      <div style="position:relative;">
+        <input class="name-in" id="enemySearch" placeholder="Search scouted team name..." autocomplete="off"
+          oninput="filterEnemyTeams(this.value)" onfocus="openEnemyDrop()" onblur="setTimeout(closeEnemyDrop,180)"
+          style="border-color:var(--red-border);"/>
+        <div id="enemyDrop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:8px;z-index:100;max-height:300px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);"></div>
+      </div>
+      <div id="enemyProfileCard" style="display:none;margin-top:10px;background:var(--surface2);border:1px solid rgba(240,82,82,.3);border-radius:8px;padding:12px;"></div>
+    </div>
+  </div>
+
+  </div>
+
+  <!-- DRAFT ENGINE (full width) -->
     <!-- COL 2: DRAFT ENGINE -->
     <div class="setup-card setup-card-engine">
       <div class="card-title">◈ Draft Engine</div>
@@ -849,10 +892,7 @@ input:focus, .search-input:focus {
       <div id="scoutStatusAB" style="margin-top:8px;font-size:10px;color:var(--text3);"></div>
     </div>
 
-  </div>
-
-  <!-- MAP + OPPONENT — one row -->
-  <div class="setup-grid2">
+  <!-- BATTLE MAP (full width) -->
   <div class="setup-card">
     <div class="card-title">▣ Battle Map <span style="font-weight:400;color:var(--text3);">— optional, weighs team map WR into the simulation</span></div>
     <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;">
@@ -875,36 +915,8 @@ input:focus, .search-input:focus {
     <div id="mapWRContext" style="display:none;margin-top:8px;font-size:10px;color:var(--text3);"></div>
   </div>
 
-  <!-- ENEMY TEAM MODE -->
-  <div class="setup-card" style="position:relative;z-index:2;">
-    <div class="card-title">⌁ Opponent Protocol</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
-      <div class="opt-card sel-gold" id="mode-generic" onclick="setAIMode('generic')" style="text-align:left;">
-        <div><div class="opt-name">VS AI</div><div class="opt-desc">Optimizes to beat you</div></div>
-      </div>
-      <div class="opt-card" id="mode-enemy" onclick="setAIMode('enemy')" style="text-align:left;">
-        <div><div class="opt-name">VS Enemy Team</div><div class="opt-desc">AI mimics a scouted team</div></div>
-      </div>
-      <div class="opt-card" id="mode-pvp" onclick="setAIMode('pvp')" style="text-align:left;">
-        <div><div class="opt-name">VS Player</div><div class="opt-desc">2 coaches, pass &amp; play</div></div>
-      </div>
-    </div>
-    <div id="pvpPanel" style="display:none;">
-      <input class="name-in" id="p2In" value="Player 2" maxlength="20" placeholder="Player 2 name..." style="border-color:rgba(216,120,128,.35);"/>
-      <div style="margin-top:6px;font-size:10px;color:var(--text3);">Hotseat draft — Player 1 takes the side chosen above, Player 2 takes the other. Coach suggestions follow whoever is on the clock.</div>
-    </div>
-    <div id="enemyTeamPanel" style="display:none;">
-      <div style="position:relative;">
-        <input class="name-in" id="enemySearch" placeholder="Search scouted team name..." autocomplete="off"
-          oninput="filterEnemyTeams(this.value)" onfocus="openEnemyDrop()" onblur="setTimeout(closeEnemyDrop,180)"
-          style="border-color:var(--red-border);"/>
-        <div id="enemyDrop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:8px;z-index:100;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);"></div>
-      </div>
-      <div id="enemyProfileCard" style="display:none;margin-top:10px;background:var(--surface2);border:1px solid rgba(240,82,82,.3);border-radius:8px;padding:12px;"></div>
-    </div>
-  </div>
 
-  </div><!-- /setup-grid2 -->
+
 
   <button class="start-btn" onclick="startBattle()">INITIATE DRAFT</button>
   <div class="start-sub">PROTOCOL SYNCED WITH YOUR SCOUT DATA — <span id="startSubGames">0 matches loaded</span></div>
@@ -1500,14 +1512,18 @@ function getAllScoutedTeams(){
 }
 function populateEnemyDrop(q){
   const teams=getAllScoutedTeams();
-  const filtered=q?teams.filter(t=>t.name.toLowerCase().includes(q.toLowerCase())):teams;
+  let filtered=q?teams.filter(t=>t.name.toLowerCase().includes(q.toLowerCase())):teams;
+  if(enemyLeagueFilter!=='all'){
+    const lm=_teamLeaguesMap();
+    filtered=filtered.filter(t=>lm[t.name]&&lm[t.name].has(enemyLeagueFilter));
+  }
   const dd=document.getElementById('enemyDrop');
   dd.style.display='block';
   if(!filtered.length){
     dd.innerHTML=`<div style="padding:12px;font-size:11px;color:var(--text3);">${teams.length?'No match for "'+q+'"':'No scouted teams yet — log matches in Scout tab first'}</div>`;
     return;
   }
-  dd.innerHTML=filtered.slice(0,10).map(t=>{
+  dd.innerHTML=filtered.slice(0,80).map(t=>{
     const wr=t.winRate||0;const wrc=wr>=55?'var(--green)':wr>=45?'var(--gold)':'var(--red)';
     const picks=(t.topPicks||[]).slice(0,3).map(p=>p.name).join(', ')||'—';
     const safeName=t.name.replace(/"/g,'&quot;');
@@ -1519,6 +1535,19 @@ function populateEnemyDrop(q){
   dd.querySelectorAll('[data-ename]').forEach(el=>el.addEventListener('mousedown',e=>{e.preventDefault();selectEnemy(el.dataset.ename);}));
 }
 function filterEnemyTeams(q){populateEnemyDrop(q);}
+let enemyLeagueFilter='all';
+let _tlmCache=null;
+function _teamLeaguesMap(){
+  if(_tlmCache)return _tlmCache;
+  const db=loadScoutAB();const m={};
+  (db.matches||[]).forEach(mx=>{[mx.blueTeam,mx.redTeam].forEach(n=>{if(!n)return;(m[n]=m[n]||new Set()).add(mx.league||'');});});
+  _tlmCache=m;return m;
+}
+function setEnemyLeague(l,btn){
+  enemyLeagueFilter=l;
+  document.querySelectorAll('#enemyLeagueRow .scout-lb').forEach(b=>b.classList.toggle('active',b===btn));
+  populateEnemyDrop(document.getElementById('enemySearch').value);
+}
 function openEnemyDrop(){populateEnemyDrop(document.getElementById('enemySearch').value);}
 function closeEnemyDrop(){document.getElementById('enemyDrop').style.display='none';}
 function selectEnemy(name){
