@@ -637,6 +637,8 @@ function filterUsers() {
     const matchQ = !q ||
       (u.email || '').toLowerCase().includes(q) ||
       (u.display_name || '').toLowerCase().includes(q) ||
+      (u.ign || '').toLowerCase().includes(q) ||
+      (u.phone || '').replace(/\D/g,'').includes(q.replace(/\D/g,'') || '\u0000') ||
       (u.team_name || '').toLowerCase().includes(q);
     const matchPlan   = !planF   || u.plan === planF;
     const matchStatus = !statusF || u.team_status === statusF;
@@ -669,7 +671,7 @@ function renderUsersTable() {
     const isBanned = u.is_banned;
     const hasNotes = !!(u.admin_notes && u.admin_notes.trim());
     return `<tr style="${isBanned ? 'opacity:.5' : ''}">
-      <td class="user-email-cell" title="${escHtml(u.email || '')}">${escHtml(u.email || u.id)}</td>
+      <td class="user-email-cell" title="Click for full details" style="cursor:pointer;text-decoration:underline dotted rgba(255,255,255,.25);" onclick="openUserDetails('${u.id}')">${escHtml(u.email || u.id)}</td>
       <td class="user-name-cell">${escHtml(u.display_name || '—')}</td>
       <td class="team-cell">${escHtml(u.team_name || '—')}</td>
       <td><span class="status-chip ${statusCls}">${statusCls}</span></td>
@@ -835,6 +837,54 @@ async function init() {
 
 // ── Grant plan modal ──
 let _grantPlanUserId = null;
+// ── USER DETAILS MODAL — contact info, age, and every action in one place ──
+function _ageFrom(b) {
+  if (!b) return null;
+  const d = new Date(b); if (isNaN(d)) return null;
+  const t = new Date();
+  let a = t.getFullYear() - d.getFullYear();
+  if (t < new Date(t.getFullYear(), d.getMonth(), d.getDate())) a--;
+  return a;
+}
+function openUserDetails(userId) {
+  const u = _allUsers.find(x => x.id === userId);
+  if (!u) return;
+  const age = _ageFrom(u.birthday);
+  const expired = u.plan_expires_at && new Date(u.plan_expires_at) < new Date();
+  let m = document.getElementById('userDetailsModal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'userDetailsModal';
+    m.className = 'modal-overlay';
+    m.addEventListener('click', e => { if (e.target === m) m.style.display = 'none'; });
+    document.body.appendChild(m);
+  }
+  const row = (l, v) => `<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;"><span style="width:110px;color:var(--text3);flex-shrink:0;">${l}</span><span style="color:var(--text);word-break:break-all;">${v}</span></div>`;
+  m.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:22px;max-width:440px;width:92vw;max-height:86vh;overflow:auto;">
+      <div style="display:flex;align-items:center;margin-bottom:12px;">
+        <div style="font-size:14px;font-weight:800;">${escHtml(u.display_name || u.ign || 'User')}</div>
+        <button onclick="document.getElementById('userDetailsModal').style.display='none'" style="margin-left:auto;background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;">×</button>
+      </div>
+      ${row('Email', escHtml(u.email || '—'))}
+      ${row('IGN', escHtml(u.ign || '—'))}
+      ${row('Mobile', u.phone ? `<a href="tel:${escHtml(u.phone)}" style="color:var(--blue);">${escHtml(u.phone)}</a>` : '—')}
+      ${row('Birthday', u.birthday ? `${escHtml(u.birthday)}${age !== null ? ` <span style="color:var(--text3);">(${age} yrs)</span>` : ''}` : '—')}
+      ${row('Team', escHtml(u.team_name || '—') + ' · ' + escHtml(u.team_status || 'none'))}
+      ${row('Plan', `${(u.plan || 'free').toUpperCase()}${u.plan_expires_at && u.plan !== 'free' ? (expired ? ' · <span style="color:var(--red);">EXPIRED</span>' : ' · until ' + fmtDate(u.plan_expires_at)) : ''}`)}
+      ${row('Analyses used', String(u.tokens_used || 0))}
+      ${row('Joined', fmtDate(u.created_at))}
+      ${u.admin_notes ? row('Notes', escHtml(u.admin_notes)) : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+        <button class="btn-approve" onclick="document.getElementById('userDetailsModal').style.display='none';openGrantPlanModal('${u.id}')">Grant Plan</button>
+        <button class="btn-ban${u.is_banned ? ' is-banned' : ''}" onclick="document.getElementById('userDetailsModal').style.display='none';toggleBan('${u.id}')">${u.is_banned ? 'Unban' : 'Ban'}</button>
+        <button class="btn-delete" onclick="document.getElementById('userDetailsModal').style.display='none';deleteUserProfile('${u.id}')">Delete Account</button>
+        <button class="btn-ban" onclick="document.getElementById('userDetailsModal').style.display='none';openNotesModal('${u.id}')">Notes</button>
+      </div>
+    </div>`;
+  m.style.display = 'flex';
+}
+
 function openGrantPlanModal(userId) {
   const u = _allUsers.find(x => x.id === userId);
   _grantPlanUserId = userId;

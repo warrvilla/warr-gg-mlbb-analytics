@@ -227,6 +227,20 @@ body>*{position:relative;z-index:1;}
             <input class="form-input" id="suEmail" type="email" placeholder="your@email.com" required autocomplete="email"/>
           </div>
           <div class="form-group">
+            <label class="form-label">In-Game Name (IGN)</label>
+            <input class="form-input" id="suIGN" type="text" placeholder="e.g. KarlTzy" required maxlength="30"/>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="form-group">
+              <label class="form-label">Mobile Number</label>
+              <input class="form-input" id="suPhone" type="tel" placeholder="09XX XXX XXXX" required maxlength="20"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Birthday</label>
+              <input class="form-input" id="suBirthday" type="date" required/>
+            </div>
+          </div>
+          <div class="form-group">
             <label class="form-label">Password</label>
             <div class="input-wrap">
               <input class="form-input" id="suPassword" type="password" placeholder="Min. 8 characters" required minlength="8" autocomplete="new-password"/>
@@ -393,6 +407,12 @@ body>*{position:relative;z-index:1;}
     // Clean the URL so refreshing doesn't re-trigger invite mode
     history.replaceState(null, '', location.pathname);
     showPanel('invite');
+    try {
+      const { data: ud } = await WAuth._sb().auth.getUser();
+      const ign = ud?.user?.user_metadata?.ign;
+      const nameEl = document.getElementById('ivName');
+      if (ign && nameEl && !nameEl.value) nameEl.value = ign;
+    } catch(_) {}
     return;
   }
 
@@ -453,8 +473,14 @@ async function handleSignIn(e) {
 async function handleSignUp(e) {
   e.preventDefault();
   const email    = document.getElementById('suEmail').value.trim();
+  const ign      = document.getElementById('suIGN').value.trim();
+  const phone    = document.getElementById('suPhone').value.trim();
+  const birthday = document.getElementById('suBirthday').value;
   const password = document.getElementById('suPassword').value;
   const confirm  = document.getElementById('suConfirm').value;
+  if (!ign) { showMsg('In-Game Name is required', 'err'); return; }
+  if (!phone || phone.replace(/\D/g,'').length < 10) { showMsg('Enter a valid mobile number', 'err'); return; }
+  if (!birthday) { showMsg('Birthday is required', 'err'); return; }
   const btn = document.getElementById('signupBtn'), txt = document.getElementById('signupBtnTxt');
   clearMsg();
   if (password !== confirm) { showMsg("Passwords don't match", 'err'); return; }
@@ -462,7 +488,9 @@ async function handleSignUp(e) {
   setLoading(btn, txt, true, 'Creating account…');
   const { data, error } = await WAuth._sb().auth.signUp({
     email, password,
-    options: { emailRedirectTo: location.origin + '/auth' },
+    // Stored in auth user metadata so it survives email confirmation,
+    // then copied into the profile during first-login setup.
+    options: { emailRedirectTo: location.origin + '/auth', data: { ign, phone, birthday } },
   });
   if (error) {
     showMsg(friendlyErr(error.message), 'err');
@@ -511,6 +539,17 @@ async function handleInviteSetup(e) {
   // Save profile (display name + optional team name)
   const { error: profErr } = await WAuth.saveProfile(displayName, teamName || null);
   if (profErr) console.warn('Profile save warning:', profErr.message);
+
+  // Copy signup contact fields from auth metadata into the profile row
+  try {
+    const { data: ud } = await WAuth._sb().auth.getUser();
+    const md = ud?.user?.user_metadata || {};
+    if (md.ign || md.phone || md.birthday) {
+      await WAuth._sb().from('profiles').update({
+        ign: md.ign || null, phone: md.phone || null, birthday: md.birthday || null,
+      }).eq('id', ud.user.id);
+    }
+  } catch(e) { console.warn('Contact fields save warning:', e?.message); }
 
   showMsg('Account ready — taking you in…', 'ok');
   setTimeout(() => { window.location.href = '/ai_battle'; }, 800);
