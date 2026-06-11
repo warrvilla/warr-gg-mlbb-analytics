@@ -329,6 +329,98 @@
   /* Don't print URLs after links (default browser behaviour can be ugly) */
   a[href]::after { content: none !important; }
 }
+
+/* ── HERO DEEP-DIVE DRAWER — same glass language as the cards ── */
+.hero-card { cursor: pointer; }
+.drawer-backdrop {
+  position: fixed; inset: 0; background: rgba(5,5,9,0.55);
+  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+  opacity: 0; pointer-events: none; transition: opacity .25s ease; z-index: 80;
+}
+.drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+.hero-drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(480px, 100vw);
+  background: var(--glass);
+  backdrop-filter: var(--blur-lg, blur(24px)); -webkit-backdrop-filter: var(--blur-lg, blur(24px));
+  border-left: 0.5px solid var(--glass-border);
+  box-shadow: -24px 0 60px rgba(0,0,0,0.45);
+  transform: translateX(102%); transition: transform .3s cubic-bezier(.32,.72,.27,1);
+  z-index: 81; overflow-y: auto; padding: 22px 22px 40px;
+}
+.hero-drawer.open { transform: translateX(0); }
+.dd-close {
+  position: absolute; top: 14px; right: 14px; width: 28px; height: 28px;
+  border-radius: var(--pill); border: 0.5px solid var(--glass-border);
+  background: var(--surface3); color: var(--text2); font-size: 12px;
+  cursor: pointer; transition: color .15s ease;
+}
+.dd-close:hover { color: var(--text); }
+.dd-head { display: flex; gap: 14px; align-items: center; margin-bottom: 16px; }
+.dd-portrait {
+  width: 64px; height: 64px; border-radius: var(--r2); object-fit: cover;
+  background: var(--surface3); border: 0.5px solid var(--glass-border); flex-shrink: 0;
+}
+.dd-name { font-family: var(--font-head); font-size: 20px; font-weight: 600; color: var(--text); letter-spacing: -0.02em; }
+.dd-sub  { font-size: 10px; color: var(--accent); letter-spacing: 0.06em; font-weight: 600; margin-top: 2px; }
+.dd-sub2 { font-size: 10px; color: var(--text3); margin-top: 2px; }
+.dd-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 18px; }
+@media (max-width: 420px) { .dd-stats { grid-template-columns: repeat(2, 1fr); } }
+.dd-stat {
+  background: var(--surface3); border: 0.5px solid var(--glass-border);
+  border-radius: var(--r2); padding: 9px 10px; position: relative; overflow: hidden;
+}
+.dd-stat::before {
+  content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--glass-shine), transparent);
+}
+.dd-stat .v { font-family: var(--font-head); font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: -0.02em; }
+.dd-stat .l { font-size: 9px; color: var(--text3); letter-spacing: 0.02em; margin-top: 1px; }
+.dd-stat .s { font-size: 9px; color: var(--text2); }
+.dd-section { margin-bottom: 18px; }
+.dd-title {
+  font-size: 10px; font-weight: 600; color: var(--text2);
+  letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px;
+  padding-bottom: 5px; border-bottom: 0.5px solid var(--glass-border);
+}
+.dd-maprow, .dd-teamrow {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 0; font-size: 11px; color: var(--text);
+}
+.dd-maprow .map-name { width: 92px; flex-shrink: 0; color: var(--text); letter-spacing: -0.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dd-maprow .map-bar {
+  flex: 1; height: 5px; border-radius: var(--pill);
+  background: var(--surface3); overflow: hidden;
+}
+.dd-maprow .map-fill { display: block; height: 100%; border-radius: var(--pill);
+  background: linear-gradient(90deg, #A888CC, #5E5CE6); }
+.dd-maprow .map-fill.low { opacity: 0.45; }
+.dd-maprow .map-fill.dim { opacity: 0.3; }
+.map-wr { width: 38px; text-align: right; font-weight: 600; flex-shrink: 0; }
+.map-wr.high { color: var(--green, #4ade80); }
+.map-wr.mid  { color: var(--gold); }
+.map-wr.low, .map-wr.dim { color: var(--text3); }
+.map-g { width: 40px; text-align: right; color: var(--text3); font-size: 10px; flex-shrink: 0; }
+.dd-teamrow .t-name { flex: 1; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dd-teamrow .t-league { font-size: 9px; color: var(--text3); flex-shrink: 0; max-width: 110px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dd-gamerow {
+  display: flex; align-items: center; gap: 8px; padding: 5px 0;
+  font-size: 10.5px; border-bottom: 0.5px solid var(--glass-border);
+}
+.dd-gamerow:last-child { border-bottom: none; }
+.dd-gamerow .g-res {
+  width: 18px; height: 18px; border-radius: 5px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 9px;
+}
+.dd-gamerow.won  .g-res { background: rgba(74,222,128,.12); color: #4ade80; border: 0.5px solid rgba(74,222,128,.3); }
+.dd-gamerow.lost .g-res { background: rgba(240,82,82,.10);  color: #f87171; border: 0.5px solid rgba(240,82,82,.28); }
+.dd-gamerow .g-vs { flex: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dd-gamerow .g-meta { color: var(--text2); flex-shrink: 0; }
+.dd-gamerow .g-date { color: var(--text3); font-size: 9px; flex-shrink: 0; }
+.dd-empty { font-size: 11px; color: var(--text3); padding: 6px 0; }
+
 </style>
 </head>
 <body>
@@ -520,6 +612,12 @@ async function loadAll() {
     : _publicMatches;
   renderStats(seasonScoped);
   renderGrid();
+
+  // Deep link: heroes.html#HeroName (homepage Meta Hierarchies cards link here)
+  if (location.hash) {
+    const hn = decodeURIComponent(location.hash.slice(1));
+    if (hn && HEROES.some(x => x.name === hn)) setTimeout(() => openHeroDrawer(hn), 60);
+  }
 }
 
 function showNoData(msg) {
@@ -722,9 +820,9 @@ function heroCardHTML(h) {
       : '<span class="badge badge-muted">No data</span>';
 
   return `
-    <div class="hero-card ${hasData ? '' : 'no-data'}" data-hero="${escHtml(h.name)}">
+    <div class="hero-card ${hasData ? '' : 'no-data'}" data-hero="${escHtml(h.name)}" onclick="openHeroDrawer('${escJs(h.name)}')">
       <button class="edit-btn ${_adminMode ? 'visible' : ''}"
-              onclick="openEdit('${escJs(h.name)}')">✎ Edit</button>
+              onclick="event.stopPropagation();openEdit('${escJs(h.name)}')">✎ Edit</button>
 
       <div class="hero-head">
         <img class="hero-portrait" src="${portraitURL}" alt="${escHtml(h.name)}"
@@ -764,7 +862,7 @@ function heroCardHTML(h) {
         <div class="relation-row">${relationItemsHTML(draftedAgainst, 'response', h.name)}</div>
       </div>
 
-      <div class="edit-panel" id="edit_${heroSlug}">
+      <div class="edit-panel" id="edit_${heroSlug}" onclick="event.stopPropagation()">
         <div>
           <div class="edit-block-label">Counters (pick 1–3)</div>
           <div class="edit-selects" id="selCounter_${heroSlug}"></div>
@@ -848,6 +946,154 @@ function relationItemsHTML(items, kind, heroName) {
       </span>`;
   }).join('');
 }
+
+
+// ── HERO DEEP-DIVE DRAWER ─────────────────────────────────────
+// Everything is computed from the same season-scoped public pool the cards
+// use, so the drawer never disagrees with the grid.
+function _drawerPool() {
+  return _activeSeason ? _publicMatches.filter(m => (m.season||'') === _activeSeason) : _publicMatches;
+}
+function _banNamesDD(m) {
+  return [...(m.blueBans||[]), ...(m.redBans||[])].map(b => typeof b === 'string' ? b : (b && b.name) || '').filter(Boolean);
+}
+function _inPicksDD(picks, name) { return (picks||[]).some(p => p && (p.name || p) === name); }
+
+function openHeroDrawer(name) {
+  const drawer = document.getElementById('heroDrawer');
+  const backdrop = document.getElementById('drawerBackdrop');
+  if (!drawer || !backdrop) return;
+  const pool = _drawerPool();
+  const total = pool.length || 1;
+
+  // Per-game rows for this hero
+  const rows = [];
+  pool.forEach(m => {
+    const inB = _inPicksDD(m.bluePicks, name), inR = _inPicksDD(m.redPicks, name);
+    if (!inB && !inR) return;
+    const side = inB ? 'blue' : 'red';
+    const picks = inB ? m.bluePicks : m.redPicks;
+    const entry = (picks||[]).find(p => p && (p.name || p) === name) || {};
+    const idx = (picks||[]).findIndex(p => p && (p.name || p) === name);
+    rows.push({ m, side, won: m.winner === side, lane: entry.lane || '', idx: idx >= 0 ? idx : null,
+      team: side === 'blue' ? (m.blueTeam || '?') : (m.redTeam || '?'),
+      opp:  side === 'blue' ? (m.redTeam  || '?') : (m.blueTeam || '?') });
+  });
+
+  const games = rows.length, wins = rows.filter(r => r.won).length;
+  const bans = pool.filter(m => _banNamesDD(m).includes(name)).length;
+  const wr = games ? Math.round(wins / games * 100) : 0;
+  const pr = Math.round(games / total * 100), br = Math.round(bans / total * 100);
+  const presence = Math.min(100, Math.round((games + bans) / total * 100));
+  const posVals = rows.map(r => r.idx).filter(i => i !== null);
+  const avgPos = posVals.length ? posVals.reduce((a,b) => a+b, 0) / posVals.length : null;
+  const posLabel = avgPos === null ? '—' : avgPos <= 1.3 ? 'P1 priority' : avgPos >= 2.8 ? 'Counter-pick tool' : 'Mid-draft';
+  const blue = rows.filter(r => r.side === 'blue'), red = rows.filter(r => r.side === 'red');
+  const sideCell = (arr, label) => {
+    const g = arr.length, w = arr.filter(r => r.won).length;
+    return `<div class="dd-stat"><div class="v">${g ? Math.round(w/g*100) + '%' : '—'}</div><div class="l">${label}</div><div class="s">${g}g</div></div>`;
+  };
+
+  // ALL maps — full table, sample size visible, <2g flagged
+  const mapAgg = {};
+  rows.forEach(r => { const mp = r.m.map || 'Unknown'; if (!mapAgg[mp]) mapAgg[mp] = { g:0, w:0 }; mapAgg[mp].g++; if (r.won) mapAgg[mp].w++; });
+  const mapRows = Object.entries(mapAgg).sort((a,b) => b[1].g - a[1].g).map(([mp, v]) => {
+    const w = Math.round(v.w / v.g * 100);
+    const cls = v.g < 2 ? 'dim' : w >= 60 ? 'high' : w >= 50 ? 'mid' : 'low';
+    return `<div class="dd-maprow"><span class="map-name" title="${escHtml(mp)}">${escHtml(mp)}</span>
+      <span class="map-bar"><span class="map-fill ${cls}" style="width:${w}%"></span></span>
+      <span class="map-wr ${cls}">${w}%</span><span class="map-g">${v.g}g${v.g < 2 ? ' ⚠' : ''}</span></div>`;
+  }).join('') || '<div class="dd-empty">No map data for this hero yet.</div>';
+
+  // Who plays it — comfort detection for target bans
+  const teamAgg = {};
+  rows.forEach(r => { if (!teamAgg[r.team]) teamAgg[r.team] = { g:0, w:0, lg:new Set() }; teamAgg[r.team].g++; if (r.won) teamAgg[r.team].w++; teamAgg[r.team].lg.add(r.m.league || ''); });
+  const teamRows = Object.entries(teamAgg).sort((a,b) => b[1].g - a[1].g).slice(0, 8).map(([t, v]) => {
+    const w = Math.round(v.w / v.g * 100);
+    const cls = w >= 60 ? 'high' : w >= 50 ? 'mid' : 'low';
+    return `<div class="dd-teamrow"><span class="t-name" title="${escHtml(t)}">${escHtml(t)}</span><span class="t-league">${escHtml([...v.lg].filter(Boolean).join(', '))}</span><span class="map-wr ${cls}">${w}%</span><span class="map-g">${v.g}g</span></div>`;
+  }).join('') || '<div class="dd-empty">—</div>';
+
+  // Season trend — across all seasons regardless of the page filter
+  const seasonAgg = {};
+  _publicMatches.forEach(m => {
+    const inB = _inPicksDD(m.bluePicks, name), inR = _inPicksDD(m.redPicks, name);
+    if (!inB && !inR) return;
+    const sk = m.season || '—';
+    if (!seasonAgg[sk]) seasonAgg[sk] = { g:0, w:0 };
+    seasonAgg[sk].g++;
+    if (m.winner === (inB ? 'blue' : 'red')) seasonAgg[sk].w++;
+  });
+  const seasonRows = Object.entries(seasonAgg)
+    .sort((a,b) => String(a[0]).localeCompare(String(b[0]), undefined, { numeric:true }))
+    .map(([sk, v]) => {
+      const w = Math.round(v.w / v.g * 100);
+      const cls = w >= 60 ? 'high' : w >= 50 ? 'mid' : 'low';
+      return `<div class="dd-maprow"><span class="map-name">${escHtml(sk)}</span><span class="map-bar"><span class="map-fill ${cls}" style="width:${w}%"></span></span><span class="map-wr ${cls}">${w}%</span><span class="map-g">${v.g}g</span></div>`;
+    }).join('');
+
+  // Recent games — newest first
+  const recent = [...rows]
+    .sort((a,b) => String(b.m.date||'').localeCompare(String(a.m.date||'')))
+    .slice(0, 8).map(r => {
+      const d = (r.m.date || '').slice(0, 10);
+      return `<div class="dd-gamerow ${r.won ? 'won' : 'lost'}">
+        <span class="g-res">${r.won ? 'W' : 'L'}</span>
+        <span class="g-vs">${escHtml(r.team)} vs ${escHtml(r.opp)}</span>
+        <span class="g-meta">${escHtml(r.lane || '?')}${r.m.map ? ' · ' + escHtml(r.m.map) : ''}</span>
+        <span class="g-date">${escHtml(r.m.league || '')}${d ? ' · ' + d : ''}</span>
+      </div>`;
+    }).join('') || '<div class="dd-empty">No games yet.</div>';
+
+  const counters  = (_countersMap[name]  || []).slice(0, 8);
+  const synergies = (_synergiesMap[name] || []).slice(0, 8);
+  const against   = (_draftedAgainst[name] || []).slice(0, 8);
+  const portraitURL = (typeof WDB !== 'undefined' && WDB.heroPortrait)
+    ? WDB.heroPortrait(name)
+    : 'portraits/' + name.replace(/[^A-Za-z0-9]/g, '') + '.png';
+  const hero = HEROES.find(x => x.name === name) || {};
+
+  drawer.innerHTML = `
+    <button class="dd-close" onclick="closeHeroDrawer()" aria-label="Close">✕</button>
+    <div class="dd-head">
+      <img class="dd-portrait" src="${portraitURL}" alt="" onerror="this.style.background='var(--surface3)';this.removeAttribute('src')">
+      <div>
+        <div class="dd-name">${escHtml(name)}</div>
+        <div class="dd-sub">${escHtml((hero.role || '—').toUpperCase())}${_heroLaneMap[name] ? ' · ' + escHtml(_heroLaneMap[name].toUpperCase()) : ''}</div>
+        <div class="dd-sub2">${games} game${games !== 1 ? 's' : ''} scouted · ${_activeSeason ? escHtml(_activeSeason) : 'all seasons'}</div>
+      </div>
+    </div>
+    <div class="dd-stats">
+      <div class="dd-stat"><div class="v">${wr}%</div><div class="l">Win rate</div><div class="s">${games}g</div></div>
+      <div class="dd-stat"><div class="v">${pr}%</div><div class="l">Pick rate</div><div class="s">${games} picks</div></div>
+      <div class="dd-stat"><div class="v">${br}%</div><div class="l">Ban rate</div><div class="s">${bans} bans</div></div>
+      <div class="dd-stat"><div class="v">${presence}%</div><div class="l">Presence</div><div class="s">pick + ban</div></div>
+      ${sideCell(blue, 'Blue side')}
+      ${sideCell(red, 'Red side')}
+      <div class="dd-stat"><div class="v">${avgPos === null ? '—' : avgPos.toFixed(1)}</div><div class="l">Avg pick pos</div><div class="s">${posLabel}</div></div>
+      <div class="dd-stat"><div class="v">${Object.keys(teamAgg).length}</div><div class="l">Teams run it</div><div class="s">in scout data</div></div>
+    </div>
+    <div class="dd-section"><div class="dd-title">Map performance</div>${mapRows}</div>
+    <div class="dd-section"><div class="dd-title">Who plays it</div>${teamRows}</div>
+    <div class="dd-section"><div class="dd-title">Countered by</div><div class="relation-row">${relationItemsHTML(counters, 'counter', name)}</div></div>
+    <div class="dd-section"><div class="dd-title">Best with</div><div class="relation-row">${relationItemsHTML(synergies, 'synergy', name)}</div></div>
+    <div class="dd-section"><div class="dd-title">Drafted against it</div><div class="relation-row">${relationItemsHTML(against, 'response', name)}</div></div>
+    ${seasonRows ? `<div class="dd-section"><div class="dd-title">Season trend</div>${seasonRows}</div>` : ''}
+    <div class="dd-section"><div class="dd-title">Recent games</div>${recent}</div>`;
+
+  drawer.classList.add('open');
+  backdrop.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  try { history.replaceState(null, '', '#' + encodeURIComponent(name)); } catch(_) {}
+}
+
+function closeHeroDrawer() {
+  document.getElementById('heroDrawer')?.classList.remove('open');
+  document.getElementById('drawerBackdrop')?.classList.remove('open');
+  document.body.style.overflow = '';
+  try { history.replaceState(null, '', location.pathname + location.search); } catch(_) {}
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeHeroDrawer(); });
 
 // ── Export PDF ────────────────────────────────────────────────
 // Browser-native print is the right tool for the Heroes grid because:
@@ -991,5 +1237,7 @@ function escJs(s) {
   await loadAll();
 })();
 </script>
+<div class="drawer-backdrop" id="drawerBackdrop" onclick="closeHeroDrawer()"></div>
+<aside class="hero-drawer" id="heroDrawer" aria-label="Hero deep dive"></aside>
 </body>
 </html>
