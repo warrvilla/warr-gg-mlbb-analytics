@@ -1253,11 +1253,11 @@ body::after {
   <div class="sidebar">
     <div class="sidebar-section">Views</div>
     <div class="sidebar-inner-tabs">
-    <button class="sidebar-btn active" id="sb-matches" onclick="showView('matches')">
+    <button class="sidebar-btn" id="sb-matches" onclick="showView('matches')">
       <span>Matches</span>
       <span class="sidebar-count" id="sc-matches">0</span>
     </button>
-    <button class="sidebar-btn" id="sb-teams" onclick="showView('teams')">
+    <button class="sidebar-btn active" id="sb-teams" onclick="showView('teams')">
       <span>Teams</span>
       <span class="sidebar-count" id="sc-teams">0</span>
     </button>
@@ -1850,7 +1850,7 @@ function renderCurrentView() {
 // ══════════════════════════════════════════════════════════════
 // UI STATE
 // ══════════════════════════════════════════════════════════════
-let currentView = 'matches';
+let currentView = 'teams';
 let leagueFilter = 'all';
 let seasonFilter = 'all';
 let matchSearch = '';
@@ -1901,7 +1901,7 @@ loadFromSupabase().catch(() => {});
 DB_MODULE.load();
 DB_MODULE.rebuildTeams();
 DB_MODULE.save();
-showView('matches');
+showView('teams');
 document.getElementById('sb-all').classList.add('active');
 
 // ══════════════════════════════════════════════════════════════
@@ -2113,7 +2113,11 @@ function renderMatchListBody() {
     // The old behavior (undefined → collapsed) made new matches appear to
     // "disappear" — you'd save a Playoffs/Day3/BO5 game and see only the
     // series header because the brand-new sk had no entry in _seriesCollapsed.
-    const collapsed = _seriesCollapsed[sk] === true;
+    // On "All Leagues" the list is huge — collapse series by default so it's
+    // scannable; a specific-league view stays expanded for quick reading.
+    const collapsed = leagueFilter === 'all'
+      ? _seriesCollapsed[sk] !== false
+      : _seriesCollapsed[sk] === true;
     const lc = LEAGUE_CSS[s.league] || 'lg-other';
     const d = new Date(s.date);
     const day = isNaN(d.getTime()) ? '?' : d.getDate();
@@ -2253,7 +2257,12 @@ function openNewMatch() {
   draftHeroSearch = '';
   draftFilterMode = 'lane';
   // Pre-pick the user's most recently filtered league when possible — feels like a smart default.
-  const seedLeague = (leagueFilter !== 'all' && LEAGUES.includes(leagueFilter)) ? leagueFilter : 'MPL PH';
+  const _isAdmNM = typeof WAdmin!=='undefined' && WAdmin.isAdmin && WAdmin.isAdmin();
+  const _lockedNM = (typeof WAdmin!=='undefined' && WAdmin.LOCKED_LEAGUES) ? WAdmin.LOCKED_LEAGUES : [];
+  const _defaultLeague = _isAdmNM ? 'MPL PH' : 'Scrims';
+  let seedLeague = (leagueFilter !== 'all' && LEAGUES.includes(leagueFilter)) ? leagueFilter : _defaultLeague;
+  // Non-admins can't seed an official league they can't save to.
+  if (!_isAdmNM && _lockedNM.includes(seedLeague)) seedLeague = 'Scrims';
   // Pre-fill the season from that league's admin-marked current_season.
   // Each league has its OWN current_season — MPL PH could be S17 while MPL ID is S15.
   const seedSeason = LEAGUE_CURRENT_SEASON[seedLeague] || '';
@@ -2345,7 +2354,13 @@ function _openMatchModal(m) {
             <div class="form-group">
               <label class="form-label">League</label>
               <select class="form-select" id="mf-league" onchange="_onLeagueChangedInModal(this.value)">
-                ${LEAGUES.map(l=>`<option value="${l}" ${m.league===l?'selected':''}>${l}</option>`).join('')}
+                ${(function(){
+                  const isAdm = typeof WAdmin!=='undefined' && WAdmin.isAdmin && WAdmin.isAdmin();
+                  const locked = (typeof WAdmin!=='undefined' && WAdmin.LOCKED_LEAGUES) ? WAdmin.LOCKED_LEAGUES : [];
+                  // Non-admins may only log their own non-official matches (Scrims / Other / AI Battle).
+                  const opts = isAdm ? LEAGUES : LEAGUES.filter(l=>!locked.includes(l));
+                  return opts.map(l=>`<option value="${l}" ${m.league===l?'selected':''}>${l}</option>`).join('');
+                })()}
               </select>
               <div id="leagueAdminWarning" style="display:none;margin-top:5px;font-size:10px;color:var(--gold);background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:6px;padding:5px 10px;">
                 🔒 Official competition data — only the Warr.GG admin can save matches for this league.

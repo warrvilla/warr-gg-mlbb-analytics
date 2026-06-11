@@ -185,15 +185,18 @@ const WAuth = {
     if (this._user) {
       const name     = this.getDisplayName();
       const teamTag  = this._profile?.team_name ? `<span class="wauth-team">${this._profile.team_name}</span>` : '';
+      const adminLink = (typeof WAdmin !== 'undefined' && WAdmin.isAdmin && WAdmin.isAdmin())
+        ? `<a class="wauth-admin" href="/admin" title="Admin panel">Admin</a>` : '';
       el.innerHTML = `
         <div class="wauth-chip">
           <div class="wauth-dot"></div>
           <span class="wauth-name" title="${this._user.email}">${name}</span>
           ${teamTag}
-          <button class="wauth-out" onclick="WAuth.signOut().then(()=>location.href='auth.html')">Sign Out</button>
+          ${adminLink}
+          <button class="wauth-out" onclick="if(confirm('Sign out of Warr.GG?'))WAuth.signOut().then(()=>location.href='/auth')">Sign Out</button>
         </div>`;
     } else {
-      el.innerHTML = `<a href="auth.html" class="wauth-signin">Sign In</a>`;
+      el.innerHTML = `<a href="/auth" class="wauth-signin">Sign In</a>`;
     }
   },
 };

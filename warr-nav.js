@@ -112,6 +112,8 @@
       background: rgba(255,255,255,0.04); transition: all .15s ease; text-decoration: none;
     }
     nav.topnav .nav-profile-btn:hover { color: #A888CC; border-color: rgba(168,136,204,0.4); background: rgba(168,136,204,0.1); }
+    .wauth-admin { font-size: 11px; font-weight: 700; color: #C89050; text-decoration: none; padding: 3px 9px; border-radius: 7px; border: 0.5px solid rgba(200,144,80,.35); background: rgba(200,144,80,.08); margin-right: 2px; }
+    .wauth-admin:hover { background: rgba(200,144,80,.18); }
     nav.topnav .theme-switcher { display: inline-flex; gap: 2px; padding: 3px; border-radius: 8px; background: rgba(255,255,255,.04); }
     nav.topnav .theme-btn {
       width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
