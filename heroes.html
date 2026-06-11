@@ -339,15 +339,18 @@
 }
 .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
 .hero-drawer {
-  position: fixed; top: 0; right: 0; bottom: 0; width: min(480px, 100vw);
+  position: fixed; top: 50%; left: 50%; width: min(560px, calc(100vw - 24px));
+  max-height: min(86vh, 900px);
   background: var(--glass);
   backdrop-filter: var(--blur-lg, blur(24px)); -webkit-backdrop-filter: var(--blur-lg, blur(24px));
-  border-left: 0.5px solid var(--glass-border);
-  box-shadow: -24px 0 60px rgba(0,0,0,0.45);
-  transform: translateX(102%); transition: transform .3s cubic-bezier(.32,.72,.27,1);
-  z-index: 81; overflow-y: auto; padding: 22px 22px 40px;
+  border: 0.5px solid var(--glass-border);
+  border-radius: var(--r3, 20px);
+  box-shadow: 0 32px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.03) inset;
+  transform: translate(-50%, -50%) scale(0.96); opacity: 0; pointer-events: none;
+  transition: transform .25s cubic-bezier(.32,.72,.27,1), opacity .2s ease;
+  z-index: 81; overflow-y: auto; padding: 22px 22px 32px;
 }
-.hero-drawer.open { transform: translateX(0); }
+.hero-drawer.open { transform: translate(-50%, -50%) scale(1); opacity: 1; pointer-events: auto; }
 .dd-close {
   position: absolute; top: 14px; right: 14px; width: 28px; height: 28px;
   border-radius: var(--pill); border: 0.5px solid var(--glass-border);
