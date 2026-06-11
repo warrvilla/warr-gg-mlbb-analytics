@@ -698,7 +698,14 @@ body { background: var(--bg); min-height: 100vh; }
     <!-- ADMIN: AI ENGINE KEY — moved here from AI Battle setup -->
     <div class="admin-mgmt-card" id="adminApiKeyCard">
       <h4>🔑 Admin — AI Engine Key</h4>
-      <div class="mgmt-sub">Anthropic API key powering Claude-backed draft reasoning. Stored for the site via Supabase. <strong>Preferred setup:</strong> put the key in Netlify env var <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:10px;">ANTHROPIC_API_KEY</code> (server-side proxy — key never reaches browsers); this field is the legacy/local fallback.</div>
+      <div class="mgmt-sub">
+        <strong>Where the real key goes (one-time):</strong> Netlify → Site configuration → Environment variables → add
+        <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:10px;">ANTHROPIC_API_KEY</code>
+        → Deploys → Trigger deploy. That key lives server-side, powers every user through the secure proxy, and never reaches any browser.<br><br>
+        The field below is an <strong>admin-only fallback</strong> for your own browser (after migration
+        <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;font-size:10px;">005_site_config_admin_only.sql</code>,
+        only your account can read what's stored here).
+      </div>
       <div class="admin-mgmt-form">
         <input class="admin-mgmt-input" id="profApiKeyInput" type="password" placeholder="sk-ant-..." style="flex:1;" />
         <button class="admin-mgmt-btn" onclick="profSaveApiKey()">Save Key</button>
