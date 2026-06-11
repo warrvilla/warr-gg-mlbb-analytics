@@ -68,6 +68,21 @@ FREE_MONTHLY_CALLS, ADMIN_EMAIL.
   load of page scripts + fixture scout data (sim_harness, pvp, series,
   leagues, profile, draftbook tests).
 
+## Late-session additions (after the main rewrite)
+
+- Signup collects IGN / phone / birthday (required) → auth metadata →
+  profile on first-login setup. Migration 007.
+- Admin: click a user's email → details modal (contact, age, plan,
+  actions). Search matches IGN + phone digits.
+- Admin: 📊 Audience Analytics board (active 7d/30d via last_seen_at
+  heartbeat — migration 008, MRR, age demographics, signup trend,
+  Copy Sponsor Snapshot button).
+- Supabase: signups enabled + email confirmation ON (owner did this).
+- Migrations status: 004–006 RUN; **007 & 008 pending** as of session end.
+- Owner's next session starts with: run 007+008, push, full stranger-
+  account test (signup → confirm email → draft → 3 analyses → cap →
+  grant Pro → expiry shows → delete).
+
 ## Known leftovers / nice-to-haves
 
 - XSS pass on older pages rendering user text via innerHTML (moderate).
