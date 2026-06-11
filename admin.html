@@ -571,7 +571,20 @@ async function toggleBan(userId) {
 async function deleteUserProfile(userId) {
   const u = _allUsers.find(x => x.id === userId);
   const email = u ? u.email : userId;
-  if (!confirm(`Delete profile for ${email}?\n\nThis removes their profile row. To fully delete their auth account, use the Hard-Delete SQL below.`)) return;
+  if (!confirm(`DELETE ACCOUNT for ${email}?\n\nThis permanently removes their login AND profile. Cannot be undone.`)) return;
+  // Full deletion (auth account + profile) via the service-role endpoint
+  const viaApi = await _adminApi({ action: 'delete_user', userId });
+  if (viaApi && viaApi.ok) {
+    _allUsers = _allUsers.filter(x => x.id !== userId);
+    filterUsers(); renderPending(_allUsers); updateStats();
+    toast('Account fully deleted ✓', 'success');
+    return;
+  }
+  if (viaApi && viaApi.error && viaApi.error !== 'NOT_CONFIGURED') {
+    toast('Delete failed: ' + (viaApi.detail || viaApi.error), 'error');
+    return;
+  }
+  if (!confirm('Service endpoint not configured — delete the PROFILE ROW only?\n(Full account deletion needs SUPABASE_SERVICE_ROLE_KEY in Netlify.)')) return;
   try {
     await WAuth.adminDeleteProfile(userId);
     _allUsers = _allUsers.filter(x => x.id !== userId);
@@ -664,6 +677,7 @@ function renderUsersTable() {
         <button onclick="openGrantPlanModal('${u.id}')" style="padding:5px 12px;border-radius:7px;font-size:11px;font-weight:700;border:1px solid ${planColor}44;background:transparent;color:${planColor};cursor:pointer;white-space:nowrap;" title="Click to grant a plan">
           ${planLabel}
         </button>
+        ${u.plan_expires_at && plan !== 'free' ? `<div style="font-size:8.5px;color:${new Date(u.plan_expires_at) < new Date() ? 'var(--red)' : 'var(--text3)'};margin-top:2px;">${new Date(u.plan_expires_at) < new Date() ? 'EXPIRED' : 'until ' + fmtDate(u.plan_expires_at)}</div>` : ''}
       </td>
       <td style="text-align:right;">${u.tokens_used || 0}</td>
       <td>${fmtDate(u.created_at)}</td>
@@ -835,8 +849,47 @@ function closeGrantPlanModal() {
 async function confirmGrantPlan(plan) {
   if (!_grantPlanUserId) return;
   const userId = _grantPlanUserId;
+  let months = 0;
+  if (plan !== 'free') {
+    const inp = prompt('Grant ' + plan.toUpperCase() + ' for how many months? (auto-downgrades to Free when it lapses)', '1');
+    if (inp === null) return; // cancelled
+    months = Math.max(1, Math.min(24, parseInt(inp, 10) || 1));
+  }
   closeGrantPlanModal();
-  await changePlan(userId, plan);
+  // Prefer the service-role endpoint (writes expiry, bypasses nothing it
+  // shouldn't); falls back to the direct client update if not configured.
+  const viaApi = await _adminApi({ action: 'set_plan', userId, plan, months });
+  if (viaApi && viaApi.ok) {
+    const u = _allUsers.find(x => x.id === userId);
+    if (u) { u.plan = plan; u.plan_expires_at = viaApi.plan_expires_at; }
+    updateStats(); renderUsersTable();
+    toast(`Plan set: ${plan}${viaApi.plan_expires_at ? ' until ' + fmtDate(viaApi.plan_expires_at) : ''} ✓`, 'success');
+    return;
+  }
+  // Fallback (no service key yet): plan only, expiry via direct update
+  const expires = plan === 'free' ? null : new Date(Date.now() + months * 30 * 864e5).toISOString();
+  try {
+    await WAuth.adminUpdateProfile(userId, { plan, plan_expires_at: expires });
+    const u = _allUsers.find(x => x.id === userId);
+    if (u) { u.plan = plan; u.plan_expires_at = expires; }
+    updateStats(); renderUsersTable();
+    toast(`Plan set: ${plan}${expires ? ' until ' + fmtDate(expires) : ''} ✓`, 'success');
+  } catch(e) { toast('Error: ' + (e.message || e), 'error'); }
+}
+
+// ── service-role admin endpoint helper ──
+async function _adminApi(payload) {
+  try {
+    const sess = await WAuth._sb().auth.getSession();
+    const token = sess?.data?.session?.access_token || '';
+    const r = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, 'x-supabase-anon': WARR_CONFIG.supabaseAnonKey },
+      body: JSON.stringify(payload),
+    });
+    if (r.status === 503 || r.status === 404) return null; // not configured — use fallback
+    return await r.json();
+  } catch { return null; }
 }
 
 // ── Extra admin management ──

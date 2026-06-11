@@ -73,10 +73,16 @@ export default async (req) => {
   const isAdmin = userEmail && userEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase();
   let plan = 'free';
   try {
-    const pr = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=plan`, {
+    const pr = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=plan,plan_expires_at,is_banned`, {
       headers: { apikey: anon, authorization: `Bearer ${token}` },
     });
-    if (pr.ok) { const rows = await pr.json(); plan = (rows && rows[0] && rows[0].plan) || 'free'; }
+    if (pr.ok) {
+      const row = ((await pr.json()) || [])[0] || {};
+      if (row.is_banned) return Response.json({ error: 'BANNED' }, { status: 403, headers: _cors() });
+      plan = row.plan || 'free';
+      // AUTO-EXPIRY: a lapsed paid plan is free — no cron, no manual step.
+      if (plan !== 'free' && row.plan_expires_at && new Date(row.plan_expires_at) < new Date()) plan = 'free';
+    }
   } catch {}
   const isPaid = isAdmin || plan === 'pro' || plan === 'team';
 

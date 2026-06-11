@@ -586,7 +586,7 @@ body { background: var(--bg); min-height: 100vh; }
         <div class="plan-price" style="color:var(--gold);">₱4,999<span>/mo</span></div>
         <ul class="plan-features">
           <li><strong>1,000 pooled analyses</strong> / month</li>
-          <li>Pro access for your whole staff (up to 6 accounts)</li>
+          <li>Pro access for 2 accounts — coach + analyst</li>
           <li>Priority feature requests — your workflow shapes the tool</li>
           <li>Direct line to the developer</li>
         </ul>
@@ -1422,8 +1422,11 @@ function renderProfile() {
   // Tokens
   const sub = (typeof WDB !== 'undefined' && WDB.getSubscription) ? WDB.getSubscription() : { plan, tokensUsed: 0 };
   // Sync plan from Supabase into local sub if different
-  if (sp.plan && sub.plan !== sp.plan) {
-    sub.plan = sp.plan;
+  // AUTO-EXPIRY: lapsed paid plan reads as free everywhere on the client.
+  let _effPlan = sp.plan;
+  if (_effPlan && _effPlan !== 'free' && sp.plan_expires_at && new Date(sp.plan_expires_at) < new Date()) _effPlan = 'free';
+  if (_effPlan && sub.plan !== _effPlan) {
+    sub.plan = _effPlan;
     if (typeof WDB !== 'undefined' && WDB.saveSubscription) WDB.saveSubscription(sub);
   }
   renderTokens(sub, plan);
