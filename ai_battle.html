@@ -48,7 +48,7 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);heigh
 .mem-chip{font-size:9px;padding:2px 8px;border-radius:10px;background:var(--ai-dim);border:1px solid var(--ai-border);color:var(--ai);font-weight:600;letter-spacing:.3px;}
 
 /* SETUP */
-#setup{max-width:1180px;margin:10px auto;padding:0 clamp(12px, 4vw, 20px);width:100%;}
+#setup{max-width:1180px;margin:0 auto;padding:30px clamp(12px, 4vw, 20px) 12px;width:100%;}
 .setup-hd{text-align:center;margin-bottom:14px;}
 .setup-title{font-family:var(--font-head);font-size:23px;font-weight:700;letter-spacing:0.18em;color:var(--text);text-transform:uppercase;}
 .setup-title span{color:var(--purple);}
@@ -770,6 +770,9 @@ input:focus, .search-input:focus {
 .team-panel,.pool-section{background:var(--glass) !important;backdrop-filter:var(--blur-sm);-webkit-backdrop-filter:var(--blur-sm);
   box-shadow:0 8px 32px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.04);}
 .logbar,#breakdownPanel{background:var(--glass) !important;backdrop-filter:var(--blur-sm);-webkit-backdrop-filter:var(--blur-sm);}
+
+@media (max-height: 880px){ #setup{padding-top:20px;} }
+@media (max-height: 740px){ #setup{padding-top:14px;} }
 </style>
 <script src="warr-theme.js"></script>
 </head>
