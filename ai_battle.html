@@ -1026,6 +1026,10 @@ async function callClaude(body){
         body:JSON.stringify(body),
       });
       if(pr.ok)return await pr.json();
+      if(pr.status===429){
+        const j=await pr.json().catch(()=>({}));
+        throw new Error(j.detail||'AI limit reached — the local Draft Brain takes over.');
+      }
       if(pr.status!==503&&pr.status!==404)throw new Error('PROXY_'+pr.status);
       // 503/404 → proxy not deployed/configured yet → legacy fallback below
     }

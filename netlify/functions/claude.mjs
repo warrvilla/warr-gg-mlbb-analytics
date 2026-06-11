@@ -25,7 +25,9 @@ const MAX_TOKENS_CAP = 1200;
 const BUDGET_PHP   = Number(process.env.MONTHLY_BUDGET_PHP || 5000);
 const PHP_PER_USD  = Number(process.env.PHP_PER_USD || 59);
 const BUDGET_USD   = BUDGET_PHP / PHP_PER_USD;          // ≈ $85 at default FX
-const USER_DAILY_CALLS = Number(process.env.USER_DAILY_CALLS || 60); // per-account/day
+const USER_DAILY_CALLS = Number(process.env.USER_DAILY_CALLS || 60);   // paid accounts, per day
+const FREE_MONTHLY_CALLS = Number(process.env.FREE_MONTHLY_CALLS || 8); // free accounts, per MONTH (≈2 analyses + retries)
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'wrrenvillapando@gmail.com';
 // claude-sonnet pricing (USD per 1M tokens)
 const PRICE_IN_PER_M  = 3;
 const PRICE_OUT_PER_M = 15;
@@ -53,29 +55,48 @@ export default async (req) => {
   if (!token || !anon) {
     return Response.json({ error: 'AUTH_REQUIRED' }, { status: 401, headers: _cors() });
   }
-  let userId = 'anon';
+  let userId = 'anon', userEmail = '';
   try {
     const v = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
       headers: { apikey: anon, authorization: `Bearer ${token}` },
     });
     if (!v.ok) return Response.json({ error: 'INVALID_SESSION' }, { status: 401, headers: _cors() });
-    try { userId = (await v.json())?.id || 'anon'; } catch {}
+    try { const u = await v.json(); userId = u?.id || 'anon'; userEmail = u?.email || ''; } catch {}
   } catch {
     return Response.json({ error: 'AUTH_CHECK_FAILED' }, { status: 401, headers: _cors() });
   }
+
+  // ── SERVER-SIDE PLAN CHECK — the client's local counter is UX only.
+  // Plan comes from the profiles table via the user's own token (RLS lets
+  // them read only their own row; migration 004 stops them changing it).
+  const isAdmin = userEmail && userEmail.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  let plan = 'free';
+  try {
+    const pr = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=plan`, {
+      headers: { apikey: anon, authorization: `Bearer ${token}` },
+    });
+    if (pr.ok) { const rows = await pr.json(); plan = (rows && rows[0] && rows[0].plan) || 'free'; }
+  } catch {}
+  const isPaid = isAdmin || plan === 'pro' || plan === 'team';
 
   // ── BUDGET + PER-USER GUARDS (fail-open if blob store hiccups) ──
   let store = null, monthKey = '', spentUSD = 0, userKey = '', userCalls = 0;
   try {
     store = getStore('warr-api-usage');
     monthKey = 'usd:' + new Date().toISOString().slice(0, 7);          // usd:2026-06
-    userKey  = 'calls:' + new Date().toISOString().slice(0, 10) + ':' + userId;
+    // Free accounts burn a MONTHLY allowance; paid accounts a daily one.
+    userKey = isPaid
+      ? 'calls:' + new Date().toISOString().slice(0, 10) + ':' + userId
+      : 'fcalls:' + new Date().toISOString().slice(0, 7) + ':' + userId;
     [spentUSD, userCalls] = await Promise.all([_readNum(store, monthKey), _readNum(store, userKey)]);
     if (spentUSD >= BUDGET_USD) {
       return Response.json({ error: 'BUDGET_EXCEEDED', detail: 'Monthly AI budget reached — the local Draft Brain takes over until next month.' }, { status: 429, headers: _cors() });
     }
-    if (userCalls >= USER_DAILY_CALLS) {
+    if (!isAdmin && isPaid && userCalls >= USER_DAILY_CALLS) {
       return Response.json({ error: 'USER_DAILY_CAP', detail: 'Daily AI limit reached for this account — back tomorrow.' }, { status: 429, headers: _cors() });
+    }
+    if (!isPaid && userCalls >= FREE_MONTHLY_CALLS) {
+      return Response.json({ error: 'FREE_PLAN_CAP', detail: 'Free plan AI allowance used for this month — upgrade to Pro (₱10/mo) in Profile for more.' }, { status: 429, headers: _cors() });
     }
   } catch { /* blobs unavailable — allow the request, never break the product */ }
 
