@@ -288,6 +288,11 @@ table.users-table {
 
     <!-- ALL USERS -->
     <div class="admin-card">
+      <div class="admin-section-title">📊 Audience Analytics <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:8px;">the sponsor-pitch numbers</span></div>
+      <div id="analyticsBoard" style="margin-bottom:26px;">
+        <div class="empty-state">Loading analytics…</div>
+      </div>
+
       <div class="admin-section-title">
         All Users
         <span class="badge-count" id="usersCount">0</span>
@@ -731,6 +736,95 @@ function updateStats() {
   document.getElementById('statPending').textContent = _allUsers.filter(u => u.team_status === 'pending').length;
   document.getElementById('statPro').textContent = _allUsers.filter(u => u.plan === 'pro' || u.plan === 'team').length;
   document.getElementById('statBanned').textContent = _allUsers.filter(u => u.is_banned).length;
+  try { renderAnalytics(); } catch(e) { console.warn('analytics', e); }
+}
+
+// ═══════ AUDIENCE ANALYTICS — the sponsor-pitch board ═══════
+function _ageOf(b) {
+  if (!b) return null;
+  const d = new Date(b); if (isNaN(d)) return null;
+  const t = new Date();
+  let a = t.getFullYear() - d.getFullYear();
+  if (t < new Date(t.getFullYear(), d.getMonth(), d.getDate())) a--;
+  return (a >= 5 && a <= 90) ? a : null;
+}
+function _bar(label, n, max, color) {
+  const w = max ? Math.round(n / max * 100) : 0;
+  return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px;">
+    <span style="width:86px;color:var(--text3);flex-shrink:0;">${label}</span>
+    <span style="flex:1;height:7px;border-radius:99px;background:var(--surface3);overflow:hidden;"><span style="display:block;height:100%;width:${w}%;border-radius:99px;background:${color};"></span></span>
+    <span style="width:34px;text-align:right;color:var(--text);font-weight:600;">${n}</span>
+  </div>`;
+}
+function _analyticsData() {
+  const now = Date.now(), DAY = 864e5;
+  const users = _allUsers.filter(u => !u.is_banned);
+  const inDays = (iso, d) => iso && (now - new Date(iso).getTime()) <= d * DAY;
+  const active7  = users.filter(u => inDays(u.last_seen_at, 7)).length;
+  const active30 = users.filter(u => inDays(u.last_seen_at, 30)).length;
+  const new30    = users.filter(u => inDays(u.created_at, 30)).length;
+  const paidUsers = users.filter(u => (u.plan === 'pro' || u.plan === 'team') && !(u.plan_expires_at && new Date(u.plan_expires_at) < new Date()));
+  const mrr = paidUsers.reduce((s, u) => s + (u.plan === 'team' ? 4999 : 199), 0);
+  const ages = users.map(u => _ageOf(u.birthday)).filter(a => a !== null);
+  const buckets = { '13–17': 0, '18–24': 0, '25–34': 0, '35+': 0 };
+  ages.forEach(a => { if (a < 18) buckets['13–17']++; else if (a < 25) buckets['18–24']++; else if (a < 35) buckets['25–34']++; else buckets['35+']++; });
+  const medianAge = ages.length ? ages.sort((x, y) => x - y)[Math.floor(ages.length / 2)] : null;
+  const analyses = users.reduce((s, u) => s + (u.tokens_used || 0), 0);
+  // weekly signups, last 8 weeks
+  const weeks = Array.from({ length: 8 }, (_, i) => users.filter(u => {
+    if (!u.created_at) return false;
+    const age = (now - new Date(u.created_at).getTime()) / DAY;
+    return age >= i * 7 && age < (i + 1) * 7;
+  }).length).reverse();
+  return { users: users.length, active7, active30, new30, paid: paidUsers.length, mrr, buckets, ages: ages.length, medianAge, analyses, weeks };
+}
+function renderAnalytics() {
+  const el = document.getElementById('analyticsBoard');
+  if (!el) return;
+  const d = _analyticsData();
+  const maxB = Math.max(1, ...Object.values(d.buckets));
+  const maxW = Math.max(1, ...d.weeks);
+  const chip = (v, l, c) => `<div class="stat-chip"><div class="stat-chip-val" style="${c ? 'color:' + c : ''}">${v}</div><div class="stat-chip-label">${l}</div></div>`;
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px;">
+      ${chip(d.users, 'Registered users')}
+      ${chip(d.active7, 'Active · 7 days', 'var(--green)')}
+      ${chip(d.active30, 'Active · 30 days')}
+      ${chip(d.new30, 'New · 30 days', 'var(--blue)')}
+      ${chip(d.paid, 'Paying users', 'var(--purple)')}
+      ${chip('₱' + d.mrr.toLocaleString(), 'MRR', 'var(--gold)')}
+      ${chip(d.analyses.toLocaleString(), 'AI analyses run')}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);margin-bottom:6px;">AGE DEMOGRAPHICS${d.medianAge ? ` · median ${d.medianAge}` : ''} · ${d.ages}/${d.users} provided</div>
+        ${Object.entries(d.buckets).map(([l, n]) => _bar(l, n, maxB, 'linear-gradient(90deg,#A888CC,#5E5CE6)')).join('')}
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);margin-bottom:6px;">SIGNUPS · LAST 8 WEEKS</div>
+        <div style="display:flex;align-items:flex-end;gap:6px;height:84px;padding:4px 0;">
+          ${d.weeks.map(n => `<div title="${n} signups" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:9px;color:var(--text3);">${n || ''}</span><span style="width:100%;border-radius:4px 4px 0 0;background:linear-gradient(180deg,#5E5CE6,#A888CC);height:${Math.max(3, Math.round(n / maxW * 60))}px;"></span></div>`).join('')}
+        </div>
+      </div>
+    </div>
+    <button class="btn-approve" style="margin-top:12px;" onclick="copySponsorSnapshot()">📋 Copy Sponsor Snapshot</button>`;
+}
+function copySponsorSnapshot() {
+  const d = _analyticsData();
+  const txt = [
+    'WARR.GG — AUDIENCE SNAPSHOT (' + new Date().toISOString().slice(0, 10) + ')',
+    '',
+    `Registered users: ${d.users}`,
+    `Active (7d / 30d): ${d.active7} / ${d.active30}`,
+    `New users (30d): ${d.new30}`,
+    `AI draft analyses run: ${d.analyses.toLocaleString()}`,
+    d.medianAge ? `Median age: ${d.medianAge} (${Object.entries(d.buckets).map(([l, n]) => l + ': ' + n).join(', ')})` : 'Age data: collecting',
+    '',
+    'Audience: MLBB coaches, analysts & competitive players (MPL PH focus)',
+    'Placements available: homepage hero banner, draft arena, scouting reports',
+    'Contact: wrrenvillapando@gmail.com',
+  ].join('\n');
+  navigator.clipboard.writeText(txt).then(() => toast('Sponsor snapshot copied ✓', 'success'), () => toast('Copy failed', 'error'));
 }
 
 // ── Hard-delete SQL ──

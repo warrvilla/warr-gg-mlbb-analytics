@@ -1598,6 +1598,24 @@ WAdmin.loadExtraAdmins = async function() {
   };
 })();
 
+// ── ACTIVITY HEARTBEAT — powers Active 7d/30d in admin analytics ──
+// Throttled to one write per 6 hours per browser; silent on any failure.
+(function heartbeat() {
+  try {
+    const last = Number(localStorage.getItem('warr_last_seen_ping') || 0);
+    if (Date.now() - last < 6 * 3600e3) return;
+    setTimeout(async () => {
+      try {
+        const { data } = await _sbClient.auth.getUser();
+        const uid = data?.user?.id;
+        if (!uid) return;
+        await _sbClient.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', uid);
+        localStorage.setItem('warr_last_seen_ping', String(Date.now()));
+      } catch(_) {}
+    }, 2500); // after page settles
+  } catch(_) {}
+})();
+
 // ═══════════════════════════════════════════════════════════════
 // ADMIN API KEY MANAGEMENT
 // ═══════════════════════════════════════════════════════════════
