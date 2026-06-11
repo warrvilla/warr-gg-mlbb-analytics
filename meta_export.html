@@ -204,6 +204,7 @@
     <button class="filter-badge" onclick="setFilter('MPL ID',this)">MPL ID</button>
     <button class="filter-badge" onclick="setFilter('MPL SG',this)">MPL SG</button>
     <button class="filter-badge" onclick="setFilter('MPL KH',this)">MPL KH</button>
+    <span id="customLeagueBadges" style="display:contents;"></span>
     <button class="filter-badge" onclick="setFilter('MSC',this)">MSC</button>
     <button class="filter-badge" onclick="setFilter('M-Series',this)">M-Series</button>
     <button class="filter-badge" onclick="setFilter('Scrims',this)">Scrims</button>
@@ -865,6 +866,20 @@ init();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="warr-lib.js"></script>
+<script>
+// Admin-created leagues appear as filter badges automatically.
+(function(){
+  function inject(){
+    const slot=document.getElementById('customLeagueBadges');
+    if(!slot||typeof WDB==='undefined'||!WDB.customLeagues)return;
+    const have=new Set([...document.querySelectorAll('.filter-badge')].map(b=>b.textContent.trim()));
+    slot.innerHTML=WDB.customLeagues.map(r=>r.name).filter(n=>n&&!have.has(n))
+      .map(n=>`<button class="filter-badge" onclick="setFilter('${n.replace(/'/g,"\\'")}',this)">${n}</button>`).join('');
+  }
+  window.addEventListener('warr-leagues-ready',inject);
+  if(WDB&&WDB.initLeagues)WDB.initLeagues().then(inject).catch(()=>{});
+})();
+</script>
 <script src="warr-nav.js"></script>
 </body>
 </html>

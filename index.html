@@ -773,11 +773,6 @@ body {
           </div>
           <div class="region-tabs" id="metaRegionTabs">
             <button class="region-tab active" data-region="all">Global</button>
-            <button class="region-tab" data-region="MPL PH">PH</button>
-            <button class="region-tab" data-region="MPL ID">ID</button>
-            <button class="region-tab" data-region="MPL MY">MY</button>
-            <button class="region-tab" data-region="MPL SG">SG</button>
-            <button class="region-tab" data-region="MPL KH">KH</button>
           </div>
         </div>
         <div class="lane-tabs" id="metaLaneTabs">
@@ -934,10 +929,23 @@ let _metaRegion = 'all';
 let _metaLane = 'EXP';
 let _metaMatchesCache = null;
 
+function renderMetaRegionTabs() {
+  const wrap = document.getElementById('metaRegionTabs');
+  if (!wrap || typeof WDB === 'undefined' || !WDB.officialLeagues) return;
+  const short = n => n.startsWith('MPL ') ? n.slice(4) : n;
+  wrap.innerHTML = [
+    `<button class="region-tab${_metaRegion === 'all' ? ' active' : ''}" data-region="all">Global</button>`,
+    ...WDB.officialLeagues().map(n =>
+      `<button class="region-tab${_metaRegion === n ? ' active' : ''}" data-region="${n.replace(/"/g, '&quot;')}">${short(n)}</button>`),
+  ].join('');
+}
+window.addEventListener('warr-leagues-ready', renderMetaRegionTabs);
+
 async function loadMetaData() {
   try {
     if (typeof WDB === 'undefined' || !WDB.loadMatches) return;
-    _metaMatchesCache = await WDB.loadMatches();
+    _metaMatchesCache = await WDB.loadMatches(); // awaits initLeagues internally
+    renderMetaRegionTabs();
     renderMetaHierarchies();
   } catch(e) {
     console.warn('[Meta] load failed', e);

@@ -319,6 +319,7 @@ const WDB = {
    *  Uses a sessionStorage cache (5 min TTL, invalidated on save/delete) so
    *  repeat page navigations are instant. Pass {force:true} to skip the cache. */
   async loadMatches(opts) {
+    try { await WDB.initLeagues(); } catch(_) {}
     if (!opts?.force) {
       const cached = this._readMatchCache();
       if (cached) return cached;
@@ -1709,6 +1710,49 @@ function warrToast(msg, type = '') {
 // ═══════════════════════════════════════════════════════════════
 
 /** Load all leagues (public) */
+// ═══ DYNAMIC LEAGUES ═══
+// Admin-created leagues (Profile → Leagues) become first-class citizens:
+// merged into PUBLIC_LEAGUES (shared/visible) and LOCKED_LEAGUES (admin
+// write-only), cached in sessionStorage for synchronous warm-starts, and
+// announced via the 'warr-leagues-ready' event so chip rows can re-render.
+WDB.BASE_OFFICIAL_LEAGUES = ['MPL PH','MPL MY','MPL ID','MPL SG','MPL KH','MSC','M-Series'];
+WDB.customLeagues = [];
+WDB._leaguesReady = false;
+WDB._mergeLeagues = function(rows) {
+  WDB.customLeagues = (rows || []).filter(r => r && r.name);
+  WDB.customLeagues.forEach(r => {
+    if (!WDB.PUBLIC_LEAGUES.includes(r.name)) WDB.PUBLIC_LEAGUES.push(r.name);
+    if (typeof WAdmin !== 'undefined' && WAdmin.LOCKED_LEAGUES && !WAdmin.LOCKED_LEAGUES.includes(r.name)) {
+      WAdmin.LOCKED_LEAGUES.push(r.name);
+    }
+  });
+};
+WDB.initLeagues = async function(opts) {
+  if (WDB._leaguesReady && !(opts && opts.force)) return WDB.customLeagues;
+  try {
+    const rows = await WDB.loadLeagues();
+    WDB._mergeLeagues(rows);
+    try { sessionStorage.setItem('warr_leagues_cache', JSON.stringify({ t: Date.now(), rows })); } catch(_) {}
+    WDB._leaguesReady = true;
+    try { window.dispatchEvent(new CustomEvent('warr-leagues-ready')); } catch(_) {}
+  } catch(e) { console.warn('[WDB] initLeagues failed:', e && e.message); }
+  return WDB.customLeagues;
+};
+WDB.invalidateLeagues = function() {
+  WDB._leaguesReady = false;
+  try { sessionStorage.removeItem('warr_leagues_cache'); } catch(_) {}
+};
+/** Official league names: hardcoded base order, then admin-created ones. */
+WDB.officialLeagues = function() {
+  const customs = WDB.customLeagues.map(r => r.name).filter(n => !WDB.BASE_OFFICIAL_LEAGUES.includes(n));
+  return [...WDB.BASE_OFFICIAL_LEAGUES, ...customs];
+};
+// Synchronous warm-start: merge from session cache before any page logic runs.
+try {
+  const _lc = JSON.parse(sessionStorage.getItem('warr_leagues_cache') || 'null');
+  if (_lc && _lc.rows && Date.now() - _lc.t < 864e5) WDB._mergeLeagues(_lc.rows);
+} catch(_) {}
+
 WDB.loadLeagues = async function() {
   const { data, error } = await _sbClient
     .from('leagues')

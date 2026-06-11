@@ -845,17 +845,7 @@ input:focus, .search-input:focus {
       <div style="margin-top:6px;font-size:10px;color:var(--text3);">Hotseat draft — Player 1 takes the side chosen above, Player 2 takes the other. Coach suggestions follow whoever is on the clock.</div>
     </div>
     <div id="enemyTeamPanel" style="display:none;">
-      <div id="enemyLeagueRow" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
-        <button class="scout-lb active" onclick="setEnemyLeague('all',this)">All</button>
-        <button class="scout-lb" onclick="setEnemyLeague('MPL PH',this)">PH</button>
-        <button class="scout-lb" onclick="setEnemyLeague('MPL MY',this)">MY</button>
-        <button class="scout-lb" onclick="setEnemyLeague('MPL ID',this)">ID</button>
-        <button class="scout-lb" onclick="setEnemyLeague('MPL SG',this)">SG</button>
-        <button class="scout-lb" onclick="setEnemyLeague('MPL KH',this)">KH</button>
-        <button class="scout-lb" onclick="setEnemyLeague('MSC',this)">MSC</button>
-        <button class="scout-lb" onclick="setEnemyLeague('M-Series',this)">M-Series</button>
-        <button class="scout-lb" onclick="setEnemyLeague('Scrims',this)">Scrims</button>
-      </div>
+      <div id="enemyLeagueRow" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;"></div>
       <div style="position:relative;">
         <input class="name-in" id="enemySearch" placeholder="Search scouted team name..." autocomplete="off"
           oninput="filterEnemyTeams(this.value)" onfocus="openEnemyDrop()" onblur="setTimeout(closeEnemyDrop,180)"
@@ -878,16 +868,8 @@ input:focus, .search-input:focus {
         <div class="opt-card" id="dc-gm" onclick="setDiff('gm')"><span class="lv-badge">LV.03</span><div class="opt-name">Grandmaster</div><div class="opt-desc">Full GM layer · ban equity · lookahead</div></div>
       </div>
       <div class="card-title" style="margin-top:14px;">Scout Data Source</div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;">
+      <div style="display:flex;flex-wrap:wrap;gap:5px;" id="scoutLeagueChips">
         <button class="scout-lb active" onclick="setScoutLB('all')">All Pro Leagues</button>
-        <button class="scout-lb" onclick="setScoutLB('MPL PH')">MPL PH</button>
-        <button class="scout-lb" onclick="setScoutLB('MPL MY')">MPL MY</button>
-        <button class="scout-lb" onclick="setScoutLB('MPL ID')">MPL ID</button>
-        <button class="scout-lb" onclick="setScoutLB('MPL SG')">MPL SG</button>
-        <button class="scout-lb" onclick="setScoutLB('MPL KH')">MPL KH</button>
-        <button class="scout-lb" onclick="setScoutLB('MSC')">MSC</button>
-        <button class="scout-lb" onclick="setScoutLB('M-Series')">M-Series</button>
-        <button class="scout-lb" onclick="setScoutLB('Scrims')">Scrims</button>
       </div>
       <div id="scoutStatusAB" style="margin-top:8px;font-size:10px;color:var(--text3);"></div>
     </div>
@@ -1295,6 +1277,7 @@ let _scoutTierCache = null;
   console.log('[AI Battle] Scout tiers applied:', Object.keys(dt).length, 'heroes');
 })();
 try{setTimeout(renderSpecsAB,300);}catch(_){}
+try{renderLeagueChipsAB();if(typeof WDB!=='undefined'&&WDB.initLeagues)WDB.initLeagues();}catch(_){}
 
 // ── PICK TIMING FROM SCOUT DATA ──────────────────────────
 // Computes avg pick order (0=first pick, 4=last pick) per hero across all matches
@@ -1371,14 +1354,36 @@ function buildScoutAB(teamName) {
   return s;
 }
 
+// ── DYNAMIC LEAGUE CHIP ROWS — admin-added leagues appear automatically ──
+function _leagueListAB(){
+  return (typeof WDB!=='undefined'&&WDB.officialLeagues)?WDB.officialLeagues()
+    :['MPL PH','MPL MY','MPL ID','MPL SG','MPL KH','MSC','M-Series'];
+}
+function renderLeagueChipsAB(){
+  const esc=n=>n.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+  const wrap=document.getElementById('scoutLeagueChips');
+  if(wrap){
+    wrap.innerHTML=[
+      `<button class="scout-lb${scoutLeagueAB==='all'?' active':''}" onclick="setScoutLB('all')">All Pro Leagues</button>`,
+      ..._leagueListAB().map(n=>`<button class="scout-lb${scoutLeagueAB===n?' active':''}" onclick="setScoutLB('${esc(n)}')">${n}</button>`),
+      `<button class="scout-lb${scoutLeagueAB==='Scrims'?' active':''}" onclick="setScoutLB('Scrims')">Scrims</button>`,
+    ].join('');
+  }
+  const row=document.getElementById('enemyLeagueRow');
+  if(row){
+    const short=n=>n.startsWith('MPL ')?n.slice(4):n;
+    row.innerHTML=[
+      `<button class="scout-lb${enemyLeagueFilter==='all'?' active':''}" onclick="setEnemyLeague('all')">All</button>`,
+      ..._leagueListAB().map(n=>`<button class="scout-lb${enemyLeagueFilter===n?' active':''}" onclick="setEnemyLeague('${esc(n)}')">${short(n)}</button>`),
+      `<button class="scout-lb${enemyLeagueFilter==='Scrims'?' active':''}" onclick="setEnemyLeague('Scrims')">Scrims</button>`,
+    ].join('');
+  }
+}
+window.addEventListener('warr-leagues-ready',renderLeagueChipsAB);
 function setScoutLB(l) {
   setTimeout(renderSpecsAB,0);
   scoutLeagueAB = l;
-  document.querySelectorAll('.scout-lb').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.scout-lb').forEach(b => {
-    const txt = b.textContent.trim();
-    if((l==='all'&&txt==='All Leagues')||(txt===l)) b.classList.add('active');
-  });
+  renderLeagueChipsAB();
   // Show how many games available for this filter
   const db = loadScoutAB();
   const count = l==='all' ? (db.matches||[]).length : (db.matches||[]).filter(m=>m.league===l).length;
@@ -1543,9 +1548,9 @@ function _teamLeaguesMap(){
   (db.matches||[]).forEach(mx=>{[mx.blueTeam,mx.redTeam].forEach(n=>{if(!n)return;(m[n]=m[n]||new Set()).add(mx.league||'');});});
   _tlmCache=m;return m;
 }
-function setEnemyLeague(l,btn){
+function setEnemyLeague(l){
   enemyLeagueFilter=l;
-  document.querySelectorAll('#enemyLeagueRow .scout-lb').forEach(b=>b.classList.toggle('active',b===btn));
+  renderLeagueChipsAB();
   populateEnemyDrop(document.getElementById('enemySearch').value);
 }
 function openEnemyDrop(){populateEnemyDrop(document.getElementById('enemySearch').value);}

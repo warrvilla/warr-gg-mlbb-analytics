@@ -1844,7 +1844,8 @@ async function adminSaveLeague() {
     await WDB.saveLeague({ name, region });
     document.getElementById('adminNewLeagueName').value = '';
     document.getElementById('adminNewLeagueRegion').value = '';
-    _adminToast('League added ✓');
+    _adminToast('League added ✓ — live in Scout, Home, AI Battle & Meta Export');
+    if (WDB.invalidateLeagues) { WDB.invalidateLeagues(); WDB.initLeagues(); }
     await loadAdminLeagues();
   } catch (e) {
     _adminToast('Save failed: ' + e.message, 'error');
