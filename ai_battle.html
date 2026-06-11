@@ -47,15 +47,15 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
 .mem-chip{font-size:9px;padding:2px 8px;border-radius:10px;background:var(--ai-dim);border:1px solid var(--ai-border);color:var(--ai);font-weight:600;letter-spacing:.3px;}
 
 /* SETUP */
-#setup{max-width:680px;margin:50px auto;padding:0 clamp(12px, 4vw, 20px);}
-.setup-hd{text-align:center;margin-bottom:36px;}
-.setup-title{font-family:var(--font-head);font-size:28px;font-weight:700;letter-spacing:0.18em;color:var(--text);text-transform:uppercase;}
+#setup{max-width:1180px;margin:16px auto;padding:0 clamp(12px, 4vw, 20px);}
+.setup-hd{text-align:center;margin-bottom:14px;}
+.setup-title{font-family:var(--font-head);font-size:23px;font-weight:700;letter-spacing:0.18em;color:var(--text);text-transform:uppercase;}
 .setup-title span{color:var(--purple);}
 .setup-sub{font-family:var(--font-mono);font-size:9px;color:var(--text4);margin-top:8px;letter-spacing:0.22em;text-transform:uppercase;}
-.setup-card{background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:22px;margin-bottom:14px;}
-.card-title{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;}
+.setup-card{background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:13px 14px;margin-bottom:10px;}
+.card-title{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
-.opt-card{padding:14px;border:2px solid var(--border2);border-radius:10px;cursor:pointer;text-align:center;transition:all .2s;background:var(--surface2);}
+.opt-card{padding:9px 8px;border:2px solid var(--border2);border-radius:10px;cursor:pointer;text-align:center;transition:all .2s;background:var(--surface2);}
 .opt-card:hover{transform:translateY(-2px);}
 .opt-card.sel-blue{border-color:var(--blue);background:var(--blue-dim);box-shadow:0 0 16px rgba(79,142,247,.12);}
 .opt-card.sel-red{border-color:var(--red);background:var(--red-dim);box-shadow:0 0 16px rgba(240,82,82,.12);}
@@ -423,7 +423,7 @@ body::after {
 .setup-screen {
   background: transparent !important;
 }
-.setup-hd { margin-bottom: 32px !important; }
+.setup-hd { margin-bottom: 12px !important; }
 .setup-title {
   font-family: -apple-system,'SF Pro Display','Inter',sans-serif !important;
   font-size: clamp(28px,5vw,40px) !important;
@@ -643,20 +643,24 @@ input:focus, .search-input:focus {
 /* ═══════════════════════════════════════════════════════ */
 
 /* ═══ WAR ROOM SETUP ═══ */
-.engine-pill{display:inline-flex;align-items:center;gap:7px;padding:5px 14px;border-radius:999px;
+.engine-pill{display:inline-flex;align-items:center;gap:7px;padding:4px 12px;border-radius:999px;
   background:rgba(168,136,204,.08);border:0.5px solid rgba(168,136,204,.3);
-  font-size:9px;font-weight:700;letter-spacing:.18em;color:#A888CC;margin-bottom:12px;text-transform:uppercase;}
+  font-size:8.5px;font-weight:700;letter-spacing:.18em;color:#A888CC;margin-bottom:8px;text-transform:uppercase;}
 .engine-dot{width:6px;height:6px;border-radius:50%;background:#4ade80;box-shadow:0 0 8px #4ade80;animation:enginePulse 2s ease infinite;}
 @keyframes enginePulse{0%,100%{opacity:1}50%{opacity:.35}}
 .setup-hd{text-align:center;}
 .setup-sub{letter-spacing:.22em;text-transform:uppercase;font-size:10px;}
-.setup-grid{display:grid;grid-template-columns:1fr 1.25fr 0.85fr;gap:12px;margin-bottom:12px;align-items:start;}
+.setup-grid{display:grid;grid-template-columns:1fr 1.3fr 0.8fr;gap:10px;margin-bottom:0;align-items:stretch;}
+.setup-grid .setup-card{margin-bottom:10px;height:calc(100% - 10px);}
+.setup-grid2{display:grid;grid-template-columns:1.15fr 1fr;gap:10px;}
+.setup-grid2 .setup-card{margin-bottom:10px;}
+@media(max-width:900px){.setup-grid2{grid-template-columns:1fr;}}
 @media(max-width:900px){.setup-grid{grid-template-columns:1fr;}}
 .setup-card-engine{border-color:rgba(76,184,122,.25)!important;}
 .opt-card{position:relative;}
 .lv-badge{position:absolute;top:6px;right:8px;font-size:7.5px;font-weight:700;letter-spacing:.12em;color:var(--text3);font-family:var(--font-mono,monospace);}
 .specs-list{display:flex;flex-direction:column;}
-.specs-row{display:flex;align-items:center;justify-content:space-between;padding:8px 2px;
+.specs-row{display:flex;align-items:center;justify-content:space-between;padding:6px 2px;
   border-bottom:0.5px solid rgba(255,255,255,.05);font-size:11px;color:var(--text3);}
 .specs-row:last-child{border-bottom:none;}
 .specs-row strong{color:var(--text);font-weight:600;font-size:11.5px;}
@@ -664,13 +668,13 @@ input:focus, .search-input:focus {
 .specs-row .warn{color:#fbbf24;}
 .specs-note{margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(74,222,128,.06);
   border:0.5px solid rgba(74,222,128,.2);font-size:9.5px;color:#4ade80;line-height:1.45;}
-.start-btn{display:block;width:100%;max-width:520px;margin:22px auto 0;padding:16px 20px;border:none;cursor:pointer;
+.start-btn{display:block;width:100%;max-width:520px;margin:12px auto 0;padding:13px 20px;border:none;cursor:pointer;
   border-radius:14px;background:linear-gradient(135deg,#A888CC,#5E5CE6);color:#fff;
   font-size:15px;font-weight:800;letter-spacing:.35em;text-transform:uppercase;text-indent:.35em;
   box-shadow:0 8px 40px rgba(94,92,230,.35),0 0 0 1px rgba(255,255,255,.08) inset;
   transition:transform .15s ease,box-shadow .15s ease;}
 .start-btn:hover{transform:translateY(-2px);box-shadow:0 12px 52px rgba(94,92,230,.5),0 0 0 1px rgba(255,255,255,.12) inset;}
-.start-sub{text-align:center;font-size:8.5px;letter-spacing:.2em;color:var(--text3);margin-top:10px;text-transform:uppercase;}
+.start-sub{text-align:center;font-size:8.5px;letter-spacing:.2em;color:var(--text3);margin-top:7px;text-transform:uppercase;}
 
 /* ═══ ARENA STATUS BAR ═══ */
 .bh{display:flex;align-items:center;justify-content:space-between;gap:10px;}
@@ -747,10 +751,11 @@ input:focus, .search-input:focus {
     </div>
   </div>
 
-  <!-- MAP SELECTION -->
+  <!-- MAP + OPPONENT — one row -->
+  <div class="setup-grid2">
   <div class="setup-card">
     <div class="card-title">▣ Battle Map <span style="font-weight:400;color:var(--text3);">— optional, weighs team map WR into the simulation</span></div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;">
       <div class="opt-card" id="map-none" onclick="setMap('')" style="text-align:center;padding:8px 4px;">
         <div class="opt-name" style="font-size:10px;">Any</div>
       </div>
@@ -791,6 +796,8 @@ input:focus, .search-input:focus {
       <div id="enemyProfileCard" style="display:none;margin-top:10px;background:var(--surface2);border:1px solid rgba(240,82,82,.3);border-radius:8px;padding:12px;"></div>
     </div>
   </div>
+
+  </div><!-- /setup-grid2 -->
 
   <!-- API KEY — admin only -->
   <div class="setup-card" id="apiKeyCard" style="display:none;">
