@@ -1,0 +1,8 @@
+{
+  "name": "warr-gg",
+  "private": true,
+  "description": "Warr.GG — MLBB esports intelligence platform",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}

@@ -12,9 +12,27 @@
 //     ANTHROPIC_API_KEY = sk-ant-...   (create a FRESH key — rotate the old one)
 // ═══════════════════════════════════════════════════════════════
 
+import { getStore } from '@netlify/blobs';
+
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nqqlmzdyyhbyvsbybdem.supabase.co';
 const ALLOWED_MODELS = ['claude-sonnet-4-6', 'claude-haiku-4-5-20251001'];
 const MAX_TOKENS_CAP = 1200;
+
+// ── HARD MONTHLY BUDGET (the owner's wallet guard) ──
+// When the month's estimated spend reaches the cap, this function returns
+// 429 and every client falls back to the free local Draft Brain. The bill
+// cannot exceed the budget. Override via Netlify env vars if ever needed.
+const BUDGET_PHP   = Number(process.env.MONTHLY_BUDGET_PHP || 5000);
+const PHP_PER_USD  = Number(process.env.PHP_PER_USD || 59);
+const BUDGET_USD   = BUDGET_PHP / PHP_PER_USD;          // ≈ $85 at default FX
+const USER_DAILY_CALLS = Number(process.env.USER_DAILY_CALLS || 60); // per-account/day
+// claude-sonnet pricing (USD per 1M tokens)
+const PRICE_IN_PER_M  = 3;
+const PRICE_OUT_PER_M = 15;
+
+async function _readNum(store, key) {
+  try { return Number(await store.get(key)) || 0; } catch { return 0; }
+}
 
 export default async (req) => {
   if (req.method === 'OPTIONS') {
@@ -35,14 +53,31 @@ export default async (req) => {
   if (!token || !anon) {
     return Response.json({ error: 'AUTH_REQUIRED' }, { status: 401, headers: _cors() });
   }
+  let userId = 'anon';
   try {
     const v = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
       headers: { apikey: anon, authorization: `Bearer ${token}` },
     });
     if (!v.ok) return Response.json({ error: 'INVALID_SESSION' }, { status: 401, headers: _cors() });
+    try { userId = (await v.json())?.id || 'anon'; } catch {}
   } catch {
     return Response.json({ error: 'AUTH_CHECK_FAILED' }, { status: 401, headers: _cors() });
   }
+
+  // ── BUDGET + PER-USER GUARDS (fail-open if blob store hiccups) ──
+  let store = null, monthKey = '', spentUSD = 0, userKey = '', userCalls = 0;
+  try {
+    store = getStore('warr-api-usage');
+    monthKey = 'usd:' + new Date().toISOString().slice(0, 7);          // usd:2026-06
+    userKey  = 'calls:' + new Date().toISOString().slice(0, 10) + ':' + userId;
+    [spentUSD, userCalls] = await Promise.all([_readNum(store, monthKey), _readNum(store, userKey)]);
+    if (spentUSD >= BUDGET_USD) {
+      return Response.json({ error: 'BUDGET_EXCEEDED', detail: 'Monthly AI budget reached — the local Draft Brain takes over until next month.' }, { status: 429, headers: _cors() });
+    }
+    if (userCalls >= USER_DAILY_CALLS) {
+      return Response.json({ error: 'USER_DAILY_CAP', detail: 'Daily AI limit reached for this account — back tomorrow.' }, { status: 429, headers: _cors() });
+    }
+  } catch { /* blobs unavailable — allow the request, never break the product */ }
 
   // Clamp the request shape — the proxy is for draft reasoning, nothing else.
   let body;
@@ -64,7 +99,20 @@ export default async (req) => {
     },
     body: JSON.stringify(safe),
   });
-  return new Response(await r.text(), {
+  const text = await r.text();
+
+  // ── METER the actual spend from Anthropic's usage block ──
+  if (store && r.ok) {
+    try {
+      const usage = JSON.parse(text)?.usage || {};
+      const cost = ((usage.input_tokens || 0) * PRICE_IN_PER_M + (usage.output_tokens || 0) * PRICE_OUT_PER_M) / 1e6;
+      await Promise.all([
+        store.set(monthKey, String(spentUSD + cost)),
+        store.set(userKey, String(userCalls + 1)),
+      ]);
+    } catch { /* metering failure must never break the response */ }
+  }
+  return new Response(text, {
     status: r.status,
     headers: { 'content-type': 'application/json', ...(_cors()) },
   });
