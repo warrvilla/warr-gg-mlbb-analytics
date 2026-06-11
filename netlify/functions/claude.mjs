@@ -25,8 +25,9 @@ const MAX_TOKENS_CAP = 1200;
 const BUDGET_PHP   = Number(process.env.MONTHLY_BUDGET_PHP || 5000);
 const PHP_PER_USD  = Number(process.env.PHP_PER_USD || 59);
 const BUDGET_USD   = BUDGET_PHP / PHP_PER_USD;          // ≈ $85 at default FX
-const USER_DAILY_CALLS = Number(process.env.USER_DAILY_CALLS || 60);   // paid accounts, per day
-const FREE_MONTHLY_CALLS = Number(process.env.FREE_MONTHLY_CALLS || 8); // free accounts, per MONTH (≈2 analyses + retries)
+const USER_DAILY_CALLS = Number(process.env.USER_DAILY_CALLS || 60);     // Pro accounts, per day
+const TEAM_DAILY_CALLS = Number(process.env.TEAM_DAILY_CALLS || 200);    // Team accounts, per day
+const FREE_MONTHLY_CALLS = Number(process.env.FREE_MONTHLY_CALLS || 10); // Free accounts, per MONTH (≈3 analyses + retries)
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'wrrenvillapando@gmail.com';
 // claude-sonnet pricing (USD per 1M tokens)
 const PRICE_IN_PER_M  = 3;
@@ -92,11 +93,12 @@ export default async (req) => {
     if (spentUSD >= BUDGET_USD) {
       return Response.json({ error: 'BUDGET_EXCEEDED', detail: 'Monthly AI budget reached — the local Draft Brain takes over until next month.' }, { status: 429, headers: _cors() });
     }
-    if (!isAdmin && isPaid && userCalls >= USER_DAILY_CALLS) {
+    const dailyCap = plan === 'team' ? TEAM_DAILY_CALLS : USER_DAILY_CALLS;
+    if (!isAdmin && isPaid && userCalls >= dailyCap) {
       return Response.json({ error: 'USER_DAILY_CAP', detail: 'Daily AI limit reached for this account — back tomorrow.' }, { status: 429, headers: _cors() });
     }
     if (!isPaid && userCalls >= FREE_MONTHLY_CALLS) {
-      return Response.json({ error: 'FREE_PLAN_CAP', detail: 'Free plan AI allowance used for this month — upgrade to Pro (₱10/mo) in Profile for more.' }, { status: 429, headers: _cors() });
+      return Response.json({ error: 'FREE_PLAN_CAP', detail: 'Free plan AI allowance used this month — Pro (₱199/mo) unlocks 100 deep analyses. Upgrade in Profile.' }, { status: 429, headers: _cors() });
     }
   } catch { /* blobs unavailable — allow the request, never break the product */ }
 
