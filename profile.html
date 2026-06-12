@@ -436,6 +436,7 @@ body { background: var(--bg); min-height: 100vh; }
       <button class="ptab" data-ptab="pool" onclick="setProfileTab('pool')">Hero Pool</button>
       <button class="ptab" data-ptab="plan" onclick="setProfileTab('plan')">Plan &amp; Tokens</button>
       <button class="ptab" data-ptab="account" onclick="setProfileTab('account')">Account</button>
+      <button class="ptab ptab-admin" data-ptab="panel" onclick="setProfileTab('panel')">⚙ Admin Panel</button>
       <button class="ptab ptab-admin" data-ptab="leagues" onclick="setProfileTab('leagues')">Leagues</button>
       <button class="ptab ptab-admin" data-ptab="teams" onclick="setProfileTab('teams')">Teams &amp; Players</button>
       <button class="ptab ptab-admin" data-ptab="site" onclick="setProfileTab('site')">Site Content</button>
@@ -1137,11 +1138,12 @@ const PROFILE_TAB_MAP = {
   pool:    ['heroPoolCard'],
   plan:    ['tokensPanel', 'plansLabel', 'plansGrid'],
   account: ['accountCard'],
+  panel:   ['adminAccessCard'],
   leagues: ['adminLeaguesCard'],
   teams:   ['adminTeamsCard'],
-  site:    ['adminMaintCard', 'adminSlidesCard', 'adminPortraitsCard', 'adminApiKeyCard', 'adminAccessCard'],
+  site:    ['adminMaintCard', 'adminSlidesCard', 'adminPortraitsCard', 'adminApiKeyCard'],
 };
-const PROFILE_ADMIN_TABS = ['leagues', 'teams', 'site'];
+const PROFILE_ADMIN_TABS = ['panel', 'leagues', 'teams', 'site'];
 let _activePTab = (location.hash || '').replace('#', '') in PROFILE_TAB_MAP
   ? (location.hash || '').replace('#', '') : 'profile';
 
