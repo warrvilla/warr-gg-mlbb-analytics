@@ -53,7 +53,7 @@ export default async (req) => {
         : new Date(Date.now() + months * 30 * 864e5).toISOString();
       const r = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}`, {
         method: 'PATCH', headers: { ...svcHeaders, prefer: 'return=representation' },
-        body: JSON.stringify({ plan, plan_expires_at: expires }),
+        body: JSON.stringify({ plan, plan_expires_at: expires, is_comp: plan === 'free' ? false : !!body.isComp }),
       });
       if (!r.ok) return Response.json({ error: 'PLAN_FAILED', detail: await r.text() }, { status: 500, headers: cors() });
       return Response.json({ ok: true, plan, plan_expires_at: expires }, { headers: cors() });

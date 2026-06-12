@@ -763,7 +763,9 @@ function _analyticsData() {
   const active7  = users.filter(u => inDays(u.last_seen_at, 7)).length;
   const active30 = users.filter(u => inDays(u.last_seen_at, 30)).length;
   const new30    = users.filter(u => inDays(u.created_at, 30)).length;
-  const paidUsers = users.filter(u => (u.plan === 'pro' || u.plan === 'team') && !(u.plan_expires_at && new Date(u.plan_expires_at) < new Date()));
+  const activePaidPlan = u => (u.plan === 'pro' || u.plan === 'team') && !(u.plan_expires_at && new Date(u.plan_expires_at) < new Date());
+  const paidUsers = users.filter(u => activePaidPlan(u) && !u.is_comp);   // real money only
+  const compUsers = users.filter(u => activePaidPlan(u) && u.is_comp);    // free grants
   const mrr = paidUsers.reduce((s, u) => s + (u.plan === 'team' ? 4999 : 199), 0);
   const ages = users.map(u => _ageOf(u.birthday)).filter(a => a !== null);
   const buckets = { '13–17': 0, '18–24': 0, '25–34': 0, '35+': 0 };
@@ -776,7 +778,7 @@ function _analyticsData() {
     const age = (now - new Date(u.created_at).getTime()) / DAY;
     return age >= i * 7 && age < (i + 1) * 7;
   }).length).reverse();
-  return { users: users.length, active7, active30, new30, paid: paidUsers.length, mrr, buckets, ages: ages.length, medianAge, analyses, weeks };
+  return { users: users.length, active7, active30, new30, paid: paidUsers.length, comp: compUsers.length, mrr, buckets, ages: ages.length, medianAge, analyses, weeks };
 }
 function renderAnalytics() {
   const el = document.getElementById('analyticsBoard');
@@ -792,7 +794,8 @@ function renderAnalytics() {
       ${chip(d.active30, 'Active · 30 days')}
       ${chip(d.new30, 'New · 30 days', 'var(--blue)')}
       ${chip(d.paid, 'Paying users', 'var(--purple)')}
-      ${chip('₱' + d.mrr.toLocaleString(), 'MRR', 'var(--gold)')}
+      ${chip(d.comp, 'Comped (free)', 'var(--text2)')}
+      ${chip('₱' + d.mrr.toLocaleString(), 'MRR (paid only)', 'var(--gold)')}
       ${chip(d.analyses.toLocaleString(), 'AI analyses run')}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
@@ -816,6 +819,7 @@ function copySponsorSnapshot() {
     '',
     `Registered users: ${d.users}`,
     `Active (7d / 30d): ${d.active7} / ${d.active30}`,
+    `Paying: ${d.paid} · Comped: ${d.comp} · MRR: ₱${d.mrr.toLocaleString()}`,
     `New users (30d): ${d.new30}`,
     `AI draft analyses run: ${d.analyses.toLocaleString()}`,
     d.medianAge ? `Median age: ${d.medianAge} (${Object.entries(d.buckets).map(([l, n]) => l + ': ' + n).join(', ')})` : 'Age data: collecting',
@@ -965,7 +969,7 @@ function openUserDetails(userId) {
       ${row('Mobile', u.phone ? `<a href="tel:${escHtml(u.phone)}" style="color:var(--blue);">${escHtml(u.phone)}</a>` : '—')}
       ${row('Birthday', u.birthday ? `${escHtml(u.birthday)}${age !== null ? ` <span style="color:var(--text3);">(${age} yrs)</span>` : ''}` : '—')}
       ${row('Team', escHtml(u.team_name || '—') + ' · ' + escHtml(u.team_status || 'none'))}
-      ${row('Plan', `${(u.plan || 'free').toUpperCase()}${u.plan_expires_at && u.plan !== 'free' ? (expired ? ' · <span style="color:var(--red);">EXPIRED</span>' : ' · until ' + fmtDate(u.plan_expires_at)) : ''}`)}
+      ${row('Plan', `${(u.plan || 'free').toUpperCase()}${u.is_comp && u.plan !== 'free' ? ' <span style="color:var(--text3);font-size:10px;">(comp)</span>' : ''}${u.plan_expires_at && u.plan !== 'free' ? (expired ? ' · <span style="color:var(--red);">EXPIRED</span>' : ' · until ' + fmtDate(u.plan_expires_at)) : ''}`)}
       ${row('Analyses used', String(u.tokens_used || 0))}
       ${row('Joined', fmtDate(u.created_at))}
       ${u.admin_notes ? row('Notes', escHtml(u.admin_notes)) : ''}
@@ -993,31 +997,31 @@ function closeGrantPlanModal() {
 async function confirmGrantPlan(plan) {
   if (!_grantPlanUserId) return;
   const userId = _grantPlanUserId;
-  let months = 0;
+  let months = 0, isComp = false;
   if (plan !== 'free') {
     const inp = prompt('Grant ' + plan.toUpperCase() + ' for how many months? (auto-downgrades to Free when it lapses)', '1');
     if (inp === null) return; // cancelled
     months = Math.max(1, Math.min(24, parseInt(inp, 10) || 1));
+    // Complimentary = free access you're giving out; excluded from MRR/revenue.
+    isComp = confirm('Is this a COMPLIMENTARY (free) grant?\n\nOK = Complimentary (NOT counted as revenue)\nCancel = Paid customer (counts toward MRR)');
   }
   closeGrantPlanModal();
-  // Prefer the service-role endpoint (writes expiry, bypasses nothing it
-  // shouldn't); falls back to the direct client update if not configured.
-  const viaApi = await _adminApi({ action: 'set_plan', userId, plan, months });
+  const viaApi = await _adminApi({ action: 'set_plan', userId, plan, months, isComp });
   if (viaApi && viaApi.ok) {
     const u = _allUsers.find(x => x.id === userId);
-    if (u) { u.plan = plan; u.plan_expires_at = viaApi.plan_expires_at; }
+    if (u) { u.plan = plan; u.plan_expires_at = viaApi.plan_expires_at; u.is_comp = isComp; }
     updateStats(); renderUsersTable();
-    toast(`Plan set: ${plan}${viaApi.plan_expires_at ? ' until ' + fmtDate(viaApi.plan_expires_at) : ''} ✓`, 'success');
+    toast(`${isComp?'Comp ':''}Plan set: ${plan}${viaApi.plan_expires_at ? ' until ' + fmtDate(viaApi.plan_expires_at) : ''} ✓`, 'success');
     return;
   }
-  // Fallback (no service key yet): plan only, expiry via direct update
+  // Fallback (no service key yet): direct update
   const expires = plan === 'free' ? null : new Date(Date.now() + months * 30 * 864e5).toISOString();
   try {
-    await WAuth.adminUpdateProfile(userId, { plan, plan_expires_at: expires });
+    await WAuth.adminUpdateProfile(userId, { plan, plan_expires_at: expires, is_comp: isComp });
     const u = _allUsers.find(x => x.id === userId);
-    if (u) { u.plan = plan; u.plan_expires_at = expires; }
+    if (u) { u.plan = plan; u.plan_expires_at = expires; u.is_comp = isComp; }
     updateStats(); renderUsersTable();
-    toast(`Plan set: ${plan}${expires ? ' until ' + fmtDate(expires) : ''} ✓`, 'success');
+    toast(`${isComp?'Comp ':''}Plan set: ${plan}${expires ? ' until ' + fmtDate(expires) : ''} ✓`, 'success');
   } catch(e) { toast('Error: ' + (e.message || e), 'error'); }
 }
 
