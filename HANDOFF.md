@@ -78,8 +78,12 @@ FREE_MONTHLY_CALLS, ADMIN_EMAIL.
   heartbeat — migration 008, MRR, age demographics, signup trend,
   Copy Sponsor Snapshot button).
 - Supabase: signups enabled + email confirmation ON (owner did this).
-- Migrations status: 004–006 RUN; **007, 008, 009 pending**.
-  009 = future-proof scout privacy (public unless Scrims/Other/AI Battle).
+- Migrations status: 004–009 RUN by owner; **010 pending** (is_comp flag
+  + trigger update — comped accounts excluded from MRR).
+- Comp accounts: grant flow asks Complimentary vs Paid; user details
+  modal has Mark as COMP/PAID toggle for retroactive fixes. Analytics:
+  'Paying users' + MRR = real money only; 'Comped (free)' separate.
+- Admin entry moved from nav chip to Profile → gold '⚙ Admin Panel' tab.
 - Nav: auth chip shows Admin link only when WAdmin.isAdmin(); Sign Out
   confirms. Scout LANDS ON Teams view (click team → full report). Free
   users can only log/delete Scrims/AI Battle (official leagues hidden in

@@ -975,6 +975,7 @@ function openUserDetails(userId) {
       ${u.admin_notes ? row('Notes', escHtml(u.admin_notes)) : ''}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
         <button class="btn-approve" onclick="document.getElementById('userDetailsModal').style.display='none';openGrantPlanModal('${u.id}')">Grant Plan</button>
+        ${(u.plan === 'pro' || u.plan === 'team') ? `<button class="btn-ban" onclick="toggleComp('${u.id}')">${u.is_comp ? 'Mark as PAID' : 'Mark as COMP'}</button>` : ''}
         <button class="btn-ban${u.is_banned ? ' is-banned' : ''}" onclick="document.getElementById('userDetailsModal').style.display='none';toggleBan('${u.id}')">${u.is_banned ? 'Unban' : 'Ban'}</button>
         <button class="btn-delete" onclick="document.getElementById('userDetailsModal').style.display='none';deleteUserProfile('${u.id}')">Delete Account</button>
         <button class="btn-ban" onclick="document.getElementById('userDetailsModal').style.display='none';openNotesModal('${u.id}')">Notes</button>
@@ -1022,6 +1023,24 @@ async function confirmGrantPlan(plan) {
     if (u) { u.plan = plan; u.plan_expires_at = expires; u.is_comp = isComp; }
     updateStats(); renderUsersTable();
     toast(`${isComp?'Comp ':''}Plan set: ${plan}${expires ? ' until ' + fmtDate(expires) : ''} ✓`, 'success');
+  } catch(e) { toast('Error: ' + (e.message || e), 'error'); }
+}
+
+// Reclassify an existing paid-plan user as complimentary or paid —
+// fixes accounts granted before the comp flag existed, no re-grant needed.
+async function toggleComp(userId) {
+  const u = _allUsers.find(x => x.id === userId);
+  if (!u) return;
+  const newVal = !u.is_comp;
+  if (!confirm(newVal
+    ? `Mark ${u.email || userId} as COMPLIMENTARY?\n(Keeps their plan; removed from MRR/paying count.)`
+    : `Mark ${u.email || userId} as PAID?\n(Counts toward MRR from now on.)`)) return;
+  try {
+    await WAuth.adminUpdateProfile(userId, { is_comp: newVal });
+    u.is_comp = newVal;
+    document.getElementById('userDetailsModal').style.display = 'none';
+    updateStats(); renderUsersTable();
+    toast(newVal ? 'Marked as comp ✓ (excluded from MRR)' : 'Marked as paid ✓ (counts in MRR)', 'success');
   } catch(e) { toast('Error: ' + (e.message || e), 'error'); }
 }
 
