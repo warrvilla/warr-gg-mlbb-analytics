@@ -1377,7 +1377,17 @@ WDB.heroPortrait = function(name, variant) {
     if (variant !== 'icon' && overrides.icon) return overrides.icon;
   }
   const base = WDB.PORTRAIT_ALIAS[name] || name;
-  return `portraits/${base}.png`;
+  const safe = String(base).replace(/ /g,'_').replace(/[^a-zA-Z0-9_.]/g,'');
+  // 'portrait' = big card art (4:5 webp) when available; default = small webp
+  // thumbnail. Both ~5x lighter than the old PNGs. Consumers keep PNG onerror
+  // fallbacks, so a missing webp degrades gracefully.
+  if (variant === 'portrait') return `portraits/400x500/${safe}.webp`;
+  return `portraits/t/${safe}.webp`;
+};
+/** PNG fallback path for onerror handlers. */
+WDB.heroPortraitPng = function(name) {
+  const base = WDB.PORTRAIT_ALIAS[name] || name;
+  return `portraits/${String(base).replace(/ /g,'_').replace(/[^a-zA-Z0-9_.]/g,'')}.png`;
 };
 
 // ── Hero Pool helpers ──

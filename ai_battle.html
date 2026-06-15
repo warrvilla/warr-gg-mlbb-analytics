@@ -1918,7 +1918,8 @@ function laneReadAmbiguousAB(team){
   });
 }
 
-function iu(h){return`./portraits/${h.id}.png`;}
+function iu(h){return`./portraits/t/${h.id}.webp`;}
+function iuPng(h){return`./portraits/${h.id}.png`;}
 function iun(h){const n=(h.name||'').replace(/ /g,'_').replace(/[^a-zA-Z0-9_.]/g,'');return`./portraits/${n}.png`;}
 function fb(h){const c=encodeURIComponent(h.color||'#3b82f6'),t=encodeURIComponent((h.name||'?').substring(0,2).toUpperCase());return`data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='128' height='128'><circle cx='64' cy='64' r='64' fill='%231e2028'/><circle cx='64' cy='64' r='62' fill='none' stroke='${c}' stroke-width='3'/><text x='64' y='76' text-anchor='middle' fill='${c}' font-size='36' font-weight='700' font-family='Arial'>${t}</text></svg>`;}
 function toast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast show ${type}`;setTimeout(()=>t.className='toast',2500);}
@@ -1946,7 +1947,7 @@ function renderSeq(){
   document.getElementById('stepCtr').textContent=`Step ${Math.min(ST.step+1,20)}/20`;
 }
 function bsl(h,active){
-  if(h){const u=iu(h);return`<div class="ban-slot filled" title="${h.name}"><img src="${u}" alt="${h.name}" onerror="if(this.dataset.t){this.src='${fb(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${iun(h)}';}"><div class="ban-name">${h.name}</div><div class="ban-x">✕</div></div>`;}
+  if(h){const u=iu(h);return`<div class="ban-slot filled" title="${h.name}"><img src="${u}" alt="${h.name}" onerror="if(this.dataset.t==2){this.src='${fb(h)}';this.onerror=null;}else if(this.dataset.t==1){this.dataset.t=2;this.src='${iun(h)}';}else{this.dataset.t=1;this.src='${iuPng(h)}';}"><div class="ban-name">${h.name}</div><div class="ban-x">✕</div></div>`;}
   return`<div class="ban-slot${active?' active-slot':''}"><span class="ban-empty">✕</span></div>`;
 }
 function cycleLaneAB(heroId,event){
@@ -1983,7 +1984,7 @@ function psl(h,active,side,lbl){
       :`border-color:${lc}44;color:${lc};cursor:pointer;`;
     const confColor={'high':'#4ade80','medium':'#fbbf24','low':'#f87171'}[h._c]||'';
     const confBadge=h._c?`<div style="position:absolute;bottom:3px;right:3px;width:7px;height:7px;border-radius:50%;background:${confColor};box-shadow:0 0 4px ${confColor}88;" title="AI confidence: ${h._c}"></div>`:'';
-    return`<div class="pick-slot filled" style="position:relative;"><div class="slot-order">${lbl}</div><img src="${u}" alt="${h.name}" class="slot-img" onerror="if(this.dataset.t){this.src='${fb(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${iun(h)}';}"><div class="slot-info"><div class="slot-hname">${h.name}</div><div class="slot-role" style="color:${rc(h.role)}">${h.role}</div><span class="slot-lane" style="${laneStyle}" onclick="cycleLaneAB('${h.id}',event)" title="Click to change lane">${ln}${isNaturalFlex&&!isAssigned?' ↕':''}</span></div><div class="slot-tier" style="color:${tc(h.tier)}">${h.tier}</div>${confBadge}</div>`;
+    return`<div class="pick-slot filled" style="position:relative;"><div class="slot-order">${lbl}</div><img src="${u}" alt="${h.name}" class="slot-img" onerror="if(this.dataset.t==2){this.src='${fb(h)}';this.onerror=null;}else if(this.dataset.t==1){this.dataset.t=2;this.src='${iun(h)}';}else{this.dataset.t=1;this.src='${iuPng(h)}';}"><div class="slot-info"><div class="slot-hname">${h.name}</div><div class="slot-role" style="color:${rc(h.role)}">${h.role}</div><span class="slot-lane" style="${laneStyle}" onclick="cycleLaneAB('${h.id}',event)" title="Click to change lane">${ln}${isNaturalFlex&&!isAssigned?' ↕':''}</span></div><div class="slot-tier" style="color:${tc(h.tier)}">${h.tier}</div>${confBadge}</div>`;
   }
   return`<div class="pick-slot${active?' '+ac:''}"><div class="slot-order">${lbl}</div><div class="slot-placeholder">+</div><div class="slot-info"><div style="font-size:9px;color:var(--text3);">Empty</div></div></div>`;
 }
@@ -2044,7 +2045,7 @@ function renderPool(){
     const _ms=META_SCORES[h.name];const _pr=_ms?.pr?`PR ${_ms.pr}%`:'';const _br=_ms?.br?`BR ${_ms.br}%`:'';
     const _tip=[h.name,`${displayLaneAB} · ${h.tier}-tier`,_pr&&_br?`${_pr}  ${_br}`:_pr||_br,inPool?'★ In your pool':''].filter(Boolean).join('\n');
     return`<div class="${cls}" data-id="${h.id}" ${used||locked?'data-locked="1"':''} onclick="if(!this.dataset.locked)pick(this.dataset.id)" data-tooltip="${_tip}">
-      <img src="${u}" class="hero-img" alt="${h.name}" onerror="if(this.dataset.t){this.src='${fb(h)}';this.onerror=null;}else{this.dataset.t=1;this.src='${iun(h)}';}">
+      <img src="${u}" class="hero-img" alt="${h.name}" onerror="if(this.dataset.t==2){this.src='${fb(h)}';this.onerror=null;}else if(this.dataset.t==1){this.dataset.t=2;this.src='${iun(h)}';}else{this.dataset.t=1;this.src='${iuPng(h)}';}">
       <div class="hero-cname">${h.name}</div><div class="hero-crole" style="color:${LANE_COLORS_AB[displayLaneAB]||'#94a3b8'}">${isLaneModeAB?displayLaneAB:h.role.split('/')[0]}</div>
       <div class="tier-badge tier-${h.tier}">${h.tier}</div>
       ${h.mp==='mustban'?'<div class="meta-badge mb-ban">BAN</div>':h.mp==='highpick'?'<div class="meta-badge mb-pick">HOT</div>':''}
@@ -3816,7 +3817,7 @@ function showReveal(h,step){
   const c=step.type==='ban'?'#ef4444':'var(--ai)';
   document.getElementById('arl').textContent=step.type==='ban'?'AI BANS':'AI PICKS';
   document.getElementById('arl').style.color=c;
-  const img=document.getElementById('arimg');img.src=iu(h);img.onerror=()=>{img.src=fb(h);img.onerror=null;};img.style.borderColor=c;
+  const img=document.getElementById('arimg');img.src=iu(h);img.onerror=()=>{img.src=iuPng(h);img.onerror=()=>{img.src=fb(h);img.onerror=null;};};img.style.borderColor=c;
   document.getElementById('arname').textContent=h.name;
   document.getElementById('arreason').textContent=h._r||'';
   const conf=h._c||'medium';
