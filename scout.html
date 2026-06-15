@@ -1870,6 +1870,10 @@ let matchSearch = '';
 let teamSearch = '';
 let matchSort = 'date';
 let patchFilter = 'all';
+let weekFilter  = 'all';
+const _UNLABELED_WEEK = '__noweek__';
+function _weekSortKey(w){ const m=String(w).match(/\d+/); return m? parseInt(m[0],10) : 9000 + String(w).charCodeAt(0)/1000; }
+function setWeekFilter(v){ weekFilter = v; _matchPage = 1; renderMatchListBody(); }
 let teamSort = 'games';
 let metaSort = 'presence';
 let metaLeague = 'all';
@@ -1970,7 +1974,7 @@ function showView(v) {
 
 function setLeagueFilter(lf) {
   leagueFilter = lf;
-  _matchPage = 1; _teamPage = 1;
+  _matchPage = 1; _teamPage = 1; weekFilter = 'all';
   // Reset season sub-filter, then auto-apply this league's admin-marked current season if one is set.
   // (Cached in LEAGUE_CURRENT_SEASON by loadCustomLeagues at startup.)
   seasonFilter = 'all';
@@ -1993,7 +1997,7 @@ function setLeagueFilter(lf) {
 
 function setSeasonFilter(s) {
   seasonFilter = s || 'all';
-  _matchPage = 1;
+  _matchPage = 1; weekFilter = 'all';
   if (currentView === 'matches') renderMatchListBody();
   else if (currentView === 'meta') renderMeta();
   updateSidebarCounts();
@@ -2013,7 +2017,10 @@ function getFilteredMatches() {
   return DB_MODULE.getMatches().filter(m => {
     if (leagueFilter !== 'all' && m.league !== leagueFilter) return false;
     if (seasonFilter !== 'all' && (m.season||'') !== seasonFilter) return false;
-    if (patchFilter !== 'all' && (m.patch||'') !== patchFilter) return false;
+    if (weekFilter !== 'all') {
+      const wk = (m.week||'').trim() || _UNLABELED_WEEK;
+      if (wk !== weekFilter) return false;
+    }
     if (q && !m.blueTeam.toLowerCase().includes(q) && !m.redTeam.toLowerCase().includes(q) && !(m.notes||'').toLowerCase().includes(q)) return false;
     return true;
   });
@@ -2106,8 +2113,8 @@ function renderMatchList() {
           <select id="seasonFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="setSeasonFilter(this.value)">
             <option value="all">All Seasons</option>
           </select>
-          <select id="patchFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="patchFilter=this.value;renderMatchListBody()">
-            <option value="all">All Patches</option>
+          <select id="weekFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="setWeekFilter(this.value)">
+            <option value="all">All Weeks</option>
           </select>
         </div>
       </div>
@@ -2129,10 +2136,19 @@ function renderMatchListBody() {
   const body = document.getElementById('matchListBody');
   if (!body) return;
   // Update patch dropdown with unique patches from all matches
-  const patchSel = document.getElementById('patchFilterSelect');
-  if (patchSel) {
-    const patches = [...new Set(DB_MODULE.getMatches().map(m=>m.patch||'').filter(Boolean))].sort().reverse();
-    patchSel.innerHTML = `<option value="all">All Patches</option>` + patches.map(p=>`<option value="${p}"${patchFilter===p?' selected':''}>${p}</option>`).join('');
+  const weekSel = document.getElementById('weekFilterSelect');
+  if (weekSel) {
+    let pool = DB_MODULE.getMatches();
+    if (leagueFilter !== 'all') pool = pool.filter(m => m.league === leagueFilter);
+    if (seasonFilter !== 'all') pool = pool.filter(m => (m.season||'') === seasonFilter);
+    const hasUnlabeled = pool.some(m => !(m.week||'').trim());
+    const weeks = [...new Set(pool.map(m => (m.week||'').trim()).filter(Boolean))]
+      .sort((a,b) => _weekSortKey(b) - _weekSortKey(a));
+    if (weekFilter === 'all' && weeks.length > 1) weekFilter = weeks[0];
+    if (weekFilter !== 'all' && weekFilter !== _UNLABELED_WEEK && !weeks.includes(weekFilter)) weekFilter = 'all';
+    weekSel.innerHTML = `<option value="all">All Weeks</option>`
+      + weeks.map(w => `<option value="${w.replace(/"/g,'&quot;')}"${weekFilter===w?' selected':''}>${w}</option>`).join('')
+      + (hasUnlabeled ? `<option value="${_UNLABELED_WEEK}"${weekFilter===_UNLABELED_WEEK?' selected':''}>Unlabeled</option>` : '');
   }
   // Update season dropdown — scoped to the currently-selected league so "MPL PH" shows only MPL PH seasons
   const seasonSel = document.getElementById('seasonFilterSelect');
@@ -3035,14 +3051,14 @@ function saveMatch() {
       && !(match.notes||'').toLowerCase().includes(matchSearch.toLowerCase())){
     filterAdjustments.push(`Search cleared`);
   }
-  leagueFilter = 'all'; seasonFilter = 'all'; patchFilter = 'all'; matchSearch = '';
+  leagueFilter = 'all'; seasonFilter = 'all'; patchFilter = 'all'; weekFilter = 'all'; matchSearch = '';
 
   // (2) Sync EVERY known UI control to the reset state. League uses sidebar
   //     buttons + a mobile dropdown, not a single select, so we have to clear
   //     active class on all sb-* buttons and set the All button active.
   const _ms = document.getElementById('matchSearchInput');     if (_ms) _ms.value = '';
   const _sf = document.getElementById('seasonFilterSelect');  if (_sf) _sf.value = 'all';
-  const _pf = document.getElementById('patchFilterSelect');   if (_pf) _pf.value = 'all';
+  const _pf = document.getElementById('weekFilterSelect');   if (_pf) _pf.value = 'all';
   const _mob= document.getElementById('mobileLeagueSelect');  if (_mob) _mob.value = 'all';
   document.querySelectorAll('.sidebar-btn[id^="sb-"]').forEach(el => {
     const id = el.id.replace('sb-','');
