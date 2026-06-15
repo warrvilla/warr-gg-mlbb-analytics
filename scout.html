@@ -1873,6 +1873,9 @@ let patchFilter = 'all';
 let weekFilter  = 'all';
 const _UNLABELED_WEEK = '__noweek__';
 function _weekSortKey(w){ const m=String(w).match(/\d+/); return m? parseInt(m[0],10) : 9000 + String(w).charCodeAt(0)/1000; }
+// Collapse 'Week 8 Day 1' / 'Week 8 Day 2' → 'Week 8'. Named stages keep
+// their label minus any 'Day N' suffix (e.g. 'Playoffs Day 2' → 'Playoffs').
+function _weekGroup(w){ return String(w||'').replace(/\s*[-—]?\s*day\s*\d+.*$/i,'').trim() || String(w||'').trim(); }
 function setWeekFilter(v){ weekFilter = v; _matchPage = 1; renderMatchListBody(); }
 let teamSort = 'games';
 let metaSort = 'presence';
@@ -2018,7 +2021,7 @@ function getFilteredMatches() {
     if (leagueFilter !== 'all' && m.league !== leagueFilter) return false;
     if (seasonFilter !== 'all' && (m.season||'') !== seasonFilter) return false;
     if (weekFilter !== 'all') {
-      const wk = (m.week||'').trim() || _UNLABELED_WEEK;
+      const wk = _weekGroup(m.week) || _UNLABELED_WEEK;
       if (wk !== weekFilter) return false;
     }
     if (q && !m.blueTeam.toLowerCase().includes(q) && !m.redTeam.toLowerCase().includes(q) && !(m.notes||'').toLowerCase().includes(q)) return false;
@@ -2141,8 +2144,8 @@ function renderMatchListBody() {
     let pool = DB_MODULE.getMatches();
     if (leagueFilter !== 'all') pool = pool.filter(m => m.league === leagueFilter);
     if (seasonFilter !== 'all') pool = pool.filter(m => (m.season||'') === seasonFilter);
-    const hasUnlabeled = pool.some(m => !(m.week||'').trim());
-    const weeks = [...new Set(pool.map(m => (m.week||'').trim()).filter(Boolean))]
+    const hasUnlabeled = pool.some(m => !_weekGroup(m.week));
+    const weeks = [...new Set(pool.map(m => _weekGroup(m.week)).filter(Boolean))]
       .sort((a,b) => _weekSortKey(b) - _weekSortKey(a));
     if (weekFilter === 'all' && weeks.length > 1) weekFilter = weeks[0];
     if (weekFilter !== 'all' && weekFilter !== _UNLABELED_WEEK && !weeks.includes(weekFilter)) weekFilter = 'all';
