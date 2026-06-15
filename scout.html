@@ -1471,6 +1471,19 @@ const HERO_BY_ID   = Object.fromEntries(ALL_HEROES.map(h => [h.id, h]));
 // Normalized lookup: handles case differences, missing hyphens, extra spaces
 // e.g. "Yi Sun-Shin", "yi sun shin", "yisunshin" all resolve to the correct hero
 const _normKey = s => (s||'').toLowerCase().replace(/[-\s'\.]/g,'');
+// Canonical hero-icon src: lowercase webp thumb (works on case-sensitive
+// Netlify). Falls back through name-png → id-png on error.
+function _heroIcon(name){
+  try { if (typeof WDB!=='undefined' && WDB.heroPortrait) return WDB.heroPortrait(name); } catch(_){}
+  const id = heroByName(name)?.id || _normKey(name);
+  return './portraits/t/'+id+'.webp';
+}
+function _heroIconErr(name){
+  const id = (heroByName(name)?.id || _normKey(name));
+  const safe = (name||'').replace(/ /g,'_').replace(/[^a-zA-Z0-9_.]/g,'');
+  // try id-png then name-png then hide
+  return "this.onerror=null;this.src='./portraits/"+id+".png';this.onerror=function(){this.onerror=null;this.src='./portraits/Hero Icon/"+safe+".png';this.onerror=function(){this.style.display='none'}}";
+}
 const HERO_BY_NORM = Object.fromEntries(ALL_HEROES.map(h => [_normKey(h.name), h]));
 // Also index by id normalization for legacy keys
 ALL_HEROES.forEach(h => { HERO_BY_NORM[h.id] = h; });
@@ -2160,7 +2173,7 @@ function renderMatchListBody() {
       const img = (name, size=26) => {
         const id = heroByName(name)?.id || _normKey(name) || name;
         const cls = size === 26 ? 'hero-thumb' : 'hero-thumb-sm';
-        return `<img class="${cls}" src="./portraits/${id}.png" onerror="this.src=''" title="${name}" style="${size===20?'width:20px;height:20px;':''}">`;
+        return `<img class="${cls}" src="${_heroIcon(name)}" onerror="${_heroIconErr(name)}" title="${name}" style="${size===20?'width:20px;height:20px;':''}">`;
       };
       const line = (picks, bans, color, tn) => `
         <div class="team-draft-line">
@@ -2568,7 +2581,7 @@ function renderDraftBoard() {
       </span>` : '';
       return `<div class="${cls}" data-step="${i}">
         ${label}
-        <img src="./portraits/${sl.heroId}.png" onerror="this.style.display='none'" style="width:26px;height:26px;border-radius:8px;object-fit:cover;flex-shrink:0;">
+        <img src="${_heroIcon(sl.heroName)}" onerror="${_heroIconErr(sl.heroName)}" style="width:26px;height:26px;border-radius:8px;object-fit:cover;flex-shrink:0;">
         <span class="step-name">${sl.heroName}</span>
         ${laneBtn}
         ${playerBtn}
@@ -2698,7 +2711,7 @@ function renderHeroPool() {
     const pLane = heroLanes(h)[0] || '';
     const laneCol = LANE_COLORS[pLane] || 'var(--text3)';
     return `<div class="hc${used?' hc-used':''}" data-pick="${enc}" title="${h.name} — ${pLane||h.role}">
-      <img src="./portraits/${h.id}.png" onerror="this.src=''">
+      <img src="${_heroIcon(h.name)}" onerror="${_heroIconErr(h.name)}">
       <div class="hc-name">${h.name}</div>
       <div class="hc-lane" style="color:${laneCol};">${pLane || '—'}</div>
     </div>`;
@@ -3603,7 +3616,7 @@ function openTeamReport(teamName) {
     if (!name) return '';
     const id = heroByName(name)?.id || name.toLowerCase().replace(/[^a-z0-9]/g,'') || name;
     const r = Math.round(size * 0.35);
-    return `<img style="width:${size}px;height:${size}px;border-radius:${r}px;object-fit:cover;background:var(--surface3);flex-shrink:0;" src="./portraits/${id}.png" onerror="this.style.display='none'" title="${name}">`;
+    return `<img style="width:${size}px;height:${size}px;border-radius:${r}px;object-fit:cover;background:var(--surface3);flex-shrink:0;" src="${_heroIcon(name)}" onerror="${_heroIconErr(name)}" title="${name}">`;
   };
 
   const wr = t.winRate||0;
@@ -3632,7 +3645,7 @@ function openTeamReport(teamName) {
           const rImg = (name, size=26) => {
             const id = heroByName(name)?.id || _normKey(name) || name;
             const cls = size === 26 ? 'hero-thumb' : 'hero-thumb-sm';
-            return `<img class="${cls}" src="./portraits/${id}.png" onerror="this.src=''" title="${name}" style="${size===20?'width:20px;height:20px;':''}">`;
+            return `<img class="${cls}" src="${_heroIcon(name)}" onerror="${_heroIconErr(name)}" title="${name}" style="${size===20?'width:20px;height:20px;':''}">`;
           };
           const line = (picks, bans, color, tn) => `
             <div class="team-draft-line">
@@ -4314,7 +4327,7 @@ function buildMetaTable(matches, roleFilter) {
       <td style="color:var(--text3);font-family:var(--font-mono);font-size:11px;width:28px;">${i+1}</td>
       <td>
         <div class="hero-cell">
-          ${r.h ? `<img src="./portraits/${r.h.id}.png" onerror="this.style.display='none'">` : ''}
+          ${r.h ? `<img src="${_heroIcon(r.h.name)}" onerror="${_heroIconErr(r.h.name)}">` : ''}
           <div>
             <div style="font-weight:600;">${r.name}</div>
             <div style="font-size:9px;color:var(--text3);">${r.h?.role||''}</div>
