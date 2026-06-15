@@ -239,7 +239,7 @@ body { background: var(--bg); min-height: 100vh; }
   <!-- View mode tabs + page actions -->
   <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
     <button class="btn btn-accent" id="viewTeamsBtn" onclick="setViewMode('teams')">By Team</button>
-    <button class="btn btn-ghost" id="viewPlayersBtn" onclick="setViewMode('players')">All Players</button>
+    <button class="btn btn-ghost" id="viewPlayersBtn" onclick="setViewMode('players')" style="display:none;">All Players</button>
     <button class="btn btn-accent" id="addTeamBtn" onclick="openAddTeam()" style="display:none;margin-left:auto;">+ Add Team</button>
   </div>
 
@@ -459,7 +459,11 @@ function viewPlayerDetail(playerId) {
 
 // ── Render team list ──────────────────────────────────────────
 // ── LEAGUE FILTER — which league each team appears in (from scout matches) ──
-let tmLeagueFilter = 'all';
+let tmLeagueFilter = (function(){
+  try { const dm = (typeof WDB!=='undefined'&&WDB.defaultMeta)?WDB.defaultMeta():null;
+    if (dm && dm.league && dm.league!=='all') return dm.league; } catch(_){}
+  try { return (WDB.officialLeagues&&WDB.officialLeagues()[0]) || 'MPL PH'; } catch(_){ return 'MPL PH'; }
+})();
 let _tmTeamLeagues = null; // name → Set(league)
 async function _loadTmLeagues() {
   if (_tmTeamLeagues) return _tmTeamLeagues;
@@ -484,7 +488,6 @@ function renderTmLeagueChips() {
   const short = n => n.startsWith('MPL ') ? n.slice(4) : n;
   const esc2 = n => n.replace(/'/g, "\\'");
   row.innerHTML = [
-    `<button class="btn btn-sm ${tmLeagueFilter==='all'?'btn-accent':'btn-ghost'}" onclick="setTmLeague('all')" style="padding:3px 10px;font-size:10px;border-radius:999px;">All</button>`,
     ...leagues.map(n => `<button class="btn btn-sm ${tmLeagueFilter===n?'btn-accent':'btn-ghost'}" onclick="setTmLeague('${esc2(n)}')" style="padding:3px 10px;font-size:10px;border-radius:999px;">${short(n)}</button>`),
     `<button class="btn btn-sm ${tmLeagueFilter==='Scrims'?'btn-accent':'btn-ghost'}" onclick="setTmLeague('Scrims')" style="padding:3px 10px;font-size:10px;border-radius:999px;">Scrims</button>`,
   ].join('');

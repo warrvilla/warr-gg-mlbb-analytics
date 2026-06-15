@@ -1775,6 +1775,22 @@ WDB.officialLeagues = function() {
   const customs = WDB.customLeagues.map(r => r.name).filter(n => !WDB.BASE_OFFICIAL_LEAGUES.includes(n));
   return [...WDB.BASE_OFFICIAL_LEAGUES, ...customs];
 };
+/** Admin-set default meta view: {league, season} (from the leagues table). */
+WDB.defaultMeta = function() {
+  const row = (WDB.customLeagues || []).find(r => r && r.is_default_meta);
+  return { league: row ? row.name : 'all', season: row ? (row.default_season || '') : '' };
+};
+/** Admin: set the default league + season shown to all users on Heroes/Meta. */
+WDB.setDefaultMeta = async function(leagueName, season) {
+  // Find the league row id; only admin-created leagues have rows. For a base
+  // league without a row, create one so the flag has somewhere to live.
+  let row = (WDB.customLeagues || []).find(r => r.name === leagueName);
+  const payload = { name: leagueName, is_default_meta: true, default_season: season || null };
+  if (row && row.id) payload.id = row.id;
+  const { error } = await _sbClient.from('leagues').upsert(payload, { onConflict: 'id' });
+  if (error) throw error;
+  WDB.invalidateLeagues(); await WDB.initLeagues({ force: true });
+};
 // Synchronous warm-start: merge from session cache before any page logic runs.
 try {
   const _lc = JSON.parse(sessionStorage.getItem('warr_leagues_cache') || 'null');

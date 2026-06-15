@@ -78,8 +78,19 @@ FREE_MONTHLY_CALLS, ADMIN_EMAIL.
   heartbeat — migration 008, MRR, age demographics, signup trend,
   Copy Sponsor Snapshot button).
 - Supabase: signups enabled + email confirmation ON (owner did this).
-- Migrations status: 004–009 RUN by owner; **010 pending** (is_comp flag
-  + trigger update — comped accounts excluded from MRR).
+- Migrations status: 004–009 RUN; **010 (is_comp) + 011 (default meta) pending**.
+  011 = leagues.is_default_meta + default_season (admin-set default
+  league/season for Heroes & homepage Meta views).
+- WebP portraits: portraits/t/<id|name>.webp thumbs (~1MB total, 5x
+  lighter), heroPortrait() serves webp (400x500 art for 'portrait'
+  variant), PNG fallback layer kept. PSD removed from repo.
+- League/season meta (#2): Heroes page + homepage Meta both have league +
+  season selectors; per-hero TIER computed live from scoped scout matches
+  (PR + shrunk WR → S+/S/A/B/C). Admin sets default via Admin Panel →
+  'Default League & Season' (WDB.setDefaultMeta → leagues table).
+- Scout (#1): Matches view is per-league only (auto-picks default league,
+  hides 'All'); Teams + Meta keep All. Teams page (#3, team_manager):
+  All-league chip + All Players view removed; defaults to a real league.
 - Comp accounts: grant flow asks Complimentary vs Paid; user details
   modal has Mark as COMP/PAID toggle for retroactive fixes. Analytics:
   'Paying users' + MRR = real money only; 'Comped (free)' separate.

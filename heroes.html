@@ -424,6 +424,13 @@
 .dd-gamerow .g-date { color: var(--text3); font-size: 9px; flex-shrink: 0; }
 .dd-empty { font-size: 11px; color: var(--text3); padding: 6px 0; }
 
+
+.meta-tier-badge{display:inline-block;font-weight:800;font-size:9px;padding:1px 6px;border-radius:6px;letter-spacing:.04em;}
+.meta-tier-badge.t-Sp{background:linear-gradient(135deg,#A888CC,#5E5CE6);color:#fff;}
+.meta-tier-badge.t-S{background:rgba(200,144,80,.18);color:#C89050;border:0.5px solid rgba(200,144,80,.4);}
+.meta-tier-badge.t-A{background:rgba(94,160,216,.16);color:#5EA0D8;}
+.meta-tier-badge.t-B{background:rgba(255,255,255,.06);color:var(--text2);}
+.meta-tier-badge.t-C{background:rgba(255,255,255,.04);color:var(--text3);}
 </style>
 </head>
 <body>
@@ -470,8 +477,10 @@
         <option value="Flying Cloud">Flying Cloud</option>
         <option value="Expanding River">Expanding River</option>
       </select>
-      <select class="ctrl-select" id="seasonFilter" onchange="onSeasonChange()" title="Filter stats to games from a specific season — defaults to most-recent so meta-shift between seasons doesn't blend data">
-        <!-- Options populated dynamically once matches load -->
+      <select class="ctrl-select" id="leagueFilterH" onchange="onLeagueChange()" title="Which league's meta to show — tiers are computed from that league's scout matches">
+        <option value="all">All leagues</option>
+      </select>
+      <select class="ctrl-select" id="seasonFilter" onchange="onSeasonChange()" title="Filter stats to games from a specific season — defaults to the admin's current season so meta-shift between seasons doesn't blend data">
         <option value="">All seasons</option>
       </select>
       <select class="ctrl-select" id="sortBy" onchange="onFilter()">
@@ -520,6 +529,36 @@ let _heroLaneMap    = {}; // { heroName: 'Gold'|'Jungle'|'Mid'|'EXP'|'Roam' } �
 let _heroMapStats   = {}; // { heroName: { mapName: { games, wins } } } — per-map performance
 let _adminMode      = false;
 let _activeSeason   = ''; // '' = all seasons; otherwise a specific season label
+let _activeLeague   = 'all'; // 'all' or a specific league name
+let _metaTiers      = {};    // hero name → computed tier for current league+season scope
+// Single source of truth for the scoped match pool (league + season).
+function _scopedMatches() {
+  let pool = _publicMatches;
+  if (_activeLeague !== 'all') pool = pool.filter(m => (m.league||'') === _activeLeague);
+  if (_activeSeason)           pool = pool.filter(m => (m.season||'') === _activeSeason);
+  return pool;
+}
+// Compute a meta tier per hero from the scoped pool: pick rate + shrunk WR.
+function _computeMetaTiers(pool) {
+  const total = pool.length || 1;
+  const stat = {};
+  pool.forEach(m => {
+    [[m.bluePicks||[],'blue'],[m.redPicks||[],'red']].forEach(([picks,side]) => {
+      picks.forEach(p => { const n=p&&(p.name||p); if(!n)return;
+        stat[n]=stat[n]||{g:0,w:0}; stat[n].g++; if(m.winner===side) stat[n].w++; });
+    });
+  });
+  const tiers = {};
+  Object.entries(stat).forEach(([n,v]) => {
+    const pr = v.g/total*100;
+    const wr = ((v.w + 0.5*4)/(v.g + 4))*100;   // shrunk WR
+    tiers[n] = (pr>=35 || (pr>=18 && wr>=60)) ? 'S+'
+             : (pr>=18 || (pr>=9 && wr>=56))  ? 'S'
+             : (pr>=9)  ? 'A'
+             : (v.g>=2) ? 'B' : 'C';
+  });
+  return tiers;
+}
 const MAP_NAMES = ['Dangerous Grass','Broken Walls','Flying Cloud','Expanding River'];
 
 // Sample-size threshold: relations computed from fewer than this many games
@@ -554,9 +593,15 @@ async function loadAll() {
   }
 
   _publicMatches = _matches.filter(m => WDB.PUBLIC_LEAGUES.includes(m.league));
-  // Populate the Season dropdown from matches present in the data. Default
-  // selection is the most-recent season (so a fresh page load doesn't blend
-  // old patches into current-meta analytics).
+  // Adopt the admin's default league BEFORE first paint so Heroes opens on it.
+  try {
+    if (typeof WDB!=='undefined' && WDB.initLeagues) await WDB.initLeagues();
+    const dm = WDB.defaultMeta ? WDB.defaultMeta() : null;
+    if (dm && dm.league && dm.league!=='all') _activeLeague = dm.league;
+  } catch(_) {}
+  populateLeagueDropdownH();
+  // Populate the Season dropdown (scoped to the active league; default season
+  // = admin's current season for that league, else most-recent).
   populateSeasonDropdown();
 
   // Compute per-map hero stats — respects the active season filter so map
@@ -686,6 +731,21 @@ function onMapChange() {
 
 // Season filter changes — same pattern as map. Defaults to the most-recent
 // season so new-season meta-shift doesn't blend with stale data.
+function populateLeagueDropdownH() {
+  const sel = document.getElementById('leagueFilterH');
+  if (!sel || typeof WDB==='undefined' || !WDB.officialLeagues) return;
+  const cur = _activeLeague;
+  sel.innerHTML = `<option value="all">All leagues</option>`
+    + WDB.officialLeagues().map(n => `<option value="${n}"${cur===n?' selected':''}>${n}</option>`).join('');
+}
+window.addEventListener('warr-leagues-ready', populateLeagueDropdownH);
+function onLeagueChange() {
+  _activeLeague = document.getElementById('leagueFilterH')?.value || 'all';
+  populateSeasonDropdown();           // seasons depend on league
+  recomputeForMapFilter();
+  renderStats(_scopedMatches());
+  renderGrid();
+}
 function onSeasonChange() {
   _activeSeason = document.getElementById('seasonFilter')?.value || '';
   recomputeForMapFilter();
@@ -699,13 +759,16 @@ function onSeasonChange() {
 function populateSeasonDropdown() {
   const sel = document.getElementById('seasonFilter');
   if (!sel) return;
-  const seasons = [...new Set(_publicMatches.map(m => (m.season||'').trim()).filter(Boolean))]
+  const leaguePool = _activeLeague==='all' ? _publicMatches : _publicMatches.filter(m=>(m.league||'')===_activeLeague);
+  const seasons = [...new Set(leaguePool.map(m => (m.season||'').trim()).filter(Boolean))]
     .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
-  const mostRecent = seasons[0] || '';
+  // Prefer the admin's default season for this league if present, else most-recent.
+  const dm = (typeof WDB!=='undefined' && WDB.defaultMeta) ? WDB.defaultMeta() : {league:'all',season:''};
+  const adminSeason = (dm.league===_activeLeague && dm.season && seasons.includes(dm.season)) ? dm.season : '';
+  const pick = (_activeSeason && seasons.includes(_activeSeason)) ? _activeSeason : (adminSeason || seasons[0] || '');
   sel.innerHTML = `<option value="">All seasons</option>`
-    + seasons.map(s => `<option value="${s}" ${s===mostRecent?'selected':''}>${s}${s===mostRecent?' (current)':''}</option>`).join('');
-  // Adopt the most-recent season as the default active filter
-  _activeSeason = mostRecent;
+    + seasons.map(s => `<option value="${s}" ${s===pick?'selected':''}>${s}${s===adminSeason?' (current)':''}</option>`).join('');
+  _activeSeason = pick;
 }
 
 // Re-derive _countersMap, _synergiesMap, _playCounts from _publicMatches filtered
@@ -715,9 +778,9 @@ function recomputeForMapFilter() {
   const mapSel = document.getElementById('mapFilter')?.value || '';
   // Apply BOTH map and season filters to the match pool. Season default is
   // most-recent so out-of-date patch data doesn't bleed into current analytics.
-  let pool = _publicMatches;
-  if (_activeSeason) pool = pool.filter(m => (m.season||'') === _activeSeason);
+  let pool = _scopedMatches();
   if (mapSel)        pool = pool.filter(m => (m.map||'') === mapSel);
+  _metaTiers = _computeMetaTiers(_scopedMatches()); // tier ignores map filter
   _countersMap   = WDB.computeScoutCountersFromMatches(pool);
   _synergiesMap  = WDB.computeScoutSynergiesFromMatches(pool);
   _draftedAgainst = WDB.computeDraftedAgainstFromMatches?.(pool) || {};
@@ -834,7 +897,7 @@ function heroCardHTML(h) {
         <div class="hero-meta">
           <div class="hero-name">${escHtml(h.name)}</div>
           <div class="hero-role">${escHtml((h.role || '—').toUpperCase())}${h.lane ? ` · ${escHtml(h.lane.toUpperCase())}` : ''}</div>
-          <div class="hero-gamecount">${games} game${games !== 1 ? 's' : ''} scouted</div>
+          <div class="hero-gamecount">${games} game${games !== 1 ? 's' : ''} scouted${_metaTiers[h.name] && games>0 ? ` · <span class="meta-tier-badge t-${_metaTiers[h.name].replace('+','p')}">${_metaTiers[h.name]}</span>` : ''}</div>
           ${mapSplitsHTML(h.name)}
         </div>
       </div>

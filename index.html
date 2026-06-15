@@ -775,12 +775,17 @@ body {
             <button class="region-tab active" data-region="all">Global</button>
           </div>
         </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <div class="lane-tabs" id="metaLaneTabs">
           <button class="lane-tab active" data-lane="EXP">EXP</button>
           <button class="lane-tab" data-lane="Jungle">Jungle</button>
           <button class="lane-tab" data-lane="Mid">Mid</button>
           <button class="lane-tab" data-lane="Gold">Gold</button>
           <button class="lane-tab" data-lane="Roam">Roam</button>
+        </div>
+        <select id="metaSeasonSel" onchange="setMetaSeason(this.value)" style="margin-left:auto;background:var(--glass);border:0.5px solid var(--glass-border);color:var(--text);border-radius:8px;font-size:11px;padding:5px 9px;">
+          <option value="">All seasons</option>
+        </select>
         </div>
         <div class="hero-cards" id="metaHeroCards"></div>
       </section>
@@ -927,7 +932,21 @@ function resetHeroTimer() {
 // ══════════════════════════════════════════════════════════════
 let _metaRegion = 'all';
 let _metaLane = 'EXP';
+let _metaSeason = '';
 let _metaMatchesCache = null;
+function setMetaSeason(v){ _metaSeason = v; renderMetaHierarchies(); }
+function populateMetaSeasons(){
+  const sel = document.getElementById('metaSeasonSel'); if(!sel) return;
+  const pool = (_metaMatchesCache||[]).filter(m => _metaRegion==='all' || m.league===_metaRegion);
+  const seasons = [...new Set(pool.map(m=>(m.season||'').trim()).filter(Boolean))]
+    .sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+  const dm = (typeof WDB!=='undefined'&&WDB.defaultMeta)?WDB.defaultMeta():{league:'all',season:''};
+  const adminSeason = (dm.league===_metaRegion && dm.season && seasons.includes(dm.season)) ? dm.season : '';
+  if (_metaSeason && !seasons.includes(_metaSeason)) _metaSeason='';
+  if (!_metaSeason && adminSeason) _metaSeason = adminSeason;
+  sel.innerHTML = `<option value="">All seasons</option>`
+    + seasons.map(x=>`<option value="${x}"${x===_metaSeason?' selected':''}>${x}${x===adminSeason?' (current)':''}</option>`).join('');
+}
 
 function renderMetaRegionTabs() {
   const wrap = document.getElementById('metaRegionTabs');
@@ -945,6 +964,7 @@ async function loadMetaData() {
   try {
     if (typeof WDB === 'undefined' || !WDB.loadMatches) return;
     _metaMatchesCache = await WDB.loadMatches(); // awaits initLeagues internally
+    try { const dm = WDB.defaultMeta && WDB.defaultMeta(); if (dm && dm.league && dm.league!=='all') _metaRegion = dm.league; } catch(_){}
     renderMetaRegionTabs();
     renderMetaHierarchies();
   } catch(e) {
@@ -967,6 +987,8 @@ function renderMetaHierarchies() {
     : !['Scrims','Other','AI Battle',''].includes(m.league || '');
   let matches = all.filter(isPublic);
   if (_metaRegion !== 'all') matches = matches.filter(m => m.league === _metaRegion);
+  populateMetaSeasons();
+  if (_metaSeason) matches = matches.filter(m => (m.season||'') === _metaSeason);
 
   if (!matches.length) {
     label.textContent = _metaRegion === 'all'
@@ -1063,6 +1085,7 @@ function renderMetaHierarchies() {
 
 function setMetaRegion(region) {
   _metaRegion = region;
+  _metaSeason = ''; // re-resolve season default for the new league
   document.querySelectorAll('#metaRegionTabs .region-tab').forEach(t =>
     t.classList.toggle('active', t.dataset.region === region));
   renderMetaHierarchies();

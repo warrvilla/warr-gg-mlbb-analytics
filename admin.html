@@ -335,6 +335,20 @@ table.users-table {
       <div class="pagination" id="pagination"></div>
     </div>
 
+    <!-- DEFAULT LEAGUE & SEASON -->
+    <div class="admin-card">
+      <div class="admin-section-title" style="color:var(--gold);">🏆 Default League &amp; Season</div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:12px;line-height:1.6;">
+        What the Heroes and homepage Meta views open to for every user. They can still switch leagues/seasons themselves — this just sets the starting view (e.g. your current MPL PH season).
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <select id="defLeagueSel" class="filter-select" onchange="onDefLeagueChange()" style="min-width:150px;"></select>
+        <select id="defSeasonSel" class="filter-select" style="min-width:150px;"></select>
+        <button class="btn-approve" onclick="saveDefaultMeta()">Save Default</button>
+        <span id="defMetaStatus" style="font-size:11px;color:var(--text3);"></span>
+      </div>
+    </div>
+
     <!-- HARD DELETE BOX -->
     <div class="admin-card">
       <div class="admin-section-title">Force-Delete Stuck Users</div>
@@ -831,6 +845,44 @@ function copySponsorSnapshot() {
   navigator.clipboard.writeText(txt).then(() => toast('Sponsor snapshot copied ✓', 'success'), () => toast('Copy failed', 'error'));
 }
 
+// ── Default League & Season ──
+let _defMetaMatches = null;
+async function _loadDefMetaMatches() {
+  if (_defMetaMatches) return _defMetaMatches;
+  try { _defMetaMatches = (await WDB.loadMatches()) || []; } catch { _defMetaMatches = []; }
+  return _defMetaMatches;
+}
+async function initDefaultMeta() {
+  const lsel = document.getElementById('defLeagueSel'); if (!lsel) return;
+  try { await WDB.initLeagues(); } catch(_){}
+  const dm = WDB.defaultMeta ? WDB.defaultMeta() : { league:'all', season:'' };
+  const leagues = WDB.officialLeagues ? WDB.officialLeagues() : [];
+  lsel.innerHTML = `<option value="all">All leagues</option>`
+    + leagues.map(n => `<option value="${n}"${dm.league===n?' selected':''}>${n}</option>`).join('');
+  await populateDefSeasons(dm.season);
+}
+async function populateDefSeasons(preselect) {
+  const ssel = document.getElementById('defSeasonSel'); if (!ssel) return;
+  const lg = document.getElementById('defLeagueSel').value;
+  const ms = await _loadDefMetaMatches();
+  const pool = lg==='all' ? ms : ms.filter(m => (m.league||'')===lg);
+  const seasons = [...new Set(pool.map(m=>(m.season||'').trim()).filter(Boolean))]
+    .sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+  ssel.innerHTML = `<option value="">(no specific season)</option>`
+    + seasons.map(x=>`<option value="${x}"${x===preselect?' selected':''}>${x}</option>`).join('');
+}
+function onDefLeagueChange(){ populateDefSeasons(''); }
+async function saveDefaultMeta() {
+  const lg = document.getElementById('defLeagueSel').value;
+  const sn = document.getElementById('defSeasonSel').value;
+  const st = document.getElementById('defMetaStatus');
+  if (lg === 'all') { st.textContent = 'Pick a specific league to set as default.'; st.style.color='var(--red,#f87171)'; return; }
+  try {
+    await WDB.setDefaultMeta(lg, sn);
+    st.textContent = `✓ Default set: ${lg}${sn?' · '+sn:''}`; st.style.color='#4ade80';
+  } catch(e) { st.textContent = '✗ ' + (e.message||'failed'); st.style.color='var(--red,#f87171)'; }
+}
+
 // ── Hard-delete SQL ──
 function updateSqlBlock() {
   const uid = (document.getElementById('hardDeleteUidInput').value || '').trim();
@@ -931,6 +983,7 @@ async function init() {
   renderExtraAdmins();
   refreshApiKeyStatus(); // async — no need to await
   await loadAllData();
+  try { initDefaultMeta(); } catch(_){}
 }
 
 // ── Grant plan modal ──
