@@ -540,7 +540,9 @@ function _scopedMatches() {
 }
 // Compute a meta tier per hero from the scoped pool: pick rate + shrunk WR.
 function _computeMetaTiers(pool) {
-  const total = pool.length || 1;
+  const total = pool.length;
+  // Too small a sample to assign a league/season meta tier honestly.
+  if (total < 5) return {};
   const stat = {};
   pool.forEach(m => {
     [[m.bluePicks||[],'blue'],[m.redPicks||[],'red']].forEach(([picks,side]) => {
@@ -550,12 +552,17 @@ function _computeMetaTiers(pool) {
   });
   const tiers = {};
   Object.entries(stat).forEach(([n,v]) => {
-    const pr = v.g/total*100;
-    const wr = ((v.w + 0.5*4)/(v.g + 4))*100;   // shrunk WR
-    tiers[n] = (pr>=35 || (pr>=18 && wr>=60)) ? 'S+'
-             : (pr>=18 || (pr>=9 && wr>=56))  ? 'S'
-             : (pr>=9)  ? 'A'
-             : (v.g>=2) ? 'B' : 'C';
+    const g = v.g;
+    const pr = g/total*100;
+    const wr = ((v.w + 0.5*4)/(g + 4))*100;   // shrunk WR (k=4)
+    // SAMPLE GATE: a hero needs real games before WR can lift it. 1 game = C,
+    // 2 = B max — no S off a lucky single match.
+    tiers[n] = g < 2 ? 'C'
+             : g < 3 ? 'B'
+             : (pr>=30 || (pr>=18 && wr>=58)) ? 'S+'
+             : (pr>=15 || (pr>=8  && wr>=55)) ? 'S'
+             : (pr>=8)  ? 'A'
+             : 'B';
   });
   return tiers;
 }

@@ -1057,8 +1057,9 @@ function renderMetaHierarchies() {
   const tint = LANE_TINT[lane] || 'rgba(168,136,204,0.28)';
 
   grid.innerHTML = ranked.map(h => {
-    const tier = h.pickRate >= 40 || (h.pickRate >= 20 && h.winRate >= 60) ? 'S+'
-               : h.pickRate >= 20 || (h.pickRate >= 10 && h.winRate >= 56) ? 'S'
+    const _hiOK = h.games >= 3; // gate high tiers behind a real sample
+    const tier = (h.pickRate >= 40 || (_hiOK && h.pickRate >= 20 && h.winRate >= 60)) ? 'S+'
+               : (h.pickRate >= 20 || (_hiOK && h.pickRate >= 10 && h.winRate >= 56)) ? 'S'
                : h.pickRate >= 10 ? 'A'
                : 'B';
     // Use the 'portrait' variant (4:5 taller crop, big aesthetic art) on
