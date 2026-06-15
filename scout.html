@@ -1875,6 +1875,25 @@ let metaSort = 'presence';
 let metaLeague = 'all';
 let metaRole = 'All';
 let _seriesCollapsed = {};
+// ── Pagination ──
+const MATCH_PAGE_SIZE = 12;  // series per page (each expands to its games)
+const TEAM_PAGE_SIZE  = 24;  // team cards per page
+let _matchPage = 1;
+let _teamPage  = 1;
+function _renderPager(total, pageSize, current, onPage) {
+  const pages = Math.ceil(total / pageSize);
+  if (pages <= 1) return '';
+  const btn = (p, label, dis, active) =>
+    `<button class="mode-btn${active?' active':''}" ${dis?'disabled style="opacity:.4;cursor:default;"':''} onclick="${dis?'':onPage+'('+p+')'}" style="padding:4px 11px;font-size:11px;">${label}</button>`;
+  let nums = '';
+  for (let i=1;i<=pages;i++){
+    if (pages>7 && i>2 && i<pages-1 && Math.abs(i-current)>1){ if(i===3||i===pages-2) nums+='<span style="color:var(--text4);padding:0 3px;">…</span>'; continue; }
+    nums += btn(i, i, false, i===current);
+  }
+  return `<div style="display:flex;gap:5px;align-items:center;justify-content:center;flex-wrap:wrap;padding:14px 0 4px;">${btn(current-1,'‹ Prev',current===1,false)}${nums}${btn(current+1,'Next ›',current===pages,false)}</div>`;
+}
+function goMatchPage(p){ _matchPage = p; renderMatchListBody(); document.getElementById('matchListBody')?.scrollIntoView({behavior:'smooth',block:'start'}); }
+function goTeamPage(p){ _teamPage = p; _renderTeamsGrid(); }
 
 // Draft entry state
 let editingMatchId = null;
@@ -1948,6 +1967,7 @@ function showView(v) {
 
 function setLeagueFilter(lf) {
   leagueFilter = lf;
+  _matchPage = 1; _teamPage = 1;
   // Reset season sub-filter, then auto-apply this league's admin-marked current season if one is set.
   // (Cached in LEAGUE_CURRENT_SEASON by loadCustomLeagues at startup.)
   seasonFilter = 'all';
@@ -1970,6 +1990,7 @@ function setLeagueFilter(lf) {
 
 function setSeasonFilter(s) {
   seasonFilter = s || 'all';
+  _matchPage = 1;
   if (currentView === 'matches') renderMatchListBody();
   else if (currentView === 'meta') renderMeta();
   updateSidebarCounts();
@@ -2098,7 +2119,7 @@ function renderMatchList() {
 
 function onMatchSearch(val) {
   clearTimeout(_searchDebounce);
-  _searchDebounce = setTimeout(() => { matchSearch = val; renderMatchListBody(); }, 150);
+  _searchDebounce = setTimeout(() => { matchSearch = val; _matchPage = 1; renderMatchListBody(); }, 150);
 }
 
 function renderMatchListBody() {
@@ -2137,8 +2158,11 @@ function renderMatchListBody() {
     return;
   }
 
+  const _mPages = Math.max(1, Math.ceil(series.length / MATCH_PAGE_SIZE));
+  if (_matchPage > _mPages) _matchPage = 1;
+  const _pageSeries = series.slice((_matchPage-1)*MATCH_PAGE_SIZE, _matchPage*MATCH_PAGE_SIZE);
   let _lastWeekKey = null;
-  body.innerHTML = series.map(s => {
+  body.innerHTML = _pageSeries.map(s => {
     const sk = s.key;
     // Default to EXPANDED for any series the user hasn't explicitly collapsed.
     // The old behavior (undefined → collapsed) made new matches appear to
@@ -2249,7 +2273,7 @@ function renderMatchListBody() {
       </div>
       ${collapsed ? '' : gameRows}
     </div>`;
-  }).join('');
+  }).join('') + _renderPager(series.length, MATCH_PAGE_SIZE, _matchPage, 'goMatchPage');
 }
 
 function toggleSeries(sk) {
@@ -3131,7 +3155,10 @@ function _renderTeamsGrid() {
     return;
   }
   grid.className = 'team-grid';
-  grid.innerHTML = teams.map(t => {
+  const _tPages = Math.max(1, Math.ceil(teams.length / TEAM_PAGE_SIZE));
+  if (_teamPage > _tPages) _teamPage = 1;
+  const _pageTeams = teams.slice((_teamPage-1)*TEAM_PAGE_SIZE, _teamPage*TEAM_PAGE_SIZE);
+  grid.innerHTML = _pageTeams.map(t => {
     const wr  = t.winRate||0;
     const wrc = wr>=60?'var(--green)':wr>=50?'var(--gold)':'var(--red)';
     const bwrc = (t.blueSideWR??0)>=60?'var(--green)':(t.blueSideWR??0)>=50?'var(--gold)':'var(--red)';
@@ -3214,7 +3241,7 @@ function _renderTeamsGrid() {
         <button class="btn btn-ghost btn-sm" style="flex:1;font-size:10px;" onclick="event.stopPropagation();openTeamEditor('${t.name}')">Edit</button>
       </div>
     </div>`;
-  }).join('');
+  }).join('') + _renderPager(teams.length, TEAM_PAGE_SIZE, _teamPage, 'goTeamPage');
 }
 
 function openTeamEditor(teamName) {
