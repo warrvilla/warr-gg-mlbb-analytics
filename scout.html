@@ -1921,13 +1921,13 @@ function _defaultScoutLeague() {
 }
 function showView(v) {
   currentView = v;
-  // Matches view is per-league only (the all-leagues list was an endless
-  // scroll). Teams + Meta keep 'all'.
-  if (v==='matches' && leagueFilter==='all') { setLeagueFilter(_defaultScoutLeague()); return; }
+  // Matches AND Teams are per-league only (all-leagues was an endless scroll).
+  // Only the Meta view keeps 'All Leagues'.
+  if ((v==='matches' || v==='teams') && leagueFilter==='all') { setLeagueFilter(_defaultScoutLeague()); return; }
   ['matches','teams','meta'].forEach(x => document.getElementById('sb-'+x)?.classList.toggle('active', x===v));
-  // Show/hide the 'All Leagues' sidebar + mobile option depending on view.
+  // 'All Leagues' button only makes sense in the Meta view now.
   const allBtn = document.getElementById('sb-all');
-  if (allBtn) allBtn.style.display = (v==='matches') ? 'none' : '';
+  if (allBtn) allBtn.style.display = (v==='meta') ? '' : 'none';
   if (v==='matches') renderMatchList();
   else if (v==='teams') renderTeams();
   else renderMeta();

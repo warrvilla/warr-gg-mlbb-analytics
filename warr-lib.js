@@ -1382,7 +1382,7 @@ WDB.heroPortrait = function(name, variant) {
   // thumbnail. Both ~5x lighter than the old PNGs. Consumers keep PNG onerror
   // fallbacks, so a missing webp degrades gracefully.
   if (variant === 'portrait') return `portraits/400x500/${safe}.webp`;
-  return `portraits/t/${safe}.webp`;
+  return `portraits/t/${safe.toLowerCase()}.webp`;
 };
 /** PNG fallback path for onerror handlers. */
 WDB.heroPortraitPng = function(name) {
