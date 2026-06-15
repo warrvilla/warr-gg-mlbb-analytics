@@ -1890,7 +1890,10 @@ function _renderPager(total, pageSize, current, onPage) {
     if (pages>7 && i>2 && i<pages-1 && Math.abs(i-current)>1){ if(i===3||i===pages-2) nums+='<span style="color:var(--text4);padding:0 3px;">…</span>'; continue; }
     nums += btn(i, i, false, i===current);
   }
-  return `<div style="display:flex;gap:5px;align-items:center;justify-content:center;flex-wrap:wrap;padding:14px 0 4px;">${btn(current-1,'‹ Prev',current===1,false)}${nums}${btn(current+1,'Next ›',current===pages,false)}</div>`;
+  return `<div style="display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;padding:18px 0 8px;margin-top:8px;border-top:1px solid var(--border);">
+    <span style="font-size:10px;color:var(--text3);margin-right:4px;">Page ${current}/${pages}</span>
+    ${btn(current-1,'‹ Prev',current===1,false)}${nums}${btn(current+1,'Next ›',current===pages,false)}
+  </div>`;
 }
 function goMatchPage(p){ _matchPage = p; renderMatchListBody(); document.getElementById('matchListBody')?.scrollIntoView({behavior:'smooth',block:'start'}); }
 function goTeamPage(p){ _teamPage = p; _renderTeamsGrid(); }
@@ -2170,9 +2173,10 @@ function renderMatchListBody() {
     // series header because the brand-new sk had no entry in _seriesCollapsed.
     // On "All Leagues" the list is huge — collapse series by default so it's
     // scannable; a specific-league view stays expanded for quick reading.
-    const collapsed = leagueFilter === 'all'
-      ? _seriesCollapsed[sk] !== false
-      : _seriesCollapsed[sk] === true;
+    // Series are CLOSED by default (open one to see its games). Keeps the
+    // list scannable and the pager reachable. _seriesCollapsed[sk]===false
+    // means the user explicitly opened it.
+    const collapsed = _seriesCollapsed[sk] !== false;
     const lc = LEAGUE_CSS[s.league] || 'lg-other';
     const d = new Date(s.date);
     const day = isNaN(d.getTime()) ? '?' : d.getDate();
