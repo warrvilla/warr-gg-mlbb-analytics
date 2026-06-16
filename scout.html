@@ -1871,12 +1871,13 @@ let teamSearch = '';
 let matchSort = 'date';
 let patchFilter = 'all';
 let weekFilter  = 'all';
+let _weekAutoPicked = false;  // latest-week auto-default fires once per league/season, not on every render
 const _UNLABELED_WEEK = '__noweek__';
 function _weekSortKey(w){ const m=String(w).match(/\d+/); return m? parseInt(m[0],10) : 9000 + String(w).charCodeAt(0)/1000; }
 // Collapse 'Week 8 Day 1' / 'Week 8 Day 2' → 'Week 8'. Named stages keep
 // their label minus any 'Day N' suffix (e.g. 'Playoffs Day 2' → 'Playoffs').
 function _weekGroup(w){ return String(w||'').replace(/\s*[-—]?\s*day\s*\d+.*$/i,'').trim() || String(w||'').trim(); }
-function setWeekFilter(v){ weekFilter = v; _matchPage = 1; renderMatchListBody(); }
+function setWeekFilter(v){ weekFilter = v; _weekAutoPicked = true; _matchPage = 1; renderMatchListBody(); }
 let teamSort = 'games';
 let metaSort = 'presence';
 let metaLeague = 'all';
@@ -1977,7 +1978,7 @@ function showView(v) {
 
 function setLeagueFilter(lf) {
   leagueFilter = lf;
-  _matchPage = 1; _teamPage = 1; weekFilter = 'all';
+  _matchPage = 1; _teamPage = 1; weekFilter = 'all'; _weekAutoPicked = false;
   // Reset season sub-filter, then auto-apply this league's admin-marked current season if one is set.
   // (Cached in LEAGUE_CURRENT_SEASON by loadCustomLeagues at startup.)
   seasonFilter = 'all';
@@ -2000,7 +2001,7 @@ function setLeagueFilter(lf) {
 
 function setSeasonFilter(s) {
   seasonFilter = s || 'all';
-  _matchPage = 1; weekFilter = 'all';
+  _matchPage = 1; weekFilter = 'all'; _weekAutoPicked = false;
   if (currentView === 'matches') renderMatchListBody();
   else if (currentView === 'meta') renderMeta();
   updateSidebarCounts();
@@ -2147,7 +2148,8 @@ function renderMatchListBody() {
     const hasUnlabeled = pool.some(m => !_weekGroup(m.week));
     const weeks = [...new Set(pool.map(m => _weekGroup(m.week)).filter(Boolean))]
       .sort((a,b) => _weekSortKey(b) - _weekSortKey(a));
-    if (weekFilter === 'all' && weeks.length > 1) weekFilter = weeks[0];
+    if (weekFilter === 'all' && !_weekAutoPicked && weeks.length > 1) { weekFilter = weeks[0]; }
+    _weekAutoPicked = true;
     if (weekFilter !== 'all' && weekFilter !== _UNLABELED_WEEK && !weeks.includes(weekFilter)) weekFilter = 'all';
     weekSel.innerHTML = `<option value="all">All Weeks</option>`
       + weeks.map(w => `<option value="${w.replace(/"/g,'&quot;')}"${weekFilter===w?' selected':''}>${w}</option>`).join('')
