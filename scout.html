@@ -3041,35 +3041,25 @@ function saveMatch() {
   // is on a different view, OR the matchListStatic static structure was built
   // with stale state. Take all three hammers at once:
 
-  // (1) Compute what filter mismatches would hide the saved match — for the
-  //     toast message — then unconditionally reset all filters to 'all'.
-  //     Unconditional reset is safer than conditional: covers cases where the
-  //     match might match the current filters technically but UI selects got
-  //     out of sync.
-  const filterAdjustments = [];
-  if (leagueFilter !== 'all' && leagueFilter !== match.league)         filterAdjustments.push(`League → All`);
-  if (seasonFilter !== 'all' && seasonFilter !== (match.season||''))   filterAdjustments.push(`Season → All`);
-  if (patchFilter  !== 'all' && patchFilter  !== (match.patch||''))    filterAdjustments.push(`Patch → All`);
-  if (matchSearch
-      && !match.blueTeam.toLowerCase().includes(matchSearch.toLowerCase())
-      && !match.redTeam.toLowerCase().includes(matchSearch.toLowerCase())
-      && !(match.notes||'').toLowerCase().includes(matchSearch.toLowerCase())){
-    filterAdjustments.push(`Search cleared`);
-  }
-  leagueFilter = 'all'; seasonFilter = 'all'; patchFilter = 'all'; weekFilter = 'all'; matchSearch = '';
+  // (1) SNAP filters TO the saved match (not away from it) so you stay in
+  //     context — e.g. save game 1 of MPL MY Week 7 and you remain on MPL MY
+  //     Week 7, ready to add game 2. (Old code reset everything to 'All',
+  //     which then bounced Matches view to the default league.)
+  leagueFilter = match.league || leagueFilter;
+  seasonFilter = (match.season||'').trim() || 'all';
+  weekFilter   = _weekGroup(match.week) || 'all';
+  _weekAutoPicked = true;           // honor this week; don't re-default to latest
+  patchFilter  = 'all';
+  matchSearch  = '';
 
-  // (2) Sync EVERY known UI control to the reset state. League uses sidebar
-  //     buttons + a mobile dropdown, not a single select, so we have to clear
-  //     active class on all sb-* buttons and set the All button active.
+  // (2) Sync UI controls to the saved match's context.
   const _ms = document.getElementById('matchSearchInput');     if (_ms) _ms.value = '';
-  const _sf = document.getElementById('seasonFilterSelect');  if (_sf) _sf.value = 'all';
-  const _pf = document.getElementById('weekFilterSelect');   if (_pf) _pf.value = 'all';
-  const _mob= document.getElementById('mobileLeagueSelect');  if (_mob) _mob.value = 'all';
+  const _sf = document.getElementById('seasonFilterSelect');  if (_sf) _sf.value = seasonFilter;
+  const _mob= document.getElementById('mobileLeagueSelect');  if (_mob) _mob.value = leagueFilter;
   document.querySelectorAll('.sidebar-btn[id^="sb-"]').forEach(el => {
     const id = el.id.replace('sb-','');
-    if (!['matches','teams','meta'].includes(id)) el.classList.remove('active');
+    if (!['matches','teams','meta'].includes(id)) el.classList.toggle('active', id === leagueFilter);
   });
-  document.getElementById('sb-all')?.classList.add('active');
 
   // (3) Force the just-saved match's series open. seriesId on the match object
   //     is the same key getFilteredSeries groups under.
@@ -3110,9 +3100,8 @@ function saveMatch() {
   const visibleSeries = getFilteredSeries();
   const matchVisible = visibleSeries.some(s => s.games.some(g => g.id === match.id));
   const baseMsg = `✓ Match saved — ${blueTeam} vs ${redTeam}`;
-  const filterMsg = filterAdjustments.length ? ` · Filters reset (${filterAdjustments.join(', ')})` : '';
   const warnMsg = matchVisible ? '' : ' · ⚠ Not visible — check date/filter';
-  toast(`${baseMsg}${filterMsg}${warnMsg}`);
+  toast(`${baseMsg}${warnMsg}`);
 
   // Auto-sync to cloud (non-blocking)
   _setSyncStatus('syncing');
