@@ -90,3 +90,31 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+
+# ── Asset caching ──
+# Hero portraits never change content under a given filename, so let the
+# browser keep them for a year. First visit fetches them once; every page
+# nav and repeat visit after that is instant (zero network round-trips).
+# If you ever re-export a portrait, bump its filename or add ?v=2 to bust.
+[[headers]]
+  for = "/portraits/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+# Long-lived caching for the rest of the static assets, but revalidated so
+# code pushes still go live (Netlify atomic deploys flush on each deploy).
+[[headers]]
+  for = "*.webp"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+[[headers]]
+  for = "*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+[[headers]]
+  for = "*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=86400, must-revalidate"
+[[headers]]
+  for = "*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=86400, must-revalidate"
