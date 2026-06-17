@@ -482,43 +482,28 @@ body::after {
   margin-bottom: 14px !important;
 }
 
-/* ── OPTION CARDS ── */
+/* ── OPTION CARDS (mockup-exact, uniform violet selection) ── */
 .opt-card {
-  background: rgba(255,255,255,0.05) !important;
-  border: 0.5px solid rgba(255,255,255,0.07) !important;
-  border-radius: 16px !important;
-  padding: 16px 12px !important;
-  transition: all 0.20s ease !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07) !important;
+  background: #16161E !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 12px !important;
+  padding: 14px 12px !important;
+  transition: border-color .15s ease, background .15s ease, transform .12s ease !important;
+  box-shadow: none !important;
 }
 .opt-card:hover {
-  background: rgba(255,255,255,0.06) !important;
-  border-color: rgba(255,255,255,0.11) !important;
-  transform: translateY(-2px) !important;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07) !important;
+  background: #1B1B25 !important;
+  border-color: rgba(124,92,246,0.5) !important;
+  transform: translateY(-1px) !important;
 }
-.opt-card.sel-blue {
-  background: rgba(94,160,216,0.09) !important;
-  border-color: rgba(94,160,216,0.24) !important;
-  box-shadow: 0 0 20px rgba(94,160,216,0.11), inset 0 1px 0 rgba(255,255,255,0.07) !important;
+.opt-card.sel-blue, .opt-card.sel-red, .opt-card.sel-random, .opt-card.sel-gold {
+  background: rgba(124,92,246,0.13) !important;
+  border: 1.5px solid #7C5CF6 !important;
+  box-shadow: 0 0 16px rgba(124,92,246,0.18) !important;
 }
-.opt-card.sel-red {
-  background: rgba(216,120,128,0.10) !important;
-  border-color: rgba(216,120,128,0.24) !important;
-  box-shadow: 0 0 20px rgba(216,120,128,0.12), inset 0 1px 0 rgba(255,255,255,0.07) !important;
-}
-.opt-card.sel-random {
-  background: rgba(124,92,246,0.09) !important;
-  border-color: rgba(124,92,246,0.24) !important;
-  box-shadow: 0 0 20px rgba(124,92,246,0.11), inset 0 1px 0 rgba(255,255,255,0.07) !important;
-}
-.opt-card.sel-gold {
-  background: rgba(200,144,80,0.09) !important;
-  border-color: rgba(200,144,80,0.24) !important;
-  box-shadow: 0 0 20px rgba(200,144,80,0.10), inset 0 1px 0 rgba(255,255,255,0.07) !important;
-}
-.opt-icon { font-size: 24px !important; margin-bottom: 6px !important; }
-.opt-name { font-size: 13px !important; font-weight: 600 !important; letter-spacing: -0.01em !important; }
+.opt-icon { font-size: 22px !important; margin-bottom: 6px !important; }
+.opt-name { font-size: 14px !important; font-weight: 600 !important; letter-spacing: -0.01em !important; color: #F4F4F8 !important; }
+.opt-desc { font-size: 12px !important; color: #8A8A9A !important; margin-top: 3px !important; }
 
 /* ── START BUTTON ── */
 #startBtn, .start-btn {
@@ -938,16 +923,23 @@ input:focus, .search-input:focus {
 #setup .ab-opp-league,#setup .ab-opp-behave-t{color:#A78BFA;}
 #setup .ab-opp-behave{background:rgba(124,92,246,.08);border-color:rgba(124,92,246,.22);}
 #setup .setup-card-engine{border-color:rgba(124,92,246,.22) !important;}
+/* layout: left column (hero+Step1 / Step3+Step4) beside right (Step2 / Summary) */
+#setup .ab-top{display:grid;grid-template-columns:1fr 1.32fr;gap:16px;margin-bottom:16px;align-items:start;}
+#setup .ab-bottom{display:grid;grid-template-columns:1.55fr 1fr;gap:16px;margin-bottom:18px;align-items:start;}
+#setup .ab-colL{display:flex;flex-direction:column;gap:16px;}
+#setup .ab-colL .ab-hero{margin-bottom:0;}
+#setup .ab-summary{position:sticky;top:64px;}
+@media(max-width:900px){#setup .ab-top,#setup .ab-bottom{grid-template-columns:1fr;}#setup .ab-summary{position:static;}}
 </style>
 <div id="setup">
   <div class="setup-inner">
+  <div class="ab-top">
+  <div class="ab-colL">
   <div class="ab-hero">
     <div class="ab-hero-tag">AI BATTLE</div>
     <h1 class="ab-hero-title">Draft. Practice. <span>Dominate.</span></h1>
     <div class="ab-hero-sub">Practice your draft and strategy against AI that plays like the pros.</div>
   </div>
-
-  <div class="ab-cols">
     <!-- STEP 1: YOUR SETUP -->
     <section class="ab-card">
       <div class="ab-step"><span class="ab-num">1</span> YOUR SETUP</div>
@@ -967,6 +959,7 @@ input:focus, .search-input:focus {
         <div class="opt-card" id="sc-random" onclick="setSide('random');updateSummary()"><div class="opt-name">Random</div><div class="opt-desc">Coin Flip</div></div>
       </div>
     </section>
+  </div><!-- /ab-colL -->
 
     <!-- STEP 2: CHOOSE YOUR OPPONENT -->
     <section class="ab-card" style="position:relative;z-index:2;">
@@ -995,8 +988,9 @@ input:focus, .search-input:focus {
     </section>
   </div>
 
-  <!-- STEP 3 + SUMMARY -->
-  <div class="ab-cols2">
+  <!-- STEP 3 + 4 (left) · SUMMARY (right) -->
+  <div class="ab-bottom">
+  <div class="ab-colL">
     <section class="ab-card setup-card-engine">
       <div class="ab-step"><span class="ab-num">3</span> DRAFT ENGINE &amp; SCOUT DATA</div>
       <label class="ab-lbl">AI Difficulty</label>
@@ -1011,6 +1005,20 @@ input:focus, .search-input:focus {
       </div>
       <div id="scoutStatusAB" style="margin-top:10px;font-size:11px;color:var(--text3);"></div>
     </section>
+
+    <!-- STEP 4: BATTLE MAP -->
+    <section class="ab-card">
+    <div class="ab-step"><span class="ab-num">4</span> BATTLE MAP <small>optional — weights the team map WR into the simulation</small></div>
+    <div class="ab-maps">
+      <div class="opt-card ab-map ab-map-any" id="map-none" onclick="setMap('');updateSummary()"><span class="ab-map-ico">⟳</span><div class="ab-map-name">Any</div></div>
+      <div class="opt-card ab-map" id="map-Dangerous Grass" onclick="setMap('Dangerous Grass');updateSummary()" style="background-image:linear-gradient(to top,rgba(8,6,14,.94),rgba(8,6,14,.2)),url('maps/dangerous_grass.webp');"><div class="ab-map-name">Dangerous Grass</div></div>
+      <div class="opt-card ab-map" id="map-Broken Walls" onclick="setMap('Broken Walls');updateSummary()" style="background-image:linear-gradient(to top,rgba(8,6,14,.94),rgba(8,6,14,.2)),url('maps/broken_walls.webp');"><div class="ab-map-name">Broken Walls</div></div>
+      <div class="opt-card ab-map" id="map-Flying Cloud" onclick="setMap('Flying Cloud');updateSummary()" style="background-image:linear-gradient(to top,rgba(8,6,14,.94),rgba(8,6,14,.2)),url('maps/flying_cloud.webp');"><div class="ab-map-name">Flying Cloud</div></div>
+      <div class="opt-card ab-map" id="map-Expanding River" onclick="setMap('Expanding River');updateSummary()" style="background-image:linear-gradient(to top,rgba(8,6,14,.94),rgba(8,6,14,.2)),url('maps/expanding_river.webp');"><div class="ab-map-name">Expanding River</div></div>
+    </div>
+    <div id="mapWRContext" style="display:none;margin-top:10px;font-size:11px;color:var(--text3);"></div>
+  </section>
+  </div><!-- /ab-colL -->
 
     <aside class="ab-card ab-summary">
       <div class="ab-step"><span class="ab-num" style="background:none;border:none;color:var(--accent);font-size:14px;">✦</span> SUMMARY</div>
@@ -1028,20 +1036,7 @@ input:focus, .search-input:focus {
       </button>
       <div class="ab-est">⏱ Estimated time: 15–25 minutes · <span id="startSubGames">0 matches loaded</span></div>
     </aside>
-  </div>
-
-  <!-- STEP 4: BATTLE MAP -->
-  <section class="ab-card">
-    <div class="ab-step"><span class="ab-num">4</span> BATTLE MAP <small>optional — weights the team map WR into the simulation</small></div>
-    <div class="ab-maps">
-      <div class="opt-card ab-map ab-map-any" id="map-none" onclick="setMap('');updateSummary()"><span class="ab-map-ico">⟳</span><div class="ab-map-name">Any</div></div>
-      <div class="opt-card ab-map" id="map-Dangerous Grass" onclick="setMap('Dangerous Grass');updateSummary()" style="background-image:linear-gradient(to top,rgba(8,6,14,.94),rgba(8,6,14,.2)),url('maps/dangerous_grass.webp');"><div class="ab-map-name">Dangerous Grass</div></div>
-      <div class="opt-card ab-map" id="map-Broken Walls" onclick="setMap('Broken Walls');updateSummary()" style="background-image:linear-gradient(to top,rgba(8,6,14,.94),rgba(8,6,14,.2)),url('maps/broken_walls.webp');"><div class="ab-map-name">Broken Walls</div></div>
-      <div class="opt-card ab-map" id="map-Flying Cloud" onclick="setMap('Flying Cloud');updateSummary()" style="background-image:linear-gradient(to top,rgba(8,6,14,.94),rgba(8,6,14,.2)),url('maps/flying_cloud.webp');"><div class="ab-map-name">Flying Cloud</div></div>
-      <div class="opt-card ab-map" id="map-Expanding River" onclick="setMap('Expanding River');updateSummary()" style="background-image:linear-gradient(to top,rgba(8,6,14,.94),rgba(8,6,14,.2)),url('maps/expanding_river.webp');"><div class="ab-map-name">Expanding River</div></div>
-    </div>
-    <div id="mapWRContext" style="display:none;margin-top:10px;font-size:11px;color:var(--text3);"></div>
-  </section>
+  </div><!-- /ab-bottom -->
 
   <!-- FEATURE STRIP -->
   <div class="ab-feats">
