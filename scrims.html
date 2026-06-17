@@ -13,13 +13,13 @@
   .sc-wrap { max-width: 1080px; margin: 0 auto; padding: 18px 16px 90px; }
   .sc-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
   .sc-head h1 { font-size: 24px; font-weight: 800; letter-spacing: -.01em; margin: 0; }
-  .sc-sub { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+  .sc-sub { color: var(--text2); font-size: 14px; margin-bottom: 18px; }
   .sc-head .spacer { flex: 1; }
 
   .sc-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
   .sc-tab {
     background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10);
-    color: var(--muted); border-radius: 999px; padding: 9px 18px; cursor: pointer;
+    color: var(--text2); border-radius: 999px; padding: 9px 18px; cursor: pointer;
     font: inherit; font-weight: 700; font-size: 14px;
   }
   .sc-tab.active {
@@ -30,7 +30,7 @@
   .sc-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
   .sc-filters select, .sc-filters input {
     background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10);
-    color: var(--ink); border-radius: 10px; padding: 9px 11px; font: inherit; font-size: 13px;
+    color: var(--text); border-radius: 10px; padding: 9px 11px; font: inherit; font-size: 13px;
   }
   .sc-filters input { flex: 1; min-width: 140px; }
 
@@ -41,22 +41,22 @@
   }
   .sl-top { display: flex; align-items: flex-start; gap: 10px; }
   .sl-team { font-size: 17px; font-weight: 800; line-height: 1.2; }
-  .sl-team .anon { color: var(--muted); font-weight: 600; font-style: italic; }
-  .sl-region { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .sl-team .anon { color: var(--text2); font-weight: 600; font-style: italic; }
+  .sl-region { color: var(--text2); font-size: 12.5px; margin-top: 2px; }
   .sl-tier {
     margin-left: auto; font-size: 11px; font-weight: 800; text-transform: uppercase;
     letter-spacing: .05em; padding: 4px 9px; border-radius: 999px; white-space: nowrap;
   }
   .tier-pro    { color: var(--gold);  background: var(--gold-dim);  border: 1px solid var(--gold-border); }
   .tier-semi-pro { color: var(--purple); background: rgba(168,136,204,0.1); border: 1px solid rgba(168,136,204,0.25); }
-  .tier-amateur { color: var(--muted); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); }
+  .tier-amateur { color: var(--text2); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); }
 
   .sl-meta { display: flex; flex-wrap: wrap; gap: 6px; }
   .sl-chip {
-    font-size: 12px; color: var(--ink); background: rgba(255,255,255,0.04);
+    font-size: 12px; color: var(--text); background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 4px 9px;
   }
-  .sl-notes { font-size: 13.5px; color: var(--ink); line-height: 1.5; opacity: .92; }
+  .sl-notes { font-size: 13.5px; color: var(--text); line-height: 1.5; opacity: .92; }
   .sl-actions { display: flex; gap: 8px; margin-top: 2px; align-items: center; }
   .btn-wa {
     background: linear-gradient(135deg,#25D366,#1EAE54); color: #06210F; border: none;
@@ -69,21 +69,21 @@
     font-size: 13.5px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
   }
   .sl-report {
-    margin-left: auto; background: none; border: none; color: var(--muted); cursor: pointer;
+    margin-left: auto; background: none; border: none; color: var(--text2); cursor: pointer;
     font-size: 12px; opacity: .6;
   }
   .sl-report:hover { color: var(--red); opacity: 1; }
   .sl-status { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
-  .st-open { color: var(--green); } .st-filled { color: var(--gold); } .st-closed { color: var(--muted); }
+  .st-open { color: var(--green); } .st-filled { color: var(--gold); } .st-closed { color: var(--text2); }
   .sl-own { display: flex; gap: 8px; margin-top: 4px; }
   .sl-own button { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-    color: var(--muted); border-radius: 8px; padding: 6px 11px; cursor: pointer; font: inherit; font-size: 12.5px; }
-  .sl-own button:hover { color: var(--ink); }
+    color: var(--text2); border-radius: 8px; padding: 6px 11px; cursor: pointer; font: inherit; font-size: 12.5px; }
+  .sl-own button:hover { color: var(--text); }
   .sl-own button.danger:hover { color: var(--red); border-color: var(--red-border); }
 
-  .sc-empty { text-align: center; padding: 70px 20px; color: var(--muted); }
+  .sc-empty { text-align: center; padding: 70px 20px; color: var(--text2); }
   .sc-empty .e-emoji { font-size: 42px; margin-bottom: 12px; opacity: .7; }
-  .sc-notice { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--ink);
+  .sc-notice { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--text);
     border-radius: 14px; padding: 16px 18px; font-size: 14px; line-height: 1.55; }
 
   /* modal */
@@ -94,10 +94,10 @@
     padding: 22px; width: 100%; max-width: 480px; }
   .sc-modal h2 { margin: 0 0 16px; font-size: 19px; font-weight: 800; }
   .fg { display: flex; flex-direction: column; gap: 5px; margin-bottom: 13px; }
-  .fg label { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .fg label { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--text2); font-weight: 700; }
   .fg input, .fg select, .fg textarea {
     background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10);
-    color: var(--ink); border-radius: 10px; padding: 10px 12px; font: inherit; width: 100%; box-sizing: border-box;
+    color: var(--text); border-radius: 10px; padding: 10px 12px; font: inherit; width: 100%; box-sizing: border-box;
   }
   .fg textarea { resize: vertical; min-height: 60px; }
   .fg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -109,6 +109,7 @@
 </style>
 </head>
 <body>
+<div id="warr-nav-root"></div>
 <div class="sc-wrap">
 
   <div class="sc-head">
@@ -220,7 +221,7 @@
     </div>
     <div class="fg fg-check">
       <input type="checkbox" id="mAnon">
-      <label for="mAnon" style="text-transform:none;letter-spacing:0;font-weight:600;color:var(--ink);">Hide my team name on the public board (blind listing)</label>
+      <label for="mAnon" style="text-transform:none;letter-spacing:0;font-weight:600;color:var(--text);">Hide my team name on the public board (blind listing)</label>
     </div>
     <div class="sc-modal-actions">
       <button class="btn btn-ghost" id="mCancel" style="flex:1;">Cancel</button>
@@ -284,7 +285,7 @@ function listingCard(l, own){
     const st = l.status==='open' ? '<span class="sl-status st-open">● Open</span>'
       : l.status==='filled' ? '<span class="sl-status st-filled">● Filled</span>'
       : '<span class="sl-status st-closed">● Closed</span>';
-    actions = `<div class="sl-actions">${st}<span style="margin-left:auto;color:var(--muted);font-size:11px">${timeAgo(l.created_at)}</span></div>
+    actions = `<div class="sl-actions">${st}<span style="margin-left:auto;color:var(--text2);font-size:11px">${timeAgo(l.created_at)}</span></div>
       <div class="sl-own">
         <button onclick="editListing('${l.id}')">Edit</button>
         ${l.status==='open'?`<button onclick="setStatus('${l.id}','filled')">Mark filled</button><button onclick="setStatus('${l.id}','closed')">Close</button>`:`<button onclick="setStatus('${l.id}','open')">Reopen</button>`}
@@ -293,7 +294,7 @@ function listingCard(l, own){
   } else {
     actions = `<div class="sl-actions">${contactBtn(l)}
       <button class="sl-report" onclick="reportListing('${l.id}')">⚐ Report</button>
-      <span style="margin-left:auto;color:var(--muted);font-size:11px">${timeAgo(l.created_at)}</span></div>`;
+      <span style="margin-left:auto;color:var(--text2);font-size:11px">${timeAgo(l.created_at)}</span></div>`;
   }
 
   return `<div class="sl">
