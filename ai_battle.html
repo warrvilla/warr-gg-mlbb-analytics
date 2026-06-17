@@ -961,6 +961,13 @@ input:focus, .search-input:focus {
 #setup .opt-card{border-radius:11px !important;padding:13px 12px !important;}
 #setup .opt-card.sel-gold,#setup .opt-card.sel-blue,#setup .opt-card.sel-red,#setup .opt-card.sel-random{
   border:1.5px solid #7C5CF6 !important;background:rgba(124,92,246,0.10) !important;box-shadow:none !important;}
+/* tile icons (Lucide-style, monochrome — tint with selection) */
+#setup .ti{width:15px;height:15px;flex-shrink:0;color:#9A9AAE;}
+#setup .opt-card:has(.ti){display:flex !important;align-items:center;gap:9px;}
+#setup .opt-card:has(.ti):not(:has(.opt-desc)){justify-content:center;}
+#setup .opt-card:has(.opt-desc){text-align:left;}
+#setup .tw{display:flex;flex-direction:column;gap:2px;}
+#setup .opt-card.sel-gold .ti,#setup .opt-card.sel-blue .ti,#setup .opt-card.sel-red .ti,#setup .opt-card.sel-random .ti{color:#A78BFA;}
 /* Step 3: AI difficulty + scout data side by side (matches reference) */
 #setup .ab-engine{display:grid;grid-template-columns:1.12fr 1fr;gap:22px;align-items:start;}
 @media(max-width:700px){#setup .ab-engine{grid-template-columns:1fr;}}
@@ -981,16 +988,16 @@ input:focus, .search-input:focus {
       <input class="ab-input" id="nameIn" value="You" maxlength="20" oninput="updateSummary()" placeholder="Your team name"/>
       <label class="ab-lbl">Series Format</label>
       <div class="ab-seg" style="grid-template-columns:repeat(4,1fr);">
-        <div class="opt-card sel-gold" id="fmt-1" onclick="setFormat(1);updateSummary()"><div class="opt-name">Single</div></div>
-        <div class="opt-card" id="fmt-3" onclick="setFormat(3);updateSummary()"><div class="opt-name">BO3</div></div>
-        <div class="opt-card" id="fmt-5" onclick="setFormat(5);updateSummary()"><div class="opt-name">BO5</div></div>
-        <div class="opt-card" id="fmt-7" onclick="setFormat(7);updateSummary()"><div class="opt-name">BO7</div></div>
+        <div class="opt-card sel-gold" id="fmt-1" onclick="setFormat(1);updateSummary()"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><div class="opt-name">Single</div></div>
+        <div class="opt-card" id="fmt-3" onclick="setFormat(3);updateSummary()"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" y1="19" x2="19" y2="13"/><line x1="16" y1="16" x2="20" y2="20"/></svg><div class="opt-name">BO3</div></div>
+        <div class="opt-card" id="fmt-5" onclick="setFormat(5);updateSummary()"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" y1="19" x2="19" y2="13"/><line x1="16" y1="16" x2="20" y2="20"/></svg><div class="opt-name">BO5</div></div>
+        <div class="opt-card" id="fmt-7" onclick="setFormat(7);updateSummary()"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"/><line x1="13" y1="19" x2="19" y2="13"/><line x1="16" y1="16" x2="20" y2="20"/></svg><div class="opt-name">BO7</div></div>
       </div>
       <label class="ab-lbl">Side Selection <small>Game 1 — sides alternate in a series</small></label>
       <div class="ab-seg" style="grid-template-columns:repeat(3,1fr);">
-        <div class="opt-card sel-blue" id="sc-blue" onclick="setSide('blue');updateSummary()"><div class="opt-name">Blue Side</div><div class="opt-desc">First Pick</div></div>
-        <div class="opt-card" id="sc-red" onclick="setSide('red');updateSummary()"><div class="opt-name">Red Side</div><div class="opt-desc">Last Pick</div></div>
-        <div class="opt-card" id="sc-random" onclick="setSide('random');updateSummary()"><div class="opt-name">Random</div><div class="opt-desc">Coin Flip</div></div>
+        <div class="opt-card sel-blue" id="sc-blue" onclick="setSide('blue');updateSummary()"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg><div class="tw"><div class="opt-name">Blue Side</div><div class="opt-desc">First Pick</div></div></div>
+        <div class="opt-card" id="sc-red" onclick="setSide('red');updateSummary()"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg><div class="tw"><div class="opt-name">Red Side</div><div class="opt-desc">Last Pick</div></div></div>
+        <div class="opt-card" id="sc-random" onclick="setSide('random');updateSummary()"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg><div class="tw"><div class="opt-name">Random</div><div class="opt-desc">Coin Flip</div></div></div>
       </div>
     </section>
     <!-- STEP 3: DRAFT ENGINE & SCOUT DATA -->
@@ -1000,9 +1007,9 @@ input:focus, .search-input:focus {
         <div>
           <label class="ab-lbl">AI Difficulty</label>
           <div class="ab-seg" style="grid-template-columns:repeat(3,1fr);">
-            <div class="opt-card" id="dc-normal" onclick="setDiff('normal');updateSummary()"><div class="opt-name">Normal</div><div class="opt-desc">Good for learning</div></div>
-            <div class="opt-card sel-gold" id="dc-hard" onclick="setDiff('hard');updateSummary()"><div class="opt-name">Hard</div><div class="opt-desc">Realistic challenge</div></div>
-            <div class="opt-card" id="dc-gm" onclick="setDiff('gm');updateSummary()"><div class="opt-name">Grandmaster</div><div class="opt-desc">For expert players</div></div>
+            <div class="opt-card" id="dc-normal" onclick="setDiff('normal');updateSummary()"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg><div class="tw"><div class="opt-name">Normal</div><div class="opt-desc">Good for learning</div></div></div>
+            <div class="opt-card sel-gold" id="dc-hard" onclick="setDiff('hard');updateSummary()"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg><div class="tw"><div class="opt-name">Hard</div><div class="opt-desc">Realistic challenge</div></div></div>
+            <div class="opt-card" id="dc-gm" onclick="setDiff('gm');updateSummary()"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg><div class="tw"><div class="opt-name">Grandmaster</div><div class="opt-desc">For expert players</div></div></div>
           </div>
         </div>
         <div>
