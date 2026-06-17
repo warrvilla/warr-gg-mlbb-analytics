@@ -260,7 +260,7 @@
 
 <script>
 // ═══════════════ Scrim Finder — board ═══════════════
-let _listings = [], _mine = [], _me = null, _tableReady = true, _viewMine = false, _page = 1;
+let _listings = [], _mine = [], _me = null, _tableReady = true, _viewMine = false, _page = 1, _loadErr = '';
 const PAGE = 9;
 const REGIONS = [
   'Philippines','Indonesia','Malaysia','Singapore','Cambodia','Myanmar','Vietnam','Thailand','Laos','Brunei',
@@ -408,7 +408,10 @@ function render(){
   }
   let arr = sortListings(applyFilters(_listings));
   document.getElementById('liveCount').textContent = `${_listings.length} team${_listings.length===1?'':'s'} actively looking for scrims`;
-  if(!arr.length){ out.innerHTML = _listings.length?`<div class="sc-empty"><div class="e-emoji">🔍</div>No scrims match your filters.</div>`:`<div class="sc-empty"><div class="e-emoji">⚔️</div>No open scrims yet — post one and let teams come to you.</div>`; pager.innerHTML=''; return; }
+  if(!arr.length){
+    if(_loadErr){ out.innerHTML=`<div class="sc-notice"><b>Couldn’t load scrims.</b><br>${esc(_loadErr)}<br><span style="font-size:12px;color:var(--text3)">If this mentions a policy/permission, re-run migration 012 in Supabase. Otherwise try Refresh.</span></div>`; pager.innerHTML=''; return; }
+    out.innerHTML = _listings.length?`<div class="sc-empty"><div class="e-emoji">🔍</div>No scrims match your filters.</div>`:`<div class="sc-empty"><div class="e-emoji">⚔️</div>No open scrims yet — post one and let teams come to you.</div>`; pager.innerHTML=''; return;
+  }
 
   const pages=Math.ceil(arr.length/PAGE); if(_page>pages)_page=1;
   const slice=arr.slice((_page-1)*PAGE,_page*PAGE);
@@ -431,7 +434,7 @@ async function loadAll(){
       .gt('expires_at', new Date().toISOString()).order('created_at',{ascending:false}).limit(300);
     if(error) throw error;
     _listings=(data||[]).filter(l=>l.created_by!==_me.id);
-  }catch(e){ if(String(e.message||e).match(/relation|does not exist|schema cache|42P01/i)){_tableReady=false; return;} _listings=[]; }
+  }catch(e){ if(String(e.message||e).match(/relation|does not exist|schema cache|42P01/i)){_tableReady=false; return;} _loadErr=String(e.message||e); _listings=[]; }
   try{ const { data } = await sb.from('scrim_listings').select('*').eq('created_by',_me.id).order('created_at',{ascending:false}); _mine=data||[]; }catch(e){ _mine=[]; }
 }
 
