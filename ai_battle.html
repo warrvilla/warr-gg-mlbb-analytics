@@ -5,6 +5,9 @@
 <link rel="icon" type="image/jpeg" href="assets/favicon.jpg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI Battle — Warr.GG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="warr-lib.js"></script>
 <script src="warr-nav.js"></script>
@@ -929,6 +932,35 @@ input:focus, .search-input:focus {
 #setup .ab-colMain .ab-hero{margin-bottom:0;}
 #setup .ab-colSide{position:sticky;top:64px;}
 @media(max-width:900px){#setup .ab-grid2{grid-template-columns:1fr;}#setup .ab-colSide{position:static;}}
+
+/* ═══ Typography — real Inter, lighter weights, compact scale (match ref) ═══ */
+#setup, #setup input, #setup button, #setup select, #setup textarea{
+  font-family:'Inter',-apple-system,'SF Pro Text',sans-serif !important;
+  -webkit-font-smoothing:antialiased; letter-spacing:-0.01em;
+}
+#setup .ab-hero-title{font-size:38px !important;font-weight:800 !important;letter-spacing:-0.025em !important;}
+#setup .ab-hero-tag{font-size:11px !important;font-weight:700 !important;letter-spacing:.14em !important;}
+#setup .ab-hero-sub{font-size:14px !important;font-weight:400 !important;color:#9A9AAE !important;letter-spacing:0 !important;}
+#setup .ab-step{font-size:12px !important;font-weight:700 !important;letter-spacing:.09em !important;color:#9A9AAE !important;}
+#setup .ab-num{width:22px !important;height:22px !important;font-size:11px !important;font-weight:700 !important;}
+#setup .ab-lbl{font-size:13px !important;font-weight:500 !important;letter-spacing:0 !important;color:#9A9AAE !important;}
+#setup .ab-lbl small{font-weight:400 !important;color:#6B6B7B !important;}
+#setup .opt-name{font-size:14px !important;font-weight:600 !important;letter-spacing:-0.01em !important;color:#F2F2F7 !important;}
+#setup .opt-desc{font-size:12px !important;font-weight:400 !important;color:#8A8A9A !important;}
+#setup .ab-input{font-size:14px !important;font-weight:400 !important;}
+#setup .scout-lb{font-size:12px !important;font-weight:500 !important;letter-spacing:0 !important;}
+#setup .ab-sum-row{font-size:13px !important;}
+#setup .ab-sum-row span{font-weight:400 !important;color:#8A8A9A !important;}
+#setup .ab-sum-row b{font-weight:600 !important;}
+#setup .ab-start-t{font-size:15px !important;font-weight:700 !important;}
+#setup .ab-start-s{font-size:11px !important;font-weight:400 !important;}
+#setup .ab-feat b{font-size:13px !important;font-weight:600 !important;}
+#setup .ab-feat small{font-size:11px !important;font-weight:400 !important;}
+#setup .ab-mode .opt-name{font-size:14px !important;font-weight:600 !important;}
+/* tighter, flatter tiles to match the reference */
+#setup .opt-card{border-radius:11px !important;padding:13px 12px !important;}
+#setup .opt-card.sel-gold,#setup .opt-card.sel-blue,#setup .opt-card.sel-red,#setup .opt-card.sel-random{
+  border:1.5px solid #7C5CF6 !important;background:rgba(124,92,246,0.10) !important;box-shadow:none !important;}
 </style>
 <div id="setup">
   <div class="setup-inner">
