@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/jpeg" href="assets/favicon.jpg">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scrims — Warr.GG</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="warr-lib.js"></script>
+<script src="warr-nav.js"></script>
+<link rel="stylesheet" href="warr-styles.css">
+<style>
+  .sc-wrap { max-width: 1080px; margin: 0 auto; padding: 18px 16px 90px; }
+  .sc-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+  .sc-head h1 { font-size: 24px; font-weight: 800; letter-spacing: -.01em; margin: 0; }
+  .sc-sub { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+  .sc-head .spacer { flex: 1; }
+
+  .sc-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+  .sc-tab {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10);
+    color: var(--muted); border-radius: 999px; padding: 9px 18px; cursor: pointer;
+    font: inherit; font-weight: 700; font-size: 14px;
+  }
+  .sc-tab.active {
+    background: linear-gradient(135deg, rgba(168,136,204,0.22), rgba(94,92,230,0.22));
+    border-color: rgba(168,136,204,0.55); color: #F0EAFA;
+  }
+
+  .sc-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .sc-filters select, .sc-filters input {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10);
+    color: var(--ink); border-radius: 10px; padding: 9px 11px; font: inherit; font-size: 13px;
+  }
+  .sc-filters input { flex: 1; min-width: 140px; }
+
+  .sc-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px,1fr)); gap: 14px; }
+  .sl {
+    background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .sl-top { display: flex; align-items: flex-start; gap: 10px; }
+  .sl-team { font-size: 17px; font-weight: 800; line-height: 1.2; }
+  .sl-team .anon { color: var(--muted); font-weight: 600; font-style: italic; }
+  .sl-region { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .sl-tier {
+    margin-left: auto; font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .05em; padding: 4px 9px; border-radius: 999px; white-space: nowrap;
+  }
+  .tier-pro    { color: var(--gold);  background: var(--gold-dim);  border: 1px solid var(--gold-border); }
+  .tier-semi-pro { color: var(--purple); background: rgba(168,136,204,0.1); border: 1px solid rgba(168,136,204,0.25); }
+  .tier-amateur { color: var(--muted); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); }
+
+  .sl-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+  .sl-chip {
+    font-size: 12px; color: var(--ink); background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 4px 9px;
+  }
+  .sl-notes { font-size: 13.5px; color: var(--ink); line-height: 1.5; opacity: .92; }
+  .sl-actions { display: flex; gap: 8px; margin-top: 2px; align-items: center; }
+  .btn-wa {
+    background: linear-gradient(135deg,#25D366,#1EAE54); color: #06210F; border: none;
+    font-weight: 800; border-radius: 10px; padding: 9px 14px; cursor: pointer; font: inherit;
+    font-size: 13.5px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-contact {
+    background: rgba(168,136,204,0.14); color: #E6D8F6; border: 1px solid rgba(168,136,204,0.3);
+    font-weight: 700; border-radius: 10px; padding: 9px 14px; cursor: pointer; font: inherit;
+    font-size: 13.5px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .sl-report {
+    margin-left: auto; background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 12px; opacity: .6;
+  }
+  .sl-report:hover { color: var(--red); opacity: 1; }
+  .sl-status { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+  .st-open { color: var(--green); } .st-filled { color: var(--gold); } .st-closed { color: var(--muted); }
+  .sl-own { display: flex; gap: 8px; margin-top: 4px; }
+  .sl-own button { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    color: var(--muted); border-radius: 8px; padding: 6px 11px; cursor: pointer; font: inherit; font-size: 12.5px; }
+  .sl-own button:hover { color: var(--ink); }
+  .sl-own button.danger:hover { color: var(--red); border-color: var(--red-border); }
+
+  .sc-empty { text-align: center; padding: 70px 20px; color: var(--muted); }
+  .sc-empty .e-emoji { font-size: 42px; margin-bottom: 12px; opacity: .7; }
+  .sc-notice { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--ink);
+    border-radius: 14px; padding: 16px 18px; font-size: 14px; line-height: 1.55; }
+
+  /* modal */
+  .sc-modal-bg { position: fixed; inset: 0; background: rgba(4,4,8,0.7); backdrop-filter: blur(4px);
+    display: none; align-items: flex-start; justify-content: center; z-index: 1000; padding: 30px 16px; overflow-y: auto; }
+  .sc-modal-bg.show { display: flex; }
+  .sc-modal { background: var(--bg2); border: 1px solid rgba(255,255,255,0.1); border-radius: 18px;
+    padding: 22px; width: 100%; max-width: 480px; }
+  .sc-modal h2 { margin: 0 0 16px; font-size: 19px; font-weight: 800; }
+  .fg { display: flex; flex-direction: column; gap: 5px; margin-bottom: 13px; }
+  .fg label { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .fg input, .fg select, .fg textarea {
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10);
+    color: var(--ink); border-radius: 10px; padding: 10px 12px; font: inherit; width: 100%; box-sizing: border-box;
+  }
+  .fg textarea { resize: vertical; min-height: 60px; }
+  .fg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .fg-check { display: flex; align-items: center; gap: 8px; }
+  .fg-check input { width: auto; }
+  .sc-modal-actions { display: flex; gap: 8px; margin-top: 6px; }
+  .sc-msg { font-size: 13px; margin-bottom: 10px; }
+  .sc-msg.err { color: var(--red); } .sc-msg.ok { color: var(--green); }
+</style>
+</head>
+<body>
+<div class="sc-wrap">
+
+  <div class="sc-head">
+    <h1>Scrims</h1>
+    <div class="spacer"></div>
+    <button class="btn btn-accent" id="scNew">+ Post a Scrim</button>
+  </div>
+  <div class="sc-sub">Find a scrim — pro, semi-pro, or amateur. Post what you're looking for, or browse and reach out.</div>
+
+  <div class="sc-tabs">
+    <button class="sc-tab active" data-tab="browse">Browse</button>
+    <button class="sc-tab" data-tab="mine">My Listings</button>
+  </div>
+
+  <div class="sc-filters" id="scFilters">
+    <select id="fRegion"><option value="">All regions</option></select>
+    <select id="fTier">
+      <option value="">Any opponent</option>
+      <option value="pro">Pro</option>
+      <option value="semi-pro">Semi-pro</option>
+      <option value="amateur">Amateur</option>
+    </select>
+    <select id="fFormat">
+      <option value="">Any format</option>
+      <option value="bestof">Best-of (BO3/5/7)</option>
+      <option value="count">Set games</option>
+      <option value="flexible">Flexible</option>
+    </select>
+    <input id="fSearch" type="text" placeholder="Search team or notes…">
+  </div>
+
+  <div id="scOut"></div>
+</div>
+
+<!-- Post / edit modal -->
+<div class="sc-modal-bg" id="scModalBg">
+  <div class="sc-modal">
+    <h2 id="scModalTitle">Post a Scrim</h2>
+    <div class="sc-msg" id="scModalMsg" style="display:none;"></div>
+    <input type="hidden" id="mId">
+    <div class="fg">
+      <label>Team name</label>
+      <input id="mTeam" maxlength="60" placeholder="Your team">
+    </div>
+    <div class="fg-row">
+      <div class="fg">
+        <label>Region</label>
+        <select id="mRegion">
+          <option>Philippines</option><option>Indonesia</option><option>Malaysia</option>
+          <option>Singapore</option><option>Cambodia</option><option>Myanmar</option>
+          <option>Vietnam</option><option>Thailand</option><option>MENA</option><option>Other</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Your tier</label>
+        <select id="mTier"><option value="amateur">Amateur</option><option value="semi-pro">Semi-pro</option><option value="pro">Pro</option></select>
+      </div>
+    </div>
+    <div class="fg-row">
+      <div class="fg">
+        <label>Rank</label>
+        <input id="mRank" maxlength="30" placeholder="e.g. Mythic Glory">
+      </div>
+      <div class="fg">
+        <label>Open to</label>
+        <select id="mOpenTo"><option value="any">Any team</option><option value="pro">Pro only</option><option value="amateur">Amateur only</option></select>
+      </div>
+    </div>
+    <div class="fg-row">
+      <div class="fg">
+        <label>Format</label>
+        <select id="mFormat">
+          <option value="flexible|">Flexible</option>
+          <option value="bestof|1">BO1</option>
+          <option value="bestof|3">BO3</option>
+          <option value="bestof|5">BO5</option>
+          <option value="bestof|7">BO7</option>
+          <option value="count|1">1 game</option>
+          <option value="count|2">2 games</option>
+          <option value="count|3">3 games</option>
+          <option value="count|4">4 games</option>
+          <option value="count|5">5 games</option>
+          <option value="count|6">6 games</option>
+          <option value="count|7">7 games</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Timezone</label>
+        <input id="mTz" maxlength="12" placeholder="GMT+8">
+      </div>
+    </div>
+    <div class="fg">
+      <label>Availability</label>
+      <input id="mAvail" maxlength="80" placeholder="e.g. Weekdays 8–11pm">
+    </div>
+    <div class="fg-row">
+      <div class="fg">
+        <label>Contact via</label>
+        <select id="mContactMethod"><option value="whatsapp">WhatsApp</option><option value="discord">Discord</option><option value="messenger">Messenger</option><option value="ign">In-game name</option></select>
+      </div>
+      <div class="fg">
+        <label>Contact handle / number</label>
+        <input id="mContactValue" maxlength="80" placeholder="+63… / username">
+      </div>
+    </div>
+    <div class="fg">
+      <label>Notes (optional)</label>
+      <textarea id="mNotes" maxlength="280" placeholder="Anything else — coach available, server, etc."></textarea>
+    </div>
+    <div class="fg fg-check">
+      <input type="checkbox" id="mAnon">
+      <label for="mAnon" style="text-transform:none;letter-spacing:0;font-weight:600;color:var(--ink);">Hide my team name on the public board (blind listing)</label>
+    </div>
+    <div class="sc-modal-actions">
+      <button class="btn btn-ghost" id="mCancel" style="flex:1;">Cancel</button>
+      <button class="btn btn-accent" id="mSave" style="flex:2;">Post Scrim</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════ Scrim Finder — Phase 1 (listings board) ═══════════════
+let _tab = 'browse';
+let _listings = [];   // browse set
+let _mine = [];       // my listings
+let _me = null;
+let _tableReady = true;
+
+const REGIONS = ['Philippines','Indonesia','Malaysia','Singapore','Cambodia','Myanmar','Vietnam','Thailand','MENA','Other'];
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function fmtFormat(type, n){
+  if (type==='bestof') return 'BO'+(n||'?');
+  if (type==='count')  return (n||'?')+(n==1?' game':' games');
+  return 'Flexible';
+}
+function timeAgo(ts){
+  const s = (Date.now()-new Date(ts).getTime())/1000;
+  if (s<3600) return Math.max(1,Math.floor(s/60))+'m ago';
+  if (s<86400) return Math.floor(s/3600)+'h ago';
+  return Math.floor(s/86400)+'d ago';
+}
+
+function contactBtn(l){
+  const v = (l.contact_value||'').trim();
+  if (!v) return '';
+  if (l.contact_method==='whatsapp'){
+    const num = v.replace(/[^\d]/g,'');
+    const txt = encodeURIComponent(`Hi ${l.anonymous?'':l.team_name||''}! Saw your scrim post on Warr.GG — keen to set one up.`);
+    return `<a class="btn-wa" target="_blank" rel="noopener" href="https://wa.me/${num}?text=${txt}">💬 WhatsApp</a>`;
+  }
+  if (l.contact_method==='discord')  return `<span class="btn-contact" title="Discord">🎮 ${esc(v)}</span>`;
+  if (l.contact_method==='messenger'){
+    const handle = v.replace(/^https?:\/\/(m\.me\/|messenger\.com\/t\/)?/i,'');
+    return `<a class="btn-contact" target="_blank" rel="noopener" href="https://m.me/${esc(handle)}">💬 Messenger</a>`;
+  }
+  return `<span class="btn-contact" title="In-game name">🎯 ${esc(v)}</span>`;
+}
+
+function listingCard(l, own){
+  const tierCls = 'tier-'+(l.tier||'amateur');
+  const name = l.anonymous && !own
+    ? `<span class="anon">${l.tier==='pro'?'Verified ':''}Hidden team</span>`
+    : esc(l.team_name||'Team') + (l.anonymous?' <span class="anon" style="font-size:11px">(hidden publicly)</span>':'');
+  const chips = [];
+  if (l.rank_tier) chips.push(`<span class="sl-chip">${esc(l.rank_tier)}</span>`);
+  chips.push(`<span class="sl-chip">${fmtFormat(l.format_type,l.games_planned)}</span>`);
+  if (l.open_to && l.open_to!=='any') chips.push(`<span class="sl-chip">vs ${esc(l.open_to)} only</span>`);
+  if (l.availability) chips.push(`<span class="sl-chip">🕑 ${esc(l.availability)}${l.timezone?' '+esc(l.timezone):''}</span>`);
+
+  let actions;
+  if (own){
+    const st = l.status==='open' ? '<span class="sl-status st-open">● Open</span>'
+      : l.status==='filled' ? '<span class="sl-status st-filled">● Filled</span>'
+      : '<span class="sl-status st-closed">● Closed</span>';
+    actions = `<div class="sl-actions">${st}<span style="margin-left:auto;color:var(--muted);font-size:11px">${timeAgo(l.created_at)}</span></div>
+      <div class="sl-own">
+        <button onclick="editListing('${l.id}')">Edit</button>
+        ${l.status==='open'?`<button onclick="setStatus('${l.id}','filled')">Mark filled</button><button onclick="setStatus('${l.id}','closed')">Close</button>`:`<button onclick="setStatus('${l.id}','open')">Reopen</button>`}
+        <button class="danger" onclick="delListing('${l.id}')">Delete</button>
+      </div>`;
+  } else {
+    actions = `<div class="sl-actions">${contactBtn(l)}
+      <button class="sl-report" onclick="reportListing('${l.id}')">⚐ Report</button>
+      <span style="margin-left:auto;color:var(--muted);font-size:11px">${timeAgo(l.created_at)}</span></div>`;
+  }
+
+  return `<div class="sl">
+    <div class="sl-top">
+      <div><div class="sl-team">${name}</div><div class="sl-region">${esc(l.region||'')}</div></div>
+      <span class="sl-tier ${tierCls}">${esc(l.tier||'amateur')}</span>
+    </div>
+    <div class="sl-meta">${chips.join('')}</div>
+    ${l.notes?`<div class="sl-notes">${esc(l.notes)}</div>`:''}
+    ${actions}
+  </div>`;
+}
+
+function applyFilters(list){
+  const region = document.getElementById('fRegion').value;
+  const tier   = document.getElementById('fTier').value;
+  const fmt    = document.getElementById('fFormat').value;
+  const q      = document.getElementById('fSearch').value.trim().toLowerCase();
+  return list.filter(l => {
+    if (region && l.region!==region) return false;
+    if (tier && l.tier!==tier) return false;
+    if (fmt && l.format_type!==fmt) return false;
+    if (q){
+      const hay = `${l.team_name||''} ${l.notes||''} ${l.rank_tier||''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function render(){
+  const out = document.getElementById('scOut');
+  document.getElementById('scFilters').style.display = _tab==='browse' ? 'flex' : 'none';
+
+  if (!_tableReady){
+    out.innerHTML = `<div class="sc-notice"><b>Scrim Finder is almost ready.</b><br>
+      The database table isn't set up yet. Run <code>migrations/012_scrim_finder.sql</code>
+      in Supabase → SQL Editor, then reload this page.</div>`;
+    return;
+  }
+
+  if (_tab==='mine'){
+    if (!_mine.length){ out.innerHTML = `<div class="sc-empty"><div class="e-emoji">📋</div>You have no scrim listings yet.<br>Hit “Post a Scrim” to get one up.</div>`; return; }
+    out.innerHTML = `<div class="sc-cards">${_mine.map(l=>listingCard(l,true)).join('')}</div>`;
+    return;
+  }
+
+  const filtered = applyFilters(_listings);
+  if (!filtered.length){
+    out.innerHTML = _listings.length
+      ? `<div class="sc-empty"><div class="e-emoji">🔍</div>No scrims match those filters.</div>`
+      : `<div class="sc-empty"><div class="e-emoji">⚔️</div>No open scrims right now.<br>Be the first — post one and let teams come to you.</div>`;
+    return;
+  }
+  out.innerHTML = `<div class="sc-cards">${filtered.map(l=>listingCard(l,false)).join('')}</div>`;
+}
+
+// ── Data ──
+async function loadAll(){
+  const sb = WAuth._sb();
+  try {
+    const { data, error } = await sb.from('scrim_listings')
+      .select('*').eq('status','open').gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending:false }).limit(200);
+    if (error) throw error;
+    _listings = (data||[]).filter(l => l.created_by !== _me.id); // own shown in My Listings
+  } catch(e){
+    if (String(e.message||e).match(/relation|does not exist|schema cache|42P01/i)) { _tableReady=false; return; }
+    _listings = [];
+  }
+  try {
+    const { data } = await sb.from('scrim_listings').select('*')
+      .eq('created_by', _me.id).order('created_at',{ascending:false});
+    _mine = data||[];
+  } catch(e){ _mine=[]; }
+}
+
+// ── Modal ──
+function openModal(listing){
+  document.getElementById('scModalMsg').style.display='none';
+  document.getElementById('scModalTitle').textContent = listing ? 'Edit Scrim' : 'Post a Scrim';
+  document.getElementById('mSave').textContent = listing ? 'Save Changes' : 'Post Scrim';
+  document.getElementById('mId').value = listing?.id || '';
+  const prof = (()=>{ try { return WAuth.getProfile()||{}; } catch(_){ return {}; } })();
+  document.getElementById('mTeam').value = listing?.team_name || prof.team_name || '';
+  document.getElementById('mRegion').value = listing?.region || 'Philippines';
+  document.getElementById('mTier').value = listing?.tier || 'amateur';
+  document.getElementById('mRank').value = listing?.rank_tier || '';
+  document.getElementById('mOpenTo').value = listing?.open_to || 'any';
+  document.getElementById('mFormat').value = listing ? `${listing.format_type||'flexible'}|${listing.games_planned||''}` : 'flexible|';
+  document.getElementById('mTz').value = listing?.timezone || 'GMT+8';
+  document.getElementById('mAvail').value = listing?.availability || '';
+  document.getElementById('mContactMethod').value = listing?.contact_method || 'whatsapp';
+  document.getElementById('mContactValue').value = listing?.contact_value || '';
+  document.getElementById('mNotes').value = listing?.notes || '';
+  document.getElementById('mAnon').checked = !!listing?.anonymous;
+  document.getElementById('scModalBg').classList.add('show');
+}
+function closeModal(){ document.getElementById('scModalBg').classList.remove('show'); }
+function modalMsg(t,cls){ const m=document.getElementById('scModalMsg'); m.textContent=t; m.className='sc-msg '+cls; m.style.display='block'; }
+
+async function saveListing(){
+  const team = document.getElementById('mTeam').value.trim();
+  const contact = document.getElementById('mContactValue').value.trim();
+  if (!team){ modalMsg('Team name is required','err'); return; }
+  if (!contact){ modalMsg('Add a contact so teams can reach you','err'); return; }
+  const [ftype, gp] = document.getElementById('mFormat').value.split('|');
+  const row = {
+    team_name: team,
+    region: document.getElementById('mRegion').value,
+    tier: document.getElementById('mTier').value,
+    rank_tier: document.getElementById('mRank').value.trim() || null,
+    format_type: ftype, games_planned: gp ? Number(gp) : null,
+    open_to: document.getElementById('mOpenTo').value,
+    timezone: document.getElementById('mTz').value.trim() || null,
+    availability: document.getElementById('mAvail').value.trim() || null,
+    contact_method: document.getElementById('mContactMethod').value,
+    contact_value: contact,
+    notes: document.getElementById('mNotes').value.trim() || null,
+    anonymous: document.getElementById('mAnon').checked,
+  };
+  const sb = WAuth._sb();
+  const id = document.getElementById('mId').value;
+  const btn = document.getElementById('mSave'); btn.disabled=true; btn.textContent='Saving…';
+  try {
+    if (id){
+      const { error } = await sb.from('scrim_listings').update(row).eq('id', id);
+      if (error) throw error;
+    } else {
+      row.created_by = _me.id;
+      const { error } = await sb.from('scrim_listings').insert(row);
+      if (error) throw error;
+    }
+    closeModal(); await loadAll(); _tab='mine'; syncTabs(); render();
+  } catch(e){
+    modalMsg(String(e.message||e).replace(/^.*?:\s*/,''), 'err');
+  } finally { btn.disabled=false; btn.textContent = id?'Save Changes':'Post Scrim'; }
+}
+
+async function setStatus(id, status){
+  try { await WAuth._sb().from('scrim_listings').update({status}).eq('id',id); await loadAll(); render(); } catch(e){ alert(e.message||e); }
+}
+async function delListing(id){
+  if (!confirm('Delete this listing?')) return;
+  try { await WAuth._sb().from('scrim_listings').delete().eq('id',id); await loadAll(); render(); } catch(e){ alert(e.message||e); }
+}
+function editListing(id){ const l=_mine.find(x=>x.id===id); if(l) openModal(l); }
+async function reportListing(id){
+  const reason = prompt('Report this listing — what’s wrong? (spam, fake, offensive…)');
+  if (reason===null) return;
+  try {
+    const { error } = await WAuth._sb().from('scrim_reports').insert({ listing_id:id, reported_by:_me.id, reason:reason||null });
+    if (error && !/duplicate|unique/i.test(error.message)) throw error;
+    alert('Thanks — reported. Our team will review it.');
+  } catch(e){ alert(e.message||e); }
+}
+
+function syncTabs(){ document.querySelectorAll('.sc-tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===_tab)); }
+
+// ── Boot ──
+(async function(){
+  const ok = await WAuth.requireAuth(); if (!ok) return;
+  _me = WAuth.getUser();
+  // region filter options
+  const fr = document.getElementById('fRegion');
+  REGIONS.forEach(r=>{ const o=document.createElement('option'); o.value=r; o.textContent=r; fr.appendChild(o); });
+
+  await loadAll();
+  render();
+
+  document.querySelectorAll('.sc-tab').forEach(t => t.addEventListener('click', ()=>{ _tab=t.dataset.tab; syncTabs(); render(); }));
+  ['fRegion','fTier','fFormat'].forEach(id => document.getElementById(id).addEventListener('change', render));
+  document.getElementById('fSearch').addEventListener('input', render);
+  document.getElementById('scNew').addEventListener('click', ()=>openModal(null));
+  document.getElementById('mCancel').addEventListener('click', closeModal);
+  document.getElementById('mSave').addEventListener('click', saveListing);
+  document.getElementById('scModalBg').addEventListener('click', e=>{ if(e.target.id==='scModalBg') closeModal(); });
+})();
+</script>
+</body>
+</html>

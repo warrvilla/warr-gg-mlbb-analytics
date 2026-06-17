@@ -164,8 +164,8 @@
     { href: '/',             label: 'Home'      },
     { href: '/ai_battle',    label: 'AI Battle' },
     { href: '/scout',        label: 'Scout'     },
+    { href: '/scrims',       label: 'Scrims'    },
     { href: '/stats',        label: 'Analysis'  },
-    { href: '/report',       label: 'Report'    },
     { href: '/heroes',       label: 'Heroes'    },
     { href: '/team_manager', label: 'Teams'     },
   ];
