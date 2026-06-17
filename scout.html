@@ -1278,6 +1278,7 @@ body::after {
 .ml-res{font-size:9px;font-weight:800;letter-spacing:.05em;padding:3px 8px;border-radius:5px;}
 .ml-res.W{color:var(--green);background:var(--green-dim);border:1px solid var(--green-border);}
 .ml-res.L{color:var(--red);background:var(--red-dim);border:1px solid var(--red-border);}
+.ml-win{font-size:9px;font-weight:800;letter-spacing:.04em;padding:3px 8px;border-radius:5px;color:var(--gold);background:var(--gold-dim);border:1px solid var(--gold-border);white-space:nowrap;}
 .ml-heroes{display:flex;gap:4px;flex-shrink:0;}
 .ml-hero{width:30px;height:30px;border-radius:8px;object-fit:cover;background:var(--surface3);}
 .ml-view{flex-shrink:0;background:rgba(124,92,246,.12);border:1px solid rgba(124,92,246,.3);color:#CDBBFF;border-radius:9px;padding:7px 13px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
@@ -2380,31 +2381,25 @@ function renderMatchListBody() {
       </div>`;
     }).join('');
 
-    return groupHdr + `<div class="series-card" data-series-key="${sk}">
-      <div class="series-header" onclick="toggleSeries('${sk}')">
-        <div class="series-date-col">
-          <div class="series-date-day">${day}</div>
-          <div class="series-date-mon">${mon}</div>
+    const _mono=n=>(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(n||'?'):{init:(n||'?')[0]||'?',color:'#7C5CF6'};
+    const _bm=_mono(s.blueTeam), _rm=_mono(s.redTeam);
+    const _winT = seriesWinner || s.blueTeam;
+    const _pc={}; s.games.forEach(g=>{ const isB=g.blueTeam===_winT; (isB?(g.bluePicks||[]):(g.redPicks||[])).forEach(p=>{const n=p.name||p; if(n)_pc[n]=(_pc[n]||0)+1;}); });
+    const _heroes=Object.entries(_pc).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([n])=>`<img class="ml-hero" src="${_heroIcon(n)}" onerror="${_heroIconErr(n)}" title="${n}">`).join('');
+    return groupHdr + `<div class="ml-card">
+      <div class="ml-row">
+        <div class="ml-date"><div class="ml-day">${day}</div><div class="ml-mon">${(mon||'').toUpperCase()}</div></div>
+        <div class="ml-stage"><span class="ml-stage-t">${s.stage||s.league||'Match'}</span><span class="ml-bo">${s.seriesFormat||('BO'+s.games.length)}</span></div>
+        <div class="ml-teams">
+          <div class="ml-team"><span class="ml-logo" style="background:${_bm.color}">${_bm.init}</span><span class="nm">${s.blueTeam}</span></div>
+          <span class="ml-vs">vs</span>
+          <div class="ml-team"><span class="ml-logo" style="background:${_rm.color}">${_rm.init}</span><span class="nm">${s.redTeam}</span></div>
         </div>
-        <div>
-          <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;flex-wrap:wrap;">
-            <span class="league-badge ${lc}">${s.league}</span>
-            ${s.stage ? `<span style="font-size:9px;color:var(--text3);">${s.stage}${s.week?' · '+s.week:''}</span>` : ''}
-            <span style="font-size:9px;color:var(--text3);">${s.seriesFormat} · ${s.games.length}G</span>
-          </div>
-          <div style="font-size:13px;font-weight:700;font-family:var(--font-head);">
-            <span style="color:var(--blue);">${s.blueTeam}</span>
-            <span style="color:var(--text3);font-weight:400;font-size:11px;margin:0 6px;">vs</span>
-            <span style="color:var(--red);">${s.redTeam}</span>
-          </div>
-        </div>
-        <div style="text-align:right;">
-          <div class="series-score" style="color:${scoreColor};">${blueWins}&nbsp;–&nbsp;${redWins}</div>
-          ${seriesWinner ? `<div style="font-size:9px;color:var(--text3);margin-top:2px;">${seriesWinner}</div>` : ''}
-        </div>
-        <div class="series-chevron ${collapsed?'':'open'}">▶</div>
+        <div class="ml-score"><span class="ml-sc" style="color:${scoreColor}">${blueWins} - ${redWins}</span>${seriesWinner?`<span class="ml-win">${seriesWinner} ✓</span>`:''}</div>
+        <div class="ml-heroes">${_heroes}</div>
+        <button class="ml-view" onclick="const x=this.closest('.ml-card').querySelector('.ml-detail');x.classList.toggle('open');this.textContent=x.classList.contains('open')?'Hide ▾':'View Details ▸';">View Details ▸</button>
       </div>
-      ${collapsed ? '' : gameRows}
+      <div class="ml-detail">${gameRows}</div>
     </div>`;
   }).join('') + _renderPager(series.length, MATCH_PAGE_SIZE, _matchPage, 'goMatchPage');
 }
