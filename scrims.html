@@ -146,6 +146,26 @@
     padding: 12px 18px; cursor: pointer; font: inherit; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 7px; }
   .btn-ct { background: rgba(124,92,246,0.16); color: #E6D8F6; border: 1px solid rgba(124,92,246,0.32); font-weight: 700; border-radius: 11px;
     padding: 12px 18px; font: inherit; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 7px; }
+  /* tabs + schedule */
+  .sort-sel.tab-on { background: rgba(124,92,246,.18); border-color: rgba(124,92,246,.5); color: #CDBBFF; }
+  .sch-badge { background: var(--red); color: #fff; font-size: 9px; font-weight: 800; border-radius: 999px; padding: 1px 6px; margin-left: 4px; }
+  .bk-sec { margin-bottom: 22px; }
+  .bk-sec-t { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); margin-bottom: 10px; display: flex; gap: 8px; align-items: center; }
+  .bk-sec-t span { background: rgba(255,255,255,.08); border-radius: 999px; padding: 0 7px; font-size: 10px; }
+  .bk-card { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: rgba(255,255,255,.025); border: 1px solid rgba(255,255,255,.08); border-radius: 14px; padding: 14px 16px; margin-bottom: 9px; }
+  .bk-when { min-width: 210px; }
+  .bk-when-d { font-size: 14px; font-weight: 700; color: var(--text); }
+  .bk-meta { font-size: 12px; color: var(--text2); margin-top: 3px; }
+  .bk-opp { flex: 1; min-width: 140px; font-size: 14px; color: var(--text); }
+  .bk-st { font-size: 9px; font-weight: 800; letter-spacing: .04em; padding: 2px 8px; border-radius: 5px; margin-left: 8px; white-space: nowrap; }
+  .bk-conf { color: var(--green); background: var(--green-dim); border: 1px solid var(--green-border); }
+  .bk-prop { color: #A78BFA; background: rgba(124,92,246,.14); border: 1px solid rgba(124,92,246,.28); }
+  .bk-done { color: var(--text2); background: rgba(255,255,255,.06); }
+  .bk-canc { color: var(--red); background: var(--red-dim); border: 1px solid var(--red-border); }
+  .bk-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .bk-wait { font-size: 12px; color: var(--text3); }
+  .bk-card .challenge { padding: 8px 14px; font-size: 12.5px; }
+  .vm-sched .fg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 </style>
 </head>
 <body>
@@ -202,14 +222,16 @@
     <!-- Main -->
     <main>
       <div class="scrim-bar">
-        <span class="sec-label">⚡ ACTIVE SCRIMS</span>
+        <span class="sec-label" id="secLabel">⚡ ACTIVE SCRIMS</span>
         <div class="spacer"></div>
         <select class="sort-sel" id="fSort">
           <option value="recent">Sort: Recently Posted</option>
           <option value="featured">Sort: Featured first</option>
           <option value="tier">Sort: Tier (Pro first)</option>
         </select>
+        <button class="sort-sel" id="tabBrowse">Browse</button>
         <button class="sort-sel" id="tabMine">My Listings</button>
+        <button class="sort-sel" id="tabSchedule">📅 Schedule <span id="schBadge" class="sch-badge" style="display:none">0</span></button>
       </div>
       <div class="scrim-grid" id="scOut"></div>
       <div class="pager" id="scPager"></div>
@@ -260,7 +282,7 @@
 
 <script>
 // ═══════════════ Scrim Finder — board ═══════════════
-let _listings = [], _mine = [], _me = null, _tableReady = true, _viewMine = false, _page = 1, _loadErr = '';
+let _listings = [], _mine = [], _bookings = [], _me = null, _tableReady = true, _view = 'browse', _page = 1, _loadErr = '', _bookReady = true;
 const PAGE = 9;
 const REGIONS = [
   'Philippines','Indonesia','Malaysia','Singapore','Cambodia','Myanmar','Vietnam','Thailand','Laos','Brunei',
@@ -360,8 +382,21 @@ function viewListing(id){
     ${l.notes?`<div class="sc-block" style="margin-bottom:16px"><div class="h">Notes</div><div class="sc-notes">${esc(l.notes)}</div></div>`:''}
     <div class="h" style="font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Contact ${anon?'(revealed because they shared it)':''}</div>
     <div class="vm-contact">${contactLinks(l)}</div>
-    <div style="margin-top:12px;font-size:11.5px;color:var(--text3);line-height:1.5">In-app scheduling & a shared calendar are coming soon — for now, lock in your scrim over chat.</div>
-    <div class="modal-actions" style="margin-top:18px"><button class="mini-btn" style="flex:1;padding:11px" onclick="document.getElementById('viewBg').classList.remove('show')">Close</button></div>`;
+    <div class="vm-sched">
+      <div class="h" style="font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--text3);text-transform:uppercase;margin:18px 0 10px">Propose a scrim time</div>
+      <div class="fg-row">
+        <div class="fg"><label>Date</label><input type="date" id="bkDate"></div>
+        <div class="fg"><label>Time</label><input type="time" id="bkTime"></div>
+      </div>
+      <div class="fg-row">
+        <div class="fg"><label>Format</label><input id="bkFormat" value="${fmtFormat(l.format_type,l.games_planned)}"></div>
+        <div class="fg"><label>Note (optional)</label><input id="bkNote" placeholder="server, coach…"></div>
+      </div>
+      <div class="msg" id="bkMsg"></div>
+      <button class="challenge" style="width:100%;justify-content:center;margin-top:4px" onclick="createBooking('${l.id}')">⚔ Propose Scrim Time</button>
+      <div style="margin-top:8px;font-size:11px;color:var(--text3)">They'll get it in their Schedule to confirm — once confirmed it's on both your calendars.</div>
+    </div>
+    <div class="modal-actions" style="margin-top:14px"><button class="mini-btn" style="flex:1;padding:11px" onclick="document.getElementById('viewBg').classList.remove('show')">Close</button></div>`;
   document.getElementById('viewBg').classList.add('show');
 }
 
@@ -402,7 +437,11 @@ function render(){
   const out=document.getElementById('scOut'), pager=document.getElementById('scPager');
   if(!_tableReady){ out.innerHTML=`<div class="sc-notice"><b>Scrim Finder is almost ready.</b><br>Run <code>migrations/012_scrim_finder.sql</code> in Supabase → SQL Editor, then reload.</div>`; pager.innerHTML=''; return; }
 
-  if(_viewMine){
+  document.getElementById('scFilters').style.display = _view==='browse' ? 'flex' : 'none';
+  document.getElementById('fSort').style.display = _view==='browse' ? '' : 'none';
+  const secL=document.getElementById('secLabel'); if(secL) secL.textContent = _view==='schedule'?'📅 SCHEDULE':_view==='mine'?'📋 MY LISTINGS':'⚡ ACTIVE SCRIMS';
+  if(_view==='schedule'){ renderSchedule(out); pager.innerHTML=''; return; }
+  if(_view==='mine'){
     out.innerHTML = _mine.length ? _mine.map(l=>card(l,true)).join('') : `<div class="sc-empty"><div class="e-emoji">📋</div>You have no scrim listings yet.</div>`;
     pager.innerHTML=''; return;
   }
@@ -436,6 +475,13 @@ async function loadAll(){
     _listings=(data||[]).filter(l=>l.created_by!==_me.id);
   }catch(e){ if(String(e.message||e).match(/relation|does not exist|schema cache|42P01/i)){_tableReady=false; return;} _loadErr=String(e.message||e); _listings=[]; }
   try{ const { data } = await sb.from('scrim_listings').select('*').eq('created_by',_me.id).order('created_at',{ascending:false}); _mine=data||[]; }catch(e){ _mine=[]; }
+  // bookings (schedule) — RLS returns only ones I'm part of
+  try{
+    const { data, error } = await sb.from('scrim_bookings').select('*')
+      .or(`team_a.eq.${_me.id},team_b.eq.${_me.id}`).order('scrim_at',{ascending:true});
+    if(error) throw error;
+    _bookings = data||[];
+  }catch(e){ if(String(e.message||e).match(/relation|does not exist|schema cache|42P01/i)) _bookReady=false; _bookings=[]; }
 }
 
 // ── Post/edit modal ──
@@ -479,7 +525,7 @@ async function saveListing(){
   try{
     if(id){ const { error }=await sb.from('scrim_listings').update(row).eq('id',id); if(error) throw error; }
     else { row.created_by=_me.id; const { error }=await sb.from('scrim_listings').insert(row); if(error) throw error; }
-    document.getElementById('modalBg').classList.remove('show'); await loadAll(); _viewMine=true; updateTab(); render();
+    document.getElementById('modalBg').classList.remove('show'); await loadAll(); _view='mine'; updateTab(); render();
   }catch(e){ mMsg(String(e.message||e).replace(/^.*?:\s*/,''),'err'); }
   finally{ btn.disabled=false; btn.textContent=id?'Save Changes':'Post Scrim'; }
 }
@@ -491,7 +537,74 @@ async function reportListing(id){
   try{ const { error }=await WAuth._sb().from('scrim_reports').insert({listing_id:id,reported_by:_me.id,reason:reason||null});
     if(error && !/duplicate|unique/i.test(error.message)) throw error; alert('Thanks — reported. We’ll review it.'); }catch(e){ alert(e.message||e); }
 }
-function updateTab(){ document.getElementById('tabMine').textContent = _viewMine?'← Browse all':'My Listings'; }
+function updateTab(){
+  [['tabBrowse','browse'],['tabMine','mine'],['tabSchedule','schedule']].forEach(([id,v])=>{
+    const el=document.getElementById(id); if(el) el.classList.toggle('tab-on', _view===v);
+  });
+  // schedule badge = pending proposals that need MY action (someone proposed to me)
+  const pend=_bookings.filter(b=>b.status==='proposed' && b.team_b===_me.id).length;
+  const badge=document.getElementById('schBadge');
+  if(badge){ badge.textContent=pend; badge.style.display=pend?'inline-flex':'none'; }
+}
+
+// ── Schedule / bookings ──
+function _fmtDT(iso){ const d=new Date(iso); return isNaN(d)?iso:d.toLocaleString([],{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }
+function _oppName(b){ return b.team_a===_me.id ? b.team_b_name : b.team_a_name; }
+function _gcalUrl(b){
+  const s=new Date(b.scrim_at), e=new Date(s.getTime()+90*60000);
+  const f=d=>d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent('Scrim: '+b.team_a_name+' vs '+b.team_b_name)}&dates=${f(s)}/${f(e)}&details=${encodeURIComponent((b.format||'')+(b.note?' · '+b.note:'')+' · Warr.GG')}`;
+}
+function icsBooking(id){
+  const b=_bookings.find(x=>x.id===id); if(!b) return;
+  const s=new Date(b.scrim_at), e=new Date(s.getTime()+90*60000);
+  const f=d=>d.toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Warr.GG//Scrims//EN','BEGIN:VEVENT','UID:'+b.id+'@warr.gg','DTSTAMP:'+f(new Date()),'DTSTART:'+f(s),'DTEND:'+f(e),'SUMMARY:Scrim — '+b.team_a_name+' vs '+b.team_b_name,'DESCRIPTION:'+((b.format||'')+(b.note?' — '+b.note:''))+' (Warr.GG)','END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([ics],{type:'text/calendar'})); a.download='scrim_'+String(_oppName(b)||'').replace(/\s+/g,'_')+'.ics'; a.click();
+}
+async function createBooking(listingId){
+  const l=_listings.find(x=>x.id===listingId)||_mine.find(x=>x.id===listingId); if(!l) return;
+  const date=document.getElementById('bkDate').value, time=document.getElementById('bkTime').value;
+  const fmtv=document.getElementById('bkFormat').value.trim(), note=document.getElementById('bkNote').value.trim();
+  const m=document.getElementById('bkMsg'); const show=(t,c)=>{m.textContent=t;m.className='msg '+c;m.style.display='block';};
+  if(!date||!time){ show('Pick a date and time','err'); return; }
+  let myTeam=''; try{myTeam=WAuth.getProfile()?.team_name||'';}catch(_){}
+  const row={ listing_id:l.id, team_a:_me.id, team_b:l.created_by, team_a_name:myTeam||'Your team', team_b_name:l.team_name||'Team',
+    scrim_at:new Date(date+'T'+time).toISOString(), timezone:l.timezone||null, format:fmtv||fmtFormat(l.format_type,l.games_planned), note:note||null, status:'proposed', proposed_by:_me.id };
+  try{ const { error }=await WAuth._sb().from('scrim_bookings').insert(row); if(error) throw error;
+    document.getElementById('viewBg').classList.remove('show'); await loadAll(); _view='schedule'; updateTab(); render();
+  }catch(e){ show(String(e.message||e).replace(/^.*?:\s*/,''),'err'); }
+}
+async function _bkUpdate(id,patch){ try{ await WAuth._sb().from('scrim_bookings').update(patch).eq('id',id); await loadAll(); updateTab(); render(); }catch(e){ alert(e.message||e); } }
+function confirmBooking(id){ _bkUpdate(id,{status:'confirmed',updated_at:new Date().toISOString()}); }
+function cancelBooking(id){ if(confirm('Cancel this scrim?')) _bkUpdate(id,{status:'cancelled',updated_at:new Date().toISOString()}); }
+function completeBooking(id){ _bkUpdate(id,{status:'completed'}); }
+async function deleteBooking(id){ if(!confirm('Remove this from your schedule?'))return; try{ await WAuth._sb().from('scrim_bookings').delete().eq('id',id); await loadAll(); updateTab(); render(); }catch(e){ alert(e.message||e); } }
+function bookingCard(b,kind){
+  const opp=esc(_oppName(b)); const when=_fmtDT(b.scrim_at)+(b.timezone?' ('+esc(b.timezone)+')':'');
+  let actions='';
+  if(kind==='incoming') actions=`<button class="challenge" onclick="confirmBooking('${b.id}')">Confirm</button><button class="mini-btn" onclick="cancelBooking('${b.id}')">Decline</button>`;
+  else if(kind==='outgoing') actions=`<span class="bk-wait">Awaiting confirmation</span><button class="mini-btn" onclick="cancelBooking('${b.id}')">Cancel</button>`;
+  else if(kind==='upcoming') actions=`<a class="btn-ct" target="_blank" rel="noopener" href="${_gcalUrl(b)}">＋ Google</a><button class="mini-btn" onclick="icsBooking('${b.id}')">.ics</button><button class="mini-btn" onclick="completeBooking('${b.id}')">Done</button><button class="mini-btn danger" onclick="cancelBooking('${b.id}')">Cancel</button>`;
+  else actions=`<button class="mini-btn danger" onclick="deleteBooking('${b.id}')">Remove</button>`;
+  const st=b.status==='confirmed'?'<span class="bk-st bk-conf">Confirmed</span>':b.status==='proposed'?'<span class="bk-st bk-prop">Proposed</span>':b.status==='completed'?'<span class="bk-st bk-done">Completed</span>':'<span class="bk-st bk-canc">Cancelled</span>';
+  return `<div class="bk-card">
+    <div class="bk-when"><div class="bk-when-d">${when}</div><div class="bk-meta">${esc(b.format||'Scrim')}${b.note?` · ${esc(b.note)}`:''}</div></div>
+    <div class="bk-opp">vs <b>${opp}</b>${st}</div>
+    <div class="bk-actions">${actions}</div>
+  </div>`;
+}
+function renderSchedule(out){
+  if(!_bookReady){ out.innerHTML=`<div class="sc-notice"><b>Schedule isn't set up yet.</b><br>Run <code>migrations/013_scrim_bookings.sql</code> in Supabase → SQL Editor, then reload.</div>`; return; }
+  const now=Date.now();
+  const incoming=_bookings.filter(b=>b.status==='proposed'&&b.team_b===_me.id);
+  const outgoing=_bookings.filter(b=>b.status==='proposed'&&b.team_a===_me.id);
+  const upcoming=_bookings.filter(b=>b.status==='confirmed'&&new Date(b.scrim_at).getTime()>=now-2*3600000).sort((a,b)=>new Date(a.scrim_at)-new Date(b.scrim_at));
+  const past=_bookings.filter(b=>b.status==='completed'||b.status==='cancelled'||(b.status==='confirmed'&&new Date(b.scrim_at).getTime()<now-2*3600000));
+  if(!_bookings.length){ out.innerHTML=`<div class="sc-empty"><div class="e-emoji">📅</div>No scrims scheduled yet.<br>Open a listing and propose a time to get started.</div>`; return; }
+  const sec=(title,arr,kind)=>arr.length?`<div class="bk-sec"><div class="bk-sec-t">${title} <span>${arr.length}</span></div>${arr.map(b=>bookingCard(b,kind)).join('')}</div>`:'';
+  out.innerHTML = sec('Needs your response',incoming,'incoming')+sec('Awaiting confirmation',outgoing,'outgoing')+sec('Upcoming',upcoming,'upcoming')+sec('Past &amp; cancelled',past,'past');
+}
 
 // ── Boot ──
 (async function(){
@@ -510,7 +623,10 @@ function updateTab(){ document.getElementById('tabMine').textContent = _viewMine
     document.querySelector('.f-posted[value=""]').checked=true;
     document.getElementById('fSearch').value=''; _page=1; render();
   });
-  document.getElementById('tabMine').addEventListener('click',()=>{ _viewMine=!_viewMine; updateTab(); render(); });
+  document.getElementById('tabBrowse').addEventListener('click',()=>{ _view='browse'; updateTab(); render(); });
+  document.getElementById('tabMine').addEventListener('click',()=>{ _view='mine'; updateTab(); render(); });
+  document.getElementById('tabSchedule').addEventListener('click',()=>{ _view='schedule'; updateTab(); render(); });
+  updateTab();
   document.getElementById('scNew').addEventListener('click',()=>openModal(null));
   document.getElementById('mCancel').addEventListener('click',()=>document.getElementById('modalBg').classList.remove('show'));
   document.getElementById('mSave').addEventListener('click',saveListing);
