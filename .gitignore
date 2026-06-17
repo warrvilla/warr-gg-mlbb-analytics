@@ -5,3 +5,5 @@ tools/top100-scraper/coord_map.json
 # macOS Finder metadata — never useful in repo
 .DS_Store
 **/.DS_Store
+maps/.DS_Store
+.DS_Store
