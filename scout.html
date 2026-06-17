@@ -1239,92 +1239,6 @@ body::after {
 .btn-accent { background: var(--accent) !important; border: none !important; color: #fff !important; box-shadow: 0 4px 16px rgba(124,92,246,0.24) !important; }
 .btn-ghost  { background: rgba(255,255,255,0.07) !important; border: 0.5px solid rgba(255,255,255,0.08) !important; color: var(--text2) !important; }
 /* ═══════════════════════════════════════════════════ */
-/* ── Team report — full-page dashboard (reference) ── */
-.tr-back{display:inline-block;font-size:13px;color:var(--text2);cursor:pointer;margin-bottom:16px;text-decoration:none;}
-.tr-back:hover{color:var(--text);}
-.tr-top{display:grid;grid-template-columns:1fr 360px;gap:16px;margin-bottom:16px;align-items:stretch;}
-@media(max-width:1100px){.tr-top{grid-template-columns:1fr;}}
-.tr-headcard{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:20px 22px;}
-.tr-head-row{display:flex;align-items:center;gap:16px;margin-bottom:18px;}
-.tr-logo{width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:24px;color:#fff;flex-shrink:0;position:relative;overflow:hidden;}
-.tr-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
-.tr-name{font-size:24px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px;}
-.tr-verif{color:#5E9CE6;font-size:16px;}
-.tr-tags{display:flex;align-items:center;gap:8px;margin-top:6px;}
-.tr-league{font-size:11px;font-weight:800;color:#A78BFA;background:rgba(124,92,246,.14);border:1px solid rgba(124,92,246,.3);border-radius:6px;padding:2px 9px;}
-.tr-streak{font-size:11px;font-weight:700;}.tr-streak.up{color:var(--green);}.tr-streak.dn{color:var(--red);}
-.tr-follow{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:var(--text);border-radius:10px;padding:9px 15px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;}
-.tr-edit{background:none;border:1px solid rgba(255,255,255,.12);color:var(--text2);border-radius:9px;padding:8px 12px;font:inherit;font-size:12px;cursor:pointer;}
-.tr-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;}
-.tr-kv{font-size:22px;font-weight:800;color:var(--text);line-height:1;}
-.tr-kl{font-size:11px;color:var(--text3);margin-top:5px;}
-.tr-aicard{background:linear-gradient(160deg,rgba(124,92,246,.12),rgba(94,92,230,.05));border:1px solid rgba(124,92,246,.28);border-radius:16px;padding:18px;display:flex;flex-direction:column;}
-.tr-ai-t{font-size:13px;font-weight:800;color:#C4A4DE;margin-bottom:12px;display:flex;align-items:center;gap:7px;}
-.tr-ai-list{list-style:none;margin:0;padding:0;flex:1;}
-.tr-ai-list li{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:8px;padding-left:14px;position:relative;}
-.tr-ai-list li::before{content:'•';position:absolute;left:0;color:#A78BFA;}
-.tr-genbtn{margin-top:12px;width:100%;background:linear-gradient(135deg,#7C5CF6,#6D5CE6);color:#fff;border:none;border-radius:10px;padding:10px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
-.tr-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px;}
-.tr-tile{display:flex;align-items:center;gap:13px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px 18px;}
-.tr-tile-ic{width:40px;height:40px;border-radius:11px;background:rgba(124,92,246,.12);border:1px solid rgba(124,92,246,.25);display:flex;align-items:center;justify-content:center;color:#A78BFA;font-size:18px;flex-shrink:0;}
-.tr-tile-v{font-size:20px;font-weight:800;color:var(--text);line-height:1;}
-.tr-tile-l{font-size:11px;color:var(--text3);margin-top:4px;}
-.tr-dash{display:grid;grid-template-columns:1fr 320px;gap:18px;align-items:start;}
-@media(max-width:1100px){.tr-dash{grid-template-columns:1fr;}.tr-tiles{grid-template-columns:1fr;}}
-.tr-main{min-width:0;background:rgba(255,255,255,.018);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:18px;}
-.tr-ml-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
-.tr-ml-title{font-size:16px;font-weight:800;color:var(--text);}
-.tr-ml-sub{font-size:11px;color:var(--text3);margin-top:2px;}
-.tr-side{display:flex;flex-direction:column;gap:14px;min-width:0;}
-/* ═══════════════════════════════════════════════════ */
-/* ── Team report dashboard (2-col with right sidebar) ── */
-.rpt-dash{display:grid;grid-template-columns:1fr 300px;gap:18px;align-items:start;}
-@media(max-width:1100px){.rpt-dash{grid-template-columns:1fr;}}
-.rpt-main{min-width:0;}
-.rpt-side{display:flex;flex-direction:column;gap:14px;min-width:0;}
-.rpt-sidecard{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 15px;}
-.rpt-side-t{font-size:12px;font-weight:800;letter-spacing:.04em;color:var(--text);margin-bottom:12px;}
-.rpt-hhdr{display:flex;justify-content:flex-end;gap:18px;font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;padding-right:2px;}
-.rpt-hrow{display:flex;align-items:center;gap:9px;margin-bottom:9px;}
-.rpt-hrow img{width:28px;height:28px;border-radius:8px;object-fit:cover;background:var(--surface3);}
-.rpt-hn{flex:1;font-size:12.5px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.rpt-hp{font-size:12px;font-weight:700;color:var(--text2);width:38px;text-align:right;font-variant-numeric:tabular-nums;}
-.rpt-hw{font-size:12px;font-weight:800;width:38px;text-align:right;font-variant-numeric:tabular-nums;}
-.rpt-empty2{font-size:11px;color:var(--text3);}
-.rpt-donuts{display:flex;justify-content:space-around;text-align:center;margin-top:6px;}
-.rpt-donut-l{font-size:11px;font-weight:700;margin-top:6px;}
-.rpt-donut-s{font-size:10px;color:var(--text3);margin-top:1px;}
-/* ═══════════════════════════════════════════════════ */
-/* ── Match Log (redesigned rows + expandable draft) ── */
-.ml-group{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin:14px 0 7px;}
-.ml-card{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:14px;margin-bottom:9px;overflow:hidden;transition:border-color .15s;}
-.ml-card:hover{border-color:rgba(124,92,246,.3);}
-.ml-row{display:flex;align-items:center;gap:14px;padding:12px 16px;}
-.ml-date{text-align:center;width:34px;flex-shrink:0;}
-.ml-day{font-size:18px;font-weight:800;line-height:1;color:var(--text);}
-.ml-mon{font-size:9px;color:var(--text3);letter-spacing:.06em;margin-top:2px;}
-.ml-stage{width:104px;flex-shrink:0;}
-.ml-stage-t{display:block;font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ml-bo{display:inline-block;margin-top:4px;font-size:9px;font-weight:700;color:#A78BFA;background:rgba(124,92,246,.14);border:1px solid rgba(124,92,246,.28);border-radius:5px;padding:1px 6px;}
-.ml-teams{flex:1;min-width:0;display:flex;align-items:center;gap:10px;}
-.ml-logo{width:24px;height:24px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;flex-shrink:0;}
-.ml-team{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text);min-width:0;}
-.ml-team .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.ml-vs{font-size:10px;color:var(--text3);flex-shrink:0;}
-.ml-score{display:flex;align-items:center;gap:10px;flex-shrink:0;}
-.ml-sc{font-size:17px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap;}
-.ml-res{font-size:9px;font-weight:800;letter-spacing:.05em;padding:3px 8px;border-radius:5px;}
-.ml-res.W{color:var(--green);background:var(--green-dim);border:1px solid var(--green-border);}
-.ml-res.L{color:var(--red);background:var(--red-dim);border:1px solid var(--red-border);}
-.ml-win{font-size:9px;font-weight:800;letter-spacing:.04em;padding:3px 8px;border-radius:5px;color:var(--gold);background:var(--gold-dim);border:1px solid var(--gold-border);white-space:nowrap;}
-.ml-heroes{display:flex;gap:4px;flex-shrink:0;}
-.ml-hero{width:30px;height:30px;border-radius:8px;object-fit:cover;background:var(--surface3);}
-.ml-view{flex-shrink:0;background:rgba(124,92,246,.12);border:1px solid rgba(124,92,246,.3);color:#CDBBFF;border-radius:9px;padding:7px 13px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
-.ml-view:hover{background:rgba(124,92,246,.2);}
-.ml-detail{display:none;padding:6px 16px 14px;border-top:1px solid rgba(255,255,255,.06);}
-.ml-detail.open{display:block;}
-@media(max-width:760px){.ml-stage,.ml-heroes{display:none;}.ml-row{gap:10px;}}
-/* ═══════════════════════════════════════════════════ */
 /* ── Team Report view ── */
 .rpt-controls { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-bottom:18px; }
 .rpt-field { display:flex; flex-direction:column; gap:5px; }
@@ -2419,25 +2333,31 @@ function renderMatchListBody() {
       </div>`;
     }).join('');
 
-    const _mono=n=>(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(n||'?'):{init:(n||'?')[0]||'?',color:'#7C5CF6'};
-    const _bm=_mono(s.blueTeam), _rm=_mono(s.redTeam);
-    const _winT = seriesWinner || s.blueTeam;
-    const _pc={}; s.games.forEach(g=>{ const isB=g.blueTeam===_winT; (isB?(g.bluePicks||[]):(g.redPicks||[])).forEach(p=>{const n=p.name||p; if(n)_pc[n]=(_pc[n]||0)+1;}); });
-    const _heroes=Object.entries(_pc).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([n])=>`<img class="ml-hero" src="${_heroIcon(n)}" onerror="${_heroIconErr(n)}" title="${n}">`).join('');
-    return groupHdr + `<div class="ml-card">
-      <div class="ml-row">
-        <div class="ml-date"><div class="ml-day">${day}</div><div class="ml-mon">${(mon||'').toUpperCase()}</div></div>
-        <div class="ml-stage"><span class="ml-stage-t">${s.stage||s.league||'Match'}</span><span class="ml-bo">${s.seriesFormat||('BO'+s.games.length)}</span></div>
-        <div class="ml-teams">
-          <div class="ml-team"><span class="ml-logo" style="background:${_bm.color}">${_bm.init}</span><span class="nm">${s.blueTeam}</span></div>
-          <span class="ml-vs">vs</span>
-          <div class="ml-team"><span class="ml-logo" style="background:${_rm.color}">${_rm.init}</span><span class="nm">${s.redTeam}</span></div>
+    return groupHdr + `<div class="series-card" data-series-key="${sk}">
+      <div class="series-header" onclick="toggleSeries('${sk}')">
+        <div class="series-date-col">
+          <div class="series-date-day">${day}</div>
+          <div class="series-date-mon">${mon}</div>
         </div>
-        <div class="ml-score"><span class="ml-sc" style="color:${scoreColor}">${blueWins} - ${redWins}</span>${seriesWinner?`<span class="ml-win">${seriesWinner} ✓</span>`:''}</div>
-        <div class="ml-heroes">${_heroes}</div>
-        <button class="ml-view" onclick="const x=this.closest('.ml-card').querySelector('.ml-detail');x.classList.toggle('open');this.textContent=x.classList.contains('open')?'Hide ▾':'View Details ▸';">View Details ▸</button>
+        <div>
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;flex-wrap:wrap;">
+            <span class="league-badge ${lc}">${s.league}</span>
+            ${s.stage ? `<span style="font-size:9px;color:var(--text3);">${s.stage}${s.week?' · '+s.week:''}</span>` : ''}
+            <span style="font-size:9px;color:var(--text3);">${s.seriesFormat} · ${s.games.length}G</span>
+          </div>
+          <div style="font-size:13px;font-weight:700;font-family:var(--font-head);">
+            <span style="color:var(--blue);">${s.blueTeam}</span>
+            <span style="color:var(--text3);font-weight:400;font-size:11px;margin:0 6px;">vs</span>
+            <span style="color:var(--red);">${s.redTeam}</span>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div class="series-score" style="color:${scoreColor};">${blueWins}&nbsp;–&nbsp;${redWins}</div>
+          ${seriesWinner ? `<div style="font-size:9px;color:var(--text3);margin-top:2px;">${seriesWinner}</div>` : ''}
+        </div>
+        <div class="series-chevron ${collapsed?'':'open'}">▶</div>
       </div>
-      <div class="ml-detail">${gameRows}</div>
+      ${collapsed ? '' : gameRows}
     </div>`;
   }).join('') + _renderPager(series.length, MATCH_PAGE_SIZE, _matchPage, 'goMatchPage');
 }
@@ -3871,27 +3791,21 @@ function openTeamReport(teamName) {
           </div>`;
         }).join('');
 
-        const _day=isNaN(d.getTime())?'':d.getDate();
-        const _mon=isNaN(d.getTime())?'':d.toLocaleString('default',{month:'short'}).toUpperCase();
-        const _bo=s.games.length>=7?'BO7':s.games.length>=5?'BO5':s.games.length>=3?'BO3':'BO1';
-        const _grp=[s.league,s.stage,s.week].filter(Boolean).join(' · ').toUpperCase();
-        const _mono=n=>(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(n||'?'):{init:(n||'?')[0]||'?',color:'#7C5CF6'};
-        const _ourM=_mono(teamName), _oppM=_mono(s.opponent);
-        return `<div class="ml-group">${_grp||'MATCH'}</div>
-          <div class="ml-card">
-            <div class="ml-row">
-              <div class="ml-date"><div class="ml-day">${_day}</div><div class="ml-mon">${_mon}</div></div>
-              <div class="ml-stage"><span class="ml-stage-t">${s.stage||'Match'}</span><span class="ml-bo">${_bo}</span></div>
-              <div class="ml-teams">
-                <div class="ml-team"><span class="ml-logo" style="background:${_ourM.color}">${_ourM.init}</span><span class="nm">${teamName}</span></div>
-                <span class="ml-vs">vs</span>
-                <div class="ml-team"><span class="ml-logo" style="background:${_oppM.color}">${_oppM.init}</span><span class="nm">${s.opponent||'—'}</span></div>
-              </div>
-              <div class="ml-score"><span class="ml-sc">${s.ourWins} - ${s.oppWins}</span><span class="ml-res ${s.result}">${s.result==='W'?'WIN':'LOSS'}</span></div>
-              <button class="ml-view" onclick="const x=this.closest('.ml-card').querySelector('.ml-detail');x.classList.toggle('open');this.textContent=x.classList.contains('open')?'Hide ▾':'View Details ▸';">View Details ▸</button>
+        return `<div style="border:1px solid var(--border);border-radius:var(--radius2);margin-bottom:10px;overflow:hidden;">
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface2);cursor:pointer;user-select:none;"
+               onclick="const g=this.nextElementSibling;g.classList.toggle('hidden');this.querySelector('.chev').textContent=g.classList.contains('hidden')?'▸':'▾'">
+            <div style="min-width:36px;text-align:center;">
+              <div style="font-size:20px;font-weight:800;font-family:var(--font-head);line-height:1;color:${resColor};">${s.result}</div>
+              <div style="font-size:9px;color:var(--text3);font-family:var(--font-mono);margin-top:1px;">${s.ourWins}–${s.oppWins}</div>
             </div>
-            <div class="ml-detail">${gameRowsHTML}</div>
-          </div>`;
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12px;font-weight:700;">vs ${s.opponent}</div>
+              <div style="font-size:9px;color:var(--text3);margin-top:1px;">${ds}${s.league?' · '+s.league:''}${s.stage?' · '+s.stage:''}${s.week?' · '+s.week:''}</div>
+            </div>
+            <span class="chev" style="font-size:10px;color:var(--text3);">▾</span>
+          </div>
+          <div class="series-games">${gameRowsHTML}</div>
+        </div>`;
       }).join('');
 
   // ── Pick/Ban Analysis (full history — onscreen scrolls/columns; print expands) ──
@@ -4125,77 +4039,177 @@ function openTeamReport(teamName) {
       <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-top:3px;">${label}</div>
     </div>`;
 
-  // ── Right sidebar (reference): Most Picked / Most Banned / Side Performance ──
-  const _donut = (pct,color)=>{ const r=26,circ=2*Math.PI*r,off=circ*(1-((pct||0)/100));
-    return `<svg width="76" height="76" viewBox="0 0 76 76"><circle cx="38" cy="38" r="26" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="7"/><circle cx="38" cy="38" r="26" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 38 38)"/><text x="38" y="43" text-anchor="middle" font-size="16" font-weight="800" fill="${color}">${pct==null?'—':pct+'%'}</text></svg>`; };
-  const _mpRows = (t.topPicks||[]).slice(0,5).map(p=>{ const pr=t.gamesPlayed?Math.round(p.count/t.gamesPlayed*100):0;
-    return `<div class="rpt-hrow">${img(p.name,28)}<span class="rpt-hn">${p.name}</span><span class="rpt-hp">${pr}%</span><span class="rpt-hw" style="color:${wrc(p.wr)}">${p.wr}%</span></div>`; }).join('');
-  const _mbRows = (t.topBans||[]).slice(0,5).map(b=>{ const br=t.gamesPlayed?Math.round(b.count/t.gamesPlayed*100):0;
-    return `<div class="rpt-hrow">${img(b.name,28)}<span class="rpt-hn">${b.name}</span><span class="rpt-hp" style="color:var(--red)">${br}%</span></div>`; }).join('');
-  const _blW=t.blueWins||0, _blL=(t.blueSideGames||0)-_blW, _rdW=t.redWins||0, _rdL=(t.redSideGames||0)-_rdW;
-  const sideHTML = `
-    <div class="rpt-sidecard"><div class="rpt-side-t">Most Picked Heroes</div>
-      <div class="rpt-hhdr"><span>Pick%</span><span>WR</span></div>
-      ${_mpRows||'<div class="rpt-empty2">No data</div>'}</div>
-    <div class="rpt-sidecard"><div class="rpt-side-t">Most Banned Heroes</div>
-      ${_mbRows||'<div class="rpt-empty2">No data</div>'}</div>
-    <div class="rpt-sidecard"><div class="rpt-side-t">Side Performance</div>
-      <div class="rpt-donuts">
-        <div><div class="rpt-donut-w">${_donut(t.blueSideWR,'#5EA0D8')}</div><div class="rpt-donut-l" style="color:var(--blue)">Blue Side</div><div class="rpt-donut-s">${_blW}W – ${_blL}L</div></div>
-        <div><div class="rpt-donut-w">${_donut(t.redSideWR,'#D87880')}</div><div class="rpt-donut-l" style="color:var(--red)">Red Side</div><div class="rpt-donut-s">${_rdW}W – ${_rdL}L</div></div>
-      </div></div>`;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'teamReportModal';
+  overlay.dataset.team = teamName;
+  // Maps actually played by this team (so the dropdown only shows useful options)
+  const playedMaps = [...new Set(allMatches
+    .filter(m => m.blueTeam === teamName || m.redTeam === teamName)
+    .map(m => m.map).filter(Boolean))];
+  const mapOpts = `<option value="">All maps</option>` + playedMaps.map(mp =>
+    `<option value="${mp}"${_reportMapFilter===mp?' selected':''}>${mp}</option>`
+  ).join('');
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:920px;" id="teamReportContent">
+      <div class="modal-header no-print" style="gap:8px;">
+        <div class="modal-title">Scout Report — ${teamName}${_reportMapFilter ? ` <span style="font-size:11px;color:var(--accent);font-weight:500;margin-left:6px;">on ${_reportMapFilter}</span>` : ''}</div>
+        <div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0;align-items:center;">
+          ${playedMaps.length > 1 ? `<select class="form-select" style="font-size:11px;padding:5px 8px;height:auto;" onchange="setReportMapFilter(this.value)" title="Filter the entire report to a single map">${mapOpts}</select>` : ''}
+          <button class="btn btn-ghost btn-sm" onclick="openTeamEditor('${teamName}');document.getElementById('teamReportModal').remove();">Edit</button>
+          <button class="btn btn-ghost btn-sm" onclick="openH2H('${teamName}')">H2H</button>
+          <button class="btn btn-accent btn-sm" id="pdfBtn" onclick="generateTeamImage('${teamName}')">Export PDF</button>
+          <button class="btn btn-ghost btn-sm" onclick="_reportMapFilter='';document.getElementById('teamReportModal').remove();">✕</button>
+        </div>
+      </div>
+      <div class="modal-body" id="reportBody" style="padding:20px 24px;">
 
-  const area = document.getElementById('mainArea');
-  const _m = (typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(teamName):{init:(teamName[0]||'?'),color:'#7C5CF6'};
-  const _logoUrl = (typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(teamName):'';
-  let _tk=0,_td=0; if(t.playerKDA) Object.values(t.playerKDA).forEach(p=>{_tk+=(p.k||0)+(p.a||0);_td+=p.d||0;});
-  const _kd = _td?(_tk/_td).toFixed(2):'—';
-  const _bullets=[...strengths.slice(0,3),...weaknesses.slice(0,2)];
-  const _aiHTML=_bullets.length?_bullets.map(b=>`<li>${b}</li>`).join(''):'<li>Not enough games logged yet for insights.</li>';
-  const _league=(t.leagues&&t.leagues[0])||'';
-  area.innerHTML = `
-   <div id="teamReportContent" class="tr-page">
-    <a class="tr-back" onclick="showView('teams')">← Back to Teams</a>
-    <div class="tr-top">
-      <section class="tr-headcard">
-        <div class="tr-head-row">
-          <div class="tr-logo" style="background:linear-gradient(135deg,${_m.color},${_m.color}99)">${_m.init}<img src="${_logoUrl}" onerror="this.style.display='none'" alt=""></div>
+        <!-- PRINT HEADER -->
+        <div class="print-only" style="display:none;margin-bottom:16px;border-bottom:2px solid #333;padding-bottom:10px;">
+          <div style="font-size:22px;font-weight:800;">${teamName} — Scout Report</div>
+          <div style="font-size:11px;color:#666;margin-top:2px;">Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div>
+        </div>
+
+        <!-- HEADER ROW -->
+        <div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border);">
           <div style="flex:1;min-width:0;">
-            <div class="tr-name">${teamName}<span class="tr-verif" title="Verified">✔</span></div>
-            <div class="tr-tags">${_league?`<span class="tr-league">${_league}</span>`:''}${t.streak&&t.streak.count>1?`<span class="tr-streak ${t.streak.type==='W'?'up':'dn'}">${t.streak.type}${t.streak.count} streak</span>`:''}</div>
+            <div style="font-size:22px;font-weight:800;font-family:var(--font-head);margin-bottom:5px;">${teamName}</div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+              ${lb || '<span style="color:var(--text3);font-size:11px;">No league data</span>'}
+            </div>
+            <div style="display:flex;gap:5px;align-items:center;">
+              <div style="display:flex;gap:3px;">${formDots}</div>
+              ${t.streak?.count > 1 ? `<span style="font-size:10px;font-weight:700;color:${t.streak.type==='W'?'var(--green)':'var(--red)'};">${t.streak.type}${t.streak.count} streak</span>` : ''}
+            </div>
           </div>
-          <button class="tr-edit" onclick="openTeamEditor('${teamName}')">Edit</button>
-          <button class="tr-follow">★ Follow Team</button>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+              ${kpiBox(wr+'%', 'Win Rate', wrc(wr))}
+              ${kpiBox((t.wins||0)+'W '+(t.losses||0)+'L', 'Record')}
+              ${kpiBox(bsWr!==null?bsWr+'%':'—', 'Blue Side', bsWr!==null?wrc(bsWr):'var(--text3)')}
+              ${kpiBox(rsWr!==null?rsWr+'%':'—', 'Red Side', rsWr!==null?wrc(rsWr):'var(--text3)')}
+            </div>
+            ${(t.fbRate!==null || t.avgTowers!==null || t.firstTurtleRate!==null || t.firstLordRate!==null) ? `
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+              ${kpiBox(t.fbRate!==null?t.fbRate+'%':'—', 'First Blood', t.fbRate!==null?wrc(t.fbRate):'var(--text3)')}
+              ${kpiBox(t.avgTowers!==null?t.avgTowers:'—', 'Avg Towers', t.avgTowers!==null?'var(--accent)':'var(--text3)')}
+              ${kpiBox(t.firstTurtleRate!==null?t.firstTurtleRate+'%':'—', 'First Turtle', t.firstTurtleRate!==null?wrc(t.firstTurtleRate):'var(--text3)')}
+              ${kpiBox(t.firstLordRate!==null?t.firstLordRate+'%':'—', 'First Lord', t.firstLordRate!==null?wrc(t.firstLordRate):'var(--text3)')}
+            </div>` : ''}
+          </div>
         </div>
-        <div class="tr-kpis">
-          <div class="tr-kpi"><div class="tr-kv" style="color:${wrc(wr)}">${wr}%</div><div class="tr-kl">Win Rate</div></div>
-          <div class="tr-kpi"><div class="tr-kv">${t.wins||0}W - ${t.losses||0}L</div><div class="tr-kl">Last ${t.gamesPlayed||0} Games</div></div>
-          <div class="tr-kpi"><div class="tr-kv" style="color:${bsWr!=null?wrc(bsWr):'var(--text3)'}">${bsWr!=null?bsWr+'%':'—'}</div><div class="tr-kl">Blue Side WR</div></div>
-          <div class="tr-kpi"><div class="tr-kv" style="color:${rsWr!=null?wrc(rsWr):'var(--text3)'}">${rsWr!=null?rsWr+'%':'—'}</div><div class="tr-kl">Red Side WR</div></div>
+
+        <!-- STRENGTHS / WEAKNESSES -->
+        ${(strengths.length || weaknesses.length) ? `
+        <div style="display:grid;grid-template-columns:${strengths.length&&weaknesses.length?'1fr 1fr':'1fr'};gap:12px;margin-bottom:18px;">
+          ${strengths.length ? `<div style="background:rgba(52,209,122,0.05);border:1px solid rgba(52,209,122,0.2);border-radius:10px;padding:12px 14px;">
+            <div style="font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--green);margin-bottom:8px;">Strengths</div>
+            ${strengths.map(s=>`<div style="font-size:11px;color:var(--text2);margin-bottom:5px;padding-left:10px;border-left:2px solid var(--green);">${s}</div>`).join('')}
+          </div>` : ''}
+          ${weaknesses.length ? `<div style="background:rgba(240,82,82,0.05);border:1px solid rgba(240,82,82,0.2);border-radius:10px;padding:12px 14px;">
+            <div style="font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--red);margin-bottom:8px;">Weaknesses</div>
+            ${weaknesses.map(w=>`<div style="font-size:11px;color:var(--text2);margin-bottom:5px;padding-left:10px;border-left:2px solid var(--red);">${w}</div>`).join('')}
+          </div>` : ''}
+        </div>` : ''}
+
+        <!-- WIN CONDITION / NOTES -->
+        ${(t.winCondition || t.coachNotes) ? `
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:18px;">
+          ${t.winCondition ? `<div style="margin-bottom:${t.coachNotes?'10px':'0'};">
+            <div style="font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin-bottom:4px;">Win Condition</div>
+            <div style="font-size:12px;color:var(--text);">${t.winCondition}</div>
+          </div>` : ''}
+          ${t.coachNotes ? `<div>
+            <div style="font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:4px;">Analysis Notes</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.65;white-space:pre-wrap;">${t.coachNotes}</div>
+          </div>` : ''}
+        </div>` : ''}
+
+        <!-- DRAFT ANALYSIS: full-width chip lists (multi-column flow) + compact supplementary row -->
+        <div style="display:block;margin-bottom:18px;">
+          <div style="margin-bottom:14px;break-inside:avoid;page-break-inside:avoid;">
+            ${sec('Top Picks', pickAnalysisHTML || '<div style="color:var(--text3);font-size:11px;">No data</div>')}
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+            <div style="break-inside:avoid;page-break-inside:avoid;">
+              ${sec('Ban Priority', banAnalysisHTML || '<div style="color:var(--text3);font-size:11px;">No data</div>', '#f87171')}
+            </div>
+            <div style="break-inside:avoid;page-break-inside:avoid;">
+              ${sec('Bans Received vs Them', banReceivedHTML || '<div style="color:var(--text3);font-size:11px;">No data</div>', 'var(--gold)')}
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+            <div style="break-inside:avoid;page-break-inside:avoid;">
+              ${sec('First Pick Tendencies', firstPickHTML || '<div style="color:var(--text3);font-size:11px;">No data</div>', 'var(--blue)')}
+            </div>
+            <div style="break-inside:avoid;page-break-inside:avoid;">
+            ${(() => {
+              // Tempo & Conversion: control %, first-objective %, conversion-to-win %.
+              // Each metric only renders when its underlying data exists.
+              const _line = (icon, label, ctrl, ctrlGames, firstRate, firstGames, toWin, toWinGames) => {
+                const ctrlHTML = ctrl !== null ? `<span style="font-size:12px;font-weight:700;color:${wrc(ctrl)};font-family:var(--font-mono);">${ctrl}%</span><span style="font-size:8.5px;color:var(--text4);">·${ctrlGames}g</span>` : '';
+                const firstHTML = firstRate !== null ? `<span style="font-size:11px;color:var(--text3);">First</span><span style="font-size:12px;font-weight:700;color:${wrc(firstRate)};font-family:var(--font-mono);">${firstRate}%</span><span style="font-size:8.5px;color:var(--text4);">·${firstGames}g</span>` : '';
+                const toWinHTML = toWin !== null ? `<span style="font-size:11px;color:var(--text3);">→ Win</span><span style="font-size:12px;font-weight:700;color:${wrc(toWin)};font-family:var(--font-mono);">${toWin}%</span><span style="font-size:8.5px;color:var(--text4);">·${toWinGames}g</span>` : '';
+                if (!ctrlHTML && !firstHTML && !toWinHTML) return '';
+                return `<div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;flex-wrap:wrap;">
+                  <span style="font-size:11px;font-weight:700;width:90px;flex-shrink:0;">${label}</span>
+                  ${ctrlHTML ? `<span style="display:inline-flex;align-items:center;gap:3px;">${ctrlHTML}</span>` : ''}
+                  ${firstHTML ? `<span style="color:var(--border2);">·</span><span style="display:inline-flex;align-items:center;gap:3px;">${firstHTML}</span>` : ''}
+                  ${toWinHTML ? `<span style="color:var(--border2);">·</span><span style="display:inline-flex;align-items:center;gap:3px;">${toWinHTML}</span>` : ''}
+                </div>`;
+              };
+              const turtleLine = _line('', 'Turtle', t.turtleCtrl, t.turtleTotal||0, t.firstTurtleRate, t.firstTurtleGames||0, t.firstTurtleToWin, (t.firstTurtleRate!==null?Math.round((t.firstTurtleRate/100)*(t.firstTurtleGames||0)):0));
+              const lordLine   = _line('', 'Lord',   t.lordCtrl,   t.lordTotal||0,   t.firstLordRate,   t.firstLordGames||0,   t.firstLordToWin,   (t.firstLordRate!==null?Math.round((t.firstLordRate/100)*(t.firstLordGames||0)):0));
+              const fbLine = (t.fbRate!==null) ? `<div style="display:flex;align-items:center;gap:7px;margin-bottom:0;flex-wrap:wrap;">
+                <span style="font-size:11px;font-weight:700;width:90px;flex-shrink:0;">First Blood</span>
+                <span style="display:inline-flex;align-items:center;gap:3px;">
+                  <span style="font-size:12px;font-weight:700;color:${wrc(t.fbRate)};font-family:var(--font-mono);">${t.fbRate}%</span>
+                  <span style="font-size:8.5px;color:var(--text4);">·${t.fbGames||0}g</span>
+                </span>
+                ${t.fbToWin!==null ? `<span style="color:var(--border2);">·</span><span style="display:inline-flex;align-items:center;gap:3px;">
+                  <span style="font-size:11px;color:var(--text3);">→ Win</span>
+                  <span style="font-size:12px;font-weight:700;color:${wrc(t.fbToWin)};font-family:var(--font-mono);">${t.fbToWin}%</span>
+                </span>` : ''}
+              </div>` : '';
+              const towerLine = (t.avgTowers!==null) ? `<div style="display:flex;align-items:center;gap:7px;margin-top:8px;flex-wrap:wrap;">
+                <span style="font-size:11px;font-weight:700;width:90px;flex-shrink:0;">Towers</span>
+                <span style="display:inline-flex;align-items:center;gap:3px;">
+                  <span style="font-size:12px;font-weight:700;color:var(--accent);font-family:var(--font-mono);">${t.avgTowers}</span>
+                  <span style="font-size:9px;color:var(--text3);">avg</span>
+                </span>
+                ${t.towerDiff!==null ? `<span style="color:var(--border2);">·</span><span style="display:inline-flex;align-items:center;gap:3px;">
+                  <span style="font-size:11px;color:var(--text3);">Diff</span>
+                  <span style="font-size:12px;font-weight:700;color:${t.towerDiff>=0?'var(--green)':'var(--red)'};font-family:var(--font-mono);">${t.towerDiff>=0?'+':''}${t.towerDiff}</span>
+                </span>` : ''}
+                <span style="font-size:8.5px;color:var(--text4);">·${t.towerGames||0}g</span>
+              </div>` : '';
+              const inner = (turtleLine||'') + (lordLine||'') + (fbLine||'') + (towerLine||'');
+              return inner ? sec('Tempo & Conversion', inner) : '';
+            })()}
+            </div>
+          </div>
         </div>
-      </section>
-      <aside class="tr-aicard">
-        <div class="tr-ai-t"><span>✨</span> AI Scout Summary</div>
-        <ul class="tr-ai-list">${_aiHTML}</ul>
-        <button class="tr-genbtn" onclick="generateTeamImage('${teamName}')">✨ Generate Full Report</button>
-      </aside>
-    </div>
-    <div class="tr-tiles">
-      <div class="tr-tile"><div class="tr-tile-ic">◓</div><div class="tr-tile-tx"><div class="tr-tile-v">${t.firstTurtleRate!=null?t.firstTurtleRate+'%':'—'}</div><div class="tr-tile-l">First Turtle · Take Rate</div></div></div>
-      <div class="tr-tile"><div class="tr-tile-ic">✦</div><div class="tr-tile-tx"><div class="tr-tile-v">${t.firstLordRate!=null?t.firstLordRate+'%':'—'}</div><div class="tr-tile-l">First Lord · Take Rate</div></div></div>
-      <div class="tr-tile"><div class="tr-tile-ic">⚔</div><div class="tr-tile-tx"><div class="tr-tile-v">${_kd}</div><div class="tr-tile-l">Kills / Death · Average</div></div></div>
-    </div>
-    <div class="tr-dash">
-      <section class="tr-main">
-        <div class="tr-ml-head">
-          <div><div class="tr-ml-title">Match Log</div><div class="tr-ml-sub">${series.length} series · ${teamGames.length} games</div></div>
-          <button class="btn btn-accent btn-sm" onclick="openNewMatch()" style="margin-left:auto;">+ New Match</button>
-        </div>
-        ${matchHistoryHTML}
-      </section>
-      <aside class="tr-side">${sideHTML}</aside>
-    </div>
-   </div>`;
+
+        <!-- MAP WR + SIDE DRAFTS -->
+        ${(mapWRHTML || heatmapHTML) ? `
+        <div style="display:grid;grid-template-columns:${mapWRHTML&&heatmapHTML?'1fr 1fr':'1fr'};gap:16px;margin-bottom:18px;break-inside:avoid;page-break-inside:avoid;">
+          ${mapWRHTML ? `<div>${sec('Map Win Rates', mapWRHTML)}</div>` : ''}
+          ${heatmapHTML ? `<div>${sec('Side Drafts · Picks & WR by Side', heatmapHTML)}</div>` : ''}
+        </div>` : ''}
+
+        <!-- PER-LANE ROSTER -->
+        ${anyLaneData ? `
+        <div style="margin-bottom:18px;">
+          ${sec('Per-Lane Roster · Players & Heroes', `<div>${lanePoolHTML}</div>`)}
+        </div>` : ''}
+
+        <!-- MATCH HISTORY -->
+        ${sec(`Match History — ${series.length} series · ${teamGames.length} games`, matchHistoryHTML)}
+
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
 }
 
 function openH2H(teamName) {
