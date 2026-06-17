@@ -923,18 +923,17 @@ input:focus, .search-input:focus {
 #setup .ab-opp-league,#setup .ab-opp-behave-t{color:#A78BFA;}
 #setup .ab-opp-behave{background:rgba(124,92,246,.08);border-color:rgba(124,92,246,.22);}
 #setup .setup-card-engine{border-color:rgba(124,92,246,.22) !important;}
-/* layout: left column (hero+Step1 / Step3+Step4) beside right (Step2 / Summary) */
-#setup .ab-top{display:grid;grid-template-columns:1fr 1.32fr;gap:16px;margin-bottom:16px;align-items:start;}
-#setup .ab-bottom{display:grid;grid-template-columns:1.55fr 1fr;gap:16px;margin-bottom:18px;align-items:start;}
-#setup .ab-colL{display:flex;flex-direction:column;gap:16px;}
-#setup .ab-colL .ab-hero{margin-bottom:0;}
-#setup .ab-summary{position:sticky;top:64px;}
-@media(max-width:900px){#setup .ab-top,#setup .ab-bottom{grid-template-columns:1fr;}#setup .ab-summary{position:static;}}
+/* layout: two independent columns — setup steps (left) · opponent + summary (right) */
+#setup .ab-grid2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;align-items:start;margin-bottom:18px;}
+#setup .ab-colMain,#setup .ab-colSide{display:flex;flex-direction:column;gap:16px;min-width:0;}
+#setup .ab-colMain .ab-hero{margin-bottom:0;}
+#setup .ab-colSide{position:sticky;top:64px;}
+@media(max-width:900px){#setup .ab-grid2{grid-template-columns:1fr;}#setup .ab-colSide{position:static;}}
 </style>
 <div id="setup">
   <div class="setup-inner">
-  <div class="ab-top">
-  <div class="ab-colL">
+  <div class="ab-grid2">
+  <div class="ab-colMain">
   <div class="ab-hero">
     <div class="ab-hero-tag">AI BATTLE</div>
     <h1 class="ab-hero-title">Draft. Practice. <span>Dominate.</span></h1>
@@ -959,38 +958,7 @@ input:focus, .search-input:focus {
         <div class="opt-card" id="sc-random" onclick="setSide('random');updateSummary()"><div class="opt-name">Random</div><div class="opt-desc">Coin Flip</div></div>
       </div>
     </section>
-  </div><!-- /ab-colL -->
-
-    <!-- STEP 2: CHOOSE YOUR OPPONENT -->
-    <section class="ab-card" style="position:relative;z-index:2;">
-      <div class="ab-step"><span class="ab-num">2</span> CHOOSE YOUR OPPONENT</div>
-      <div class="ab-modes ab-modes-2">
-        <div class="opt-card sel-gold ab-mode" id="mode-generic" onclick="setAIMode('generic');updateSummary()">
-          <span class="ab-mode-ico">◎</span>
-          <div><div class="opt-name">VS AI</div><div class="opt-desc">Optimized AI difficulty</div></div>
-        </div>
-        <div class="opt-card ab-mode" id="mode-enemy" onclick="setAIMode('enemy');updateSummary()">
-          <span class="ab-mode-ico">✦</span>
-          <div><div class="opt-name">VS MPL Team</div><div class="opt-desc">Real teams from MPL</div></div>
-        </div>
-      </div>
-      <input type="hidden" id="p2In" value="Player 2"/>
-      <div id="genericNote" class="ab-note" style="margin-top:14px;">The AI optimizes its draft to beat whatever you pick — a clean sparring partner that adapts to your choices.</div>
-      <div id="enemyTeamPanel" style="display:none;margin-top:14px;">
-        <div id="enemyLeagueRow" class="ab-chips" style="margin-bottom:10px;"></div>
-        <div style="position:relative;margin-bottom:12px;">
-          <input class="ab-input" id="enemySearch" placeholder="Search a scouted team…" autocomplete="off"
-            oninput="filterEnemyTeams(this.value)" onfocus="openEnemyDrop()" onblur="setTimeout(closeEnemyDrop,180)"/>
-          <div id="enemyDrop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:10px;z-index:100;max-height:300px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);"></div>
-        </div>
-        <div id="enemyProfileCard" style="display:none;"></div>
-      </div>
-    </section>
-  </div>
-
-  <!-- STEP 3 + 4 (left) · SUMMARY (right) -->
-  <div class="ab-bottom">
-  <div class="ab-colL">
+    <!-- STEP 3: DRAFT ENGINE & SCOUT DATA -->
     <section class="ab-card setup-card-engine">
       <div class="ab-step"><span class="ab-num">3</span> DRAFT ENGINE &amp; SCOUT DATA</div>
       <label class="ab-lbl">AI Difficulty</label>
@@ -1018,7 +986,34 @@ input:focus, .search-input:focus {
     </div>
     <div id="mapWRContext" style="display:none;margin-top:10px;font-size:11px;color:var(--text3);"></div>
   </section>
-  </div><!-- /ab-colL -->
+  </div><!-- /ab-colMain -->
+
+  <div class="ab-colSide">
+    <!-- STEP 2: CHOOSE YOUR OPPONENT -->
+    <section class="ab-card" style="position:relative;z-index:2;">
+      <div class="ab-step"><span class="ab-num">2</span> CHOOSE YOUR OPPONENT</div>
+      <div class="ab-modes ab-modes-2">
+        <div class="opt-card sel-gold ab-mode" id="mode-generic" onclick="setAIMode('generic');updateSummary()">
+          <span class="ab-mode-ico">◎</span>
+          <div><div class="opt-name">VS AI</div><div class="opt-desc">Optimized AI difficulty</div></div>
+        </div>
+        <div class="opt-card ab-mode" id="mode-enemy" onclick="setAIMode('enemy');updateSummary()">
+          <span class="ab-mode-ico">✦</span>
+          <div><div class="opt-name">VS MPL Team</div><div class="opt-desc">Real teams from MPL</div></div>
+        </div>
+      </div>
+      <input type="hidden" id="p2In" value="Player 2"/>
+      <div id="genericNote" class="ab-note" style="margin-top:14px;">The AI optimizes its draft to beat whatever you pick — a clean sparring partner that adapts to your choices.</div>
+      <div id="enemyTeamPanel" style="display:none;margin-top:14px;">
+        <div id="enemyLeagueRow" class="ab-chips" style="margin-bottom:10px;"></div>
+        <div style="position:relative;margin-bottom:12px;">
+          <input class="ab-input" id="enemySearch" placeholder="Search a scouted team…" autocomplete="off"
+            oninput="filterEnemyTeams(this.value)" onfocus="openEnemyDrop()" onblur="setTimeout(closeEnemyDrop,180)"/>
+          <div id="enemyDrop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:10px;z-index:100;max-height:300px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);"></div>
+        </div>
+        <div id="enemyProfileCard" style="display:none;"></div>
+      </div>
+    </section>
 
     <aside class="ab-card ab-summary">
       <div class="ab-step"><span class="ab-num" style="background:none;border:none;color:var(--accent);font-size:14px;">✦</span> SUMMARY</div>
@@ -1036,7 +1031,8 @@ input:focus, .search-input:focus {
       </button>
       <div class="ab-est">⏱ Estimated time: 15–25 minutes · <span id="startSubGames">0 matches loaded</span></div>
     </aside>
-  </div><!-- /ab-bottom -->
+  </div><!-- /ab-colSide -->
+  </div><!-- /ab-grid2 -->
 
   <!-- FEATURE STRIP -->
   <div class="ab-feats">
