@@ -10,8 +10,8 @@
 <script src="warr-nav.js"></script>
 <link rel="stylesheet" href="warr-styles.css">
 <style>
-  .scrim-page { max-width: 1440px; margin: 0 auto; padding: 0 20px 90px; }
-  .scrim-layout { display: grid; grid-template-columns: 248px 1fr; gap: 22px; align-items: start; }
+  .scrim-page { max-width: 1700px; margin: 0 auto; padding: 0 28px 80px; }
+  .scrim-layout { display: grid; grid-template-columns: 240px 1fr; gap: 22px; align-items: start; }
   @media (max-width: 920px){ .scrim-layout { grid-template-columns: 1fr; } .scrim-sidebar { position: static !important; } }
 
   /* ── Sidebar filters ── */
@@ -42,10 +42,10 @@
   /* ── Hero header ── */
   .scrim-hero { position: relative; border-radius: 22px; overflow: hidden; margin-bottom: 22px;
     background: radial-gradient(ellipse 70% 120% at 85% 20%, rgba(140,80,200,0.32) 0%, transparent 60%), linear-gradient(120deg, #0E0A18 0%, #120A1E 100%);
-    border: 1px solid rgba(255,255,255,0.07); padding: 30px 30px 24px; }
-  .scrim-hero h1 { font-size: 40px; font-weight: 900; letter-spacing: -.02em; margin: 0; line-height: 1.05; }
+    border: 1px solid rgba(255,255,255,0.07); padding: 26px 28px 22px; }
+  .scrim-hero h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; margin: 0; line-height: 1.05; }
   .scrim-hero h1 .accent { background: linear-gradient(135deg,#A78BFA,#7B79E6); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-  .scrim-hero .tag { color: var(--text2); font-size: 15px; margin-top: 8px; }
+  .scrim-hero .tag { color: var(--text2); font-size: 14px; margin-top: 7px; }
   .scrim-hero .live { display: inline-flex; align-items: center; gap: 7px; margin-top: 14px; font-size: 13.5px; color: var(--text); }
   .scrim-hero .live .dot { width: 8px; height: 8px; border-radius: 50%; background: #4CB87A; box-shadow: 0 0 8px #4CB87A; animation: pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
@@ -63,9 +63,9 @@
     border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 13px; color-scheme: dark; cursor: pointer; }
 
   /* ── Card grid ── */
-  .scrim-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px,1fr)); gap: 16px; }
+  .scrim-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px,1fr)); gap: 16px; }
   .scard { position: relative; background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.018) 100%);
-    border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; padding: 18px; transition: border-color .15s, transform .15s, box-shadow .15s; overflow: hidden; }
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 16px; transition: border-color .15s, transform .15s, box-shadow .15s; overflow: hidden; }
   .scard:hover { border-color: rgba(124,92,246,0.4); transform: translateY(-3px); box-shadow: 0 14px 34px rgba(0,0,0,0.42); }
   .scard.featured { border-color: rgba(200,144,80,0.4); }
   .feat-ribbon { position: absolute; top: 12px; left: -30px; transform: rotate(-45deg); background: linear-gradient(135deg,#C89050,#E0A860);
@@ -74,7 +74,7 @@
   .logo { width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
     font-weight: 900; font-size: 17px; color: #fff; }
   .logo.anon { background: rgba(255,255,255,0.06) !important; color: var(--text3); }
-  .sc-name { display: flex; align-items: center; gap: 6px; font-size: 17px; font-weight: 800; line-height: 1.15; }
+  .sc-name { display: flex; align-items: center; gap: 6px; font-size: 16px; font-weight: 700; line-height: 1.15; }
   .verified { color: #5E9CE6; font-size: 14px; display: inline-flex; }
   .sc-sub2 { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 12px; color: var(--text2); }
   .tier-tag { font-weight: 800; padding: 2px 8px; border-radius: 999px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; }
@@ -437,8 +437,8 @@ function render(){
   const out=document.getElementById('scOut'), pager=document.getElementById('scPager');
   if(!_tableReady){ out.innerHTML=`<div class="sc-notice"><b>Scrim Finder is almost ready.</b><br>Run <code>migrations/012_scrim_finder.sql</code> in Supabase → SQL Editor, then reload.</div>`; pager.innerHTML=''; return; }
 
-  document.getElementById('scFilters').style.display = _view==='browse' ? 'flex' : 'none';
-  document.getElementById('fSort').style.display = _view==='browse' ? '' : 'none';
+  const sb=document.querySelector('.scrim-sidebar'); if(sb) sb.style.display = _view==='browse' ? '' : 'none';
+  const fsort=document.getElementById('fSort'); if(fsort) fsort.style.display = _view==='browse' ? '' : 'none';
   const secL=document.getElementById('secLabel'); if(secL) secL.textContent = _view==='schedule'?'📅 SCHEDULE':_view==='mine'?'📋 MY LISTINGS':'⚡ ACTIVE SCRIMS';
   if(_view==='schedule'){ renderSchedule(out); pager.innerHTML=''; return; }
   if(_view==='mine'){
