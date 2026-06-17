@@ -31,6 +31,10 @@
   from = "/stats"
   to = "/stats.html"
   status = 200
+[[redirects]]
+  from = "/report"
+  to = "/report.html"
+  status = 200
 # Meta page retired — hero/meta data lives on /heroes
 [[redirects]]
   from = "/patch_meta"
