@@ -961,6 +961,9 @@ input:focus, .search-input:focus {
 #setup .opt-card{border-radius:11px !important;padding:13px 12px !important;}
 #setup .opt-card.sel-gold,#setup .opt-card.sel-blue,#setup .opt-card.sel-red,#setup .opt-card.sel-random{
   border:1.5px solid #7C5CF6 !important;background:rgba(124,92,246,0.10) !important;box-shadow:none !important;}
+/* Step 3: AI difficulty + scout data side by side (matches reference) */
+#setup .ab-engine{display:grid;grid-template-columns:1.12fr 1fr;gap:22px;align-items:start;}
+@media(max-width:700px){#setup .ab-engine{grid-template-columns:1fr;}}
 </style>
 <div id="setup">
   <div class="setup-inner">
@@ -993,17 +996,23 @@ input:focus, .search-input:focus {
     <!-- STEP 3: DRAFT ENGINE & SCOUT DATA -->
     <section class="ab-card setup-card-engine">
       <div class="ab-step"><span class="ab-num">3</span> DRAFT ENGINE &amp; SCOUT DATA</div>
-      <label class="ab-lbl">AI Difficulty</label>
-      <div class="ab-seg" style="grid-template-columns:repeat(3,1fr);">
-        <div class="opt-card" id="dc-normal" onclick="setDiff('normal');updateSummary()"><div class="opt-name">Normal</div><div class="opt-desc">Good for learning</div></div>
-        <div class="opt-card sel-gold" id="dc-hard" onclick="setDiff('hard');updateSummary()"><div class="opt-name">Hard</div><div class="opt-desc">Realistic challenge</div></div>
-        <div class="opt-card" id="dc-gm" onclick="setDiff('gm');updateSummary()"><div class="opt-name">Grandmaster</div><div class="opt-desc">For expert players</div></div>
+      <div class="ab-engine">
+        <div>
+          <label class="ab-lbl">AI Difficulty</label>
+          <div class="ab-seg" style="grid-template-columns:repeat(3,1fr);">
+            <div class="opt-card" id="dc-normal" onclick="setDiff('normal');updateSummary()"><div class="opt-name">Normal</div><div class="opt-desc">Good for learning</div></div>
+            <div class="opt-card sel-gold" id="dc-hard" onclick="setDiff('hard');updateSummary()"><div class="opt-name">Hard</div><div class="opt-desc">Realistic challenge</div></div>
+            <div class="opt-card" id="dc-gm" onclick="setDiff('gm');updateSummary()"><div class="opt-name">Grandmaster</div><div class="opt-desc">For expert players</div></div>
+          </div>
+        </div>
+        <div>
+          <label class="ab-lbl">Scout Data Source</label>
+          <div class="ab-chips" id="scoutLeagueChips">
+            <button class="scout-lb active" onclick="setScoutLB('all')">All Pro Leagues</button>
+          </div>
+          <div id="scoutStatusAB" style="margin-top:10px;font-size:11px;color:var(--text3);"></div>
+        </div>
       </div>
-      <label class="ab-lbl">Scout Data Source</label>
-      <div class="ab-chips" id="scoutLeagueChips">
-        <button class="scout-lb active" onclick="setScoutLB('all')">All Pro Leagues</button>
-      </div>
-      <div id="scoutStatusAB" style="margin-top:10px;font-size:11px;color:var(--text3);"></div>
     </section>
 
     <!-- STEP 4: BATTLE MAP -->
