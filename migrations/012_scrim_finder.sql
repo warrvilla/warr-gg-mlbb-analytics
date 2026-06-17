@@ -28,10 +28,16 @@ CREATE TABLE IF NOT EXISTS public.scrim_listings (
   contact_value  text,
   notes          text,
   anonymous      boolean DEFAULT false,       -- hide team identity on the public board
+  is_verified    boolean DEFAULT false,       -- admin-set: real/verified team badge
+  is_featured    boolean DEFAULT false,       -- admin-set: featured (pinned) listing
   status         text DEFAULT 'open',         -- 'open' / 'closed' / 'filled'
   created_at     timestamptz DEFAULT now(),
   expires_at     timestamptz DEFAULT now() + interval '7 days'
 );
+
+-- Upgrade older deployments (table already created) with newer columns.
+ALTER TABLE public.scrim_listings ADD COLUMN IF NOT EXISTS is_verified boolean DEFAULT false;
+ALTER TABLE public.scrim_listings ADD COLUMN IF NOT EXISTS is_featured boolean DEFAULT false;
 
 ALTER TABLE public.scrim_listings ENABLE ROW LEVEL SECURITY;
 

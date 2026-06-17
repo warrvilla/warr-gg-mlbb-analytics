@@ -10,511 +10,508 @@
 <script src="warr-nav.js"></script>
 <link rel="stylesheet" href="warr-styles.css">
 <style>
-  .sc-wrap { max-width: 1080px; margin: 0 auto; padding: 18px 16px 90px; }
-  .sc-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
-  .sc-head h1 { font-size: 24px; font-weight: 800; letter-spacing: -.01em; margin: 0; }
-  .sc-sub { color: var(--text2); font-size: 14px; margin-bottom: 18px; }
-  .sc-head .spacer { flex: 1; }
+  .scrim-page { max-width: 1440px; margin: 0 auto; padding: 0 20px 90px; }
+  .scrim-layout { display: grid; grid-template-columns: 248px 1fr; gap: 22px; align-items: start; }
+  @media (max-width: 920px){ .scrim-layout { grid-template-columns: 1fr; } .scrim-sidebar { position: static !important; } }
 
-  .sc-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
-  .sc-tab {
-    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10);
-    color: var(--text2); border-radius: 999px; padding: 9px 18px; cursor: pointer;
-    font: inherit; font-weight: 700; font-size: 14px;
-  }
-  .sc-tab.active {
-    background: linear-gradient(135deg, rgba(168,136,204,0.22), rgba(94,92,230,0.22));
-    border-color: rgba(168,136,204,0.55); color: #F0EAFA;
-  }
+  /* ── Sidebar filters ── */
+  .scrim-sidebar { position: sticky; top: 70px; background: rgba(255,255,255,0.022); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 18px; padding: 18px 16px; }
+  .fs-head { display: flex; align-items: center; margin-bottom: 16px; }
+  .fs-head .ft { font-size: 12px; font-weight: 800; letter-spacing: .12em; color: var(--text2); }
+  .fs-head .reset { margin-left: auto; font-size: 12px; color: var(--accent); cursor: pointer; background: none; border: none; font-weight: 700; }
+  .fs-group { margin-bottom: 18px; }
+  .fs-group > .lbl { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; color: var(--text3); text-transform: uppercase; margin-bottom: 10px; }
+  .chk { display: flex; align-items: center; gap: 9px; padding: 6px 0; cursor: pointer; font-size: 13.5px; color: var(--text); }
+  .chk input { appearance: none; -webkit-appearance: none; width: 17px; height: 17px; border-radius: 5px;
+    border: 1.5px solid rgba(255,255,255,0.22); background: rgba(255,255,255,0.03); cursor: pointer; position: relative; flex-shrink: 0; transition: all .12s; }
+  .chk input:checked { background: linear-gradient(135deg,#A888CC,#5E5CE6); border-color: transparent; }
+  .chk input:checked::after { content: '✓'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #fff; font-weight: 900; }
+  .chk:hover { color: #fff; }
+  .chk .flag { font-size: 14px; }
+  .show-more { font-size: 12.5px; color: var(--accent); cursor: pointer; background: none; border: none; font-weight: 700; padding: 6px 0; }
+  .apply-btn { width: 100%; background: linear-gradient(135deg,#A888CC,#5E5CE6); color: #fff; border: none; border-radius: 11px;
+    padding: 11px; font: inherit; font-weight: 800; cursor: pointer; font-size: 14px; box-shadow: 0 6px 18px rgba(120,100,200,0.28); }
+  .ai-card { margin-top: 16px; background: linear-gradient(150deg, rgba(168,136,204,0.16), rgba(94,92,230,0.10));
+    border: 1px solid rgba(168,136,204,0.28); border-radius: 16px; padding: 15px; }
+  .ai-card .ai-t { font-size: 13.5px; font-weight: 800; margin-bottom: 4px; }
+  .ai-card .ai-d { font-size: 12px; color: var(--text2); line-height: 1.45; margin-bottom: 10px; }
+  .ai-card .ai-b { font-size: 12px; font-weight: 800; color: #E6D8F6; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(168,136,204,0.3); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
 
-  .sc-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
-  .sc-filters select, .sc-filters input,
-  .sc-modal select, .sc-modal input, .sc-modal textarea {
-    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
-    color: var(--text); border-radius: 10px; padding: 10px 12px; font: inherit; font-size: 13px;
-    transition: border-color .15s, background .15s; color-scheme: dark;
-  }
-  .sc-filters select:hover, .sc-modal select:hover { border-color: rgba(168,136,204,0.45); }
-  .sc-filters select:focus, .sc-filters input:focus,
-  .sc-modal select:focus, .sc-modal input:focus, .sc-modal textarea:focus {
-    outline: none; border-color: rgba(168,136,204,0.7);
-    box-shadow: 0 0 0 3px rgba(168,136,204,0.15); background: rgba(255,255,255,0.07);
-  }
-  /* custom chevron — kill the ugly native arrow */
-  .sc-filters select, .sc-modal select {
-    appearance: none; -webkit-appearance: none; -moz-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23A888CC' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
-    background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
-  }
-  .sc-filters input { flex: 1; min-width: 140px; }
+  /* ── Hero header ── */
+  .scrim-hero { position: relative; border-radius: 22px; overflow: hidden; margin-bottom: 22px;
+    background: radial-gradient(ellipse 70% 120% at 85% 20%, rgba(140,80,200,0.32) 0%, transparent 60%), linear-gradient(120deg, #0E0A18 0%, #120A1E 100%);
+    border: 1px solid rgba(255,255,255,0.07); padding: 30px 30px 24px; }
+  .scrim-hero h1 { font-size: 40px; font-weight: 900; letter-spacing: -.02em; margin: 0; line-height: 1.05; }
+  .scrim-hero h1 .accent { background: linear-gradient(135deg,#C4A4DE,#7B79E6); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .scrim-hero .tag { color: var(--text2); font-size: 15px; margin-top: 8px; }
+  .scrim-hero .live { display: inline-flex; align-items: center; gap: 7px; margin-top: 14px; font-size: 13.5px; color: var(--text); }
+  .scrim-hero .live .dot { width: 8px; height: 8px; border-radius: 50%; background: #4CB87A; box-shadow: 0 0 8px #4CB87A; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .hero-search { display: flex; align-items: center; gap: 10px; margin-top: 18px; max-width: 640px; background: rgba(8,6,14,0.72);
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 13px; padding: 12px 15px; }
+  .hero-search input { flex: 1; background: none; border: none; color: var(--text); font: inherit; font-size: 14.5px; outline: none; }
+  .hero-search .ico { color: var(--text3); }
+  .post-top { position: absolute; top: 22px; right: 24px; background: linear-gradient(135deg,#A888CC,#5E5CE6); color: #fff; border: none;
+    border-radius: 11px; padding: 11px 18px; font: inherit; font-weight: 800; cursor: pointer; box-shadow: 0 6px 18px rgba(120,100,200,0.32); }
 
-  .sc-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px,1fr)); gap: 14px; }
-  .sl {
-    background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px;
-    transition: border-color .15s, transform .15s, box-shadow .15s;
-  }
-  .sl:hover { border-color: rgba(168,136,204,0.3); transform: translateY(-2px); box-shadow: 0 8px 26px rgba(0,0,0,0.35); }
-  .sl-top { display: flex; align-items: flex-start; gap: 10px; }
-  .sl-team { font-size: 17px; font-weight: 800; line-height: 1.2; }
-  .sl-team .anon { color: var(--text2); font-weight: 600; font-style: italic; }
-  .sl-region { color: var(--text2); font-size: 12.5px; margin-top: 2px; }
-  .sl-tier {
-    margin-left: auto; font-size: 11px; font-weight: 800; text-transform: uppercase;
-    letter-spacing: .05em; padding: 4px 9px; border-radius: 999px; white-space: nowrap;
-  }
-  .tier-pro    { color: var(--gold);  background: var(--gold-dim);  border: 1px solid var(--gold-border); }
-  .tier-semi-pro { color: var(--purple); background: rgba(168,136,204,0.1); border: 1px solid rgba(168,136,204,0.25); }
+  .scrim-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .scrim-bar .sec-label { font-size: 13px; font-weight: 800; letter-spacing: .08em; color: var(--text2); display: flex; align-items: center; gap: 7px; }
+  .scrim-bar .spacer { flex: 1; }
+  .sort-sel { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: var(--text2);
+    border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 13px; color-scheme: dark; cursor: pointer; }
+
+  /* ── Card grid ── */
+  .scrim-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px,1fr)); gap: 16px; }
+  .scard { position: relative; background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.018) 100%);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 18px; padding: 18px; transition: border-color .15s, transform .15s, box-shadow .15s; overflow: hidden; }
+  .scard:hover { border-color: rgba(168,136,204,0.4); transform: translateY(-3px); box-shadow: 0 14px 34px rgba(0,0,0,0.42); }
+  .scard.featured { border-color: rgba(200,144,80,0.4); }
+  .feat-ribbon { position: absolute; top: 12px; left: -30px; transform: rotate(-45deg); background: linear-gradient(135deg,#C89050,#E0A860);
+    color: #2A1A05; font-size: 9.5px; font-weight: 900; letter-spacing: .08em; padding: 4px 36px; }
+  .sc-row1 { display: flex; align-items: flex-start; gap: 12px; }
+  .logo { width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 17px; color: #fff; }
+  .logo.anon { background: rgba(255,255,255,0.06) !important; color: var(--text3); }
+  .sc-name { display: flex; align-items: center; gap: 6px; font-size: 17px; font-weight: 800; line-height: 1.15; }
+  .verified { color: #5E9CE6; font-size: 14px; display: inline-flex; }
+  .sc-sub2 { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 12px; color: var(--text2); }
+  .tier-tag { font-weight: 800; padding: 2px 8px; border-radius: 999px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; }
+  .tier-pro { color: var(--gold); background: var(--gold-dim); border: 1px solid var(--gold-border); }
+  .tier-semipro { color: #C4A4DE; background: rgba(168,136,204,0.12); border: 1px solid rgba(168,136,204,0.28); }
   .tier-amateur { color: var(--text2); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); }
+  .status-dot { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--green); white-space: nowrap; }
+  .status-dot .d { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+  .status-dot.filled { color: var(--gold); } .status-dot.filled .d { background: var(--gold); }
 
-  .sl-meta { display: flex; flex-wrap: wrap; gap: 6px; }
-  .sl-chip {
-    font-size: 12px; color: var(--text); background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 4px 9px;
-  }
-  .sl-notes { font-size: 13.5px; color: var(--text); line-height: 1.5; opacity: .92; }
-  .sl-actions { display: flex; gap: 8px; margin-top: 2px; align-items: center; }
-  .btn-wa {
-    background: linear-gradient(135deg,#25D366,#1EAE54); color: #06210F; border: none;
-    font-weight: 800; border-radius: 10px; padding: 9px 14px; cursor: pointer; font: inherit;
-    font-size: 13.5px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
-  }
-  .btn-contact {
-    background: rgba(168,136,204,0.14); color: #E6D8F6; border: 1px solid rgba(168,136,204,0.3);
-    font-weight: 700; border-radius: 10px; padding: 9px 14px; cursor: pointer; font: inherit;
-    font-size: 13.5px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
-  }
-  .sl-report {
-    margin-left: auto; background: none; border: none; color: var(--text2); cursor: pointer;
-    font-size: 12px; opacity: .6;
-  }
-  .sl-report:hover { color: var(--red); opacity: 1; }
-  .sl-status { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
-  .st-open { color: var(--green); } .st-filled { color: var(--gold); } .st-closed { color: var(--text2); }
-  .sl-own { display: flex; gap: 8px; margin-top: 4px; }
-  .sl-own button { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-    color: var(--text2); border-radius: 8px; padding: 6px 11px; cursor: pointer; font: inherit; font-size: 12.5px; }
-  .sl-own button:hover { color: var(--text); }
-  .sl-own button.danger:hover { color: var(--red); border-color: var(--red-border); }
+  .sc-block { margin-top: 14px; }
+  .sc-block .h { font-size: 10px; font-weight: 800; letter-spacing: .1em; color: var(--text3); text-transform: uppercase; margin-bottom: 6px; }
+  .sc-lf { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--text); }
+  .bo-badge { font-weight: 800; color: #C4A4DE; background: rgba(168,136,204,0.14); border: 1px solid rgba(168,136,204,0.28); border-radius: 7px; padding: 3px 9px; font-size: 12px; }
+  .sc-time { color: var(--text2); display: inline-flex; align-items: center; gap: 5px; }
+  .sc-notes { font-size: 13px; color: var(--text); opacity: .9; line-height: 1.5; margin-top: 4px; }
+  .sc-foot { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+  .challenge { margin-left: auto; background: linear-gradient(135deg,#A888CC,#5E5CE6); color: #fff; border: none; border-radius: 10px;
+    padding: 9px 16px; font: inherit; font-weight: 800; font-size: 13px; cursor: pointer; }
+  .challenge.secondary { background: rgba(168,136,204,0.14); border: 1px solid rgba(168,136,204,0.3); color: #E6D8F6; }
+  .mini-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text2);
+    border-radius: 8px; padding: 7px 11px; cursor: pointer; font: inherit; font-size: 12px; }
+  .mini-btn:hover { color: var(--text); }
+  .mini-btn.danger:hover { color: var(--red); border-color: var(--red-border); }
+  .report-x { margin-left: auto; background: none; border: none; color: var(--text3); cursor: pointer; font-size: 12px; }
+  .report-x:hover { color: var(--red); }
 
-  .sc-empty { text-align: center; padding: 70px 20px; color: var(--text2); }
-  .sc-empty .e-emoji { font-size: 42px; margin-bottom: 12px; opacity: .7; }
-  .sc-notice { background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--text);
-    border-radius: 14px; padding: 16px 18px; font-size: 14px; line-height: 1.55; }
+  .sc-empty { text-align: center; padding: 70px 20px; color: var(--text2); grid-column: 1/-1; }
+  .sc-empty .e-emoji { font-size: 42px; margin-bottom: 12px; opacity: .6; }
+  .sc-notice { grid-column: 1/-1; background: var(--gold-dim); border: 1px solid var(--gold-border); color: var(--text);
+    border-radius: 14px; padding: 18px 20px; font-size: 14px; line-height: 1.55; }
 
-  /* modal */
-  .sc-modal-bg { position: fixed; inset: 0; background: rgba(4,4,8,0.7); backdrop-filter: blur(4px);
-    display: none; align-items: flex-start; justify-content: center; z-index: 1000; padding: 30px 16px; overflow-y: auto; }
-  .sc-modal-bg.show { display: flex; }
-  .sc-modal { background: var(--bg2); border: 1px solid rgba(255,255,255,0.1); border-radius: 18px;
-    padding: 22px; width: 100%; max-width: 480px; }
-  .sc-modal h2 { margin: 0 0 16px; font-size: 19px; font-weight: 800; }
+  .pager { display: flex; justify-content: center; gap: 6px; margin-top: 26px; }
+  .pager button { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); color: var(--text2);
+    border-radius: 9px; min-width: 38px; height: 38px; cursor: pointer; font: inherit; font-weight: 700; }
+  .pager button.active { background: linear-gradient(135deg,#A888CC,#5E5CE6); color: #fff; border-color: transparent; }
+  .pager button:disabled { opacity: .35; cursor: default; }
+
+  /* ── Modals ── */
+  .modal-bg { position: fixed; inset: 0; background: rgba(4,4,8,0.72); backdrop-filter: blur(5px); display: none;
+    align-items: flex-start; justify-content: center; z-index: 1000; padding: 30px 16px; overflow-y: auto; }
+  .modal-bg.show { display: flex; }
+  .modal { background: var(--bg2); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 24px; width: 100%; max-width: 500px; }
+  .modal h2 { margin: 0 0 16px; font-size: 20px; font-weight: 800; }
   .fg { display: flex; flex-direction: column; gap: 5px; margin-bottom: 13px; }
-  .fg label { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--text2); font-weight: 700; }
-  .fg input, .fg select, .fg textarea {
-    background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
-    color: var(--text); border-radius: 10px; padding: 10px 12px; font: inherit; width: 100%; box-sizing: border-box;
-  }
+  .fg label { font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text2); font-weight: 800; }
+  .fg input, .fg textarea, .fg select { background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+    color: var(--text); border-radius: 10px; padding: 11px 12px; font: inherit; width: 100%; box-sizing: border-box; }
+  .fg select { appearance: none; -webkit-appearance: none; color-scheme: dark; padding-right: 32px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23A888CC' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center; }
+  .fg select:focus, .fg input:focus, .fg textarea:focus { outline: none; border-color: rgba(168,136,204,0.7); box-shadow: 0 0 0 3px rgba(168,136,204,0.15); }
   .fg textarea { resize: vertical; min-height: 60px; }
   .fg-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .fg-check { display: flex; align-items: center; gap: 8px; }
-  .fg-check input { width: auto; }
-  .sc-modal-actions { display: flex; gap: 8px; margin-top: 6px; }
-  .sc-msg { font-size: 13px; margin-bottom: 10px; }
-  .sc-msg.err { color: var(--red); } .sc-msg.ok { color: var(--green); }
+  .fg-check { display: flex; align-items: center; gap: 9px; margin-bottom: 13px; }
+  .fg-check input { width: 18px; height: 18px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 6px; }
+  .msg { font-size: 13px; margin-bottom: 10px; display: none; }
+  .msg.err { color: var(--red); display: block; } .msg.ok { color: var(--green); display: block; }
+
+  /* view modal */
+  .vm-head { display: flex; align-items: center; gap: 13px; margin-bottom: 16px; }
+  .vm-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .vm-meta .it { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); border-radius: 11px; padding: 11px 13px; }
+  .vm-meta .it .k { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--text3); font-weight: 800; margin-bottom: 3px; }
+  .vm-meta .it .v { font-size: 14px; color: var(--text); font-weight: 600; }
+  .vm-contact { display: flex; gap: 9px; flex-wrap: wrap; }
+  .btn-wa { background: linear-gradient(135deg,#25D366,#1EAE54); color: #06210F; border: none; font-weight: 800; border-radius: 11px;
+    padding: 12px 18px; cursor: pointer; font: inherit; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 7px; }
+  .btn-ct { background: rgba(168,136,204,0.16); color: #E6D8F6; border: 1px solid rgba(168,136,204,0.32); font-weight: 700; border-radius: 11px;
+    padding: 12px 18px; font: inherit; font-size: 14px; text-decoration: none; display: inline-flex; align-items: center; gap: 7px; }
 </style>
 </head>
 <body>
 <div id="warr-nav-root"></div>
-<div class="sc-wrap">
-
-  <div class="sc-head">
-    <h1>Scrims</h1>
-    <div class="spacer"></div>
-    <button class="btn btn-accent" id="scNew">+ Post a Scrim</button>
-  </div>
-  <div class="sc-sub">Find a scrim — pro, semi-pro, or amateur. Post what you're looking for, or browse and reach out.</div>
-
-  <div class="sc-tabs">
-    <button class="sc-tab active" data-tab="browse">Browse</button>
-    <button class="sc-tab" data-tab="mine">My Listings</button>
+<div class="scrim-page">
+  <div class="scrim-hero">
+    <button class="post-top" id="scNew">+ Post a Scrim</button>
+    <h1>Find Your Next <span class="accent">Scrim</span></h1>
+    <div class="tag">Compete. Improve. Win together.</div>
+    <div class="live"><span class="dot"></span><span id="liveCount">Loading scrims…</span></div>
+    <div class="hero-search">
+      <span class="ico">⌕</span>
+      <input id="fSearch" type="text" placeholder="Search teams, notes, or keywords…">
+    </div>
   </div>
 
-  <div class="sc-filters" id="scFilters">
-    <select id="fRegion"><option value="">All regions</option></select>
-    <select id="fTier">
-      <option value="">Any opponent</option>
-      <option value="pro">Pro</option>
-      <option value="semi-pro">Semi-pro</option>
-      <option value="amateur">Amateur</option>
-    </select>
-    <select id="fFormat">
-      <option value="">Any format</option>
-      <option value="bestof">Best-of (BO3/5/7)</option>
-      <option value="count">Set games</option>
-      <option value="flexible">Flexible</option>
-    </select>
-    <input id="fSearch" type="text" placeholder="Search team or notes…">
-  </div>
+  <div class="scrim-layout">
+    <!-- Sidebar -->
+    <aside class="scrim-sidebar">
+      <div class="fs-head"><span class="ft">FILTERS</span><button class="reset" id="fReset">Reset</button></div>
+      <div class="fs-group">
+        <div class="lbl">Region</div>
+        <div id="fRegionList"></div>
+        <button class="show-more" id="fRegionMore">Show more ▾</button>
+      </div>
+      <div class="fs-group">
+        <div class="lbl">Skill Level</div>
+        <label class="chk"><input type="checkbox" class="f-tier" value="amateur">Amateur</label>
+        <label class="chk"><input type="checkbox" class="f-tier" value="semi-pro">Semi-Pro</label>
+        <label class="chk"><input type="checkbox" class="f-tier" value="pro">Pro</label>
+      </div>
+      <div class="fs-group">
+        <div class="lbl">Format</div>
+        <label class="chk"><input type="checkbox" class="f-fmt" value="bestof|1">BO1</label>
+        <label class="chk"><input type="checkbox" class="f-fmt" value="bestof|3">BO3</label>
+        <label class="chk"><input type="checkbox" class="f-fmt" value="bestof|5">BO5</label>
+        <label class="chk"><input type="checkbox" class="f-fmt" value="bestof|7">BO7</label>
+        <label class="chk"><input type="checkbox" class="f-fmt" value="flexible|">Flexible</label>
+      </div>
+      <div class="fs-group">
+        <div class="lbl">Posted</div>
+        <label class="chk"><input type="radio" name="posted" class="f-posted" value="" checked style="border-radius:50%">Any time</label>
+        <label class="chk"><input type="radio" name="posted" class="f-posted" value="today" style="border-radius:50%">Today</label>
+        <label class="chk"><input type="radio" name="posted" class="f-posted" value="week" style="border-radius:50%">This week</label>
+      </div>
+      <button class="apply-btn" id="fApply">Apply Filters</button>
+      <div class="ai-card">
+        <div class="ai-t">✦ AI Match Suggestions</div>
+        <div class="ai-d">Smart opponent recommendations by rank, region & schedule.</div>
+        <button class="ai-b" id="aiSoon">Coming soon</button>
+      </div>
+    </aside>
 
-  <div id="scOut"></div>
+    <!-- Main -->
+    <main>
+      <div class="scrim-bar">
+        <span class="sec-label">⚡ ACTIVE SCRIMS</span>
+        <div class="spacer"></div>
+        <select class="sort-sel" id="fSort">
+          <option value="recent">Sort: Recently Posted</option>
+          <option value="featured">Sort: Featured first</option>
+          <option value="tier">Sort: Tier (Pro first)</option>
+        </select>
+        <button class="sort-sel" id="tabMine">My Listings</button>
+      </div>
+      <div class="scrim-grid" id="scOut"></div>
+      <div class="pager" id="scPager"></div>
+    </main>
+  </div>
 </div>
 
 <!-- Post / edit modal -->
-<div class="sc-modal-bg" id="scModalBg">
-  <div class="sc-modal">
-    <h2 id="scModalTitle">Post a Scrim</h2>
-    <div class="sc-msg" id="scModalMsg" style="display:none;"></div>
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2 id="modalTitle">Post a Scrim</h2>
+    <div class="msg" id="modalMsg"></div>
     <input type="hidden" id="mId">
-    <div class="fg">
-      <label>Team name</label>
-      <input id="mTeam" maxlength="60" placeholder="Your team">
+    <div class="fg"><label>Team name</label><input id="mTeam" maxlength="60" placeholder="Your team"></div>
+    <div class="fg-row">
+      <div class="fg"><label>Region</label><select id="mRegion"></select></div>
+      <div class="fg"><label>Your tier</label><select id="mTier"><option value="amateur">Amateur</option><option value="semi-pro">Semi-Pro</option><option value="pro">Pro</option></select></div>
     </div>
     <div class="fg-row">
-      <div class="fg">
-        <label>Region</label>
-        <select id="mRegion">
-          <optgroup label="Southeast Asia">
-            <option>Philippines</option><option>Indonesia</option><option>Malaysia</option>
-            <option>Singapore</option><option>Cambodia</option><option>Myanmar</option>
-            <option>Vietnam</option><option>Thailand</option><option>Laos</option><option>Brunei</option>
-          </optgroup>
-          <optgroup label="East &amp; South Asia">
-            <option>Japan</option><option>South Korea</option><option>Taiwan</option>
-            <option>Hong Kong</option><option>India</option><option>Mongolia</option>
-          </optgroup>
-          <optgroup label="MENA / Middle East">
-            <option>MENA</option><option>Saudi Arabia</option><option>UAE</option>
-            <option>Egypt</option><option>Turkey</option>
-          </optgroup>
-          <optgroup label="Europe / CIS">
-            <option>Europe</option><option>Russia</option><option>CIS</option>
-          </optgroup>
-          <optgroup label="Americas">
-            <option>North America</option><option>Latin America</option>
-            <option>Brazil</option><option>South America</option>
-          </optgroup>
-          <optgroup label="Other">
-            <option>Oceania</option><option>Africa</option><option>Other</option>
-          </optgroup>
-        </select>
-      </div>
-      <div class="fg">
-        <label>Your tier</label>
-        <select id="mTier"><option value="amateur">Amateur</option><option value="semi-pro">Semi-pro</option><option value="pro">Pro</option></select>
-      </div>
+      <div class="fg"><label>Rank</label><input id="mRank" maxlength="30" placeholder="e.g. Mythic Glory"></div>
+      <div class="fg"><label>Open to</label><select id="mOpenTo"><option value="any">Any team</option><option value="pro">Pro only</option><option value="amateur">Amateur only</option></select></div>
     </div>
     <div class="fg-row">
-      <div class="fg">
-        <label>Rank</label>
-        <input id="mRank" maxlength="30" placeholder="e.g. Mythic Glory">
-      </div>
-      <div class="fg">
-        <label>Open to</label>
-        <select id="mOpenTo"><option value="any">Any team</option><option value="pro">Pro only</option><option value="amateur">Amateur only</option></select>
-      </div>
+      <div class="fg"><label>Format</label><select id="mFormat">
+        <option value="flexible|">Flexible</option>
+        <option value="bestof|1">BO1</option><option value="bestof|3">BO3</option><option value="bestof|5">BO5</option><option value="bestof|7">BO7</option>
+        <option value="count|1">1 game</option><option value="count|2">2 games</option><option value="count|3">3 games</option>
+        <option value="count|4">4 games</option><option value="count|5">5 games</option><option value="count|6">6 games</option><option value="count|7">7 games</option>
+      </select></div>
+      <div class="fg"><label>Timezone</label><input id="mTz" maxlength="12" placeholder="GMT+8"></div>
     </div>
+    <div class="fg"><label>Availability</label><input id="mAvail" maxlength="80" placeholder="e.g. Weekdays 8–11pm"></div>
     <div class="fg-row">
-      <div class="fg">
-        <label>Format</label>
-        <select id="mFormat">
-          <option value="flexible|">Flexible</option>
-          <option value="bestof|1">BO1</option>
-          <option value="bestof|3">BO3</option>
-          <option value="bestof|5">BO5</option>
-          <option value="bestof|7">BO7</option>
-          <option value="count|1">1 game</option>
-          <option value="count|2">2 games</option>
-          <option value="count|3">3 games</option>
-          <option value="count|4">4 games</option>
-          <option value="count|5">5 games</option>
-          <option value="count|6">6 games</option>
-          <option value="count|7">7 games</option>
-        </select>
-      </div>
-      <div class="fg">
-        <label>Timezone</label>
-        <input id="mTz" maxlength="12" placeholder="GMT+8">
-      </div>
+      <div class="fg"><label>Contact via</label><select id="mContactMethod"><option value="whatsapp">WhatsApp</option><option value="discord">Discord</option><option value="messenger">Messenger</option><option value="ign">In-game name</option></select></div>
+      <div class="fg"><label>Contact handle / number</label><input id="mContactValue" maxlength="80" placeholder="+63… / username"></div>
     </div>
-    <div class="fg">
-      <label>Availability</label>
-      <input id="mAvail" maxlength="80" placeholder="e.g. Weekdays 8–11pm">
-    </div>
-    <div class="fg-row">
-      <div class="fg">
-        <label>Contact via</label>
-        <select id="mContactMethod"><option value="whatsapp">WhatsApp</option><option value="discord">Discord</option><option value="messenger">Messenger</option><option value="ign">In-game name</option></select>
-      </div>
-      <div class="fg">
-        <label>Contact handle / number</label>
-        <input id="mContactValue" maxlength="80" placeholder="+63… / username">
-      </div>
-    </div>
-    <div class="fg">
-      <label>Notes (optional)</label>
-      <textarea id="mNotes" maxlength="280" placeholder="Anything else — coach available, server, etc."></textarea>
-    </div>
-    <div class="fg fg-check">
-      <input type="checkbox" id="mAnon">
-      <label for="mAnon" style="text-transform:none;letter-spacing:0;font-weight:600;color:var(--text);">Hide my team name on the public board (blind listing)</label>
-    </div>
-    <div class="sc-modal-actions">
-      <button class="btn btn-ghost" id="mCancel" style="flex:1;">Cancel</button>
-      <button class="btn btn-accent" id="mSave" style="flex:2;">Post Scrim</button>
+    <div class="fg"><label>Notes (optional)</label><textarea id="mNotes" maxlength="280" placeholder="Anything else — coach available, server, etc."></textarea></div>
+    <div class="fg-check"><input type="checkbox" id="mAnon"><label for="mAnon" style="text-transform:none;letter-spacing:0;font-weight:600;color:var(--text);">Hide my team name & info on the public board</label></div>
+    <div class="modal-actions">
+      <button class="mini-btn" id="mCancel" style="flex:1;padding:11px;">Cancel</button>
+      <button class="challenge" id="mSave" style="flex:2;justify-content:center;">Post Scrim</button>
     </div>
   </div>
 </div>
 
-<script>
-// ═══════════════ Scrim Finder — Phase 1 (listings board) ═══════════════
-let _tab = 'browse';
-let _listings = [];   // browse set
-let _mine = [];       // my listings
-let _me = null;
-let _tableReady = true;
+<!-- View & Challenge modal -->
+<div class="modal-bg" id="viewBg"><div class="modal" id="viewModal"></div></div>
 
+<script>
+// ═══════════════ Scrim Finder — board ═══════════════
+let _listings = [], _mine = [], _me = null, _tableReady = true, _viewMine = false, _page = 1;
+const PAGE = 9;
 const REGIONS = [
   'Philippines','Indonesia','Malaysia','Singapore','Cambodia','Myanmar','Vietnam','Thailand','Laos','Brunei',
   'Japan','South Korea','Taiwan','Hong Kong','India','Mongolia',
-  'MENA','Saudi Arabia','UAE','Egypt','Turkey',
-  'Europe','Russia','CIS',
-  'North America','Latin America','Brazil','South America',
-  'Oceania','Africa','Other'
+  'MENA','Saudi Arabia','UAE','Egypt','Turkey','Europe','Russia','CIS',
+  'North America','Latin America','Brazil','South America','Oceania','Africa','Other'
 ];
+const FLAG = {Philippines:'🇵🇭',Indonesia:'🇮🇩',Malaysia:'🇲🇾',Singapore:'🇸🇬',Cambodia:'🇰🇭',Myanmar:'🇲🇲',Vietnam:'🇻🇳',Thailand:'🇹🇭',Laos:'🇱🇦',Brunei:'🇧🇳',Japan:'🇯🇵','South Korea':'🇰🇷',Taiwan:'🇹🇼','Hong Kong':'🇭🇰',India:'🇮🇳',Mongolia:'🇲🇳',MENA:'🌍','Saudi Arabia':'🇸🇦',UAE:'🇦🇪',Egypt:'🇪🇬',Turkey:'🇹🇷',Europe:'🇪🇺',Russia:'🇷🇺',CIS:'🌍','North America':'🇺🇸','Latin America':'🌎',Brazil:'🇧🇷','South America':'🌎',Oceania:'🇦🇺',Africa:'🌍',Other:'🌐'};
+const TOP_REGIONS = ['Philippines','Indonesia','Malaysia','Singapore','Thailand'];
+let _regionsExpanded = false;
+
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-function fmtFormat(type, n){
-  if (type==='bestof') return 'BO'+(n||'?');
-  if (type==='count')  return (n||'?')+(n==1?' game':' games');
-  return 'Flexible';
+const LOGO_COLORS = ['#5E5CE6','#A888CC','#4CB87A','#C89050','#5E9CE6','#D87880','#4AAABB','#7878CC'];
+function logoFor(l){
+  if (l.anonymous) return `<div class="logo anon">🛡</div>`;
+  const name = l.team_name||'?';
+  const init = name.split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  let h=0; for (const c of name) h=(h*31+c.charCodeAt(0))>>>0;
+  const col = LOGO_COLORS[h%LOGO_COLORS.length];
+  return `<div class="logo" style="background:linear-gradient(135deg,${col},${col}99)">${esc(init)}</div>`;
 }
-function timeAgo(ts){
-  const s = (Date.now()-new Date(ts).getTime())/1000;
-  if (s<3600) return Math.max(1,Math.floor(s/60))+'m ago';
-  if (s<86400) return Math.floor(s/3600)+'h ago';
-  return Math.floor(s/86400)+'d ago';
-}
+function fmtFormat(type,n){ if(type==='bestof')return 'BO'+(n||'?'); if(type==='count')return (n||'?')+(n==1?' game':' games'); return 'Flexible'; }
+function timeAgo(ts){ const s=(Date.now()-new Date(ts).getTime())/1000; if(s<3600)return Math.max(1,Math.floor(s/60))+'m ago'; if(s<86400)return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago'; }
+function tierClass(t){ return t==='pro'?'tier-pro':t==='semi-pro'?'tier-semipro':'tier-amateur'; }
+function tierLabel(t){ return t==='semi-pro'?'Semi-Pro':t==='pro'?'Pro':'Amateur'; }
 
-function contactBtn(l){
-  const v = (l.contact_value||'').trim();
-  if (!v) return '';
-  if (l.contact_method==='whatsapp'){
-    const num = v.replace(/[^\d]/g,'');
-    const txt = encodeURIComponent(`Hi ${l.anonymous?'':l.team_name||''}! Saw your scrim post on Warr.GG — keen to set one up.`);
-    return `<a class="btn-wa" target="_blank" rel="noopener" href="https://wa.me/${num}?text=${txt}">💬 WhatsApp</a>`;
-  }
-  if (l.contact_method==='discord')  return `<span class="btn-contact" title="Discord">🎮 ${esc(v)}</span>`;
-  if (l.contact_method==='messenger'){
-    const handle = v.replace(/^https?:\/\/(m\.me\/|messenger\.com\/t\/)?/i,'');
-    return `<a class="btn-contact" target="_blank" rel="noopener" href="https://m.me/${esc(handle)}">💬 Messenger</a>`;
-  }
-  return `<span class="btn-contact" title="In-game name">🎯 ${esc(v)}</span>`;
-}
+// ── Card ──
+function card(l, own){
+  const anon = l.anonymous && !own;
+  const name = anon ? 'Hidden Team' : esc(l.team_name||'Team');
+  const verified = l.is_verified ? `<span class="verified" title="Verified team">✔</span>` : '';
+  const statusCls = l.status==='filled' ? 'status-dot filled' : 'status-dot';
+  const statusTxt = l.status==='filled' ? 'Filled' : 'Open';
+  const sub = [tierLabel(l.tier)];
+  const rankRegion = [l.rank_tier, anon?'':l.region].filter(Boolean).join(' · ');
 
-function listingCard(l, own){
-  const tierCls = 'tier-'+(l.tier||'amateur');
-  const name = l.anonymous && !own
-    ? `<span class="anon">${l.tier==='pro'?'Verified ':''}Hidden team</span>`
-    : esc(l.team_name||'Team') + (l.anonymous?' <span class="anon" style="font-size:11px">(hidden publicly)</span>':'');
-  const chips = [];
-  if (l.rank_tier) chips.push(`<span class="sl-chip">${esc(l.rank_tier)}</span>`);
-  chips.push(`<span class="sl-chip">${fmtFormat(l.format_type,l.games_planned)}</span>`);
-  if (l.open_to && l.open_to!=='any') chips.push(`<span class="sl-chip">vs ${esc(l.open_to)} only</span>`);
-  if (l.availability) chips.push(`<span class="sl-chip">🕑 ${esc(l.availability)}${l.timezone?' '+esc(l.timezone):''}</span>`);
-
-  let actions;
+  let foot;
   if (own){
-    const st = l.status==='open' ? '<span class="sl-status st-open">● Open</span>'
-      : l.status==='filled' ? '<span class="sl-status st-filled">● Filled</span>'
-      : '<span class="sl-status st-closed">● Closed</span>';
-    actions = `<div class="sl-actions">${st}<span style="margin-left:auto;color:var(--text2);font-size:11px">${timeAgo(l.created_at)}</span></div>
-      <div class="sl-own">
-        <button onclick="editListing('${l.id}')">Edit</button>
-        ${l.status==='open'?`<button onclick="setStatus('${l.id}','filled')">Mark filled</button><button onclick="setStatus('${l.id}','closed')">Close</button>`:`<button onclick="setStatus('${l.id}','open')">Reopen</button>`}
-        <button class="danger" onclick="delListing('${l.id}')">Delete</button>
-      </div>`;
+    foot = `<div class="sc-foot">
+      <button class="mini-btn" onclick="editListing('${l.id}')">Edit</button>
+      ${l.status==='open'?`<button class="mini-btn" onclick="setStatus('${l.id}','filled')">Filled</button><button class="mini-btn" onclick="setStatus('${l.id}','closed')">Close</button>`:`<button class="mini-btn" onclick="setStatus('${l.id}','open')">Reopen</button>`}
+      <button class="mini-btn danger" onclick="delListing('${l.id}')">Delete</button>
+    </div>`;
   } else {
-    actions = `<div class="sl-actions">${contactBtn(l)}
-      <button class="sl-report" onclick="reportListing('${l.id}')">⚐ Report</button>
-      <span style="margin-left:auto;color:var(--text2);font-size:11px">${timeAgo(l.created_at)}</span></div>`;
+    foot = `<div class="sc-foot">
+      <button class="report-x" onclick="reportListing('${l.id}')">⚐ Report</button>
+      <button class="challenge" onclick="viewListing('${l.id}')">View &amp; Challenge</button>
+    </div>`;
   }
 
-  return `<div class="sl">
-    <div class="sl-top">
-      <div><div class="sl-team">${name}</div><div class="sl-region">${esc(l.region||'')}</div></div>
-      <span class="sl-tier ${tierCls}">${esc(l.tier||'amateur')}</span>
+  return `<div class="scard${l.is_featured?' featured':''}">
+    ${l.is_featured?'<div class="feat-ribbon">FEATURED</div>':''}
+    <div class="sc-row1">
+      ${logoFor({...l, anonymous:anon})}
+      <div style="flex:1;min-width:0;">
+        <div class="sc-name">${name} ${verified}</div>
+        <div class="sc-sub2"><span class="tier-tag ${tierClass(l.tier)}">${tierLabel(l.tier)}</span>${rankRegion?`<span>${esc(rankRegion)}</span>`:''}</div>
+      </div>
+      <span class="${statusCls}"><span class="d"></span>${statusTxt}</span>
     </div>
-    <div class="sl-meta">${chips.join('')}</div>
-    ${l.notes?`<div class="sl-notes">${esc(l.notes)}</div>`:''}
-    ${actions}
+    <div class="sc-block">
+      <div class="h">Looking for</div>
+      <div class="sc-lf"><span class="bo-badge">${fmtFormat(l.format_type,l.games_planned)}</span>
+        ${l.open_to&&l.open_to!=='any'?`<span class="sc-time">vs ${esc(l.open_to)} only</span>`:''}
+        ${l.availability?`<span class="sc-time">🕑 ${esc(l.availability)}${l.timezone?' '+esc(l.timezone):''}</span>`:''}</div>
+    </div>
+    ${l.notes?`<div class="sc-block"><div class="h">Notes</div><div class="sc-notes">${esc(l.notes)}</div></div>`:''}
+    ${foot}
   </div>`;
 }
 
+// ── View & Challenge modal ──
+function contactLinks(l){
+  const v=(l.contact_value||'').trim(); if(!v) return '<div style="color:var(--text2)">No contact provided.</div>';
+  if(l.contact_method==='whatsapp'){ const num=v.replace(/[^\d]/g,''); const txt=encodeURIComponent(`Hi! Saw your scrim post on Warr.GG — keen to set one up.`);
+    return `<a class="btn-wa" target="_blank" rel="noopener" href="https://wa.me/${num}?text=${txt}">💬 Message on WhatsApp</a>`; }
+  if(l.contact_method==='messenger'){ const h=v.replace(/^https?:\/\/(m\.me\/|messenger\.com\/t\/)?/i,''); return `<a class="btn-ct" target="_blank" rel="noopener" href="https://m.me/${esc(h)}">💬 Messenger</a>`; }
+  if(l.contact_method==='discord') return `<span class="btn-ct">🎮 Discord: ${esc(v)}</span>`;
+  return `<span class="btn-ct">🎯 IGN: ${esc(v)}</span>`;
+}
+function viewListing(id){
+  const l=_listings.find(x=>x.id===id)||_mine.find(x=>x.id===id); if(!l) return;
+  const anon=l.anonymous;
+  document.getElementById('viewModal').innerHTML = `
+    <div class="vm-head">${logoFor(l)}
+      <div><div class="sc-name" style="font-size:20px">${anon?'Hidden Team':esc(l.team_name)} ${l.is_verified?'<span class="verified">✔</span>':''}</div>
+      <div class="sc-sub2"><span class="tier-tag ${tierClass(l.tier)}">${tierLabel(l.tier)}</span>${!anon&&l.region?`<span>${FLAG[l.region]||''} ${esc(l.region)}</span>`:''}</div></div>
+    </div>
+    <div class="vm-meta">
+      <div class="it"><div class="k">Format</div><div class="v">${fmtFormat(l.format_type,l.games_planned)}</div></div>
+      <div class="it"><div class="k">Open to</div><div class="v">${l.open_to==='any'?'Any team':esc(l.open_to)+' only'}</div></div>
+      <div class="it"><div class="k">Rank</div><div class="v">${esc(l.rank_tier||'—')}</div></div>
+      <div class="it"><div class="k">Availability</div><div class="v">${esc(l.availability||'—')}${l.timezone?' ('+esc(l.timezone)+')':''}</div></div>
+    </div>
+    ${l.notes?`<div class="sc-block" style="margin-bottom:16px"><div class="h">Notes</div><div class="sc-notes">${esc(l.notes)}</div></div>`:''}
+    <div class="h" style="font-size:10px;font-weight:800;letter-spacing:.1em;color:var(--text3);text-transform:uppercase;margin-bottom:8px">Contact ${anon?'(revealed because they shared it)':''}</div>
+    <div class="vm-contact">${contactLinks(l)}</div>
+    <div style="margin-top:12px;font-size:11.5px;color:var(--text3);line-height:1.5">In-app scheduling & a shared calendar are coming soon — for now, lock in your scrim over chat.</div>
+    <div class="modal-actions" style="margin-top:18px"><button class="mini-btn" style="flex:1;padding:11px" onclick="document.getElementById('viewBg').classList.remove('show')">Close</button></div>`;
+  document.getElementById('viewBg').classList.add('show');
+}
+
+// ── Filters ──
+function selVals(cls){ return [...document.querySelectorAll('.'+cls+':checked')].map(x=>x.value); }
+function renderRegionFilters(){
+  const list = _regionsExpanded ? REGIONS : TOP_REGIONS;
+  document.getElementById('fRegionList').innerHTML = list.map(r =>
+    `<label class="chk"><input type="checkbox" class="f-region" value="${r}"><span class="flag">${FLAG[r]||'🌐'}</span>${r}</label>`).join('');
+  document.getElementById('fRegionMore').textContent = _regionsExpanded ? 'Show less ▴' : 'Show more ▾';
+  document.querySelectorAll('.f-region').forEach(c=>c.addEventListener('change',()=>{_page=1;render();}));
+}
 function applyFilters(list){
-  const region = document.getElementById('fRegion').value;
-  const tier   = document.getElementById('fTier').value;
-  const fmt    = document.getElementById('fFormat').value;
-  const q      = document.getElementById('fSearch').value.trim().toLowerCase();
-  return list.filter(l => {
-    if (region && l.region!==region) return false;
-    if (tier && l.tier!==tier) return false;
-    if (fmt && l.format_type!==fmt) return false;
-    if (q){
-      const hay = `${l.team_name||''} ${l.notes||''} ${l.rank_tier||''}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
+  const regions=selVals('f-region'), tiers=selVals('f-tier'), fmts=selVals('f-fmt');
+  const posted=(document.querySelector('.f-posted:checked')||{}).value||'';
+  const q=document.getElementById('fSearch').value.trim().toLowerCase();
+  const now=Date.now();
+  return list.filter(l=>{
+    if(regions.length && !regions.includes(l.region)) return false;
+    if(tiers.length && !tiers.includes(l.tier)) return false;
+    if(fmts.length && !fmts.includes(`${l.format_type}|${l.games_planned||''}`)) return false;
+    if(posted){ const age=(now-new Date(l.created_at).getTime())/86400000; if(posted==='today'&&age>1) return false; if(posted==='week'&&age>7) return false; }
+    if(q){ const hay=`${l.team_name||''} ${l.notes||''} ${l.rank_tier||''} ${l.region||''}`.toLowerCase(); if(!hay.includes(q)) return false; }
     return true;
+  });
+}
+function sortListings(arr){
+  const s=document.getElementById('fSort').value;
+  const tierRank={pro:0,'semi-pro':1,amateur:2};
+  return [...arr].sort((a,b)=>{
+    if(s==='featured'){ if(!!b.is_featured-!!a.is_featured) return (!!b.is_featured)-(!!a.is_featured); }
+    if(s==='tier'){ const d=(tierRank[a.tier]??3)-(tierRank[b.tier]??3); if(d) return d; }
+    return new Date(b.created_at)-new Date(a.created_at);
   });
 }
 
 function render(){
-  const out = document.getElementById('scOut');
-  document.getElementById('scFilters').style.display = _tab==='browse' ? 'flex' : 'none';
+  const out=document.getElementById('scOut'), pager=document.getElementById('scPager');
+  if(!_tableReady){ out.innerHTML=`<div class="sc-notice"><b>Scrim Finder is almost ready.</b><br>Run <code>migrations/012_scrim_finder.sql</code> in Supabase → SQL Editor, then reload.</div>`; pager.innerHTML=''; return; }
 
-  if (!_tableReady){
-    out.innerHTML = `<div class="sc-notice"><b>Scrim Finder is almost ready.</b><br>
-      The database table isn't set up yet. Run <code>migrations/012_scrim_finder.sql</code>
-      in Supabase → SQL Editor, then reload this page.</div>`;
-    return;
+  if(_viewMine){
+    out.innerHTML = _mine.length ? _mine.map(l=>card(l,true)).join('') : `<div class="sc-empty"><div class="e-emoji">📋</div>You have no scrim listings yet.</div>`;
+    pager.innerHTML=''; return;
   }
+  let arr = sortListings(applyFilters(_listings));
+  document.getElementById('liveCount').textContent = `${_listings.length} team${_listings.length===1?'':'s'} actively looking for scrims`;
+  if(!arr.length){ out.innerHTML = _listings.length?`<div class="sc-empty"><div class="e-emoji">🔍</div>No scrims match your filters.</div>`:`<div class="sc-empty"><div class="e-emoji">⚔️</div>No open scrims yet — post one and let teams come to you.</div>`; pager.innerHTML=''; return; }
 
-  if (_tab==='mine'){
-    if (!_mine.length){ out.innerHTML = `<div class="sc-empty"><div class="e-emoji">📋</div>You have no scrim listings yet.<br>Hit “Post a Scrim” to get one up.</div>`; return; }
-    out.innerHTML = `<div class="sc-cards">${_mine.map(l=>listingCard(l,true)).join('')}</div>`;
-    return;
-  }
-
-  const filtered = applyFilters(_listings);
-  if (!filtered.length){
-    out.innerHTML = _listings.length
-      ? `<div class="sc-empty"><div class="e-emoji">🔍</div>No scrims match those filters.</div>`
-      : `<div class="sc-empty"><div class="e-emoji">⚔️</div>No open scrims right now.<br>Be the first — post one and let teams come to you.</div>`;
-    return;
-  }
-  out.innerHTML = `<div class="sc-cards">${filtered.map(l=>listingCard(l,false)).join('')}</div>`;
+  const pages=Math.ceil(arr.length/PAGE); if(_page>pages)_page=1;
+  const slice=arr.slice((_page-1)*PAGE,_page*PAGE);
+  out.innerHTML = slice.map(l=>card(l,false)).join('');
+  pager.innerHTML = pages>1 ? (
+    `<button ${_page===1?'disabled':''} onclick="goPage(${_page-1})">‹</button>` +
+    Array.from({length:pages},(_,i)=>i+1).filter(p=>p===1||p===pages||Math.abs(p-_page)<=1).map((p,i,a)=>{
+      const prev=a[i-1]; const gap=prev&&p-prev>1?'<span style="color:var(--text3);align-self:center">…</span>':'';
+      return gap+`<button class="${p===_page?'active':''}" onclick="goPage(${p})">${p}</button>`;
+    }).join('') +
+    `<button ${_page===pages?'disabled':''} onclick="goPage(${_page+1})">›</button>`) : '';
 }
+function goPage(p){ _page=p; render(); window.scrollTo({top:0,behavior:'smooth'}); }
 
 // ── Data ──
 async function loadAll(){
-  const sb = WAuth._sb();
-  try {
-    const { data, error } = await sb.from('scrim_listings')
-      .select('*').eq('status','open').gt('expires_at', new Date().toISOString())
-      .order('created_at', { ascending:false }).limit(200);
-    if (error) throw error;
-    _listings = (data||[]).filter(l => l.created_by !== _me.id); // own shown in My Listings
-  } catch(e){
-    if (String(e.message||e).match(/relation|does not exist|schema cache|42P01/i)) { _tableReady=false; return; }
-    _listings = [];
-  }
-  try {
-    const { data } = await sb.from('scrim_listings').select('*')
-      .eq('created_by', _me.id).order('created_at',{ascending:false});
-    _mine = data||[];
-  } catch(e){ _mine=[]; }
+  const sb=WAuth._sb();
+  try{
+    const { data, error } = await sb.from('scrim_listings').select('*').eq('status','open')
+      .gt('expires_at', new Date().toISOString()).order('created_at',{ascending:false}).limit(300);
+    if(error) throw error;
+    _listings=(data||[]).filter(l=>l.created_by!==_me.id);
+  }catch(e){ if(String(e.message||e).match(/relation|does not exist|schema cache|42P01/i)){_tableReady=false; return;} _listings=[]; }
+  try{ const { data } = await sb.from('scrim_listings').select('*').eq('created_by',_me.id).order('created_at',{ascending:false}); _mine=data||[]; }catch(e){ _mine=[]; }
 }
 
-// ── Modal ──
-function openModal(listing){
-  document.getElementById('scModalMsg').style.display='none';
-  document.getElementById('scModalTitle').textContent = listing ? 'Edit Scrim' : 'Post a Scrim';
-  document.getElementById('mSave').textContent = listing ? 'Save Changes' : 'Post Scrim';
-  document.getElementById('mId').value = listing?.id || '';
-  const prof = (()=>{ try { return WAuth.getProfile()||{}; } catch(_){ return {}; } })();
-  document.getElementById('mTeam').value = listing?.team_name || prof.team_name || '';
-  document.getElementById('mRegion').value = listing?.region || 'Philippines';
-  document.getElementById('mTier').value = listing?.tier || 'amateur';
-  document.getElementById('mRank').value = listing?.rank_tier || '';
-  document.getElementById('mOpenTo').value = listing?.open_to || 'any';
-  document.getElementById('mFormat').value = listing ? `${listing.format_type||'flexible'}|${listing.games_planned||''}` : 'flexible|';
-  document.getElementById('mTz').value = listing?.timezone || 'GMT+8';
-  document.getElementById('mAvail').value = listing?.availability || '';
-  document.getElementById('mContactMethod').value = listing?.contact_method || 'whatsapp';
-  document.getElementById('mContactValue').value = listing?.contact_value || '';
-  document.getElementById('mNotes').value = listing?.notes || '';
-  document.getElementById('mAnon').checked = !!listing?.anonymous;
-  document.getElementById('scModalBg').classList.add('show');
+// ── Post/edit modal ──
+function fillRegions(){
+  const r=document.getElementById('mRegion'); r.innerHTML=REGIONS.map(x=>`<option>${x}</option>`).join('');
 }
-function closeModal(){ document.getElementById('scModalBg').classList.remove('show'); }
-function modalMsg(t,cls){ const m=document.getElementById('scModalMsg'); m.textContent=t; m.className='sc-msg '+cls; m.style.display='block'; }
-
+function openModal(l){
+  document.getElementById('modalMsg').className='msg';
+  document.getElementById('modalTitle').textContent=l?'Edit Scrim':'Post a Scrim';
+  document.getElementById('mSave').textContent=l?'Save Changes':'Post Scrim';
+  document.getElementById('mId').value=l?.id||'';
+  let prof={}; try{prof=WAuth.getProfile()||{};}catch(_){}
+  document.getElementById('mTeam').value=l?.team_name||prof.team_name||'';
+  document.getElementById('mRegion').value=l?.region||'Philippines';
+  document.getElementById('mTier').value=l?.tier||'amateur';
+  document.getElementById('mRank').value=l?.rank_tier||'';
+  document.getElementById('mOpenTo').value=l?.open_to||'any';
+  document.getElementById('mFormat').value=l?`${l.format_type||'flexible'}|${l.games_planned||''}`:'flexible|';
+  document.getElementById('mTz').value=l?.timezone||'GMT+8';
+  document.getElementById('mAvail').value=l?.availability||'';
+  document.getElementById('mContactMethod').value=l?.contact_method||'whatsapp';
+  document.getElementById('mContactValue').value=l?.contact_value||'';
+  document.getElementById('mNotes').value=l?.notes||'';
+  document.getElementById('mAnon').checked=!!l?.anonymous;
+  document.getElementById('modalBg').classList.add('show');
+}
+function mMsg(t,c){ const m=document.getElementById('modalMsg'); m.textContent=t; m.className='msg '+c; }
 async function saveListing(){
-  const team = document.getElementById('mTeam').value.trim();
-  const contact = document.getElementById('mContactValue').value.trim();
-  if (!team){ modalMsg('Team name is required','err'); return; }
-  if (!contact){ modalMsg('Add a contact so teams can reach you','err'); return; }
-  const [ftype, gp] = document.getElementById('mFormat').value.split('|');
-  const row = {
-    team_name: team,
-    region: document.getElementById('mRegion').value,
-    tier: document.getElementById('mTier').value,
-    rank_tier: document.getElementById('mRank').value.trim() || null,
-    format_type: ftype, games_planned: gp ? Number(gp) : null,
-    open_to: document.getElementById('mOpenTo').value,
-    timezone: document.getElementById('mTz').value.trim() || null,
-    availability: document.getElementById('mAvail').value.trim() || null,
-    contact_method: document.getElementById('mContactMethod').value,
-    contact_value: contact,
-    notes: document.getElementById('mNotes').value.trim() || null,
-    anonymous: document.getElementById('mAnon').checked,
-  };
-  const sb = WAuth._sb();
-  const id = document.getElementById('mId').value;
-  const btn = document.getElementById('mSave'); btn.disabled=true; btn.textContent='Saving…';
-  try {
-    if (id){
-      const { error } = await sb.from('scrim_listings').update(row).eq('id', id);
-      if (error) throw error;
-    } else {
-      row.created_by = _me.id;
-      const { error } = await sb.from('scrim_listings').insert(row);
-      if (error) throw error;
-    }
-    closeModal(); await loadAll(); _tab='mine'; syncTabs(); render();
-  } catch(e){
-    modalMsg(String(e.message||e).replace(/^.*?:\s*/,''), 'err');
-  } finally { btn.disabled=false; btn.textContent = id?'Save Changes':'Post Scrim'; }
+  const team=document.getElementById('mTeam').value.trim();
+  const contact=document.getElementById('mContactValue').value.trim();
+  if(!team){ mMsg('Team name is required','err'); return; }
+  if(!contact){ mMsg('Add a contact so teams can reach you','err'); return; }
+  const [ft,gp]=document.getElementById('mFormat').value.split('|');
+  const row={ team_name:team, region:document.getElementById('mRegion').value, tier:document.getElementById('mTier').value,
+    rank_tier:document.getElementById('mRank').value.trim()||null, format_type:ft, games_planned:gp?Number(gp):null,
+    open_to:document.getElementById('mOpenTo').value, timezone:document.getElementById('mTz').value.trim()||null,
+    availability:document.getElementById('mAvail').value.trim()||null, contact_method:document.getElementById('mContactMethod').value,
+    contact_value:contact, notes:document.getElementById('mNotes').value.trim()||null, anonymous:document.getElementById('mAnon').checked };
+  const sb=WAuth._sb(), id=document.getElementById('mId').value, btn=document.getElementById('mSave');
+  btn.disabled=true; btn.textContent='Saving…';
+  try{
+    if(id){ const { error }=await sb.from('scrim_listings').update(row).eq('id',id); if(error) throw error; }
+    else { row.created_by=_me.id; const { error }=await sb.from('scrim_listings').insert(row); if(error) throw error; }
+    document.getElementById('modalBg').classList.remove('show'); await loadAll(); _viewMine=true; updateTab(); render();
+  }catch(e){ mMsg(String(e.message||e).replace(/^.*?:\s*/,''),'err'); }
+  finally{ btn.disabled=false; btn.textContent=id?'Save Changes':'Post Scrim'; }
 }
-
-async function setStatus(id, status){
-  try { await WAuth._sb().from('scrim_listings').update({status}).eq('id',id); await loadAll(); render(); } catch(e){ alert(e.message||e); }
-}
-async function delListing(id){
-  if (!confirm('Delete this listing?')) return;
-  try { await WAuth._sb().from('scrim_listings').delete().eq('id',id); await loadAll(); render(); } catch(e){ alert(e.message||e); }
-}
+async function setStatus(id,s){ try{ await WAuth._sb().from('scrim_listings').update({status:s}).eq('id',id); await loadAll(); render(); }catch(e){ alert(e.message||e); } }
+async function delListing(id){ if(!confirm('Delete this listing?'))return; try{ await WAuth._sb().from('scrim_listings').delete().eq('id',id); await loadAll(); render(); }catch(e){ alert(e.message||e); } }
 function editListing(id){ const l=_mine.find(x=>x.id===id); if(l) openModal(l); }
 async function reportListing(id){
-  const reason = prompt('Report this listing — what’s wrong? (spam, fake, offensive…)');
-  if (reason===null) return;
-  try {
-    const { error } = await WAuth._sb().from('scrim_reports').insert({ listing_id:id, reported_by:_me.id, reason:reason||null });
-    if (error && !/duplicate|unique/i.test(error.message)) throw error;
-    alert('Thanks — reported. Our team will review it.');
-  } catch(e){ alert(e.message||e); }
+  const reason=prompt('Report this listing — what’s wrong? (spam, fake, offensive…)'); if(reason===null) return;
+  try{ const { error }=await WAuth._sb().from('scrim_reports').insert({listing_id:id,reported_by:_me.id,reason:reason||null});
+    if(error && !/duplicate|unique/i.test(error.message)) throw error; alert('Thanks — reported. We’ll review it.'); }catch(e){ alert(e.message||e); }
 }
-
-function syncTabs(){ document.querySelectorAll('.sc-tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===_tab)); }
+function updateTab(){ document.getElementById('tabMine').textContent = _viewMine?'← Browse all':'My Listings'; }
 
 // ── Boot ──
 (async function(){
-  const ok = await WAuth.requireAuth(); if (!ok) return;
-  _me = WAuth.getUser();
-  // region filter options
-  const fr = document.getElementById('fRegion');
-  REGIONS.forEach(r=>{ const o=document.createElement('option'); o.value=r; o.textContent=r; fr.appendChild(o); });
+  const ok=await WAuth.requireAuth(); if(!ok) return;
+  _me=WAuth.getUser();
+  fillRegions(); renderRegionFilters();
+  await loadAll(); render();
 
-  await loadAll();
-  render();
-
-  document.querySelectorAll('.sc-tab').forEach(t => t.addEventListener('click', ()=>{ _tab=t.dataset.tab; syncTabs(); render(); }));
-  ['fRegion','fTier','fFormat'].forEach(id => document.getElementById(id).addEventListener('change', render));
-  document.getElementById('fSearch').addEventListener('input', render);
-  document.getElementById('scNew').addEventListener('click', ()=>openModal(null));
-  document.getElementById('mCancel').addEventListener('click', closeModal);
-  document.getElementById('mSave').addEventListener('click', saveListing);
-  document.getElementById('scModalBg').addEventListener('click', e=>{ if(e.target.id==='scModalBg') closeModal(); });
+  document.getElementById('fRegionMore').addEventListener('click',()=>{ _regionsExpanded=!_regionsExpanded; renderRegionFilters(); });
+  document.querySelectorAll('.f-tier,.f-fmt,.f-posted').forEach(c=>c.addEventListener('change',()=>{_page=1;render();}));
+  document.getElementById('fSort').addEventListener('change',render);
+  document.getElementById('fSearch').addEventListener('input',()=>{_page=1;render();});
+  document.getElementById('fApply').addEventListener('click',()=>{_page=1;render();});
+  document.getElementById('fReset').addEventListener('click',()=>{
+    document.querySelectorAll('.f-region,.f-tier,.f-fmt').forEach(c=>c.checked=false);
+    document.querySelector('.f-posted[value=""]').checked=true;
+    document.getElementById('fSearch').value=''; _page=1; render();
+  });
+  document.getElementById('tabMine').addEventListener('click',()=>{ _viewMine=!_viewMine; updateTab(); render(); });
+  document.getElementById('scNew').addEventListener('click',()=>openModal(null));
+  document.getElementById('mCancel').addEventListener('click',()=>document.getElementById('modalBg').classList.remove('show'));
+  document.getElementById('mSave').addEventListener('click',saveListing);
+  document.getElementById('modalBg').addEventListener('click',e=>{ if(e.target.id==='modalBg') document.getElementById('modalBg').classList.remove('show'); });
+  document.getElementById('viewBg').addEventListener('click',e=>{ if(e.target.id==='viewBg') document.getElementById('viewBg').classList.remove('show'); });
+  document.getElementById('aiSoon').addEventListener('click',()=>alert('AI Match Suggestions are coming in a future update — smart opponent recommendations by rank, region, and schedule.'));
 })();
 </script>
 </body>
