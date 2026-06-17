@@ -55,7 +55,7 @@ body { background: var(--bg); min-height: 100vh; }
   padding: 3px 10px; border-radius: 20px; text-transform: uppercase;
 }
 .plan-badge.free  { background: var(--surface3); color: var(--text2); border: 1px solid var(--border2); }
-.plan-badge.pro   { background: rgba(168,136,204,.14); color: var(--purple); border: 1px solid var(--purple-border); }
+.plan-badge.pro   { background: rgba(124,92,246,.14); color: var(--purple); border: 1px solid var(--purple-border); }
 .plan-badge.team  { background: rgba(200,144,80,.12); color: var(--gold); border: 1px solid var(--gold-border); }
 
 .profile-email { font-size: 13px; color: var(--text3); margin-bottom: 10px; }
@@ -75,7 +75,7 @@ body { background: var(--bg); min-height: 100vh; }
 }
 .sync-status.synced  { background: rgba(68,200,130,.12); color: #44c882; border: 1px solid rgba(68,200,130,.3); }
 .sync-status.local   { background: var(--surface3); color: var(--text3); border: 1px solid var(--border); }
-.sync-status.saving  { background: rgba(168,136,204,.14); color: var(--purple); border: 1px solid var(--purple-border); }
+.sync-status.saving  { background: rgba(124,92,246,.14); color: var(--purple); border: 1px solid var(--purple-border); }
 
 /* ── Tokens Panel ── */
 .tokens-panel {
@@ -201,9 +201,9 @@ body { background: var(--bg); min-height: 100vh; }
 .ptab-bar::-webkit-scrollbar{display:none;}
 .ptab{flex-shrink:0;padding:7px 16px;border-radius:999px;border:0.5px solid transparent;background:transparent;color:var(--text3);font-size:12px;font-weight:600;letter-spacing:-0.01em;cursor:pointer;transition:color .15s ease,background .15s ease;font-family:inherit;white-space:nowrap;}
 .ptab:hover{color:var(--text2);}
-.ptab.active{background:linear-gradient(135deg,rgba(168,136,204,.18),rgba(94,92,230,.18));color:var(--text);border-color:rgba(168,136,204,.35);}
+.ptab.active{background:linear-gradient(135deg,rgba(124,92,246,.18),rgba(94,92,230,.18));color:var(--text);border-color:rgba(124,92,246,.35);}
 .ptab-admin{display:none;color:#C89050;}
-.ptab-admin.active{color:var(--text);border-color:rgba(200,144,80,.4);background:linear-gradient(135deg,rgba(200,144,80,.16),rgba(168,136,204,.12));}
+.ptab-admin.active{color:var(--text);border-color:rgba(200,144,80,.4);background:linear-gradient(135deg,rgba(200,144,80,.16),rgba(124,92,246,.12));}
 
 /* ── Admin approve note ── */
 .admin-note {
@@ -596,9 +596,9 @@ body { background: var(--bg); min-height: 100vh; }
     </div>
 
     <!-- CONTACT / ACTIVATION STRIP -->
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:4px 0 24px;padding:12px 16px;border:0.5px solid var(--glass-border,rgba(255,255,255,.08));border-radius:14px;background:rgba(168,136,204,.05);">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:4px 0 24px;padding:12px 16px;border:0.5px solid var(--glass-border,rgba(255,255,255,.08));border-radius:14px;background:rgba(124,92,246,.05);">
       <span style="font-size:11.5px;color:var(--text2);flex:1;min-width:220px;line-height:1.5;">Activation is personal for now — message me, pay via GCash, and I'll switch your account on the spot. Usually under an hour.</span>
-      <a href="mailto:wrrenvillapando@gmail.com?subject=Warr.GG%20Upgrade" style="padding:9px 18px;border-radius:10px;background:linear-gradient(135deg,#A888CC,#5E5CE6);color:#fff;font-size:12px;font-weight:700;text-decoration:none;flex-shrink:0;">✉ Email Me</a>
+      <a href="mailto:wrrenvillapando@gmail.com?subject=Warr.GG%20Upgrade" style="padding:9px 18px;border-radius:10px;background:linear-gradient(135deg,#7C5CF6,#5E5CE6);color:#fff;font-size:12px;font-weight:700;text-decoration:none;flex-shrink:0;">✉ Email Me</a>
       <span style="font-size:10px;color:var(--text3);flex-shrink:0;">IG &amp; TikTok soon</span>
     </div>
 
@@ -731,7 +731,7 @@ body { background: var(--bg); min-height: 100vh; }
         <div id="slidesEditorList"></div>
         <div style="display:flex;gap:10px;margin-top:14px;padding-top:16px;border-top:0.5px solid rgba(255,255,255,0.06);align-items:center;">
           <button onclick="addSlide()" style="background:rgba(255,255,255,0.04);border:0.5px dashed rgba(255,255,255,0.10);border-radius:8px;padding:9px 16px;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.62);cursor:pointer;">+ Add Slide</button>
-          <button onclick="saveSlides()" style="margin-left:auto;background:linear-gradient(135deg,#A888CC 0%,#5E5CE6 100%);border:0;border-radius:9999px;padding:9px 22px;font-size:11px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#fff;cursor:pointer;">Save Slides</button>
+          <button onclick="saveSlides()" style="margin-left:auto;background:linear-gradient(135deg,#7C5CF6 0%,#5E5CE6 100%);border:0;border-radius:9999px;padding:9px 22px;font-size:11px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#fff;cursor:pointer;">Save Slides</button>
         </div>
       </div>
     </div>
@@ -777,7 +777,7 @@ body { background: var(--bg); min-height: 100vh; }
             ${labelEl}
             <div style="display:flex;gap:6px;align-items:stretch;">
               <input type="text" value="${v}" id="slide-bg-input-${idx}" ${inputAttr} style="background:#050509;border:0.5px solid rgba(255,255,255,0.10);border-radius:6px;padding:7px 10px;font-size:12px;color:#F0F0F8;flex:1;font-family:var(--font-body,inherit);">
-              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:10.5px;font-weight:600;padding:7px 12px;border-radius:6px;background:rgba(168,136,204,0.10);border:0.5px solid rgba(168,136,204,0.22);color:#A888CC;white-space:nowrap;">
+              <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:10.5px;font-weight:600;padding:7px 12px;border-radius:6px;background:rgba(124,92,246,0.10);border:0.5px solid rgba(124,92,246,0.22);color:#7C5CF6;white-space:nowrap;">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 Upload
                 <input type="file" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="uploadSlideBg(${idx}, this)">
@@ -857,7 +857,7 @@ body { background: var(--bg); min-height: 100vh; }
       list.innerHTML = _editingSlides.map((s, i) => `
         <div style="background:rgba(255,255,255,0.02);border:0.5px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px 16px;margin-bottom:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;">
           <div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-bottom:4px;">
-            <span style="font-family:var(--font-mono,monospace);font-size:11px;font-weight:700;color:#A888CC;">${i + 1}.</span>
+            <span style="font-family:var(--font-mono,monospace);font-size:11px;font-weight:700;color:#7C5CF6;">${i + 1}.</span>
             <span style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.36);">Slide ${i + 1}</span>
             <div style="margin-left:auto;display:flex;gap:6px;">
               ${i > 0 ? `<button onclick="moveSlide(${i}, -1)" style="font-size:10px;padding:4px 10px;border-radius:6px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.10);color:rgba(255,255,255,0.62);cursor:pointer;">↑</button>` : ''}
@@ -964,7 +964,7 @@ body { background: var(--bg); min-height: 100vh; }
         <div id="portraitsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;max-height:60vh;overflow:auto;padding-right:4px;"></div>
         <div style="display:flex;gap:10px;margin-top:14px;padding-top:16px;border-top:0.5px solid rgba(255,255,255,0.06);align-items:center;">
           <span style="font-size:11px;color:rgba(255,255,255,0.40);">PNG/JPG/WebP · Max 512 KB · 500×500px recommended</span>
-          <button onclick="closePortraitsManager()" style="margin-left:auto;background:linear-gradient(135deg,#A888CC 0%,#5E5CE6 100%);border:0;border-radius:9999px;padding:9px 22px;font-size:11px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#fff;cursor:pointer;">Done</button>
+          <button onclick="closePortraitsManager()" style="margin-left:auto;background:linear-gradient(135deg,#7C5CF6 0%,#5E5CE6 100%);border:0;border-radius:9999px;padding:9px 22px;font-size:11px;font-weight:700;letter-spacing:0.10em;text-transform:uppercase;color:#fff;cursor:pointer;">Done</button>
         </div>
       </div>
     </div>
@@ -1003,9 +1003,9 @@ body { background: var(--bg); min-height: 100vh; }
         <div style="display:flex;flex-direction:column;gap:4px;">
           <div style="font-size:8.5px;letter-spacing:0.10em;text-transform:uppercase;color:rgba(255,255,255,0.36);font-weight:700;display:flex;align-items:center;gap:6px;">
             ${label}
-            ${has ? '<span style="padding:1px 5px;font-size:7.5px;background:linear-gradient(135deg,#A888CC,#5E5CE6);color:#fff;border-radius:3px;letter-spacing:0.06em;">Cloud</span>' : ''}
+            ${has ? '<span style="padding:1px 5px;font-size:7.5px;background:linear-gradient(135deg,#7C5CF6,#5E5CE6);color:#fff;border-radius:3px;letter-spacing:0.06em;">Cloud</span>' : ''}
           </div>
-          <div class="variant-slot-img" data-variant="${variant}" style="aspect-ratio:${ratioCss};border-radius:8px;background:linear-gradient(180deg,#1E1E2A 0%,#0A0A12 100%);overflow:hidden;border:0.5px solid ${has ? 'rgba(168,136,204,0.30)' : 'rgba(255,255,255,0.06)'};position:relative;">
+          <div class="variant-slot-img" data-variant="${variant}" style="aspect-ratio:${ratioCss};border-radius:8px;background:linear-gradient(180deg,#1E1E2A 0%,#0A0A12 100%);overflow:hidden;border:0.5px solid ${has ? 'rgba(124,92,246,0.30)' : 'rgba(255,255,255,0.06)'};position:relative;">
             <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-display,-apple-system);font-weight:900;font-size:28px;color:rgba(255,255,255,0.10);">${initial}</div>
             <img src="${url}" alt="${safeName}" onerror="this.remove()" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;">
           </div>
@@ -1460,7 +1460,7 @@ function generateDefaultAvatar(name) {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#1a1a2e';
   ctx.beginPath(); ctx.arc(44, 44, 44, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#A888CC';
+  ctx.fillStyle = '#7C5CF6';
   ctx.font = 'bold 30px Inter, sans-serif';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(initials, 44, 46);

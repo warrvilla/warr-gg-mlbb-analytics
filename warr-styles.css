@@ -31,10 +31,10 @@
   --border3:  rgba(255,255,255,0.18);
 
   /* Amethyst — muted, precious, not fluorescent */
-  --accent:        #A888CC;
-  --accent-dim:    rgba(168,136,204,0.09);
-  --accent-glow:   rgba(168,136,204,0.22);
-  --accent-border: rgba(168,136,204,0.22);
+  --accent:        #7C5CF6;
+  --accent-dim:    rgba(124,92,246,0.09);
+  --accent-glow:   rgba(124,92,246,0.22);
+  --accent-border: rgba(124,92,246,0.22);
 
   /* Sage mint — calm, refined */
   --neon:        #4CB87A;
@@ -63,9 +63,9 @@
   --green:         #4CB87A;
   --green-dim:     rgba(76,184,122,0.09);
   --green-border:  rgba(76,184,122,0.22);
-  --purple:        #A888CC;
-  --purple-dim:    rgba(168,136,204,0.09);
-  --purple-border: rgba(168,136,204,0.20);
+  --purple:        #7C5CF6;
+  --purple-dim:    rgba(124,92,246,0.09);
+  --purple-border: rgba(124,92,246,0.20);
   --cyan:          #5AB8D8;
   --teal:          #4AAABB;
   --orange:        #C89050;
@@ -130,7 +130,7 @@ body::before {
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(ellipse 60% 50% at 15% 15%, rgba(168,136,204,0.08) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 50% at 15% 15%, rgba(124,92,246,0.08) 0%, transparent 65%),
     radial-gradient(ellipse 50% 55% at 85% 78%, rgba(94,160,216,0.06) 0%, transparent 65%),
     radial-gradient(ellipse 40% 35% at 55% 40%, rgba(120,120,200,0.04) 0%, transparent 60%);
   pointer-events: none;
@@ -184,15 +184,15 @@ img.nav-brand-mark {
   box-shadow: none;
 }
 img.nav-brand-mark.loaded {
-  box-shadow: 0 0 12px rgba(168,136,204,0.25);
+  box-shadow: 0 0 12px rgba(124,92,246,0.25);
 }
 /* <span> form: only used as the onerror fallback when the logo file isn't
    deployed yet. Keeps the brand W look so the nav never renders empty. */
 span.nav-brand-mark {
   border-radius: 6px;
-  background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
+  background: linear-gradient(135deg, #7C5CF6 0%, #5E5CE6 100%);
   box-shadow:
-    0 0 12px rgba(168,136,204,0.45),
+    0 0 12px rgba(124,92,246,0.45),
     inset 0 1px 0 rgba(255,255,255,0.25);
   font-family: var(--font-display);
   font-size: 11px; font-weight: 900; color: #fff; letter-spacing: 0;
@@ -246,8 +246,8 @@ span.nav-brand-mark {
 }
 .nav-link.active {
   color: var(--text);
-  background: rgba(168,136,204,0.13);
-  box-shadow: inset 0 0 0 0.5px rgba(168,136,204,0.24);
+  background: rgba(124,92,246,0.13);
+  box-shadow: inset 0 0 0 0.5px rgba(124,92,246,0.24);
 }
 
 /* Nav right */
@@ -290,7 +290,7 @@ span.nav-brand-mark {
 #authChip .wauth-signin {
   padding: 6px 16px; font-size: 13px; font-weight: 500;
   letter-spacing: -0.01em; text-transform: none;
-  background: linear-gradient(135deg, #C4A4DE 0%, #9868C0 60%, #B090D4 100%);
+  background: linear-gradient(135deg, #A78BFA 0%, #6D5CE6 60%, #9B86F5 100%);
   color: #fff;
   border: none; border-radius: var(--pill);
   cursor: pointer; transition: all 0.22s ease;
@@ -298,7 +298,7 @@ span.nav-brand-mark {
   box-shadow: 0 4px 18px rgba(152,104,192,0.30), inset 0 1px 0 rgba(255,255,255,0.20);
 }
 #authChip .wauth-signin:hover {
-  background: linear-gradient(135deg, #CEB0E8 0%, #A878CC 60%, #BCA0DC 100%);
+  background: linear-gradient(135deg, #B9A6FF 0%, #7C5CF6 60%, #A78BFA 100%);
   box-shadow: 0 4px 24px rgba(152,104,192,0.40), inset 0 1px 0 rgba(255,255,255,0.22);
   transform: translateY(-1px);
 }
@@ -367,13 +367,13 @@ span.nav-brand-mark {
 }
 
 .btn-accent {
-  background: rgba(168,136,204,0.13);
-  border-color: rgba(168,136,204,0.24);
+  background: rgba(124,92,246,0.13);
+  border-color: rgba(124,92,246,0.24);
   color: var(--accent);
 }
 .btn-accent:hover {
-  background: rgba(168,136,204,0.20);
-  box-shadow: 0 4px 20px rgba(168,136,204,0.18), inset 0 1px 0 rgba(255,255,255,0.07);
+  background: rgba(124,92,246,0.20);
+  box-shadow: 0 4px 20px rgba(124,92,246,0.18), inset 0 1px 0 rgba(255,255,255,0.07);
 }
 .btn-neon {
   background: rgba(76,184,122,0.13);
@@ -509,7 +509,7 @@ span.nav-brand-mark {
 .mobile-nav-link:last-child { border-bottom: none; }
 .mobile-nav-link.active {
   color: var(--text);
-  background: rgba(168,136,204,0.12);
+  background: rgba(124,92,246,0.12);
   border-radius: 8px;
 }
 

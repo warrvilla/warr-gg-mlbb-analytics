@@ -14,7 +14,7 @@
 :root {
     --bg:#07070C; --bg2:#0B0B12; --surface:#101018; --surface2:#161620; --surface3:#1E1E2A; --surface4:#272734;
     --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.07); --border3:rgba(255,255,255,0.11);
-    --accent:#A888CC; --accent-dim:rgba(168,136,204,0.09); --accent-glow:rgba(168,136,204,0.22); --accent-border:rgba(168,136,204,0.22);
+    --accent:#7C5CF6; --accent-dim:rgba(124,92,246,0.09); --accent-glow:rgba(124,92,246,0.22); --accent-border:rgba(124,92,246,0.22);
   --neon:#4CB87A; --neon-dim:rgba(76,184,122,0.09); --neon-glow:rgba(76,184,122,0.20); --neon-border:rgba(76,184,122,0.22);
   --blue:#5EA0D8; --blue-dim:rgba(94,160,216,0.09); --blue-border:rgba(94,160,216,0.22); --blue-glow:rgba(94,160,216,0.18);
   --red:#D87880; --red-dim:rgba(216,120,128,0.09); --red-border:rgba(216,120,128,0.22);
@@ -22,7 +22,7 @@
   --green:#34D399; --purple:#A78BFA; --cyan:#22D3EE; --orange:#F97316;
   --text:#F0F0F8; --text2:rgba(240,240,248,0.54); --text3:rgba(240,240,248,0.28); --text4:rgba(240,240,248,0.12);
   --font-head:-apple-system,'SF Pro Display','Inter',sans-serif; --font-body:'Inter',sans-serif; --font-mono:'JetBrains Mono',monospace;
-  --ban-red:#D87880; --accent-main:#A888CC;
+  --ban-red:#D87880; --accent-main:#7C5CF6;
   --r:12px; --r2:18px; --r3:24px; --nav-h:52px;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -169,7 +169,7 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
 .lane-section-cards { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 8px; }
 .hero-grid::-webkit-scrollbar { width: 4px; } .hero-grid::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 .hero-card { border: 1px solid var(--border); border-radius: 8px; padding: 7px 6px 6px; cursor: pointer; transition: all .12s; text-align: center; background: var(--surface2); position: relative; user-select: none; overflow: hidden; width: 130px; height: 152px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
-.hero-card:hover:not(.banned):not(.picked) { border-color: var(--accent); background: var(--accent-dim); transform: translateY(-2px); box-shadow: 0 4px 16px rgba(168,136,204,0.11); }
+.hero-card:hover:not(.banned):not(.picked) { border-color: var(--accent); background: var(--accent-dim); transform: translateY(-2px); box-shadow: 0 4px 16px rgba(124,92,246,0.11); }
 @media (hover: none) {
   .hero-card:active:not(.banned):not(.picked):not(.lkd) { border-color: var(--accent); background: var(--accent-dim); }
 }
@@ -390,7 +390,7 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system,'SF
   transition: all 0.18s ease; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
 }
 .settings-gear-btn:hover { background: rgba(255,255,255,0.10); color: var(--text); }
-.settings-gear-btn.open { background: rgba(168,136,204,0.10); border-color: rgba(168,136,204,0.25); color: var(--accent); }
+.settings-gear-btn.open { background: rgba(124,92,246,0.10); border-color: rgba(124,92,246,0.25); color: var(--accent); }
 .settings-panel {
   background: rgba(10,10,18,0.95); backdrop-filter: blur(30px) saturate(130%);
   -webkit-backdrop-filter: blur(30px) saturate(130%);
@@ -532,7 +532,7 @@ body::after {
   background:
     radial-gradient(ellipse 55% 45% at 5% 10%, rgba(94,160,216,0.08) 0%, transparent 60%),
     radial-gradient(ellipse 45% 50% at 95% 85%, rgba(216,120,128,0.08) 0%, transparent 60%),
-    radial-gradient(ellipse 40% 35% at 50% 50%, rgba(168,136,204,0.07) 0%, transparent 55%);
+    radial-gradient(ellipse 40% 35% at 50% 50%, rgba(124,92,246,0.07) 0%, transparent 55%);
 }
 body > *:not(body::after) { position:relative; z-index:1; }
 
@@ -592,8 +592,8 @@ body > *:not(body::after) { position:relative; z-index:1; }
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.06) !important;
 }
 .settings-gear-btn.open {
-  background: rgba(168,136,204,0.10) !important;
-  border-color: rgba(168,136,204,0.24) !important;
+  background: rgba(124,92,246,0.10) !important;
+  border-color: rgba(124,92,246,0.24) !important;
   color: var(--accent) !important;
 }
 
@@ -732,7 +732,7 @@ input[type=text], input[type=search], .search-input {
   color: var(--text) !important;
   font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
 }
-input:focus { border-color: rgba(168,136,204,0.22) !important; box-shadow: 0 0 0 3px rgba(168,136,204,0.08) !important; }
+input:focus { border-color: rgba(124,92,246,0.22) !important; box-shadow: 0 0 0 3px rgba(124,92,246,0.08) !important; }
 
 /* ── LANE / ROLE FILTER BUTTONS ── */
 .lane-btn, .role-btn, .filter-pill {
@@ -743,8 +743,8 @@ input:focus { border-color: rgba(168,136,204,0.22) !important; box-shadow: 0 0 0
   letter-spacing: -0.01em !important;
 }
 .lane-btn.active, .role-btn.active, .filter-pill.active {
-  background: rgba(168,136,204,0.09) !important;
-  border-color: rgba(168,136,204,0.24) !important;
+  background: rgba(124,92,246,0.09) !important;
+  border-color: rgba(124,92,246,0.24) !important;
   color: var(--accent) !important;
 }
 
@@ -759,11 +759,11 @@ input:focus { border-color: rgba(168,136,204,0.22) !important; box-shadow: 0 0 0
   background: var(--accent) !important;
   border: none !important;
   color: #fff !important;
-  box-shadow: 0 4px 16px rgba(168,136,204,0.24), inset 0 1px 0 rgba(255,255,255,0.11) !important;
+  box-shadow: 0 4px 16px rgba(124,92,246,0.24), inset 0 1px 0 rgba(255,255,255,0.11) !important;
 }
 .btn-primary:not(:disabled):hover, .btn-accent:not(:disabled):hover {
   background: #B898D8 !important;
-  box-shadow: 0 4px 24px rgba(168,136,204,0.28), inset 0 1px 0 rgba(255,255,255,0.12) !important;
+  box-shadow: 0 4px 24px rgba(124,92,246,0.28), inset 0 1px 0 rgba(255,255,255,0.12) !important;
   transform: translateY(-1px) !important;
 }
 .btn-ghost {
@@ -857,7 +857,7 @@ select {
     <button class="side-opt" id="sideBlue" onclick="setOurSide('blue')">Blue</button>
     <button class="side-opt" id="sideRed" onclick="setOurSide('red')">Red</button>
     <div style="width:1px;height:14px;background:rgba(255,255,255,.08);margin:0 4px;flex-shrink:0;"></div>
-    <button class="sb-btn" id="aiBattleBtn" onclick="toggleAIBattle()" style="border-color:rgba(139,92,246,.35);background:rgba(139,92,246,.07);color:#A888CC;" title="AI will auto-draft against you">AI Draft</button>
+    <button class="sb-btn" id="aiBattleBtn" onclick="toggleAIBattle()" style="border-color:rgba(139,92,246,.35);background:rgba(139,92,246,.07);color:#7C5CF6;" title="AI will auto-draft against you">AI Draft</button>
     <div id="aiSideSelector" style="display:none;align-items:center;gap:4px;padding:3px 8px;background:rgba(139,92,246,.07);border:1px solid rgba(139,92,246,.28);border-radius:10px;">
       <span style="font-size:9px;color:rgba(255,255,255,.4);font-weight:600;letter-spacing:.1em;text-transform:uppercase;">AI Side</span>
       <button class="side-opt" id="aiSideBlue" onclick="setAISide('blue')">Blue</button>
@@ -944,8 +944,8 @@ select {
     </div>
     <div class="hero-grid" id="heroGrid"></div>
     <div class="predict-panel" id="predictionPanel" style="display:none;margin:0 8px 4px;"></div>
-    <div id="coachPanel" style="margin:0 8px 4px;padding:8px 10px;border:0.5px solid rgba(168,136,204,0.22);border-radius:10px;background:rgba(168,136,204,0.05);min-height:0;"></div>
-    <div id="scoutIntelPanel" style="display:none;margin:0 8px 4px;padding:8px 10px;border:0.5px solid rgba(168,136,204,0.18);border-radius:10px;background:rgba(168,136,204,0.04);font-size:11px;line-height:1.45;"></div>
+    <div id="coachPanel" style="margin:0 8px 4px;padding:8px 10px;border:0.5px solid rgba(124,92,246,0.22);border-radius:10px;background:rgba(124,92,246,0.05);min-height:0;"></div>
+    <div id="scoutIntelPanel" style="display:none;margin:0 8px 4px;padding:8px 10px;border:0.5px solid rgba(124,92,246,0.18);border-radius:10px;background:rgba(124,92,246,0.04);font-size:11px;line-height:1.45;"></div>
     <div class="action-bar" style="border-top:1px solid var(--border);">
       <button class="btn btn-reset" onclick="cancelCurrentGame()">✕ New Game</button>
       <button class="btn btn-ghost" onclick="undoLast()">← Undo</button>
@@ -1602,7 +1602,7 @@ function renderPool(){
 
   // Lane / Role toggle filter
   const DB_ROLES=['All','MM','Mage','Support','Tank','Assassin','Fighter'];
-  const DB_ROLE_COLS={MM:'#C89050',Mage:'#A888CC',Support:'#4CB87A',Tank:'#5EA0D8',Assassin:'#D87880',Fighter:'#C89050'};
+  const DB_ROLE_COLS={MM:'#C89050',Mage:'#7C5CF6',Support:'#4CB87A',Tank:'#5EA0D8',Assassin:'#D87880',Fighter:'#C89050'};
   const isLaneMode = heroFilterMode !== 'role';
   const filterOptions = isLaneMode ? ['All','Gold','Jungle','Mid','EXP','Roam'] : DB_ROLES;
 
@@ -1727,7 +1727,7 @@ function renderScoutIntelPanel(){
                                    `${x.count||0}g${wrPct?` · ${wrPct}% WR`:''}`;
     const opacity = used ? 0.35 : 1;
     const onclick = used ? '' : ` onclick="(()=>{const h=FINAL_HEROES.find(z=>z.name==='${x.name.replace(/'/g,"\\'")}');if(h)selectHero(h.id);})()"`;
-    return `<span style="display:inline-flex;flex-direction:column;align-items:flex-start;padding:4px 8px;margin:2px 4px 2px 0;border:0.5px solid rgba(168,136,204,0.25);border-radius:8px;background:rgba(168,136,204,0.06);cursor:${used?'default':'pointer'};opacity:${opacity};"${onclick}><span style="font-weight:600;color:var(--text);">${x.name}</span><span style="font-size:9px;color:var(--text3);">${sub}</span></span>`;
+    return `<span style="display:inline-flex;flex-direction:column;align-items:flex-start;padding:4px 8px;margin:2px 4px 2px 0;border:0.5px solid rgba(124,92,246,0.25);border-radius:8px;background:rgba(124,92,246,0.06);cursor:${used?'default':'pointer'};opacity:${opacity};"${onclick}><span style="font-weight:600;color:var(--text);">${x.name}</span><span style="font-size:9px;color:var(--text3);">${sub}</span></span>`;
   };
   const row = (label, items, kind) => items.length
     ? `<div style="margin-top:4px;"><span style="display:inline-block;min-width:90px;color:var(--text3);font-size:10px;letter-spacing:.04em;text-transform:uppercase;">${label}</span>${items.map(x=>chip(x,kind)).join('')}</div>`
@@ -1743,7 +1743,7 @@ function renderScoutIntelPanel(){
   if (!blocks.length){ panel.style.display='none'; return; }
 
   panel.style.display = 'block';
-  panel.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="font-size:11px;font-weight:700;color:#A888CC;letter-spacing:.04em;">SCOUT INTEL</span><span style="font-size:9px;color:var(--text3);">${intel.n} games · click a chip to pick</span></div>${blocks.join('')}`;
+  panel.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><span style="font-size:11px;font-weight:700;color:#7C5CF6;letter-spacing:.04em;">SCOUT INTEL</span><span style="font-size:9px;color:var(--text3);">${intel.n} games · click a chip to pick</span></div>${blocks.join('')}`;
 }
 
 function undoLast(){
@@ -3434,11 +3434,11 @@ function renderCoachPanelDB(){
     if (r.startsWith('[PROTECT]'))           return {key:'protect', label:'PROTECT', col:'#D87880'};
     if (r.startsWith('Counters '))           return {key:'counter', label:'COUNTER', col:'#5EA0D8'};
     if (r.startsWith('Pairs with '))         return {key:'synergy', label:'SYNERGY', col:'#4CB87A'};
-    if (r.startsWith('Common scout response'))return {key:'response',label:'RESPONSE',col:'#A888CC'};
+    if (r.startsWith('Common scout response'))return {key:'response',label:'RESPONSE',col:'#7C5CF6'};
     if (/signature pick/i.test(r))           return {key:'comfort', label:'COMFORT', col:'#C89050'};
     if (/must remove|priority ban/i.test(r)) return {key:'must',    label:'MUST',    col:'#D87880'};
-    if (step.type==='ban')                    return {key:'tier',    label:'BAN',     col:'#A888CC'};
-    return {key:'tier', label:'PICK', col:'#A888CC'};
+    if (step.type==='ban')                    return {key:'tier',    label:'BAN',     col:'#7C5CF6'};
+    return {key:'tier', label:'PICK', col:'#7C5CF6'};
   };
 
   if (!sugg.length){
@@ -3453,7 +3453,7 @@ function renderCoachPanelDB(){
   }).join('');
 
   panel.style.display = 'block';
-  panel.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;color:#A888CC;">COACH SUGGESTIONS — ${step.type.toUpperCase()}</span><span style="font-size:9px;font-weight:600;padding:1px 7px;border:0.5px solid ${tCol};border-radius:10px;color:${tCol};">${tName}</span><span style="font-size:9px;color:var(--text3);">${intel.n||0} games of scout data</span></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;">${chips}</div>`;
+  panel.innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;color:#7C5CF6;">COACH SUGGESTIONS — ${step.type.toUpperCase()}</span><span style="font-size:9px;font-weight:600;padding:1px 7px;border:0.5px solid ${tCol};border-radius:10px;color:${tCol};">${tName}</span><span style="font-size:9px;color:var(--text3);">${intel.n||0} games of scout data</span></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px;">${chips}</div>`;
 }
 
 function getScoutTeamProfile(teamName) {

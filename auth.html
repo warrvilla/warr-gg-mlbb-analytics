@@ -11,7 +11,7 @@
 :root {
   --bg:#07070C; --bg2:#0B0B12; --surface:#101018; --surface2:#161620; --surface3:#1E1E2A; --surface4:#272734;
   --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.11); --border3:rgba(255,255,255,0.12);
-  --accent:#A888CC; --accent-dim:rgba(168,136,204,0.09); --accent-glow:rgba(168,136,204,0.22); --accent-border:rgba(168,136,204,0.22);
+  --accent:#7C5CF6; --accent-dim:rgba(124,92,246,0.09); --accent-glow:rgba(124,92,246,0.22); --accent-border:rgba(124,92,246,0.22);
   --blue:#5EA0D8; --blue-dim:rgba(94,160,216,0.09); --blue-border:rgba(94,160,216,0.22); --blue-glow:rgba(94,160,216,0.18);
   --red:#D87880; --red-dim:rgba(216,120,128,0.09); --red-border:rgba(216,120,128,0.22);
   --gold:#C89050; --gold-dim:rgba(200,144,80,0.09); --gold-border:rgba(200,144,80,0.22);
@@ -81,7 +81,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-hei
   outline:none;
   transition:border-color .15s, box-shadow .15s;
 }
-.form-input:focus{border-color:rgba(168,136,204,0.28);box-shadow:0 0 0 3px rgba(168,136,204,0.09);}
+.form-input:focus{border-color:rgba(124,92,246,0.28);box-shadow:0 0 0 3px rgba(124,92,246,0.09);}
 .form-input::placeholder{color:rgba(240,244,255,0.22);}
 .form-input.err{border-color:rgba(216,120,128,0.50);box-shadow:0 0 0 3px rgba(216,120,128,0.09);}
 
@@ -103,9 +103,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-hei
   letter-spacing:-0.01em;text-transform:none;
   background:var(--accent);border:none;color:#fff;
   border-radius:9999px;cursor:pointer;transition:all .2s;
-  box-shadow:0 4px 20px rgba(168,136,204,0.22), inset 0 1px 0 rgba(255,255,255,0.12);
+  box-shadow:0 4px 20px rgba(124,92,246,0.22), inset 0 1px 0 rgba(255,255,255,0.12);
 }
-.submit-btn:hover{background:#B898D8;box-shadow:0 4px 28px rgba(168,136,204,0.30);transform:translateY(-1px);}
+.submit-btn:hover{background:#B898D8;box-shadow:0 4px 28px rgba(124,92,246,0.30);transform:translateY(-1px);}
 .submit-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none;}
 
 /* ── MESSAGE ── */
@@ -162,7 +162,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-hei
 body::after{
   content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
   background:
-    radial-gradient(ellipse 55% 50% at 15% 20%, rgba(168,136,204,0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 55% 50% at 15% 20%, rgba(124,92,246,0.10) 0%, transparent 60%),
     radial-gradient(ellipse 45% 45% at 85% 80%, rgba(94,160,216,0.08) 0%, transparent 60%);
 }
 body>*{position:relative;z-index:1;}
@@ -208,7 +208,7 @@ body>*{position:relative;z-index:1;}
           </button>
         </form>
         <div class="invite-note">
-          New to Warr.GG? <button type="button" onclick="showPanel('signup')" style="background:none;border:none;color:#A888CC;font-weight:700;font-size:inherit;cursor:pointer;text-decoration:underline;font-family:inherit;">Create a free account</button> — 3 AI analyses a month, full draft arena, no card needed.
+          New to Warr.GG? <button type="button" onclick="showPanel('signup')" style="background:none;border:none;color:#7C5CF6;font-weight:700;font-size:inherit;cursor:pointer;text-decoration:underline;font-family:inherit;">Create a free account</button> — 3 AI analyses a month, full draft arena, no card needed.
         </div>
         <div style="text-align:center;margin-top:12px;">
           <button type="button" onclick="showPanel('reset')" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;text-decoration:underline;font-family:var(--font-body);">Forgot password / First time? Set your password</button>

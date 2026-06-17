@@ -122,7 +122,7 @@ body { background: var(--bg); min-height: 100vh; }
 }
 .role-badge.Gold   { background: rgba(200,144,80,.15);  color: #C89050; border-color: rgba(200,144,80,.35); }
 .role-badge.Jungle { background: rgba(76,184,122,.15);  color: #4CB87A; border-color: rgba(76,184,122,.35); }
-.role-badge.Mid    { background: rgba(168,136,204,.15); color: #A888CC; border-color: rgba(168,136,204,.35); }
+.role-badge.Mid    { background: rgba(124,92,246,.15); color: #7C5CF6; border-color: rgba(124,92,246,.35); }
 .role-badge.EXP    { background: rgba(94,160,216,.15);  color: #5EA0D8; border-color: rgba(94,160,216,.35); }
 .role-badge.Roam   { background: rgba(216,120,128,.15); color: #D87880; border-color: rgba(216,120,128,.35); }
 .role-select {
@@ -201,16 +201,16 @@ body { background: var(--bg); min-height: 100vh; }
 .tm-hd{text-align:center;margin:6px 0 22px;position:relative;}
 .tm-hd::before{content:'';position:absolute;left:50%;top:-50px;transform:translateX(-50%);
   width:520px;height:220px;max-width:90vw;border-radius:50%;
-  background:radial-gradient(ellipse,rgba(168,136,204,.14) 0%,rgba(94,92,230,.06) 45%,transparent 72%);
+  background:radial-gradient(ellipse,rgba(124,92,246,.14) 0%,rgba(94,92,230,.06) 45%,transparent 72%);
   pointer-events:none;}
 .tm-pill{display:inline-flex;align-items:center;gap:7px;padding:4px 12px;border-radius:999px;
-  background:rgba(168,136,204,.08);border:0.5px solid rgba(168,136,204,.3);
+  background:rgba(124,92,246,.08);border:0.5px solid rgba(124,92,246,.3);
   font-family:var(--font-mono,monospace);font-size:8.5px;font-weight:700;letter-spacing:.18em;
-  color:#A888CC;margin-bottom:10px;text-transform:uppercase;}
+  color:#7C5CF6;margin-bottom:10px;text-transform:uppercase;}
 .tm-dot{width:6px;height:6px;border-radius:50%;background:#4ade80;box-shadow:0 0 8px #4ade80;}
 .tm-title{font-family:var(--font-display,-apple-system);font-weight:900;font-size:32px;line-height:1;
   letter-spacing:-0.02em;color:var(--text);}
-.tm-title em{font-style:normal;background:linear-gradient(135deg,#A888CC 0%,#5E5CE6 100%);
+.tm-title em{font-style:normal;background:linear-gradient(135deg,#7C5CF6 0%,#5E5CE6 100%);
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
 .tm-sub{font-size:12px;color:rgba(240,240,248,.5);margin-top:8px;max-width:480px;margin-left:auto;margin-right:auto;line-height:1.5;}
 /* silk-glass cards */
@@ -690,7 +690,7 @@ function renderHeroPool() {
     return '<div class="empty-state"><div class="empty-icon">📭</div><div>No tagged match data found for this player.<br><span style="font-size:11px;color:var(--text3);">Tag players in Scout match entries to build their hero pool.</span></div></div>';
   }
 
-  const LANE_COLORS = { Gold:'#C89050', Jungle:'#4CB87A', Mid:'#A888CC', EXP:'#5EA0D8', Roam:'#D87880', Unknown:'#8888AA' };
+  const LANE_COLORS = { Gold:'#C89050', Jungle:'#4CB87A', Mid:'#7C5CF6', EXP:'#5EA0D8', Roam:'#D87880', Unknown:'#8888AA' };
   const laneOrder   = ['Gold','Jungle','Mid','EXP','Roam','Unknown'];
   const orderedRoles = laneOrder.filter(l => byRole[l]).concat(Object.keys(byRole).filter(l => !laneOrder.includes(l)));
 

@@ -1409,7 +1409,7 @@ WDB.teamLogo = function(name){
 WDB.teamMonogram = function(name){
   const n = String(name||'?');
   const init = n.split(/\s+/).map(w=>w[0]||'').join('').slice(0,2).toUpperCase() || '?';
-  const colors = ['#5E5CE6','#A888CC','#4CB87A','#C89050','#5E9CE6','#D87880','#4AAABB','#7878CC'];
+  const colors = ['#5E5CE6','#7C5CF6','#4CB87A','#C89050','#5E9CE6','#D87880','#4AAABB','#7878CC'];
   let h=0; for (const c of n) h=(h*31+c.charCodeAt(0))>>>0;
   return { init, color: colors[h%colors.length] };
 };

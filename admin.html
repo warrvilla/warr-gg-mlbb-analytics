@@ -445,7 +445,7 @@ DELETE FROM auth.users WHERE id = 'USER_UUID';</div>
         <div style="font-size:11px;opacity:.6;">10 AI analyses / month · No charge</div>
       </button>
       <button onclick="confirmGrantPlan('pro')"
-        style="padding:14px 20px;border-radius:12px;text-align:left;border:1px solid var(--purple-border);background:rgba(168,136,204,.08);color:var(--purple);cursor:pointer;font-size:13px;">
+        style="padding:14px 20px;border-radius:12px;text-align:left;border:1px solid var(--purple-border);background:rgba(124,92,246,.08);color:var(--purple);cursor:pointer;font-size:13px;">
         <div style="font-weight:700;margin-bottom:2px;">Pro</div>
         <div style="font-size:11px;opacity:.7;">50 AI analyses / month · $9.99/mo</div>
       </button>
@@ -815,12 +815,12 @@ function renderAnalytics() {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
       <div>
         <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);margin-bottom:6px;">AGE DEMOGRAPHICS${d.medianAge ? ` · median ${d.medianAge}` : ''} · ${d.ages}/${d.users} provided</div>
-        ${Object.entries(d.buckets).map(([l, n]) => _bar(l, n, maxB, 'linear-gradient(90deg,#A888CC,#5E5CE6)')).join('')}
+        ${Object.entries(d.buckets).map(([l, n]) => _bar(l, n, maxB, 'linear-gradient(90deg,#7C5CF6,#5E5CE6)')).join('')}
       </div>
       <div>
         <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);margin-bottom:6px;">SIGNUPS · LAST 8 WEEKS</div>
         <div style="display:flex;align-items:flex-end;gap:6px;height:84px;padding:4px 0;">
-          ${d.weeks.map(n => `<div title="${n} signups" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:9px;color:var(--text3);">${n || ''}</span><span style="width:100%;border-radius:4px 4px 0 0;background:linear-gradient(180deg,#5E5CE6,#A888CC);height:${Math.max(3, Math.round(n / maxW * 60))}px;"></span></div>`).join('')}
+          ${d.weeks.map(n => `<div title="${n} signups" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;"><span style="font-size:9px;color:var(--text3);">${n || ''}</span><span style="width:100%;border-radius:4px 4px 0 0;background:linear-gradient(180deg,#5E5CE6,#7C5CF6);height:${Math.max(3, Math.round(n / maxW * 60))}px;"></span></div>`).join('')}
         </div>
       </div>
     </div>

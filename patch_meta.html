@@ -13,7 +13,7 @@
 :root {
     --bg:#07070C; --bg2:#0B0B12; --surface:#101018; --surface2:#161620; --surface3:#1E1E2A; --surface4:#272734;
     --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.07); --border3:rgba(255,255,255,0.11);
-    --accent:#A888CC; --accent-dim:rgba(168,136,204,0.09); --accent-glow:rgba(168,136,204,0.22); --accent-border:rgba(168,136,204,0.22);
+    --accent:#7C5CF6; --accent-dim:rgba(124,92,246,0.09); --accent-glow:rgba(124,92,246,0.22); --accent-border:rgba(124,92,246,0.22);
   --neon:#4CB87A; --neon-dim:rgba(76,184,122,0.09); --neon-glow:rgba(76,184,122,0.20); --neon-border:rgba(76,184,122,0.22);
   --blue:#5EA0D8; --blue2:#3B82F6; --blue-dim:rgba(94,160,216,0.09); --blue-border:rgba(94,160,216,0.22); --blue-glow:rgba(94,160,216,0.18);
   --red:#D87880; --red-dim:rgba(216,120,128,0.09); --red-border:rgba(216,120,128,0.22);
@@ -218,7 +218,7 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);min-h
 body::after {
   content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
   background:
-    radial-gradient(ellipse 55% 50% at 0% 0%,   rgba(168,136,204,0.09) 0%, transparent 60%),
+    radial-gradient(ellipse 55% 50% at 0% 0%,   rgba(124,92,246,0.09) 0%, transparent 60%),
     radial-gradient(ellipse 45% 40% at 100% 90%, rgba(94,160,216,0.07) 0%, transparent 60%),
     radial-gradient(ellipse 35% 35% at 70% 40%,  rgba(255,159,10,0.06) 0%, transparent 55%);
 }
@@ -255,7 +255,7 @@ body::after {
   color: var(--text2) !important;
 }
 .patch-entry.active {
-  background: rgba(168,136,204,0.08) !important;
+  background: rgba(124,92,246,0.08) !important;
   color: var(--accent) !important;
   border-left-color: var(--accent) !important;
 }
@@ -273,8 +273,8 @@ body::after {
   padding: 1px 8px !important;
 }
 .patch-entry.active .patch-games {
-  background: rgba(168,136,204,0.09) !important;
-  border-color: rgba(168,136,204,0.28) !important;
+  background: rgba(124,92,246,0.09) !important;
+  border-color: rgba(124,92,246,0.28) !important;
   color: var(--accent) !important;
 }
 
@@ -290,9 +290,9 @@ body::after {
   background: rgba(255,255,255,0.03) !important;
 }
 .sidebar-add-btn:hover {
-  border-color: rgba(168,136,204,0.24) !important;
+  border-color: rgba(124,92,246,0.24) !important;
   color: var(--accent) !important;
-  background: rgba(168,136,204,0.08) !important;
+  background: rgba(124,92,246,0.08) !important;
 }
 
 /* ── MAIN CONTENT ── */
@@ -434,9 +434,9 @@ body::after {
 .btn-accent {
   background: var(--accent) !important;
   border: none !important; color: #fff !important;
-  box-shadow: 0 4px 16px rgba(168,136,204,0.24), inset 0 1px 0 rgba(255,255,255,0.11) !important;
+  box-shadow: 0 4px 16px rgba(124,92,246,0.24), inset 0 1px 0 rgba(255,255,255,0.11) !important;
 }
-.btn-accent:not(:disabled):hover { background: #B898D8 !important; transform: translateY(-1px) !important; box-shadow: 0 4px 24px rgba(168,136,204,0.28) !important; }
+.btn-accent:not(:disabled):hover { background: #B898D8 !important; transform: translateY(-1px) !important; box-shadow: 0 4px 24px rgba(124,92,246,0.28) !important; }
 .btn-ghost {
   background: rgba(255,255,255,0.07) !important;
   border: 0.5px solid rgba(255,255,255,0.08) !important;
@@ -454,8 +454,8 @@ select, input[type=text] {
   color: var(--text) !important;
 }
 input:focus, select:focus {
-  border-color: rgba(168,136,204,0.22) !important;
-  box-shadow: 0 0 0 3px rgba(168,136,204,0.08) !important;
+  border-color: rgba(124,92,246,0.22) !important;
+  box-shadow: 0 0 0 3px rgba(124,92,246,0.08) !important;
   outline: none !important;
 }
 

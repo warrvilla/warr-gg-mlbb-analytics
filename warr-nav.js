@@ -29,7 +29,7 @@
   // (auth.html, setup-guide.html, counters.html, top100.html) get a
   // sane default instead of rendering an unstyled stack of anchors.
   //
-  // Palette matches warr-styles.css — amethyst accent (#A888CC) on a
+  // Palette matches warr-styles.css — amethyst accent (#7C5CF6) on a
   // glassy black bar. No more legacy gold (#f4a534).
   const BASELINE_CSS = `
     nav.topnav {
@@ -66,15 +66,15 @@
       box-shadow: none;
     }
     nav.topnav img.nav-brand-mark.loaded {
-      box-shadow: 0 0 12px rgba(168,136,204,0.25);
+      box-shadow: 0 0 12px rgba(124,92,246,0.25);
     }
     /* <span> form: only used as the onerror fallback when the logo file
        isn't deployed. Keeps the brand W look so the nav never renders empty. */
     nav.topnav span.nav-brand-mark {
       border-radius: 6px;
-      background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
+      background: linear-gradient(135deg, #7C5CF6 0%, #5E5CE6 100%);
       box-shadow:
-        0 0 12px rgba(168,136,204,0.45),
+        0 0 12px rgba(124,92,246,0.45),
         inset 0 1px 0 rgba(255,255,255,0.25);
       font-family: -apple-system,'SF Pro Display','Inter','Helvetica Neue',sans-serif;
       font-size: 11px; font-weight: 900; color: #fff; letter-spacing: 0;
@@ -85,7 +85,7 @@
       font-weight: 800; letter-spacing: 0.02em;
       font-size: 14px; color: var(--text,#F0F0F8);
     }
-    nav.topnav .nav-brand-text .dot { color: #A888CC; }
+    nav.topnav .nav-brand-text .dot { color: #7C5CF6; }
     nav.topnav .nav-links { display: flex; align-items: center; gap: 2px; flex: 1; }
     nav.topnav .nav-link {
       padding: 5px 12px; font-size: 13px; font-weight: 500;
@@ -100,9 +100,9 @@
       color: var(--text2,rgba(240,240,248,0.78));
     }
     nav.topnav .nav-link.active {
-      background: rgba(168,136,204,0.13);
+      background: rgba(124,92,246,0.13);
       color: #F0F0F8;
-      box-shadow: inset 0 0 0 0.5px rgba(168,136,204,0.24);
+      box-shadow: inset 0 0 0 0.5px rgba(124,92,246,0.24);
     }
     nav.topnav .nav-right { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-shrink: 0; }
     nav.topnav .nav-profile-btn {
@@ -111,7 +111,7 @@
       border: 0.5px solid rgba(255,255,255,0.12); color: var(--text2,#aab);
       background: rgba(255,255,255,0.04); transition: all .15s ease; text-decoration: none;
     }
-    nav.topnav .nav-profile-btn:hover { color: #A888CC; border-color: rgba(168,136,204,0.4); background: rgba(168,136,204,0.1); }
+    nav.topnav .nav-profile-btn:hover { color: #7C5CF6; border-color: rgba(124,92,246,0.4); background: rgba(124,92,246,0.1); }
     .wauth-admin { font-size: 11px; font-weight: 700; color: #C89050; text-decoration: none; padding: 3px 9px; border-radius: 7px; border: 0.5px solid rgba(200,144,80,.35); background: rgba(200,144,80,.08); margin-right: 2px; }
     .wauth-admin:hover { background: rgba(200,144,80,.18); }
     nav.topnav .theme-switcher { display: inline-flex; gap: 2px; padding: 3px; border-radius: 8px; background: rgba(255,255,255,.04); }
@@ -119,7 +119,7 @@
       width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
       border: 0; background: transparent; color: var(--text3,#8a94a8); cursor: pointer; border-radius: 6px;
     }
-    nav.topnav .theme-btn.active { background: rgba(168,136,204,0.15); color: #A888CC; }
+    nav.topnav .theme-btn.active { background: rgba(124,92,246,0.15); color: #7C5CF6; }
     nav.topnav .mobile-menu-btn {
       display: none; background: transparent; border: 0; padding: 8px; cursor: pointer; flex-direction: column; gap: 4px;
     }
@@ -138,7 +138,7 @@
     .mobile-nav .mobile-nav-link {
       padding: 10px 12px; border-radius: 8px; color: var(--text2,#aab3c4); text-decoration: none; font-weight: 500; font-size: 13px;
     }
-    .mobile-nav .mobile-nav-link.active { background: rgba(168,136,204,0.12); color: #F0F0F8; }
+    .mobile-nav .mobile-nav-link.active { background: rgba(124,92,246,0.12); color: #F0F0F8; }
     @media (max-width: 820px) {
       nav.topnav .nav-links { display: none; }
       nav.topnav .mobile-menu-btn { display: inline-flex; }
@@ -187,14 +187,14 @@
   function renderNav() {
     const links = NAV_LINKS.map(l => {
       const cls = 'nav-link' + (isActive(l.href) ? ' active' : '');
-      const style = l.adminOnly ? 'style="display:none;color:#A888CC;"' : '';
+      const style = l.adminOnly ? 'style="display:none;color:#7C5CF6;"' : '';
       const idAttr = l.id ? `id="${l.id}"` : '';
       return `<a class="${cls}" ${idAttr} href="${l.href}" ${style}>${l.label}</a>`;
     }).join('\n    ');
 
     const mobileLinks = NAV_LINKS.map(l => {
       const cls = 'mobile-nav-link' + (isActive(l.href) ? ' active' : '');
-      const style = l.adminOnly ? 'style="display:none;color:#A888CC;"' : '';
+      const style = l.adminOnly ? 'style="display:none;color:#7C5CF6;"' : '';
       const idAttr = l.id ? `id="${l.id}_m"` : '';
       return `<a class="${cls}" ${idAttr} href="${l.href}" ${style}>${l.label}</a>`;
     }).join('\n  ');

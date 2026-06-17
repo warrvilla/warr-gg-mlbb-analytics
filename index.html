@@ -18,12 +18,12 @@
 <style>
 /* ── BRAND TOKENS (mirror warr-styles.css just in case) ── */
 :root {
-  --accent: #A888CC;
+  --accent: #7C5CF6;
   --accent-2: #5E5CE6;
-  --accent-dim: rgba(168,136,204,0.10);
-  --accent-glow: rgba(168,136,204,0.30);
-  --accent-border: rgba(168,136,204,0.22);
-  --tier-s-plus: linear-gradient(135deg, #D87880 0%, #A888CC 100%);
+  --accent-dim: rgba(124,92,246,0.10);
+  --accent-glow: rgba(124,92,246,0.30);
+  --accent-border: rgba(124,92,246,0.22);
+  --tier-s-plus: linear-gradient(135deg, #D87880 0%, #7C5CF6 100%);
   --tier-s: #C89050;
   --tier-a: #5EA0D8;
   --tier-b: #4CB87A;
@@ -56,7 +56,7 @@ body {
   min-height: 100vh;
   /* subtle background atmosphere — nods to galactic horizon w/o the full stage */
   background:
-    radial-gradient(ellipse 70% 50% at 20% 0%, rgba(168,136,204,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 50% at 20% 0%, rgba(124,92,246,0.12) 0%, transparent 60%),
     radial-gradient(ellipse 70% 50% at 80% 100%, rgba(94,92,230,0.08) 0%, transparent 60%),
     #050509;
 }
@@ -162,7 +162,7 @@ body {
 }
 .hero-title em {
   font-style: normal;
-  background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
+  background: linear-gradient(135deg, #7C5CF6 0%, #5E5CE6 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -186,10 +186,10 @@ body {
   text-decoration: none;
   color: #fff;
   border-radius: 9999px;
-  background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
+  background: linear-gradient(135deg, #7C5CF6 0%, #5E5CE6 100%);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.18),
-    0 0 22px rgba(168,136,204,0.45),
+    0 0 22px rgba(124,92,246,0.45),
     0 6px 20px rgba(94,92,230,0.32);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
   cursor: pointer;
@@ -199,7 +199,7 @@ body {
   transform: translateY(-1px);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.22),
-    0 0 30px rgba(168,136,204,0.65),
+    0 0 30px rgba(124,92,246,0.65),
     0 8px 26px rgba(94,92,230,0.40);
 }
 .cta-secondary {
@@ -383,7 +383,7 @@ body {
   border-color: var(--accent-border);
   box-shadow:
     0 8px 24px rgba(0,0,0,0.45),
-    0 0 24px rgba(168,136,204,0.15);
+    0 0 24px rgba(124,92,246,0.15);
 }
 .hero-card-img img {
   position: absolute;
@@ -407,7 +407,7 @@ body {
   color: rgba(255,255,255,0.08);
   text-shadow: 0 2px 18px rgba(0,0,0,0.4);
   background:
-    radial-gradient(ellipse 80% 60% at 50% 30%, var(--hero-tint, rgba(168,136,204,0.30)) 0%, transparent 70%),
+    radial-gradient(ellipse 80% 60% at 50% 30%, var(--hero-tint, rgba(124,92,246,0.30)) 0%, transparent 70%),
     linear-gradient(180deg, rgba(30,30,42,0.85) 0%, rgba(5,5,9,0.95) 100%);
 }
 /* Glass overlay sits ABOVE the portrait so the bottom of the card is darker
@@ -431,7 +431,7 @@ body {
   color: #fff;
   text-shadow: 0 1px 2px rgba(0,0,0,0.4);
 }
-.hero-tier.t-S\+ { background: linear-gradient(135deg, #D87880 0%, #A888CC 100%); box-shadow: 0 2px 8px rgba(216,120,128,0.4); }
+.hero-tier.t-S\+ { background: linear-gradient(135deg, #D87880 0%, #7C5CF6 100%); box-shadow: 0 2px 8px rgba(216,120,128,0.4); }
 .hero-tier.t-S   { background: #C89050; box-shadow: 0 2px 8px rgba(200,144,80,0.3); }
 .hero-tier.t-A   { background: #5EA0D8; box-shadow: 0 2px 8px rgba(94,160,216,0.3); }
 .hero-tier.t-B   { background: #4CB87A; }
@@ -459,7 +459,7 @@ body {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #fff;
-  background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
+  background: linear-gradient(135deg, #7C5CF6 0%, #5E5CE6 100%);
   border-radius: 9999px;
   margin-left: auto;
 }
@@ -515,7 +515,7 @@ body {
 /* ── AI BATTLE CTA ── */
 .ai-battle-cta {
   background:
-    radial-gradient(ellipse 60% 100% at 100% 50%, rgba(168,136,204,0.18) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 100% at 100% 50%, rgba(124,92,246,0.18) 0%, transparent 60%),
     linear-gradient(135deg, rgba(16,16,26,0.85) 0%, rgba(7,7,12,0.95) 100%);
   border: 0.5px solid var(--accent-border);
   border-radius: var(--r2);
@@ -527,7 +527,7 @@ body {
   box-shadow:
     0 8px 32px rgba(0,0,0,0.40),
     inset 0 1px 0 rgba(255,255,255,0.05),
-    0 0 60px rgba(168,136,204,0.10);
+    0 0 60px rgba(124,92,246,0.10);
 }
 .ai-battle-cta h2 {
   font-family: var(--font-display);
@@ -540,7 +540,7 @@ body {
 }
 .ai-battle-cta h2 em {
   font-style: italic;
-  background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
+  background: linear-gradient(135deg, #7C5CF6 0%, #5E5CE6 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -703,7 +703,7 @@ body {
 .modal-foot .add-slide:hover { color: var(--text); border-color: var(--accent-border); }
 .modal-foot .save-slides {
   margin-left: auto;
-  background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
+  background: linear-gradient(135deg, #7C5CF6 0%, #5E5CE6 100%);
   border: 0;
   border-radius: 9999px;
   padding: 9px 22px;
@@ -715,7 +715,7 @@ body {
   cursor: pointer;
 }
 .modal-foot .save-slides:hover {
-  box-shadow: 0 0 22px rgba(168,136,204,0.5);
+  box-shadow: 0 0 22px rgba(124,92,246,0.5);
 }
 
 /* ── RESPONSIVE ── */
@@ -1049,12 +1049,12 @@ function renderMetaHierarchies() {
   // Role-based tint colors so missing-portrait cards still have intentional color identity.
   const LANE_TINT = {
     EXP:    'rgba(216,120,128,0.30)',
-    Jungle: 'rgba(168,136,204,0.32)',
+    Jungle: 'rgba(124,92,246,0.32)',
     Mid:    'rgba(94,160,216,0.32)',
     Gold:   'rgba(200,144,80,0.32)',
     Roam:   'rgba(76,184,122,0.30)',
   };
-  const tint = LANE_TINT[lane] || 'rgba(168,136,204,0.28)';
+  const tint = LANE_TINT[lane] || 'rgba(124,92,246,0.28)';
 
   grid.innerHTML = ranked.map(h => {
     const _hiOK = h.games >= 3; // gate high tiers behind a real sample

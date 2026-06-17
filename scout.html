@@ -13,7 +13,7 @@
 :root {
     --bg:#07070C; --bg2:#0B0B12; --surface:#101018; --surface2:#161620; --surface3:#1E1E2A; --surface4:#272734;
     --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.07); --border3:rgba(255,255,255,0.11);
-    --accent:#A888CC; --accent-dim:rgba(168,136,204,0.09); --accent-glow:rgba(168,136,204,0.22); --accent-border:rgba(168,136,204,0.22);
+    --accent:#7C5CF6; --accent-dim:rgba(124,92,246,0.09); --accent-glow:rgba(124,92,246,0.22); --accent-border:rgba(124,92,246,0.22);
   --neon:#4CB87A; --neon-dim:rgba(76,184,122,0.09); --neon-glow:rgba(76,184,122,0.20); --neon-border:rgba(76,184,122,0.22);
   --blue:#5EA0D8; --blue2:#3B82F6; --blue-dim:rgba(94,160,216,0.09); --blue-border:rgba(94,160,216,0.22); --blue-glow:rgba(94,160,216,0.18);
   --red:#D87880; --red-dim:rgba(216,120,128,0.09); --red-border:rgba(216,120,128,0.22);
@@ -184,7 +184,7 @@ body {
 .form-input:focus, .form-select:focus, .form-textarea:focus {
   outline: none;
   border-color: var(--accent-border);
-  background: rgba(168,136,204,0.07);
+  background: rgba(124,92,246,0.07);
 }
 .form-textarea { resize: vertical; min-height: 58px; }
 .form-select option { background: var(--surface2); }
@@ -346,7 +346,7 @@ body {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(168,136,204,0.35), rgba(94,160,216,0.25), transparent);
+  background: linear-gradient(90deg, transparent, rgba(124,92,246,0.35), rgba(94,160,216,0.25), transparent);
 }
 /* Glass search bar */
 .search-bar {
@@ -416,7 +416,7 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
   backdrop-filter: blur(12px) saturate(120%);
 }
 .glass-input:hover { border-color: var(--border3); background: rgba(255,255,255,0.06); }
-.glass-input:focus { border-color: rgba(168,136,204,.55); background: rgba(255,255,255,0.07); }
+.glass-input:focus { border-color: rgba(124,92,246,.55); background: rgba(255,255,255,0.07); }
 .glass-input::placeholder { color: var(--text4); font-weight: 400; }
 .tower-side-label {
   font-family: var(--font-body); font-size: 11px; font-weight: 500;
@@ -1218,7 +1218,7 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
 body::after {
   content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
   background:
-    radial-gradient(ellipse 50% 45% at 10% 20%, rgba(168,136,204,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 45% at 10% 20%, rgba(124,92,246,0.08) 0%, transparent 60%),
     radial-gradient(ellipse 45% 40% at 90% 75%, rgba(94,160,216,0.07) 0%, transparent 60%);
 }
 .page, .page-wrap, nav, main { position:relative; z-index:1; }
@@ -1236,7 +1236,7 @@ body::after {
   font-weight: 500 !important; letter-spacing: -0.01em !important;
   text-transform: none !important;
 }
-.btn-accent { background: var(--accent) !important; border: none !important; color: #fff !important; box-shadow: 0 4px 16px rgba(168,136,204,0.24) !important; }
+.btn-accent { background: var(--accent) !important; border: none !important; color: #fff !important; box-shadow: 0 4px 16px rgba(124,92,246,0.24) !important; }
 .btn-ghost  { background: rgba(255,255,255,0.07) !important; border: 0.5px solid rgba(255,255,255,0.08) !important; color: var(--text2) !important; }
 /* ═══════════════════════════════════════════════════ */
 /* ── Team Report view ── */
@@ -1246,11 +1246,11 @@ body::after {
 .rpt-field select, .rpt-field input[type="date"] { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.10); color:var(--text); border-radius:10px; padding:9px 11px; font:inherit; min-width:150px; }
 .rpt-presets { display:flex; flex-wrap:wrap; gap:6px; }
 .rpt-preset { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.10); color:var(--text2); border-radius:999px; padding:8px 14px; cursor:pointer; font:inherit; font-size:13px; font-weight:600; }
-.rpt-preset:hover { color:var(--text); border-color:rgba(168,136,204,0.4); }
-.rpt-preset.active { background:linear-gradient(135deg,rgba(168,136,204,0.22),rgba(94,92,230,0.22)); border-color:rgba(168,136,204,0.55); color:#F0EAFA; }
+.rpt-preset:hover { color:var(--text); border-color:rgba(124,92,246,0.4); }
+.rpt-preset.active { background:linear-gradient(135deg,rgba(124,92,246,0.22),rgba(94,92,230,0.22)); border-color:rgba(124,92,246,0.55); color:#F0EAFA; }
 .rpt-custom { display:none; gap:10px; }
 .rpt-custom.show { display:flex; flex-wrap:wrap; }
-.rpt-digest { background:linear-gradient(135deg,rgba(168,136,204,0.14) 0%,rgba(94,92,230,0.10) 100%); border:1px solid rgba(168,136,204,0.28); border-radius:16px; padding:18px 20px; margin-bottom:18px; }
+.rpt-digest { background:linear-gradient(135deg,rgba(124,92,246,0.14) 0%,rgba(94,92,230,0.10) 100%); border:1px solid rgba(124,92,246,0.28); border-radius:16px; padding:18px 20px; margin-bottom:18px; }
 .rpt-digest .dh-team { font-size:22px; font-weight:800; }
 .rpt-digest .dh-range { color:var(--text2); font-size:13px; margin-top:2px; }
 .rpt-digest .dh-line { margin-top:12px; font-size:15px; line-height:1.55; color:var(--text); }
@@ -1373,7 +1373,7 @@ table.kda td.r { text-align:right; }
       <div class="league-dot" style="background:var(--text3);"></div> Other
     </button>
     <button class="sidebar-btn desktop-only" id="sb-AI Battle" onclick="setLeagueFilter('AI Battle')">
-      <div class="league-dot" style="background:#A888CC;box-shadow:0 0 5px #A888CC66;"></div> AI Battle
+      <div class="league-dot" style="background:#7C5CF6;box-shadow:0 0 5px #7C5CF666;"></div> AI Battle
     </button>
   </div>
 
@@ -2677,7 +2677,7 @@ function renderDraftBoard() {
         style="${sl.lane ? `background:${lc}22;color:${lc};border-color:${lc}88;` : ''}"
         onclick="showLanePicker(${i},this)" title="Click to set lane" style="position:relative;">${sl.lane || '+ lane'}</span>` : '';
       const playerBtn = !isBan ? `<span class="lane-pill ${sl.player?'assigned':''}"
-        style="${sl.player ? 'background:rgba(168,136,204,0.12);color:var(--accent);border-color:rgba(168,136,204,0.4);' : ''}"
+        style="${sl.player ? 'background:rgba(124,92,246,0.12);color:var(--accent);border-color:rgba(124,92,246,0.4);' : ''}"
         onclick="showPlayerPicker(${i},this,'${step.team}')" title="Tag player">${sl.player || '+ player'}</span>` : '';
       // Inline K · D · A inputs for picks. Optional — empty fields produce no kda.
       // type=text + inputmode=numeric: type-only behavior, no native spinners, mobile shows numpad.
@@ -2773,7 +2773,7 @@ function renderDraftBoard() {
 }
 
 const ROLES_FILTER = ['All','MM','Mage','Support','Tank','Assassin','Fighter'];
-const ROLE_COLORS_F = {MM:'#C89050',Mage:'#A888CC',Support:'#4CB87A',Tank:'#5EA0D8',Assassin:'#D87880',Fighter:'#C89050'};
+const ROLE_COLORS_F = {MM:'#C89050',Mage:'#7C5CF6',Support:'#4CB87A',Tank:'#5EA0D8',Assassin:'#D87880',Fighter:'#C89050'};
 
 function renderHeroPool() {
   const lf  = document.getElementById('draftLaneFilters');
@@ -2953,7 +2953,7 @@ function showPlayerPicker(idx, el, team) {
   pop.style.width = '180px';
   const current = draftSlots[idx]?.player;
   const btns = players.map(p =>
-    `<button style="color:${current===p.ign?'var(--accent)':'var(--text2)'};border-color:${current===p.ign?'rgba(168,136,204,.5)':'var(--border2)'};background:${current===p.ign?'var(--accent-dim)':'transparent'};"
+    `<button style="color:${current===p.ign?'var(--accent)':'var(--text2)'};border-color:${current===p.ign?'rgba(124,92,246,.5)':'var(--border2)'};background:${current===p.ign?'var(--accent-dim)':'transparent'};"
       onclick="setPlayerFromPicker(${idx},'${p.ign.replace(/'/g,"\\'")}')">
       ${p.ign}${p.real_name?' <span style="opacity:.5;font-size:9px;">('+p.real_name+')</span>':''}
     </button>`).join('');
@@ -3149,7 +3149,7 @@ function saveMatch() {
       if (card){
         card.scrollIntoView({behavior:'smooth', block:'start'});
         card.style.transition = 'box-shadow .4s ease';
-        card.style.boxShadow = '0 0 0 2px var(--accent), 0 8px 32px rgba(168,136,204,0.35)';
+        card.style.boxShadow = '0 0 0 2px var(--accent), 0 8px 32px rgba(124,92,246,0.35)';
         setTimeout(() => { card.style.boxShadow = ''; }, 1800);
       }
     }
@@ -4543,7 +4543,7 @@ function renderReportBody(){
       <div class="rcard"><h3>Objective control</h3>
         ${_rBar('Turtle',t.turtleCtrl,'','linear-gradient(90deg,#4CB87A,#3A9C68)')}
         ${_rBar('Lord',t.lordCtrl,'','linear-gradient(90deg,#C89050,#B07840)')}
-        ${_rBar('First Blood',t.fbRate,t.fbGames,'linear-gradient(90deg,#A888CC,#8868B0)')}
+        ${_rBar('First Blood',t.fbRate,t.fbGames,'linear-gradient(90deg,#7C5CF6,#8868B0)')}
         ${t.avgTowers!=null?`<div style="font-size:12.5px;color:var(--text2);margin-top:4px">Avg towers ${t.avgTowers} · diff ${t.towerDiff>0?'+':''}${t.towerDiff}</div>`:''}
       </div>
     </div>
@@ -4575,8 +4575,8 @@ function renderMeta() {
         <div class="page-sub">Pick & ban rates across your match log${metaLeague!=='all'?' · '+metaLeague:''}${seasonFilter!=='all'?' · '+seasonFilter:''}</div>
       </div>
       <a href="/meta_export" target="_blank"
-         style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;background:rgba(168,136,204,.12);border:1px solid rgba(168,136,204,.28);color:#A888CC;font-size:11px;font-weight:700;letter-spacing:.5px;text-decoration:none;transition:all .15s;"
-         onmouseover="this.style.background='rgba(168,136,204,.2)'" onmouseout="this.style.background='rgba(168,136,204,.12)'">
+         style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;background:rgba(124,92,246,.12);border:1px solid rgba(124,92,246,.28);color:#7C5CF6;font-size:11px;font-weight:700;letter-spacing:.5px;text-decoration:none;transition:all .15s;"
+         onmouseover="this.style.background='rgba(124,92,246,.2)'" onmouseout="this.style.background='rgba(124,92,246,.12)'">
         <span style="font-size:13px;">🎴</span> Export Meta Cards
       </a>
     </div>

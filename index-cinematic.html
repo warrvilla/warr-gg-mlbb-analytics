@@ -12,12 +12,12 @@
   --bg:#050509; --bg2:#0A0A12; --surface:#101018; --surface2:#161620;
   --surface3:#1E1E2A; --surface4:#272734;
   --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.07); --border3:rgba(255,255,255,0.11);
-  --accent:#A888CC; --accent-dim:rgba(168,136,204,0.09); --accent-glow:rgba(168,136,204,0.22); --accent-border:rgba(168,136,204,0.22);
+  --accent:#7C5CF6; --accent-dim:rgba(124,92,246,0.09); --accent-glow:rgba(124,92,246,0.22); --accent-border:rgba(124,92,246,0.22);
   --neon:#4CB87A; --neon-dim:rgba(76,184,122,0.09); --neon-glow:rgba(76,184,122,0.20); --neon-border:rgba(76,184,122,0.22);
   --blue:#5EA0D8; --blue-dim:rgba(94,160,216,0.09); --blue-border:rgba(94,160,216,0.22);
   --red:#D87880; --red-dim:rgba(216,120,128,0.09); --red-border:rgba(216,120,128,0.22);
   --gold:#C89050; --gold-dim:rgba(200,144,80,0.09); --gold-border:rgba(200,144,80,0.22);
-  --purple:#A888CC; --cyan:#64D2FF; --teal:#5AC8F5; --indigo:#5E5CE6;
+  --purple:#7C5CF6; --cyan:#64D2FF; --teal:#5AC8F5; --indigo:#5E5CE6;
   --text:#F0F0F8; --text2:rgba(240,240,248,0.54); --text3:rgba(240,240,248,0.28); --text4:rgba(240,240,248,0.12);
   --font-head:-apple-system,'SF Pro Display','Inter','Helvetica Neue',sans-serif;
   --font-display:-apple-system,'SF Pro Display','Inter','Helvetica Neue',sans-serif;
@@ -40,7 +40,7 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
   overflow: hidden;
   isolation: isolate;
   background:
-    radial-gradient(ellipse 100% 80% at 50% 110%, rgba(168,136,204,0.20) 0%, transparent 55%),
+    radial-gradient(ellipse 100% 80% at 50% 110%, rgba(124,92,246,0.20) 0%, transparent 55%),
     radial-gradient(ellipse 80% 60% at 50% -10%, rgba(94,92,230,0.18) 0%, transparent 55%),
     linear-gradient(180deg, #050509 0%, #0A0814 40%, #07060F 100%);
 }
@@ -76,7 +76,7 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
 }
 .neb-1 {
   width: 900px; height: 900px;
-  background: radial-gradient(circle, rgba(168,136,204,0.35) 0%, rgba(94,92,230,0.18) 40%, transparent 70%);
+  background: radial-gradient(circle, rgba(124,92,246,0.35) 0%, rgba(94,92,230,0.18) 40%, transparent 70%);
   top: 30%; left: -200px;
   animation: neb1 26s ease-in-out infinite;
 }
@@ -101,7 +101,7 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
   position: absolute; left: 0; right: 0; bottom: 0;
   height: 320px; z-index: 1; pointer-events: none;
   background:
-    radial-gradient(ellipse 60% 100% at 50% 100%, rgba(168,136,204,0.45) 0%, rgba(94,92,230,0.18) 35%, transparent 70%),
+    radial-gradient(ellipse 60% 100% at 50% 100%, rgba(124,92,246,0.45) 0%, rgba(94,92,230,0.18) 35%, transparent 70%),
     linear-gradient(180deg, transparent 0%, rgba(5,5,9,0.4) 50%, #050509 100%);
 }
 
@@ -109,8 +109,8 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
 .grid-fx {
   position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background-image:
-    linear-gradient(rgba(168,136,204,0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(168,136,204,0.04) 1px, transparent 1px);
+    linear-gradient(rgba(124,92,246,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(124,92,246,0.04) 1px, transparent 1px);
   background-size: 80px 80px;
   mask-image: radial-gradient(ellipse 70% 60% at 50% 60%, black 0%, transparent 75%);
   -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 60%, black 0%, transparent 75%);
@@ -142,7 +142,7 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
 .emblem-wrap svg {
   width: 100%; height: 100%;
   filter:
-    drop-shadow(0 0 40px rgba(168,136,204,0.55))
+    drop-shadow(0 0 40px rgba(124,92,246,0.55))
     drop-shadow(0 0 12px rgba(94,92,230,0.45));
   animation: emblem-float 8s ease-in-out infinite;
 }
@@ -176,16 +176,16 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
   text-transform: uppercase;
   margin-bottom: 22px;
   padding: 6px 14px;
-  border: 0.5px solid rgba(168,136,204,0.30);
+  border: 0.5px solid rgba(124,92,246,0.30);
   border-radius: var(--pill);
-  background: rgba(168,136,204,0.06);
+  background: rgba(124,92,246,0.06);
   backdrop-filter: blur(8px);
 }
 .headline-kicker::before, .headline-kicker::after {
   content: ''; width: 22px; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(168,136,204,0.6));
+  background: linear-gradient(90deg, transparent, rgba(124,92,246,0.6));
 }
-.headline-kicker::after { background: linear-gradient(90deg, rgba(168,136,204,0.6), transparent); }
+.headline-kicker::after { background: linear-gradient(90deg, rgba(124,92,246,0.6), transparent); }
 
 .wordmark {
   font-family: var(--font-display);
@@ -196,11 +196,11 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
   text-transform: uppercase;
   margin: 0;
   position: relative;
-  background: linear-gradient(180deg, #FFFFFF 0%, #E8E0F5 35%, #A888CC 70%, #5E5CE6 100%);
+  background: linear-gradient(180deg, #FFFFFF 0%, #E8E0F5 35%, #7C5CF6 70%, #5E5CE6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  text-shadow: 0 0 80px rgba(168,136,204,0.4);
+  text-shadow: 0 0 80px rgba(124,92,246,0.4);
   filter: drop-shadow(0 6px 24px rgba(94,92,230,0.30));
 }
 /* outline echo behind wordmark */
@@ -214,7 +214,7 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
   letter-spacing: -0.05em;
   text-transform: uppercase;
   color: transparent;
-  -webkit-text-stroke: 1px rgba(168,136,204,0.18);
+  -webkit-text-stroke: 1px rgba(124,92,246,0.18);
   pointer-events: none;
   transform: translate(0px, 6px);
   z-index: -1;
@@ -255,7 +255,7 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
   content: '';
   position: absolute; top: 0; left: 14%; right: 14%;
   height: 0.5px;
-  background: linear-gradient(90deg, transparent, rgba(168,136,204,0.4), transparent);
+  background: linear-gradient(90deg, transparent, rgba(124,92,246,0.4), transparent);
   pointer-events: none;
 }
 .info-tag {
@@ -338,7 +338,7 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
   background: linear-gradient(135deg, #B898D8 0%, #6E6CF0 100%);
   box-shadow:
     0 0 0 1px rgba(255,255,255,0.10) inset,
-    0 0 30px rgba(168,136,204,0.55),
+    0 0 30px rgba(124,92,246,0.55),
     0 14px 40px rgba(94,92,230,0.40);
   transition: transform 0.22s ease, box-shadow 0.22s ease;
   position: relative; overflow: hidden;
@@ -354,7 +354,7 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
   transform: translateY(-2px);
   box-shadow:
     0 0 0 1px rgba(255,255,255,0.16) inset,
-    0 0 45px rgba(168,136,204,0.75),
+    0 0 45px rgba(124,92,246,0.75),
     0 18px 52px rgba(94,92,230,0.55);
 }
 .primary-cta:hover::after { transform: translateX(100%); }
@@ -419,7 +419,7 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
 }
 .section-heading em {
   font-style: normal;
-  background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
+  background: linear-gradient(135deg, #7C5CF6 0%, #5E5CE6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -459,7 +459,7 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
   content: '';
   position: absolute; bottom: 0; left: 0; right: 0;
   height: 2px;
-  background: var(--card-accent, rgba(168,136,204,0.5));
+  background: var(--card-accent, rgba(124,92,246,0.5));
   transform: scaleX(0); transform-origin: left;
   transition: transform 0.28s ease;
   border-radius: 0 0 24px 24px;
@@ -569,7 +569,7 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
 .cta-band::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
   background:
-    radial-gradient(ellipse 70% 60% at 30% 50%, rgba(168,136,204,0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 60% at 30% 50%, rgba(124,92,246,0.10) 0%, transparent 60%),
     radial-gradient(ellipse 60% 50% at 75% 50%, rgba(94,160,216,0.08) 0%, transparent 60%);
 }
 .cta-band-tag {
@@ -587,7 +587,7 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
 }
 .cta-band-title em {
   font-style: normal;
-  background: linear-gradient(135deg, #A888CC 0%, #5E5CE6 100%);
+  background: linear-gradient(135deg, #7C5CF6 0%, #5E5CE6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -674,18 +674,18 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
         <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
           <stop offset="0%"  stop-color="#FFFFFF" stop-opacity="0.95"/>
           <stop offset="30%" stop-color="#C8B4E8" stop-opacity="0.7"/>
-          <stop offset="60%" stop-color="#A888CC" stop-opacity="0.35"/>
+          <stop offset="60%" stop-color="#7C5CF6" stop-opacity="0.35"/>
           <stop offset="100%" stop-color="#5E5CE6" stop-opacity="0"/>
         </radialGradient>
         <linearGradient id="bladeGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%"  stop-color="#E8E0F5"/>
-          <stop offset="50%" stop-color="#A888CC"/>
+          <stop offset="50%" stop-color="#7C5CF6"/>
           <stop offset="100%" stop-color="#5E5CE6"/>
         </linearGradient>
         <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%"  stop-color="#A888CC" stop-opacity="0.8"/>
+          <stop offset="0%"  stop-color="#7C5CF6" stop-opacity="0.8"/>
           <stop offset="50%" stop-color="#5E5CE6" stop-opacity="0.5"/>
-          <stop offset="100%" stop-color="#A888CC" stop-opacity="0.8"/>
+          <stop offset="100%" stop-color="#7C5CF6" stop-opacity="0.8"/>
         </linearGradient>
       </defs>
 
@@ -695,7 +695,7 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
       <!-- outermost rotating ring with tick marks -->
       <g class="ring-spin-slow" opacity="0.7">
         <circle cx="300" cy="300" r="280" fill="none" stroke="url(#ringGrad)" stroke-width="0.8" stroke-dasharray="2 8"/>
-        <g stroke="#A888CC" stroke-width="1.2">
+        <g stroke="#7C5CF6" stroke-width="1.2">
           <line x1="300" y1="6" x2="300" y2="22"/>
           <line x1="300" y1="578" x2="300" y2="594"/>
           <line x1="6" y1="300" x2="22" y2="300"/>
@@ -706,14 +706,14 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
       <!-- mid rotating hex ring -->
       <g class="ring-spin-rev" opacity="0.55">
         <polygon points="300,80 491,190 491,410 300,520 109,410 109,190"
-          fill="none" stroke="#A888CC" stroke-width="1" stroke-dasharray="4 6"/>
+          fill="none" stroke="#7C5CF6" stroke-width="1" stroke-dasharray="4 6"/>
         <polygon points="300,110 465,205 465,395 300,490 135,395 135,205"
           fill="none" stroke="#5E5CE6" stroke-width="0.6"/>
       </g>
 
       <!-- inner concentric circles -->
-      <circle cx="300" cy="300" r="200" fill="none" stroke="rgba(168,136,204,0.18)" stroke-width="0.6"/>
-      <circle cx="300" cy="300" r="150" fill="none" stroke="rgba(168,136,204,0.22)" stroke-width="0.6"/>
+      <circle cx="300" cy="300" r="200" fill="none" stroke="rgba(124,92,246,0.18)" stroke-width="0.6"/>
+      <circle cx="300" cy="300" r="150" fill="none" stroke="rgba(124,92,246,0.22)" stroke-width="0.6"/>
 
       <!-- central hexagon (draft chamber) -->
       <polygon points="300,170 412,235 412,365 300,430 188,365 188,235"
@@ -733,20 +733,20 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
           fill="#E8E0F5" opacity="0.95"/>
         <!-- center jewel -->
         <circle cx="300" cy="300" r="14" fill="#FFFFFF" opacity="0.95"/>
-        <circle cx="300" cy="300" r="22" fill="none" stroke="#A888CC" stroke-width="1.5" opacity="0.7"/>
-        <circle cx="300" cy="300" r="32" fill="none" stroke="rgba(168,136,204,0.35)" stroke-width="0.8"/>
+        <circle cx="300" cy="300" r="22" fill="none" stroke="#7C5CF6" stroke-width="1.5" opacity="0.7"/>
+        <circle cx="300" cy="300" r="32" fill="none" stroke="rgba(124,92,246,0.35)" stroke-width="0.8"/>
       </g>
 
       <!-- tiny orbiting dots -->
       <g class="ring-spin-slow">
-        <circle cx="300" cy="50" r="3" fill="#A888CC"/>
+        <circle cx="300" cy="50" r="3" fill="#7C5CF6"/>
         <circle cx="550" cy="300" r="2.5" fill="#5EA0D8"/>
-        <circle cx="300" cy="550" r="2.5" fill="#A888CC"/>
+        <circle cx="300" cy="550" r="2.5" fill="#7C5CF6"/>
         <circle cx="50" cy="300" r="2.5" fill="#5E5CE6"/>
       </g>
 
       <!-- corner crosshairs -->
-      <g stroke="rgba(168,136,204,0.45)" stroke-width="1" fill="none">
+      <g stroke="rgba(124,92,246,0.45)" stroke-width="1" fill="none">
         <path d="M 40 80 L 40 40 L 80 40"/>
         <path d="M 520 40 L 560 40 L 560 80"/>
         <path d="M 560 520 L 560 560 L 520 560"/>
@@ -759,8 +759,8 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
   <div class="headline-wrap">
     <div class="headline-kicker">MLBB Esports Intelligence · v2.6</div>
     <div style="position:relative;display:inline-block;">
-      <span class="wordmark-outline" aria-hidden="true">WARR<span style="color:transparent;-webkit-text-stroke:1px rgba(168,136,204,0.32);">.</span>GG</span>
-      <h1 class="wordmark">WARR<span style="background:linear-gradient(180deg,#A888CC,#5E5CE6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">.</span>GG</h1>
+      <span class="wordmark-outline" aria-hidden="true">WARR<span style="color:transparent;-webkit-text-stroke:1px rgba(124,92,246,0.32);">.</span>GG</span>
+      <h1 class="wordmark">WARR<span style="background:linear-gradient(180deg,#7C5CF6,#5E5CE6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">.</span>GG</h1>
     </div>
     <div class="headline-sub">Draft <span class="dot"></span> Scout <span class="dot"></span> Dominate</div>
   </div>
@@ -853,10 +853,10 @@ body { overflow-x: hidden; color: var(--text); font-family: var(--font-body); }
     </a>
 
     <!-- AI Battle -->
-    <a class="tool-card" href="/ai_battle" style="--card-accent:rgba(168,136,204,0.6);">
+    <a class="tool-card" href="/ai_battle" style="--card-accent:rgba(124,92,246,0.6);">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-        <div class="tool-icon" style="background:rgba(168,136,204,0.10);border-color:rgba(168,136,204,0.22);">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A888CC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <div class="tool-icon" style="background:rgba(124,92,246,0.10);border-color:rgba(124,92,246,0.22);">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7C5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="5" y="7" width="14" height="12" rx="2"/>
             <circle cx="9" cy="13" r="1.4"/>
             <circle cx="15" cy="13" r="1.4"/>
