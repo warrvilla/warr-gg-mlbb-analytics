@@ -28,9 +28,23 @@
   }
 
   .sc-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
-  .sc-filters select, .sc-filters input {
-    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10);
-    color: var(--text); border-radius: 10px; padding: 9px 11px; font: inherit; font-size: 13px;
+  .sc-filters select, .sc-filters input,
+  .sc-modal select, .sc-modal input, .sc-modal textarea {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+    color: var(--text); border-radius: 10px; padding: 10px 12px; font: inherit; font-size: 13px;
+    transition: border-color .15s, background .15s; color-scheme: dark;
+  }
+  .sc-filters select:hover, .sc-modal select:hover { border-color: rgba(168,136,204,0.45); }
+  .sc-filters select:focus, .sc-filters input:focus,
+  .sc-modal select:focus, .sc-modal input:focus, .sc-modal textarea:focus {
+    outline: none; border-color: rgba(168,136,204,0.7);
+    box-shadow: 0 0 0 3px rgba(168,136,204,0.15); background: rgba(255,255,255,0.07);
+  }
+  /* custom chevron — kill the ugly native arrow */
+  .sc-filters select, .sc-modal select {
+    appearance: none; -webkit-appearance: none; -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23A888CC' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
   }
   .sc-filters input { flex: 1; min-width: 140px; }
 
@@ -38,7 +52,9 @@
   .sl {
     background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.08);
     border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px;
+    transition: border-color .15s, transform .15s, box-shadow .15s;
   }
+  .sl:hover { border-color: rgba(168,136,204,0.3); transform: translateY(-2px); box-shadow: 0 8px 26px rgba(0,0,0,0.35); }
   .sl-top { display: flex; align-items: flex-start; gap: 10px; }
   .sl-team { font-size: 17px; font-weight: 800; line-height: 1.2; }
   .sl-team .anon { color: var(--text2); font-weight: 600; font-style: italic; }
@@ -96,7 +112,7 @@
   .fg { display: flex; flex-direction: column; gap: 5px; margin-bottom: 13px; }
   .fg label { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--text2); font-weight: 700; }
   .fg input, .fg select, .fg textarea {
-    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10);
+    background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
     color: var(--text); border-radius: 10px; padding: 10px 12px; font: inherit; width: 100%; box-sizing: border-box;
   }
   .fg textarea { resize: vertical; min-height: 60px; }
@@ -158,9 +174,29 @@
       <div class="fg">
         <label>Region</label>
         <select id="mRegion">
-          <option>Philippines</option><option>Indonesia</option><option>Malaysia</option>
-          <option>Singapore</option><option>Cambodia</option><option>Myanmar</option>
-          <option>Vietnam</option><option>Thailand</option><option>MENA</option><option>Other</option>
+          <optgroup label="Southeast Asia">
+            <option>Philippines</option><option>Indonesia</option><option>Malaysia</option>
+            <option>Singapore</option><option>Cambodia</option><option>Myanmar</option>
+            <option>Vietnam</option><option>Thailand</option><option>Laos</option><option>Brunei</option>
+          </optgroup>
+          <optgroup label="East &amp; South Asia">
+            <option>Japan</option><option>South Korea</option><option>Taiwan</option>
+            <option>Hong Kong</option><option>India</option><option>Mongolia</option>
+          </optgroup>
+          <optgroup label="MENA / Middle East">
+            <option>MENA</option><option>Saudi Arabia</option><option>UAE</option>
+            <option>Egypt</option><option>Turkey</option>
+          </optgroup>
+          <optgroup label="Europe / CIS">
+            <option>Europe</option><option>Russia</option><option>CIS</option>
+          </optgroup>
+          <optgroup label="Americas">
+            <option>North America</option><option>Latin America</option>
+            <option>Brazil</option><option>South America</option>
+          </optgroup>
+          <optgroup label="Other">
+            <option>Oceania</option><option>Africa</option><option>Other</option>
+          </optgroup>
         </select>
       </div>
       <div class="fg">
@@ -238,7 +274,14 @@ let _mine = [];       // my listings
 let _me = null;
 let _tableReady = true;
 
-const REGIONS = ['Philippines','Indonesia','Malaysia','Singapore','Cambodia','Myanmar','Vietnam','Thailand','MENA','Other'];
+const REGIONS = [
+  'Philippines','Indonesia','Malaysia','Singapore','Cambodia','Myanmar','Vietnam','Thailand','Laos','Brunei',
+  'Japan','South Korea','Taiwan','Hong Kong','India','Mongolia',
+  'MENA','Saudi Arabia','UAE','Egypt','Turkey',
+  'Europe','Russia','CIS',
+  'North America','Latin America','Brazil','South America',
+  'Oceania','Africa','Other'
+];
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 function fmtFormat(type, n){

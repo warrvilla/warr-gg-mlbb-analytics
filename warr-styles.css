@@ -793,3 +793,7 @@ html[data-theme="light"] input[type="datetime-local"]::-webkit-calendar-picker-i
 html[data-theme="light"] input[type="month"]::-webkit-calendar-picker-indicator {
   filter: none;
 }
+
+/* ── Selects: dark popup list + clean custom chevron (native list was white) ── */
+select { color-scheme: dark; }
+html[data-theme="light"] select { color-scheme: light; }

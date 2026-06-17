@@ -5,6 +5,10 @@
 -- to share (WhatsApp / Discord / Messenger / IGN). In-app chat + bookings +
 -- calendar are Phase 2 (separate migration).
 
+-- Ensure the ban flag exists (some deployments never added it). The anti-spam
+-- trigger below reads it; without this column the INSERT errors out.
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_banned boolean DEFAULT false;
+
 -- ─────────────────────────────────────────────────────────────
 -- scrim_listings
 -- ─────────────────────────────────────────────────────────────
