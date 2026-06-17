@@ -273,14 +273,16 @@ const TOP_REGIONS = ['Philippines','Indonesia','Malaysia','Singapore','Thailand'
 let _regionsExpanded = false;
 
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const LOGO_COLORS = ['#5E5CE6','#A888CC','#4CB87A','#C89050','#5E9CE6','#D87880','#4AAABB','#7878CC'];
 function logoFor(l){
   if (l.anonymous) return `<div class="logo anon">🛡</div>`;
   const name = l.team_name||'?';
-  const init = name.split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
-  let h=0; for (const c of name) h=(h*31+c.charCodeAt(0))>>>0;
-  const col = LOGO_COLORS[h%LOGO_COLORS.length];
-  return `<div class="logo" style="background:linear-gradient(135deg,${col},${col}99)">${esc(init)}</div>`;
+  const m = (WDB && WDB.teamMonogram) ? WDB.teamMonogram(name) : {init:'?',color:'#5E5CE6'};
+  const src = (WDB && WDB.teamLogo) ? WDB.teamLogo(name) : '';
+  // Monogram is the base; the real logo (if the webp exists) sits on top and
+  // hides itself on 404 — so logos drop in later with zero code changes.
+  return `<div class="logo" style="background:linear-gradient(135deg,${m.color},${m.color}99);position:relative;">${esc(m.init)}`+
+    (src?`<img src="${src}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:12px;" onerror="this.style.display='none'">`:'')+
+    `</div>`;
 }
 function fmtFormat(type,n){ if(type==='bestof')return 'BO'+(n||'?'); if(type==='count')return (n||'?')+(n==1?' game':' games'); return 'Flexible'; }
 function timeAgo(ts){ const s=(Date.now()-new Date(ts).getTime())/1000; if(s<3600)return Math.max(1,Math.floor(s/60))+'m ago'; if(s<86400)return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago'; }

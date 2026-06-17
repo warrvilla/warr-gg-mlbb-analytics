@@ -1390,6 +1390,30 @@ WDB.heroPortraitPng = function(name) {
   return `portraits/${String(base).replace(/ /g,'_').replace(/[^a-zA-Z0-9_.]/g,'')}.png`;
 };
 
+// ── TEAM LOGOS ────────────────────────────────────────────────
+// File-based, same workflow as hero portraits: drop a webp named after the
+// team into /logos (e.g. "Team Falcons PH" → logos/team_falcons_ph.webp).
+// Admin-uploaded logos can later override via WDB._teamLogoOverrides[name].
+// Anywhere a logo is shown, render this <img> over a monogram fallback so a
+// missing file degrades gracefully (the img just hides itself).
+WDB._teamLogoOverrides = WDB._teamLogoOverrides || {};
+WDB.teamLogoKey = function(name){
+  return String(name||'').trim().toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+};
+WDB.teamLogo = function(name){
+  if (!name) return '';
+  if (WDB._teamLogoOverrides[name]) return WDB._teamLogoOverrides[name];
+  return `logos/${WDB.teamLogoKey(name)}.webp`;
+};
+/** Deterministic monogram + color for a team when no logo exists. */
+WDB.teamMonogram = function(name){
+  const n = String(name||'?');
+  const init = n.split(/\s+/).map(w=>w[0]||'').join('').slice(0,2).toUpperCase() || '?';
+  const colors = ['#5E5CE6','#A888CC','#4CB87A','#C89050','#5E9CE6','#D87880','#4AAABB','#7878CC'];
+  let h=0; for (const c of n) h=(h*31+c.charCodeAt(0))>>>0;
+  return { init, color: colors[h%colors.length] };
+};
+
 // ── Hero Pool helpers ──
 /** Get saved hero pool (array of hero names) */
 WDB.getHeroPool = function() {
