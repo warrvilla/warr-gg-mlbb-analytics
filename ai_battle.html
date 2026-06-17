@@ -879,6 +879,36 @@ input:focus, .search-input:focus {
   display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:17px;flex-shrink:0;}
 .ab-feat b{display:block;font-size:13px;color:var(--text);}
 .ab-feat small{font-size:11px;color:var(--text3);}
+
+/* opponent mode cards (icon + text) */
+.ab-modes-2{grid-template-columns:1fr 1fr;}
+#setup .ab-mode{display:flex;align-items:center;gap:11px;text-align:left;}
+.ab-mode-ico{width:40px;height:40px;border-radius:11px;background:rgba(168,136,204,.12);border:1px solid rgba(168,136,204,.25);
+  display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:18px;flex-shrink:0;}
+
+/* rich opponent card */
+.ab-opp-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;}
+.ab-opp-logo{width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;color:#fff;flex-shrink:0;position:relative;overflow:hidden;}
+.ab-opp-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.ab-opp-name{font-size:19px;font-weight:800;color:var(--text);}
+.ab-opp-tags{display:flex;align-items:center;gap:8px;margin-top:5px;flex-wrap:wrap;}
+.ab-opp-league{font-size:10.5px;font-weight:800;color:#C4A4DE;background:rgba(168,136,204,.14);border:1px solid rgba(168,136,204,.3);border-radius:6px;padding:2px 8px;}
+.ab-opp-games{font-size:11.5px;color:var(--text3);}
+.ab-opp-str{text-align:right;margin-left:auto;}
+.ab-opp-str-v{font-size:30px;font-weight:900;line-height:1;}
+.ab-opp-str-l{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;}
+.ab-opp-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;padding:14px 0;border-top:1px solid rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.07);}
+.ab-opp-st .k{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+.ab-opp-st .v{font-size:14px;font-weight:700;color:var(--text);}
+.ab-favs{display:flex;align-items:center;gap:4px;}
+.ab-fav{width:26px;height:26px;border-radius:50%;overflow:hidden;background:rgba(255,255,255,.06);display:inline-flex;flex-shrink:0;}
+.ab-fav img{width:100%;height:100%;object-fit:cover;}
+.ab-fav-more{font-size:11px;color:var(--text3);margin-left:2px;}
+.ab-opp-behave{display:flex;align-items:center;gap:14px;margin-top:14px;background:rgba(168,136,204,.08);border:1px solid rgba(168,136,204,.2);border-radius:12px;padding:12px 14px;}
+.ab-opp-behave-t{font-size:12px;font-weight:800;color:#C4A4DE;margin-bottom:3px;}
+.ab-opp-behave-d{font-size:12px;color:var(--text2);}
+.ab-opp-diff{margin-left:auto;text-align:right;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;}
+.ab-opp-diff b{font-size:14px;color:var(--text);text-transform:none;letter-spacing:0;}
 </style>
 <div id="setup">
   <div class="setup-inner">
@@ -912,31 +942,26 @@ input:focus, .search-input:focus {
     <!-- STEP 2: CHOOSE YOUR OPPONENT -->
     <section class="ab-card" style="position:relative;z-index:2;">
       <div class="ab-step"><span class="ab-num">2</span> CHOOSE YOUR OPPONENT</div>
-      <div class="ab-modes">
-        <div class="opt-card sel-gold" id="mode-generic" onclick="setAIMode('generic');updateSummary()">
-          <div class="opt-name">VS AI</div><div class="opt-desc">Optimizes to beat you</div>
+      <div class="ab-modes ab-modes-2">
+        <div class="opt-card sel-gold ab-mode" id="mode-generic" onclick="setAIMode('generic');updateSummary()">
+          <span class="ab-mode-ico">◎</span>
+          <div><div class="opt-name">VS AI</div><div class="opt-desc">Optimized AI difficulty</div></div>
         </div>
-        <div class="opt-card" id="mode-enemy" onclick="setAIMode('enemy');updateSummary()">
-          <div class="opt-name">VS MPL Team</div><div class="opt-desc">AI mimics a scouted team</div>
-        </div>
-        <div class="opt-card" id="mode-pvp" onclick="setAIMode('pvp');updateSummary()">
-          <div class="opt-name">VS Player</div><div class="opt-desc">2 coaches · pass &amp; play</div>
+        <div class="opt-card ab-mode" id="mode-enemy" onclick="setAIMode('enemy');updateSummary()">
+          <span class="ab-mode-ico">✦</span>
+          <div><div class="opt-name">VS MPL Team</div><div class="opt-desc">Real teams from MPL</div></div>
         </div>
       </div>
-      <div id="pvpPanel" style="display:none;margin-top:12px;">
-        <label class="ab-lbl">Player 2 name</label>
-        <input class="ab-input" id="p2In" value="Player 2" maxlength="20" placeholder="Player 2 name…"/>
-        <div class="ab-note">Hotseat draft — Player 1 takes the side chosen above, Player 2 takes the other. Coach suggestions follow whoever is on the clock.</div>
-      </div>
-      <div id="enemyTeamPanel" style="display:none;margin-top:12px;">
+      <input type="hidden" id="p2In" value="Player 2"/>
+      <div id="genericNote" class="ab-note" style="margin-top:14px;">The AI optimizes its draft to beat whatever you pick — a clean sparring partner that adapts to your choices.</div>
+      <div id="enemyTeamPanel" style="display:none;margin-top:14px;">
         <div id="enemyLeagueRow" class="ab-chips" style="margin-bottom:10px;"></div>
-        <div style="position:relative;">
+        <div style="position:relative;margin-bottom:12px;">
           <input class="ab-input" id="enemySearch" placeholder="Search a scouted team…" autocomplete="off"
             oninput="filterEnemyTeams(this.value)" onfocus="openEnemyDrop()" onblur="setTimeout(closeEnemyDrop,180)"/>
           <div id="enemyDrop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:10px;z-index:100;max-height:300px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);"></div>
         </div>
-        <div id="enemyProfileCard" style="display:none;margin-top:12px;background:var(--surface2);border:1px solid rgba(168,136,204,.3);border-radius:12px;padding:14px;"></div>
-        <div class="ab-note">The AI drafts and plays like the selected team, based on their real match data.</div>
+        <div id="enemyProfileCard" style="display:none;"></div>
       </div>
     </section>
   </div>
@@ -1562,7 +1587,8 @@ let _selectedMap='', _battleMap='';
 
 // ═══════ SETUP ═══════
 function setSide(s){['blue','red','random'].forEach(x=>{document.getElementById('sc-'+x).className='opt-card';});document.getElementById('sc-'+s).className='opt-card sel-'+s;_side=s;}
-function setDiff(d){['normal','hard','gm'].forEach(x=>{document.getElementById('dc-'+x).className='opt-card';});document.getElementById('dc-'+d).className='opt-card sel-gold';_diff=d;}
+function setDiff(d){['normal','hard','gm'].forEach(x=>{document.getElementById('dc-'+x).className='opt-card';});document.getElementById('dc-'+d).className='opt-card sel-gold';_diff=d;
+  const echo=document.getElementById('enemyDiffEcho');if(echo)echo.textContent=d==='normal'?'Normal':d==='gm'?'Grandmaster':'Hard';}
 
 function setMap(m){
   _selectedMap=m;
@@ -1617,10 +1643,13 @@ function setAIMode(m){
   document.getElementById('mode-enemy').className='opt-card'+(m==='enemy'?' sel-gold':'');
   const pvpEl=document.getElementById('mode-pvp');
   if(pvpEl)pvpEl.className='opt-card'+(m==='pvp'?' sel-gold':'');
-  document.getElementById('mode-enemy').style.borderColor=m==='enemy'?'var(--red)':'';
   document.getElementById('enemyTeamPanel').style.display=m==='enemy'?'block':'none';
+  const gn=document.getElementById('genericNote');
+  if(gn)gn.style.display=m==='enemy'?'none':'block';
   const pp=document.getElementById('pvpPanel');
   if(pp)pp.style.display=m==='pvp'?'block':'none';
+  // keep modes in their selected (ab-mode) class so the flex icon layout persists
+  ['generic','enemy'].forEach(x=>{const el=document.getElementById('mode-'+x);if(el)el.classList.add('ab-mode');});
   if(m==='enemy') populateEnemyDrop('');
 }
 function getAllScoutedTeams(){
@@ -1781,23 +1810,50 @@ function buildEnemyProfileCache(name){
 }
 function renderEnemyProfileCard(name){
   const card=document.getElementById('enemyProfileCard');
-  if(!enemyProfile){card.style.display='block';card.innerHTML=`<div style="color:var(--red);font-size:11px;">No data for "${name}" — check Scout tab spelling.</div>`;return;}
-  const ep=enemyProfile;
-  const wrc=ep.t.winRate>=55?'var(--green)':ep.t.winRate>=45?'var(--gold)':'var(--red)';
+  if(!enemyProfile){card.style.display='block';card.innerHTML=`<div style="color:var(--red);font-size:12px;padding:4px 2px;">No data for "${name}" — log some of their matches in Scout first.</div>`;return;}
+  const ep=enemyProfile, t=ep.t||{};
+  const games=t.gamesPlayed||0, wins=t.wins||0, losses=(t.losses!=null?t.losses:Math.max(0,games-wins)), wr=t.winRate||0;
+  // Team Strength — derived from win rate + sample confidence (no fake numbers)
+  const strength=Math.max(40,Math.min(99,Math.round(55+(wr-50)*0.7+Math.min(games,30)/30*8)));
+  const sCol = strength>=80?'var(--green)':strength>=65?'var(--gold)':'var(--text)';
+  // Playstyle — derived from their real objective/aggression tendencies
+  const traits=[];
+  if(typeof t.fbRate==='number'){ if(t.fbRate>=55)traits.push('Aggressive'); else if(t.fbRate<=38)traits.push('Patient'); }
+  const objAvg=((t.turtleCtrl||0)+(t.lordCtrl||0))/2;
+  if(objAvg>=55)traits.push('Objective Focused');
+  if((t.blueSideWR!=null&&t.redSideWR!=null)&&Math.abs(t.blueSideWR-t.redSideWR)>25)traits.push('Side-dependent');
+  if(!traits.length)traits.push(wr>=55?'Disciplined':'Balanced');
+  const playstyle=traits.slice(0,2).join(' · ');
+  // League badge
+  let league=''; try{const ls=_teamLeaguesMap()[name]; if(ls)league=[...ls].filter(Boolean)[0]||'';}catch(_){}
+  // Favorite heroes (real top picks)
+  const allFav=ep.topPicks||[];
+  const favIcons=allFav.slice(0,4).map(n=>`<span class="ab-fav"><img src="${WDB.heroPortrait(n)}" onerror="this.style.display='none'" alt="" title="${n}"></span>`).join('');
+  const more=allFav.length>4?`<span class="ab-fav-more">+${allFav.length-4}</span>`:'';
+  const mono=(WDB&&WDB.teamMonogram)?WDB.teamMonogram(name):{init:(name[0]||'?').toUpperCase(),color:'#5E5CE6'};
+  const wrc=wr>=55?'var(--green)':wr>=45?'var(--gold)':'var(--red)';
+  const diffTxt=_diff==='normal'?'Normal':_diff==='gm'?'Grandmaster':'Hard';
   card.style.display='block';
   card.innerHTML=`
-    <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:8px;">${name}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px;">
-      <div style="text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px;"><div style="font-size:15px;font-weight:700;color:${wrc};">${ep.t.winRate||0}%</div><div style="font-size:8px;color:var(--text3);">Overall</div></div>
-      <div style="text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px;"><div style="font-size:15px;font-weight:700;color:var(--blue);">${ep.blueWR}%</div><div style="font-size:8px;color:var(--text3);">Blue Side</div></div>
-      <div style="text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px;"><div style="font-size:15px;font-weight:700;color:var(--red);">${ep.redWR}%</div><div style="font-size:8px;color:var(--text3);">Red Side</div></div>
-    </div>
-    <div style="font-size:9px;color:var(--text3);margin-bottom:3px;"><b style="color:var(--text);">Phase 1 Picks:</b> ${ep.bluePhase1?.slice(0,4).join(', ')||ep.topPicks.slice(0,3).join(', ')||'—'}</div>
-    <div style="font-size:9px;color:var(--text3);margin-bottom:3px;"><b style="color:var(--text);">Phase 2 Picks:</b> ${ep.bluePhase2?.slice(0,4).join(', ')||'—'}</div>
-    <div style="font-size:9px;color:var(--text3);margin-bottom:3px;"><b style="color:var(--text);">Top Bans:</b> ${ep.topBans.slice(0,4).join(', ')||'—'}</div>
-    ${ep.winCondition?`<div style="font-size:9px;color:var(--text3);margin-bottom:3px;"><b style="color:var(--text);">Win Condition:</b> ${ep.winCondition}</div>`:''}
-    ${ep.coachNotes?`<div style="font-size:9px;color:var(--text3);"><b style="color:var(--text);">Intel:</b> ${ep.coachNotes.slice(0,100)}${ep.coachNotes.length>100?'…':''}</div>`:''}
-    <div style="margin-top:7px;padding:5px 8px;background:rgba(240,82,82,.07);border:1px solid rgba(240,82,82,.2);border-radius:10px;font-size:9px;color:var(--text2);">AI will draft AS ${name}</strong> mimicking their patterns</div>`;
+    <div class="ab-opp">
+      <div class="ab-opp-head">
+        <div class="ab-opp-logo" style="background:linear-gradient(135deg,${mono.color},${mono.color}99)">${mono.init}<img src="${WDB.teamLogo(name)}" onerror="this.style.display='none'" alt=""></div>
+        <div style="flex:1;min-width:0;">
+          <div class="ab-opp-name">${name}</div>
+          <div class="ab-opp-tags">${league?`<span class="ab-opp-league">${league}</span>`:''}<span class="ab-opp-games">${games} games logged</span></div>
+        </div>
+        <div class="ab-opp-str"><div class="ab-opp-str-v" style="color:${sCol}">${strength}</div><div class="ab-opp-str-l">Overall</div></div>
+      </div>
+      <div class="ab-opp-stats">
+        <div class="ab-opp-st"><div class="k">Recent Performance</div><div class="v" style="color:${wrc}">${wins}W – ${losses}L</div></div>
+        <div class="ab-opp-st"><div class="k">Playstyle</div><div class="v">${playstyle}</div></div>
+        <div class="ab-opp-st"><div class="k">Favorite Heroes</div><div class="v ab-favs">${favIcons||'<span style="color:var(--text3);font-size:12px">—</span>'}${more}</div></div>
+      </div>
+      <div class="ab-opp-behave">
+        <div><div class="ab-opp-behave-t">AI Behavior</div><div class="ab-opp-behave-d">AI will draft and play like ${name} based on their real match data.</div></div>
+        <div class="ab-opp-diff">Difficulty<br><b id="enemyDiffEcho">${diffTxt}</b></div>
+      </div>
+    </div>`;
 }
 function buildEnemyPromptCtx(step){
   if(!enemyProfile)return'';
