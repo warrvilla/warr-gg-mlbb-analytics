@@ -32,10 +32,6 @@
   to = "/stats.html"
   status = 200
 [[redirects]]
-  from = "/report"
-  to = "/report.html"
-  status = 200
-[[redirects]]
   from = "/scrims"
   to = "/scrims.html"
   status = 200
