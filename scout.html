@@ -3833,11 +3833,6 @@ function openTeamReport(teamName) {
           </div>`;
         }).join('');
 
-        // viewed team's most-picked heroes across this series (5)
-        const _pc={};
-        s.games.forEach(g=>{const ours=g.blueTeam===teamName;(ours?(g.bluePicks||[]):(g.redPicks||[])).forEach(p=>{const n=p.name||p;if(n)_pc[n]=(_pc[n]||0)+1;});});
-        const _top5=Object.entries(_pc).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([n])=>n);
-        const _heroes=_top5.map(n=>`<img class="ml-hero" src="${_heroIcon(n)}" onerror="${_heroIconErr(n)}" title="${n}">`).join('');
         const _day=isNaN(d.getTime())?'':d.getDate();
         const _mon=isNaN(d.getTime())?'':d.toLocaleString('default',{month:'short'}).toUpperCase();
         const _bo=s.games.length>=7?'BO7':s.games.length>=5?'BO5':s.games.length>=3?'BO3':'BO1';
@@ -3855,7 +3850,6 @@ function openTeamReport(teamName) {
                 <div class="ml-team"><span class="ml-logo" style="background:${_oppM.color}">${_oppM.init}</span><span class="nm">${s.opponent||'—'}</span></div>
               </div>
               <div class="ml-score"><span class="ml-sc">${s.ourWins} - ${s.oppWins}</span><span class="ml-res ${s.result}">${s.result==='W'?'WIN':'LOSS'}</span></div>
-              <div class="ml-heroes">${_heroes}</div>
               <button class="ml-view" onclick="const x=this.closest('.ml-card').querySelector('.ml-detail');x.classList.toggle('open');this.textContent=x.classList.contains('open')?'Hide ▾':'View Details ▸';">View Details ▸</button>
             </div>
             <div class="ml-detail">${gameRowsHTML}</div>
