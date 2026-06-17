@@ -803,111 +803,199 @@ input:focus, .search-input:focus {
 <div class="page-body">
 
 <!-- SETUP SCREEN -->
+<style>
+/* ═══════ AI BATTLE setup — app redesign ═══════ */
+#setup .setup-inner{max-width:1200px;padding:18px 20px 40px;}
+.ab-hero{position:relative;border-radius:22px;overflow:hidden;margin-bottom:20px;padding:30px 30px 26px;
+  background:radial-gradient(ellipse 60% 130% at 88% 15%,rgba(150,70,210,.34) 0%,transparent 60%),linear-gradient(120deg,#0E0A18,#130A20);
+  border:1px solid rgba(255,255,255,.07);}
+.ab-hero-tag{font-size:11px;font-weight:800;letter-spacing:.18em;color:var(--accent);margin-bottom:8px;}
+.ab-hero-title{font-family:var(--font-display);font-size:42px;font-weight:900;letter-spacing:-.02em;line-height:1.02;margin:0;color:var(--text);}
+.ab-hero-title span{background:linear-gradient(135deg,#C4A4DE,#7B79E6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+.ab-hero-sub{color:var(--text2);font-size:15px;margin-top:8px;}
+
+.ab-cols{display:grid;grid-template-columns:1fr 1.25fr;gap:16px;margin-bottom:16px;align-items:start;}
+.ab-cols2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:16px;align-items:start;}
+@media(max-width:900px){.ab-cols,.ab-cols2{grid-template-columns:1fr;}}
+
+.ab-card{background:rgba(255,255,255,.022);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:18px 18px 20px;}
+.ab-card.setup-card-engine{border-color:rgba(168,136,204,.22);}
+.ab-step{display:flex;align-items:center;gap:10px;font-size:12.5px;font-weight:800;letter-spacing:.1em;color:var(--text2);margin-bottom:16px;}
+.ab-num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;
+  background:linear-gradient(135deg,#A888CC,#5E5CE6);color:#fff;font-size:12px;font-weight:900;flex-shrink:0;}
+.ab-lbl{display:block;font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--text3);text-transform:uppercase;margin:14px 0 8px;}
+.ab-lbl:first-of-type{margin-top:0;}
+.ab-lbl small{font-weight:600;letter-spacing:0;text-transform:none;color:var(--text4);}
+.ab-input{width:100%;box-sizing:border-box;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);
+  color:var(--text);border-radius:11px;padding:12px 14px;font:inherit;font-size:14px;}
+.ab-input:focus{outline:none;border-color:rgba(168,136,204,.7);box-shadow:0 0 0 3px rgba(168,136,204,.15);}
+.ab-note{font-size:11.5px;color:var(--text3);line-height:1.5;margin-top:8px;}
+
+.ab-seg{display:grid;gap:8px;}
+.ab-modes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.ab-modes .opt-card{text-align:left;}
+
+/* option cards (kept class .opt-card so existing setters still work) */
+#setup .opt-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.10);border-radius:12px;
+  padding:12px 13px;cursor:pointer;transition:border-color .15s,background .15s,transform .12s;text-align:center;position:relative;}
+#setup .opt-card:hover{border-color:rgba(168,136,204,.45);transform:translateY(-1px);}
+#setup .opt-card.sel-gold,#setup .opt-card.sel-blue,#setup .opt-card.sel-red,#setup .opt-card.sel-random{
+  border-color:rgba(168,136,204,.6) !important;background:linear-gradient(135deg,rgba(168,136,204,.24),rgba(94,92,230,.22)) !important;}
+#setup .opt-name{font-weight:700;font-size:14px;color:var(--text);}
+#setup .opt-desc{font-size:11px;color:var(--text3);margin-top:3px;}
+
+.ab-chips{display:flex;flex-wrap:wrap;gap:6px;}
+#setup .scout-lb{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);color:var(--text2);
+  border-radius:999px;padding:7px 13px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;}
+#setup .scout-lb.active{background:linear-gradient(135deg,rgba(168,136,204,.24),rgba(94,92,230,.22));border-color:rgba(168,136,204,.5);color:#F0EAFA;}
+
+/* Summary */
+.ab-summary{position:sticky;top:64px;}
+.ab-sum{margin-bottom:16px;}
+.ab-sum-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;}
+.ab-sum-row span{color:var(--text3);}
+.ab-sum-row b{color:var(--text);font-weight:700;text-align:right;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ab-start{width:100%;border:none;border-radius:13px;padding:14px;cursor:pointer;display:flex;flex-direction:column;gap:2px;align-items:center;
+  background:linear-gradient(135deg,#A888CC,#5E5CE6);color:#fff;box-shadow:0 8px 22px rgba(120,100,200,.3);}
+.ab-start-t{font-size:15px;font-weight:800;}
+.ab-start-s{font-size:11px;opacity:.85;font-weight:500;}
+.ab-est{text-align:center;font-size:11px;color:var(--text3);margin-top:10px;}
+
+/* Battle map cards — id selector survives setMap()'s className reset */
+.ab-maps{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+@media(max-width:760px){.ab-maps{grid-template-columns:repeat(2,1fr);}}
+#setup [id^="map-"]{min-height:108px;border-radius:14px !important;background-size:cover !important;background-position:center !important;
+  display:flex;align-items:flex-end;justify-content:center;padding:10px !important;overflow:hidden;}
+#setup #map-none{flex-direction:column;align-items:center;justify-content:center;background:rgba(255,255,255,.03);}
+.ab-map-ico{font-size:22px;color:var(--accent);margin-bottom:4px;}
+.ab-map-name{font-size:12px;font-weight:700;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.8);text-align:center;}
+#setup [id^="map-"].sel-blue{box-shadow:0 0 0 2px var(--accent) inset;}
+
+/* Feature strip */
+.ab-feats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:8px;padding-top:18px;border-top:1px solid rgba(255,255,255,.06);}
+@media(max-width:760px){.ab-feats{grid-template-columns:repeat(2,1fr);}}
+.ab-feat{display:flex;align-items:center;gap:11px;}
+.ab-feat-i{width:38px;height:38px;border-radius:11px;background:rgba(168,136,204,.12);border:1px solid rgba(168,136,204,.25);
+  display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:17px;flex-shrink:0;}
+.ab-feat b{display:block;font-size:13px;color:var(--text);}
+.ab-feat small{font-size:11px;color:var(--text3);}
+</style>
 <div id="setup">
   <div class="setup-inner">
-  <div class="setup-hd">
-    <div class="engine-pill"><span class="engine-dot"></span>PRACTICE ARENA · DRAFT BRAIN V2</div>
-    <div class="setup-title">Win the game <span>before it starts</span></div>
-    <div class="setup-sub">Full MPL-format draft simulation against your own scout data — every ban, every counter, every read.</div>
+  <div class="ab-hero">
+    <div class="ab-hero-tag">AI BATTLE</div>
+    <h1 class="ab-hero-title">Draft. Practice. <span>Dominate.</span></h1>
+    <div class="ab-hero-sub">Practice your draft and strategy against AI that plays like the pros.</div>
   </div>
 
-  <div class="setup-grid">
-    <!-- COL 1: PLAYER PROFILE -->
-    <div class="setup-card">
-      <div class="card-title">⌖ Player Profile</div>
-      <input class="name-in" id="nameIn" value="You" maxlength="20" placeholder="Enter your name..."/>
-      <div class="card-title" style="margin-top:14px;">Series Format</div>
-      <div class="grid3" style="grid-template-columns:repeat(4,1fr);">
-        <div class="opt-card sel-gold" id="fmt-1" onclick="setFormat(1)"><div class="opt-name">Single</div></div>
-        <div class="opt-card" id="fmt-3" onclick="setFormat(3)"><div class="opt-name">BO3</div></div>
-        <div class="opt-card" id="fmt-5" onclick="setFormat(5)"><div class="opt-name">BO5</div></div>
-        <div class="opt-card" id="fmt-7" onclick="setFormat(7)"><div class="opt-name">BO7</div></div>
+  <div class="ab-cols">
+    <!-- STEP 1: YOUR SETUP -->
+    <section class="ab-card">
+      <div class="ab-step"><span class="ab-num">1</span> YOUR SETUP</div>
+      <label class="ab-lbl">Your Team</label>
+      <input class="ab-input" id="nameIn" value="You" maxlength="20" oninput="updateSummary()" placeholder="Your team name"/>
+      <label class="ab-lbl">Series Format</label>
+      <div class="ab-seg" style="grid-template-columns:repeat(4,1fr);">
+        <div class="opt-card sel-gold" id="fmt-1" onclick="setFormat(1);updateSummary()"><div class="opt-name">Single</div></div>
+        <div class="opt-card" id="fmt-3" onclick="setFormat(3);updateSummary()"><div class="opt-name">BO3</div></div>
+        <div class="opt-card" id="fmt-5" onclick="setFormat(5);updateSummary()"><div class="opt-name">BO5</div></div>
+        <div class="opt-card" id="fmt-7" onclick="setFormat(7);updateSummary()"><div class="opt-name">BO7</div></div>
       </div>
-      <div class="card-title" style="margin-top:14px;">Side Selection <span style="font-weight:400;color:var(--text3);">— game 1; series alternate</span></div>
-      <div class="grid3">
-        <div class="opt-card sel-blue" id="sc-blue" onclick="setSide('blue')"><div class="opt-name">BLUE</div><div class="opt-desc">First pick</div></div>
-        <div class="opt-card" id="sc-red" onclick="setSide('red')"><div class="opt-name">RED</div><div class="opt-desc">Last pick</div></div>
-        <div class="opt-card" id="sc-random" onclick="setSide('random')"><div class="opt-name">RANDOM</div><div class="opt-desc">Coin flip</div></div>
+      <label class="ab-lbl">Side Selection <small>Game 1 — sides alternate in a series</small></label>
+      <div class="ab-seg" style="grid-template-columns:repeat(3,1fr);">
+        <div class="opt-card sel-blue" id="sc-blue" onclick="setSide('blue');updateSummary()"><div class="opt-name">Blue Side</div><div class="opt-desc">First Pick</div></div>
+        <div class="opt-card" id="sc-red" onclick="setSide('red');updateSummary()"><div class="opt-name">Red Side</div><div class="opt-desc">Last Pick</div></div>
+        <div class="opt-card" id="sc-random" onclick="setSide('random');updateSummary()"><div class="opt-name">Random</div><div class="opt-desc">Coin Flip</div></div>
       </div>
-    </div>
+    </section>
 
-    <!-- COL 2: OPPONENT PROTOCOL -->
-  <!-- ENEMY TEAM MODE -->
-  <div class="setup-card" style="position:relative;z-index:2;">
-    <div class="card-title">⌁ Opponent Protocol</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
-      <div class="opt-card sel-gold" id="mode-generic" onclick="setAIMode('generic')" style="text-align:left;">
-        <div><div class="opt-name">VS AI</div><div class="opt-desc">Optimizes to beat you</div></div>
+    <!-- STEP 2: CHOOSE YOUR OPPONENT -->
+    <section class="ab-card" style="position:relative;z-index:2;">
+      <div class="ab-step"><span class="ab-num">2</span> CHOOSE YOUR OPPONENT</div>
+      <div class="ab-modes">
+        <div class="opt-card sel-gold" id="mode-generic" onclick="setAIMode('generic');updateSummary()">
+          <div class="opt-name">VS AI</div><div class="opt-desc">Optimizes to beat you</div>
+        </div>
+        <div class="opt-card" id="mode-enemy" onclick="setAIMode('enemy');updateSummary()">
+          <div class="opt-name">VS MPL Team</div><div class="opt-desc">AI mimics a scouted team</div>
+        </div>
+        <div class="opt-card" id="mode-pvp" onclick="setAIMode('pvp');updateSummary()">
+          <div class="opt-name">VS Player</div><div class="opt-desc">2 coaches · pass &amp; play</div>
+        </div>
       </div>
-      <div class="opt-card" id="mode-enemy" onclick="setAIMode('enemy')" style="text-align:left;">
-        <div><div class="opt-name">VS Enemy Team</div><div class="opt-desc">AI mimics a scouted team</div></div>
+      <div id="pvpPanel" style="display:none;margin-top:12px;">
+        <label class="ab-lbl">Player 2 name</label>
+        <input class="ab-input" id="p2In" value="Player 2" maxlength="20" placeholder="Player 2 name…"/>
+        <div class="ab-note">Hotseat draft — Player 1 takes the side chosen above, Player 2 takes the other. Coach suggestions follow whoever is on the clock.</div>
       </div>
-      <div class="opt-card" id="mode-pvp" onclick="setAIMode('pvp')" style="text-align:left;">
-        <div><div class="opt-name">VS Player</div><div class="opt-desc">2 coaches, pass &amp; play</div></div>
+      <div id="enemyTeamPanel" style="display:none;margin-top:12px;">
+        <div id="enemyLeagueRow" class="ab-chips" style="margin-bottom:10px;"></div>
+        <div style="position:relative;">
+          <input class="ab-input" id="enemySearch" placeholder="Search a scouted team…" autocomplete="off"
+            oninput="filterEnemyTeams(this.value)" onfocus="openEnemyDrop()" onblur="setTimeout(closeEnemyDrop,180)"/>
+          <div id="enemyDrop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:10px;z-index:100;max-height:300px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);"></div>
+        </div>
+        <div id="enemyProfileCard" style="display:none;margin-top:12px;background:var(--surface2);border:1px solid rgba(168,136,204,.3);border-radius:12px;padding:14px;"></div>
+        <div class="ab-note">The AI drafts and plays like the selected team, based on their real match data.</div>
       </div>
-    </div>
-    <div id="pvpPanel" style="display:none;">
-      <input class="name-in" id="p2In" value="Player 2" maxlength="20" placeholder="Player 2 name..." style="border-color:rgba(216,120,128,.35);"/>
-      <div style="margin-top:6px;font-size:10px;color:var(--text3);">Hotseat draft — Player 1 takes the side chosen above, Player 2 takes the other. Coach suggestions follow whoever is on the clock.</div>
-    </div>
-    <div id="enemyTeamPanel" style="display:none;">
-      <div id="enemyLeagueRow" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;"></div>
-      <div style="position:relative;">
-        <input class="name-in" id="enemySearch" placeholder="Search scouted team name..." autocomplete="off"
-          oninput="filterEnemyTeams(this.value)" onfocus="openEnemyDrop()" onblur="setTimeout(closeEnemyDrop,180)"
-          style="border-color:var(--red-border);"/>
-        <div id="enemyDrop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:8px;z-index:100;max-height:300px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);"></div>
-      </div>
-      <div id="enemyProfileCard" style="display:none;margin-top:10px;background:var(--surface2);border:1px solid rgba(240,82,82,.3);border-radius:8px;padding:12px;"></div>
-    </div>
+    </section>
   </div>
 
-  </div>
-
-  <!-- DRAFT ENGINE (full width) -->
-    <!-- COL 2: DRAFT ENGINE -->
-    <div class="setup-card setup-card-engine">
-      <div class="card-title">◈ Draft Engine</div>
-      <div class="grid3">
-        <div class="opt-card" id="dc-normal" onclick="setDiff('normal')"><span class="lv-badge">LV.01</span><div class="opt-name">Normal</div><div class="opt-desc">Brain pipeline, human variance</div></div>
-        <div class="opt-card sel-gold" id="dc-hard" onclick="setDiff('hard')"><span class="lv-badge">LV.02</span><div class="opt-name">Hard</div><div class="opt-desc">+ opponent prediction</div></div>
-        <div class="opt-card" id="dc-gm" onclick="setDiff('gm')"><span class="lv-badge">LV.03</span><div class="opt-name">Grandmaster</div><div class="opt-desc">Full GM layer · ban equity · lookahead</div></div>
+  <!-- STEP 3 + SUMMARY -->
+  <div class="ab-cols2">
+    <section class="ab-card setup-card-engine">
+      <div class="ab-step"><span class="ab-num">3</span> DRAFT ENGINE &amp; SCOUT DATA</div>
+      <label class="ab-lbl">AI Difficulty</label>
+      <div class="ab-seg" style="grid-template-columns:repeat(3,1fr);">
+        <div class="opt-card" id="dc-normal" onclick="setDiff('normal');updateSummary()"><div class="opt-name">Normal</div><div class="opt-desc">Good for learning</div></div>
+        <div class="opt-card sel-gold" id="dc-hard" onclick="setDiff('hard');updateSummary()"><div class="opt-name">Hard</div><div class="opt-desc">Realistic challenge</div></div>
+        <div class="opt-card" id="dc-gm" onclick="setDiff('gm');updateSummary()"><div class="opt-name">Grandmaster</div><div class="opt-desc">For expert players</div></div>
       </div>
-      <div class="card-title" style="margin-top:14px;">Scout Data Source</div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;" id="scoutLeagueChips">
+      <label class="ab-lbl">Scout Data Source</label>
+      <div class="ab-chips" id="scoutLeagueChips">
         <button class="scout-lb active" onclick="setScoutLB('all')">All Pro Leagues</button>
       </div>
-      <div id="scoutStatusAB" style="margin-top:8px;font-size:10px;color:var(--text3);"></div>
-    </div>
+      <div id="scoutStatusAB" style="margin-top:10px;font-size:11px;color:var(--text3);"></div>
+    </section>
 
-  <!-- BATTLE MAP (full width) -->
-  <div class="setup-card">
-    <div class="card-title">▣ Battle Map <span style="font-weight:400;color:var(--text3);">— optional, weighs team map WR into the simulation</span></div>
-    <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;">
-      <div class="opt-card" id="map-none" onclick="setMap('')" style="text-align:center;padding:8px 12px;flex:1 0 auto;">
-        <div class="opt-name" style="font-size:10px;white-space:nowrap;">Any</div>
+    <aside class="ab-card ab-summary">
+      <div class="ab-step"><span class="ab-num" style="background:none;border:none;color:var(--accent);font-size:14px;">✦</span> SUMMARY</div>
+      <div class="ab-sum">
+        <div class="ab-sum-row"><span>Mode</span><b id="sumMode">VS AI</b></div>
+        <div class="ab-sum-row"><span>Series</span><b id="sumSeries">Single</b></div>
+        <div class="ab-sum-row"><span>Side (G1)</span><b id="sumSide">Blue Side</b></div>
+        <div class="ab-sum-row"><span>AI Difficulty</span><b id="sumDiff">Hard</b></div>
+        <div class="ab-sum-row"><span>Scout Data</span><b id="sumScout">All Pro Leagues</b></div>
+        <div class="ab-sum-row"><span>Map</span><b id="sumMap">Any</b></div>
       </div>
-      <div class="opt-card" id="map-Dangerous Grass" onclick="setMap('Dangerous Grass')" style="text-align:center;padding:8px 12px;flex:1 0 auto;">
-        <div class="opt-name" style="font-size:10px;white-space:nowrap;">Dangerous Grass</div>
-      </div>
-      <div class="opt-card" id="map-Broken Walls" onclick="setMap('Broken Walls')" style="text-align:center;padding:8px 12px;flex:1 0 auto;">
-        <div class="opt-name" style="font-size:10px;white-space:nowrap;">Broken Walls</div>
-      </div>
-      <div class="opt-card" id="map-Flying Cloud" onclick="setMap('Flying Cloud')" style="text-align:center;padding:8px 12px;flex:1 0 auto;">
-        <div class="opt-name" style="font-size:10px;white-space:nowrap;">Flying Cloud</div>
-      </div>
-      <div class="opt-card" id="map-Expanding River" onclick="setMap('Expanding River')" style="text-align:center;padding:8px 12px;flex:1 0 auto;">
-        <div class="opt-name" style="font-size:10px;white-space:nowrap;">Expanding River</div>
-      </div>
-    </div>
-    <div id="mapWRContext" style="display:none;margin-top:8px;font-size:10px;color:var(--text3);"></div>
+      <button class="ab-start" onclick="startBattle()">
+        <span class="ab-start-t">⚔ Start AI Battle</span>
+        <span class="ab-start-s">Begin Draft &amp; Simulation</span>
+      </button>
+      <div class="ab-est">⏱ Estimated time: 15–25 minutes · <span id="startSubGames">0 matches loaded</span></div>
+    </aside>
   </div>
 
+  <!-- STEP 4: BATTLE MAP -->
+  <section class="ab-card">
+    <div class="ab-step"><span class="ab-num">4</span> BATTLE MAP <small>optional — weights the team map WR into the simulation</small></div>
+    <div class="ab-maps">
+      <div class="opt-card ab-map ab-map-any" id="map-none" onclick="setMap('');updateSummary()"><span class="ab-map-ico">⟳</span><div class="ab-map-name">Any</div></div>
+      <div class="opt-card ab-map" id="map-Dangerous Grass" onclick="setMap('Dangerous Grass');updateSummary()" style="background-image:linear-gradient(to top,rgba(8,6,14,.94),rgba(8,6,14,.2)),url('maps/dangerous_grass.webp');"><div class="ab-map-name">Dangerous Grass</div></div>
+      <div class="opt-card ab-map" id="map-Broken Walls" onclick="setMap('Broken Walls');updateSummary()" style="background-image:linear-gradient(to top,rgba(8,6,14,.94),rgba(8,6,14,.2)),url('maps/broken_walls.webp');"><div class="ab-map-name">Broken Walls</div></div>
+      <div class="opt-card ab-map" id="map-Flying Cloud" onclick="setMap('Flying Cloud');updateSummary()" style="background-image:linear-gradient(to top,rgba(8,6,14,.94),rgba(8,6,14,.2)),url('maps/flying_cloud.webp');"><div class="ab-map-name">Flying Cloud</div></div>
+      <div class="opt-card ab-map" id="map-Expanding River" onclick="setMap('Expanding River');updateSummary()" style="background-image:linear-gradient(to top,rgba(8,6,14,.94),rgba(8,6,14,.2)),url('maps/expanding_river.webp');"><div class="ab-map-name">Expanding River</div></div>
+    </div>
+    <div id="mapWRContext" style="display:none;margin-top:10px;font-size:11px;color:var(--text3);"></div>
+  </section>
 
-
-
-  <button class="start-btn" onclick="startBattle()">INITIATE DRAFT</button>
-  <div class="start-sub">PROTOCOL SYNCED WITH YOUR SCOUT DATA — <span id="startSubGames">0 matches loaded</span></div>
+  <!-- FEATURE STRIP -->
+  <div class="ab-feats">
+    <div class="ab-feat"><span class="ab-feat-i">◎</span><div><b>Realistic AI</b><small>Drafts like real pro teams</small></div></div>
+    <div class="ab-feat"><span class="ab-feat-i">▦</span><div><b>Pro-Level Data</b><small>Powered by match analytics</small></div></div>
+    <div class="ab-feat"><span class="ab-feat-i">↗</span><div><b>Improve Faster</b><small>Practice, learn, dominate</small></div></div>
+    <div class="ab-feat"><span class="ab-feat-i">∞</span><div><b>No Penalties</b><small>Unlimited drafts &amp; resets</small></div></div>
+  </div>
   </div><!-- /setup-inner -->
 </div>
 
@@ -1400,6 +1488,7 @@ function setScoutLB(l) {
   const count = l==='all' ? (db.matches||[]).length : (db.matches||[]).filter(m=>m.league===l).length;
   const el = document.getElementById('scoutStatusAB');
   if(el) el.textContent = count > 0 ? `✓ ${count} game${count>1?'s':''} available` : 'No games logged for this league yet';
+  if(typeof updateSummary==='function') updateSummary();
 }
 function loadMem(){try{const r=localStorage.getItem(MK);return r?JSON.parse(r):{}}catch(e){return{}}}
 function saveMem(m){try{localStorage.setItem(MK,JSON.stringify(m))}catch(e){}}
@@ -1501,6 +1590,16 @@ function setMap(m){
   }catch(e){ctx.style.display='none';}
 }
 
+function updateSummary(){
+  const g=id=>document.getElementById(id);
+  const modeTxt = aiMode==='enemy' ? (enemyTeamName?('VS '+enemyTeamName):'VS MPL Team') : aiMode==='pvp' ? 'VS Player' : 'VS AI';
+  if(g('sumMode'))   g('sumMode').textContent   = modeTxt;
+  if(g('sumSeries')) g('sumSeries').textContent = seriesLen===1?'Single':('BO'+seriesLen);
+  if(g('sumSide'))   g('sumSide').textContent   = _side==='blue'?'Blue Side':_side==='red'?'Red Side':'Random';
+  if(g('sumDiff'))   g('sumDiff').textContent   = _diff==='normal'?'Normal':_diff==='gm'?'Grandmaster':'Hard';
+  if(g('sumScout'))  g('sumScout').textContent  = (typeof scoutLeagueAB!=='undefined'&&scoutLeagueAB&&scoutLeagueAB!=='all')?scoutLeagueAB:'All Pro Leagues';
+  if(g('sumMap'))    g('sumMap').textContent    = _selectedMap||'Any';
+}
 setSide('blue');setDiff('hard');setMap('');
 // Show API key status + token display on load
 document.addEventListener('DOMContentLoaded',async()=>{
@@ -1508,6 +1607,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
   if(typeof WDB!=='undefined'&&WDB.getAdminApiKey) await WDB.getAdminApiKey();
   updateApiKeyCard();
   updateTokenDisplay();
+  updateSummary();
 });
 
 // ═══════ ENEMY TEAM MODE ═══════
@@ -1572,6 +1672,7 @@ function selectEnemy(name){
   document.getElementById('enemyDrop').style.display='none';
   buildEnemyProfileCache(name);
   renderEnemyProfileCard(name);
+  if(typeof updateSummary==='function') updateSummary();
 }
 function buildEnemyProfileCache(name){
   try{
