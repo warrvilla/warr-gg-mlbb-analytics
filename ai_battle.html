@@ -793,7 +793,11 @@ input:focus, .search-input:focus {
 <!-- SETUP SCREEN -->
 <style>
 /* ═══════ AI BATTLE setup — app redesign ═══════ */
-#setup .setup-inner{max-width:1500px;margin:0 auto !important;padding:20px 32px 48px;}
+#setup .setup-inner{max-width:1500px;margin:0 auto !important;padding:24px 32px 48px;}
+/* Scroll fix: page scrolls as one column under the sticky nav (was a fragile
+   inner flex-scroll container that clipped top/bottom). */
+.page-body{overflow-y:auto !important;}
+#setup{overflow:visible !important;flex:0 0 auto !important;height:auto !important;min-height:calc(100dvh - var(--nav-h,52px)) !important;}
 .ab-hero{position:relative;border-radius:22px;overflow:hidden;margin-bottom:20px;padding:30px 30px 26px;
   background:radial-gradient(ellipse 60% 130% at 88% 15%,rgba(150,70,210,.34) 0%,transparent 60%),linear-gradient(120deg,#0E0A18,#130A20);
   border:1px solid rgba(255,255,255,.07);}
@@ -852,8 +856,12 @@ input:focus, .search-input:focus {
 /* Battle map cards — id selector survives setMap()'s className reset */
 .ab-maps{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
 @media(max-width:760px){.ab-maps{grid-template-columns:repeat(2,1fr);}}
-#setup [id^="map-"]{min-height:108px;border-radius:14px !important;background-size:cover !important;background-position:center !important;
+#setup [id^="map-"]{position:relative;min-height:108px;border-radius:14px !important;background-size:cover !important;background-position:center !important;
   display:flex;align-items:flex-end;justify-content:center;padding:10px !important;overflow:hidden;}
+#setup [id^="map-"]::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:1;
+  background:linear-gradient(to top,rgba(8,6,14,.92) 0%,rgba(8,6,14,.35) 38%,rgba(8,6,14,0) 72%);}
+#setup #map-none::after{display:none;}
+#setup [id^="map-"] .ab-map-name,#setup [id^="map-"] .ab-map-ico{position:relative;z-index:2;}
 #setup #map-none{flex-direction:column;align-items:center;justify-content:center;background:rgba(255,255,255,.03);}
 .ab-map-ico{font-size:22px;color:var(--accent);margin-bottom:4px;}
 .ab-map-name{font-size:12px;font-weight:700;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.8);text-align:center;}
@@ -1061,10 +1069,10 @@ input:focus, .search-input:focus {
     <div class="ab-step"><span class="ab-num">4</span> BATTLE MAP <small>optional — weights the team map WR into the simulation</small></div>
     <div class="ab-maps">
       <div class="opt-card ab-map ab-map-any" id="map-none" onclick="setMap('');updateSummary()"><span class="ab-map-ico">⟳</span><div class="ab-map-name">Any</div></div>
-      <div class="opt-card ab-map" id="map-Dangerous Grass" onclick="setMap('Dangerous Grass');updateSummary()" style="background-image:linear-gradient(to top,rgba(8,6,14,.86) 0%,rgba(8,6,14,.12) 55%,rgba(8,6,14,0) 100%),url('maps/dangerous_grass.webp') !important;"><div class="ab-map-name">Dangerous Grass</div></div>
-      <div class="opt-card ab-map" id="map-Broken Walls" onclick="setMap('Broken Walls');updateSummary()" style="background-image:linear-gradient(to top,rgba(8,6,14,.86) 0%,rgba(8,6,14,.12) 55%,rgba(8,6,14,0) 100%),url('maps/broken_walls.webp') !important;"><div class="ab-map-name">Broken Walls</div></div>
-      <div class="opt-card ab-map" id="map-Flying Cloud" onclick="setMap('Flying Cloud');updateSummary()" style="background-image:linear-gradient(to top,rgba(8,6,14,.86) 0%,rgba(8,6,14,.12) 55%,rgba(8,6,14,0) 100%),url('maps/flying_cloud.webp') !important;"><div class="ab-map-name">Flying Cloud</div></div>
-      <div class="opt-card ab-map" id="map-Expanding River" onclick="setMap('Expanding River');updateSummary()" style="background-image:linear-gradient(to top,rgba(8,6,14,.86) 0%,rgba(8,6,14,.12) 55%,rgba(8,6,14,0) 100%),url('maps/expanding_river.webp') !important;"><div class="ab-map-name">Expanding River</div></div>
+      <div class="opt-card ab-map" id="map-Dangerous Grass" onclick="setMap('Dangerous Grass');updateSummary()" style="background-image:url('maps/dangerous_grass.webp') !important;"><div class="ab-map-name">Dangerous Grass</div></div>
+      <div class="opt-card ab-map" id="map-Broken Walls" onclick="setMap('Broken Walls');updateSummary()" style="background-image:url('maps/broken_walls.webp') !important;"><div class="ab-map-name">Broken Walls</div></div>
+      <div class="opt-card ab-map" id="map-Flying Cloud" onclick="setMap('Flying Cloud');updateSummary()" style="background-image:url('maps/flying_cloud.webp') !important;"><div class="ab-map-name">Flying Cloud</div></div>
+      <div class="opt-card ab-map" id="map-Expanding River" onclick="setMap('Expanding River');updateSummary()" style="background-image:url('maps/expanding_river.webp') !important;"><div class="ab-map-name">Expanding River</div></div>
     </div>
     <div id="mapWRContext" style="display:none;margin-top:10px;font-size:11px;color:var(--text3);"></div>
   </section>
