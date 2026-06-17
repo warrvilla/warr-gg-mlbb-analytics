@@ -793,7 +793,7 @@ input:focus, .search-input:focus {
 <!-- SETUP SCREEN -->
 <style>
 /* ═══════ AI BATTLE setup — app redesign ═══════ */
-#setup .setup-inner{max-width:1500px;padding:20px 32px 48px;}
+#setup .setup-inner{max-width:1500px;margin:0 auto !important;padding:20px 32px 48px;}
 .ab-hero{position:relative;border-radius:22px;overflow:hidden;margin-bottom:20px;padding:30px 30px 26px;
   background:radial-gradient(ellipse 60% 130% at 88% 15%,rgba(150,70,210,.34) 0%,transparent 60%),linear-gradient(120deg,#0E0A18,#130A20);
   border:1px solid rgba(255,255,255,.07);}
@@ -1707,6 +1707,9 @@ document.addEventListener('DOMContentLoaded',async()=>{
   if(typeof WDB!=='undefined'&&WDB.getAdminApiKey) await WDB.getAdminApiKey();
   updateApiKeyCard();
   updateTokenDisplay();
+  // Default opponent mode to VS MPL Team and auto-pick the most-scouted team
+  try{ setAIMode('enemy'); }catch(e){}
+  setTimeout(()=>{ try{ const ts=getAllScoutedTeams(); if(ts&&ts.length&&!enemyTeamName) selectEnemy(ts[0].name); }catch(e){} updateSummary(); }, 500);
   updateSummary();
 });
 
