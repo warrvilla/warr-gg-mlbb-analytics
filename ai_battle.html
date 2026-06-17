@@ -910,6 +910,35 @@ input:focus, .search-input:focus {
 .ab-opp-diff{margin-left:auto;text-align:right;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;}
 .ab-opp-diff b{font-size:14px;color:var(--text);text-transform:none;letter-spacing:0;}
 </style>
+<style>
+/* ═══ AI Battle — brand-exact overrides (mockup violet + hierarchy) ═══ */
+#setup{background:#0A0A0F;}
+#setup .ab-card{background:#14141C;border-color:rgba(255,255,255,.06);border-radius:18px;}
+#setup .ab-hero{background:radial-gradient(ellipse 55% 130% at 88% 12%,rgba(150,70,210,.34) 0%,transparent 60%),linear-gradient(120deg,#100A1C,#150C24);}
+#setup .ab-hero-tag{color:#A78BFA;}
+#setup .ab-hero-title span{background:linear-gradient(135deg,#A78BFA,#7C5CF6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+/* field labels: sentence case, soft gray (matches mockup) */
+#setup .ab-lbl{font-size:13px;font-weight:600;letter-spacing:0;text-transform:none;color:#9A9AAE;margin:16px 0 9px;}
+#setup .ab-lbl small{color:#62626F;font-weight:500;}
+/* number badges + accents → violet */
+#setup .ab-num{background:linear-gradient(135deg,#8B5CF6,#6D5CE6);}
+#setup .ab-mode-ico,#setup .ab-feat-i{background:rgba(124,92,246,.12);border-color:rgba(124,92,246,.28);color:#A78BFA;}
+#setup .ab-feat b{color:#A78BFA;}
+/* selected option cards → violet border + fill + glow */
+#setup .opt-card{background:#191921;border-color:rgba(255,255,255,.07);}
+#setup .opt-card:hover{border-color:rgba(124,92,246,.5);}
+#setup .opt-card.sel-gold,#setup .opt-card.sel-blue,#setup .opt-card.sel-red,#setup .opt-card.sel-random{
+  border-color:#7C5CF6 !important;background:rgba(124,92,246,.14) !important;box-shadow:inset 0 0 0 1px rgba(124,92,246,.55),0 0 18px rgba(124,92,246,.16) !important;}
+/* league chips */
+#setup .scout-lb{background:#191921;border-color:rgba(255,255,255,.08);}
+#setup .scout-lb.active{background:rgba(124,92,246,.18);border-color:rgba(124,92,246,.55);color:#CDBBFF;}
+/* start button + map selection + opponent accents */
+#setup .ab-start{background:linear-gradient(135deg,#7C5CF6,#6D5CE6);box-shadow:0 10px 26px rgba(109,92,230,.42);}
+#setup [id^="map-"].sel-blue{box-shadow:inset 0 0 0 2px #7C5CF6;}
+#setup .ab-opp-league,#setup .ab-opp-behave-t{color:#A78BFA;}
+#setup .ab-opp-behave{background:rgba(124,92,246,.08);border-color:rgba(124,92,246,.22);}
+#setup .setup-card-engine{border-color:rgba(124,92,246,.22) !important;}
+</style>
 <div id="setup">
   <div class="setup-inner">
   <div class="ab-hero">
@@ -1645,7 +1674,7 @@ function setAIMode(m){
   if(pvpEl)pvpEl.className='opt-card'+(m==='pvp'?' sel-gold':'');
   document.getElementById('enemyTeamPanel').style.display=m==='enemy'?'block':'none';
   const gn=document.getElementById('genericNote');
-  if(gn)gn.style.display=m==='enemy'?'none':'block';
+  if(gn)gn.style.display=m==='generic'?'block':'none';
   const pp=document.getElementById('pvpPanel');
   if(pp)pp.style.display=m==='pvp'?'block':'none';
   // keep modes in their selected (ab-mode) class so the flex icon layout persists
