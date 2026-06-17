@@ -1239,6 +1239,24 @@ body::after {
 .btn-accent { background: var(--accent) !important; border: none !important; color: #fff !important; box-shadow: 0 4px 16px rgba(124,92,246,0.24) !important; }
 .btn-ghost  { background: rgba(255,255,255,0.07) !important; border: 0.5px solid rgba(255,255,255,0.08) !important; color: var(--text2) !important; }
 /* ═══════════════════════════════════════════════════ */
+/* ── Team report dashboard (2-col with right sidebar) ── */
+.rpt-dash{display:grid;grid-template-columns:1fr 300px;gap:18px;align-items:start;}
+@media(max-width:1100px){.rpt-dash{grid-template-columns:1fr;}}
+.rpt-main{min-width:0;}
+.rpt-side{display:flex;flex-direction:column;gap:14px;min-width:0;}
+.rpt-sidecard{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 15px;}
+.rpt-side-t{font-size:12px;font-weight:800;letter-spacing:.04em;color:var(--text);margin-bottom:12px;}
+.rpt-hhdr{display:flex;justify-content:flex-end;gap:18px;font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;padding-right:2px;}
+.rpt-hrow{display:flex;align-items:center;gap:9px;margin-bottom:9px;}
+.rpt-hrow img{width:28px;height:28px;border-radius:8px;object-fit:cover;background:var(--surface3);}
+.rpt-hn{flex:1;font-size:12.5px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rpt-hp{font-size:12px;font-weight:700;color:var(--text2);width:38px;text-align:right;font-variant-numeric:tabular-nums;}
+.rpt-hw{font-size:12px;font-weight:800;width:38px;text-align:right;font-variant-numeric:tabular-nums;}
+.rpt-empty2{font-size:11px;color:var(--text3);}
+.rpt-donuts{display:flex;justify-content:space-around;text-align:center;margin-top:6px;}
+.rpt-donut-l{font-size:11px;font-weight:700;margin-top:6px;}
+.rpt-donut-s{font-size:10px;color:var(--text3);margin-top:1px;}
+/* ═══════════════════════════════════════════════════ */
 /* ── Match Log (redesigned rows + expandable draft) ── */
 .ml-group{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin:14px 0 7px;}
 .ml-card{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:14px;margin-bottom:9px;overflow:hidden;transition:border-color .15s;}
@@ -4080,6 +4098,26 @@ function openTeamReport(teamName) {
       <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-top:3px;">${label}</div>
     </div>`;
 
+  // ── Right sidebar (reference): Most Picked / Most Banned / Side Performance ──
+  const _donut = (pct,color)=>{ const r=26,circ=2*Math.PI*r,off=circ*(1-((pct||0)/100));
+    return `<svg width="76" height="76" viewBox="0 0 76 76"><circle cx="38" cy="38" r="26" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="7"/><circle cx="38" cy="38" r="26" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 38 38)"/><text x="38" y="43" text-anchor="middle" font-size="16" font-weight="800" fill="${color}">${pct==null?'—':pct+'%'}</text></svg>`; };
+  const _mpRows = (t.topPicks||[]).slice(0,5).map(p=>{ const pr=t.gamesPlayed?Math.round(p.count/t.gamesPlayed*100):0;
+    return `<div class="rpt-hrow">${img(p.name,28)}<span class="rpt-hn">${p.name}</span><span class="rpt-hp">${pr}%</span><span class="rpt-hw" style="color:${wrc(p.wr)}">${p.wr}%</span></div>`; }).join('');
+  const _mbRows = (t.topBans||[]).slice(0,5).map(b=>{ const br=t.gamesPlayed?Math.round(b.count/t.gamesPlayed*100):0;
+    return `<div class="rpt-hrow">${img(b.name,28)}<span class="rpt-hn">${b.name}</span><span class="rpt-hp" style="color:var(--red)">${br}%</span></div>`; }).join('');
+  const _blW=t.blueWins||0, _blL=(t.blueSideGames||0)-_blW, _rdW=t.redWins||0, _rdL=(t.redSideGames||0)-_rdW;
+  const sideHTML = `
+    <div class="rpt-sidecard"><div class="rpt-side-t">Most Picked Heroes</div>
+      <div class="rpt-hhdr"><span>Pick%</span><span>WR</span></div>
+      ${_mpRows||'<div class="rpt-empty2">No data</div>'}</div>
+    <div class="rpt-sidecard"><div class="rpt-side-t">Most Banned Heroes</div>
+      ${_mbRows||'<div class="rpt-empty2">No data</div>'}</div>
+    <div class="rpt-sidecard"><div class="rpt-side-t">Side Performance</div>
+      <div class="rpt-donuts">
+        <div><div class="rpt-donut-w">${_donut(t.blueSideWR,'#5EA0D8')}</div><div class="rpt-donut-l" style="color:var(--blue)">Blue Side</div><div class="rpt-donut-s">${_blW}W – ${_blL}L</div></div>
+        <div><div class="rpt-donut-w">${_donut(t.redSideWR,'#D87880')}</div><div class="rpt-donut-l" style="color:var(--red)">Red Side</div><div class="rpt-donut-s">${_rdW}W – ${_rdL}L</div></div>
+      </div></div>`;
+
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'teamReportModal';
@@ -4092,7 +4130,7 @@ function openTeamReport(teamName) {
     `<option value="${mp}"${_reportMapFilter===mp?' selected':''}>${mp}</option>`
   ).join('');
   overlay.innerHTML = `
-    <div class="modal" style="max-width:920px;" id="teamReportContent">
+    <div class="modal" style="max-width:1360px;" id="teamReportContent">
       <div class="modal-header no-print" style="gap:8px;">
         <div class="modal-title">Scout Report — ${teamName}${_reportMapFilter ? ` <span style="font-size:11px;color:var(--accent);font-weight:500;margin-left:6px;">on ${_reportMapFilter}</span>` : ''}</div>
         <div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0;align-items:center;">
@@ -4104,6 +4142,7 @@ function openTeamReport(teamName) {
         </div>
       </div>
       <div class="modal-body" id="reportBody" style="padding:20px 24px;">
+       <div class="rpt-dash"><div class="rpt-main">
 
         <!-- PRINT HEADER -->
         <div class="print-only" style="display:none;margin-bottom:16px;border-bottom:2px solid #333;padding-bottom:10px;">
@@ -4247,6 +4286,9 @@ function openTeamReport(teamName) {
         <!-- MATCH HISTORY -->
         ${sec(`Match Log · ${series.length} series · ${teamGames.length} games`, matchHistoryHTML)}
 
+       </div><!-- /rpt-main -->
+       <aside class="rpt-side">${sideHTML}</aside>
+       </div><!-- /rpt-dash -->
       </div>
     </div>`;
 
