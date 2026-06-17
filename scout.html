@@ -1322,7 +1322,7 @@ table.kda td.r { text-align:right; }
       <span>Hero Meta</span>
     </button>
     <button class="sidebar-btn" id="sb-report" onclick="showView('report')">
-      <span>📊 Team Report</span>
+      <span>My Team Report</span>
     </button>
     </div>
 
@@ -4458,16 +4458,16 @@ function setReportPreset(p){
 }
 function renderReport(){
   const area=document.getElementById('mainArea');
-  const all=DB_MODULE.getMatches();
-  const teams=[...new Set(all.flatMap(m=>[m.blueTeam,m.redTeam]).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-  if(!_rTeam){ let my=''; try{my=WAuth.getProfile()?.team_name||'';}catch(_){} _rTeam=(my&&teams.includes(my))?my:(teams[0]||''); }
+  let my=''; try{my=WAuth.getProfile()?.team_name||'';}catch(_){}
+  if(!my){
+    area.innerHTML=`<div class="rpt-empty">This report is about <b>your team</b>. Set your team in <a href="/profile" style="color:var(--accent)">Profile</a> first.<br><span style="font-size:12.5px">Want another team's report? Use the Teams view and open that team.</span></div>`;
+    return;
+  }
+  _rTeam=my;
   const mr=_rRangeForPreset('month');
   area.innerHTML = `
     <div class="rpt-controls">
-      <div class="rpt-field"><label>Team</label>
-        <select id="rTeam" onchange="setReportTeam(this.value)">${teams.map(n=>`<option${n===_rTeam?' selected':''}>${n}</option>`).join('')||'<option value="">No teams</option>'}</select>
-      </div>
-      <div class="rpt-field" style="flex:1;min-width:240px;"><label>Date range</label>
+      <div class="rpt-field" style="flex:1;min-width:240px;"><label>Date range — ${my}</label>
         <div class="rpt-presets" id="rPresets">
           ${[['today','Today'],['yesterday','Yesterday'],['7d','Last 7 days'],['month','This month'],['30d','Last 30 days'],['all','All time'],['custom','Custom']].map(([p,l])=>`<button class="rpt-preset${p===_rPreset?' active':''}" data-p="${p}" onclick="setReportPreset('${p}')">${l}</button>`).join('')}
         </div>
@@ -4475,7 +4475,7 @@ function renderReport(){
           <input type="date" id="rFrom" value="${mr.from}" onchange="renderReportBody()"><span style="color:var(--text2);align-self:center;">→</span><input type="date" id="rTo" value="${mr.to}" onchange="renderReportBody()">
         </div>
       </div>
-      <div class="rpt-actions"><button class="btn btn-ghost btn-sm" onclick="window.print()">⎙ PDF</button></div>
+      <div class="rpt-actions"><button class="btn btn-ghost btn-sm" onclick="window.print()">Export PDF</button></div>
     </div>
     <div id="rptOut"></div>`;
   renderReportBody();
@@ -4483,7 +4483,7 @@ function renderReport(){
 function renderReportBody(){
   const out=document.getElementById('rptOut'); if(!out) return;
   const all=DB_MODULE.getMatches();
-  if(!_rTeam){ out.innerHTML=`<div class="rpt-empty"><div class="e-emoji">📊</div>No team data yet. Log some matches first.</div>`; return; }
+  if(!_rTeam){ out.innerHTML=`<div class="rpt-empty">No team data yet. Log some matches first.</div>`; return; }
   let from,to;
   if(_rPreset==='custom'){ from=document.getElementById('rFrom')?.value; to=document.getElementById('rTo')?.value;
     if(!from||!to){ out.innerHTML=`<div class="rpt-empty">Pick a start and end date.</div>`; return; } if(from>to)[from,to]=[to,from]; }
@@ -4493,7 +4493,7 @@ function renderReportBody(){
   const pr=_rPrevRange(from,to); let prevWR=null;
   if(pr){ const pt=_rComputeTeam(all.filter(m=>_rInRange(m,pr.from,pr.to)),_rTeam); if(pt.gamesPlayed) prevWR=pt.winRate; }
   if(!t.gamesPlayed){
-    out.innerHTML=`<div class="rcard" style="text-align:center;padding:50px 20px;color:var(--text2)"><div style="font-size:34px;margin-bottom:10px;opacity:.6">🗓️</div><b style="color:var(--text)">${_rTeam}</b> played no games in <b style="color:var(--text)">${_rRangeLabel(from,to,_rPreset)}</b>.<br>Try a wider range.</div>`;
+    out.innerHTML=`<div class="rcard" style="text-align:center;padding:50px 20px;color:var(--text2)"><b style="color:var(--text)">${_rTeam}</b> played no games in <b style="color:var(--text)">${_rRangeLabel(from,to,_rPreset)}</b>.<br>Try a wider range.</div>`;
     return;
   }
   const wrColor=t.winRate>=60?'var(--green)':t.winRate>=50?'var(--gold)':'var(--red)';
@@ -4553,8 +4553,8 @@ function renderReportBody(){
     </div>
     ${kdaRows?`<div class="rcard"><h3>Player KDA</h3><table class="kda"><thead><tr><th>Player</th><th class="r">G</th><th class="r">Avg K/D/A</th><th class="r">KDA</th><th class="r">WR</th></tr></thead><tbody>${kdaRows}</tbody></table></div>`:''}
     <div class="rpt-grid">
-      <div class="rcard"><h3>✓ Strengths</h3>${good.length?good.map(g=>`<div class="insight good"><span class="dot"></span><span>${g}</span></div>`).join(''):'<div style="color:var(--text2)">Not enough data yet for clear strengths.</div>'}</div>
-      <div class="rcard"><h3>⚠ Focus areas</h3>${bad.length?bad.map(g=>`<div class="insight bad"><span class="dot"></span><span>${g}</span></div>`).join(''):'<div style="color:var(--text2)">No clear weaknesses in this range. 🔥</div>'}</div>
+      <div class="rcard"><h3>Strengths</h3>${good.length?good.map(g=>`<div class="insight good"><span class="dot"></span><span>${g}</span></div>`).join(''):'<div style="color:var(--text2)">Not enough data yet for clear strengths.</div>'}</div>
+      <div class="rcard"><h3>Focus areas</h3>${bad.length?bad.map(g=>`<div class="insight bad"><span class="dot"></span><span>${g}</span></div>`).join(''):'<div style="color:var(--text2)">No clear weaknesses in this range.</div>'}</div>
     </div>
     <div class="rcard"><h3>Recent results</h3>${series.slice(0,12).map(s=>`<div class="series-row"><div class="sr-res ${s.result}">${s.result}</div><div class="sr-opp">vs <b>${s.opponent||'—'}</b> <span class="sr-meta">${s.ourWins}–${s.oppWins}</span></div><div class="sr-meta">${[s.league,s.week].filter(Boolean).join(' · ')} · ${_rFmtDate(s.date)}</div></div>`).join('')}</div>`;
 }

@@ -766,3 +766,30 @@ html[data-theme="neon"] .mobile-nav-link.active { color: #FF00FF; }
     radial-gradient(ellipse 50% 40% at 80% 70%, rgba(10,132,255,0.08) 0%, transparent 55%),
     var(--bg);
 }
+
+/* ── Date/time inputs: make the native calendar picker icon visible on dark ──
+   The webkit calendar indicator defaults to dark, invisible on our dark UI.
+   color-scheme:dark whitens it (and themes the popup); light theme keeps default. */
+input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"] {
+  color-scheme: dark;
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.9) brightness(1.2);
+  opacity: 0.85;
+  cursor: pointer;
+}
+html[data-theme="light"] input[type="date"],
+html[data-theme="light"] input[type="time"],
+html[data-theme="light"] input[type="datetime-local"],
+html[data-theme="light"] input[type="month"] {
+  color-scheme: light;
+}
+html[data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator,
+html[data-theme="light"] input[type="time"]::-webkit-calendar-picker-indicator,
+html[data-theme="light"] input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+html[data-theme="light"] input[type="month"]::-webkit-calendar-picker-indicator {
+  filter: none;
+}
