@@ -200,7 +200,12 @@ body {
 .ml-stage{min-width:0;}
 .ml-stage-t{display:block;font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ml-bo{display:inline-block;margin-top:3px;font-size:8px;font-weight:700;color:#A78BFA;background:rgba(124,92,246,.14);border:1px solid rgba(124,92,246,.28);border-radius:5px;padding:1px 5px;}
-.ml-logo{width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0;}
+.ml-logo{width:22px;height:22px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0;position:relative;overflow:hidden;background:rgba(255,255,255,.06);}
+.ml-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:2px;}
+.ml-logo i{font-style:normal;display:none;}
+.ml-logo.noimg{background:var(--mc,#7C5CF6);}
+.ml-logo.noimg img{display:none;}
+.ml-logo.noimg i{display:inline;}
 .ml-team{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--text2);min-width:0;}
 .ml-team.win{color:var(--text);font-weight:700;}
 .ml-team .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -226,8 +231,12 @@ body {
 .md-slideclip{flex:1;min-width:0;overflow:hidden;}
 .md-slide{display:flex;align-items:center;gap:12px;min-width:0;animation:mdSlideIn .24s cubic-bezier(.22,.7,.3,1);}
 @keyframes mdSlideIn{from{opacity:0;transform:translateX(var(--md-sx,0));}to{opacity:1;transform:translateX(0);}}
-.md-logo{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;flex-shrink:0;position:relative;overflow:hidden;}
-.md-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.md-logo{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;flex-shrink:0;position:relative;overflow:hidden;background:rgba(255,255,255,.06);}
+.md-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:6px;}
+.md-logo i{font-style:normal;display:none;}
+.md-logo.noimg{background:linear-gradient(135deg,var(--mc,#7C5CF6),var(--mc,#7C5CF6));}
+.md-logo.noimg img{display:none;}
+.md-logo.noimg i{display:flex;}
 .md-name{font-size:17px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .md-verif{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:#7C5CF6;color:#fff;font-size:8px;flex-shrink:0;}
 .md-tags{display:flex;align-items:center;gap:7px;margin-top:5px;}
@@ -2324,7 +2333,7 @@ function renderMatchList() {
          <section class="md-headcard">
            <div class="md-head-row">
              <div class="md-slideclip"><div class="md-slide" style="--md-sx:${_slideDir>0?'40px':_slideDir<0?'-40px':'0'}">
-               <div class="md-logo" style="background:linear-gradient(135deg,${_mo.color},${_mo.color}99)">${_mo.init}<img src="${_logoUrl}" onerror="this.style.display='none'"></div>
+               <div class="md-logo${_logoUrl?'':' noimg'}" style="--mc:${_mo.color}"><img src="${_logoUrl}" onerror="this.closest('.md-logo').classList.add('noimg')"><i>${_mo.init}</i></div>
                <div style="flex:1;min-width:0;">
                  <div class="md-name">${_focusTeam||'—'}<span class="md-verif">✔</span></div>
                  <div class="md-tags">${_league?`<span class="md-league">${_league}</span>`:''}<select class="md-teamsel" onchange="setFocusTeam(this.value)">${teamSel}</select></div>
@@ -2525,9 +2534,9 @@ function renderMatchListBody() {
       <div class="ml-row">
         <div class="ml-date"><div class="ml-day">${day}</div><div class="ml-mon">${(mon||'').toUpperCase()}</div></div>
         <div class="ml-stage"><span class="ml-stage-t">${s.stage||s.league||'Match'}</span><span class="ml-bo">${s.seriesFormat||('BO'+s.games.length)}</span></div>
-        <div class="ml-team ml-teamA${seriesWinner===s.blueTeam?' win':''}"><span class="nm">${s.blueTeam}</span><span class="ml-logo" style="background:${_bm.color}">${_bm.init}</span></div>
+        <div class="ml-team ml-teamA${seriesWinner===s.blueTeam?' win':''}"><span class="nm">${s.blueTeam}</span><span class="ml-logo" style="--mc:${_bm.color}"><img src="${(typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(s.blueTeam):''}" loading="lazy" onerror="this.closest('.ml-logo').classList.add('noimg')"><i>${_bm.init}</i></span></div>
         <div class="ml-score"><span class="ml-sc" style="color:${scoreColor}">${blueWins} - ${redWins}</span></div>
-        <div class="ml-team ml-teamB${seriesWinner===s.redTeam?' win':''}"><span class="ml-logo" style="background:${_rm.color}">${_rm.init}</span><span class="nm">${s.redTeam}</span></div>
+        <div class="ml-team ml-teamB${seriesWinner===s.redTeam?' win':''}"><span class="ml-logo" style="--mc:${_rm.color}"><img src="${(typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(s.redTeam):''}" loading="lazy" onerror="this.closest('.ml-logo').classList.add('noimg')"><i>${_rm.init}</i></span><span class="nm">${s.redTeam}</span></div>
         <button class="ml-view" onclick="const x=this.closest('.ml-card').querySelector('.ml-detail');x.classList.toggle('open');this.textContent=x.classList.contains('open')?'Hide ▾':'View Details ▸';">View Details ▸</button>
       </div>
       <div class="ml-detail">${gameRows}</div>
