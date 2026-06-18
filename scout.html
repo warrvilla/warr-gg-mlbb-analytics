@@ -193,7 +193,7 @@ body {
 .ml-group{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin:14px 0 7px;}
 .ml-card{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:12px;margin-bottom:7px;overflow:hidden;transition:border-color .15s;}
 .ml-card:hover{border-color:rgba(124,92,246,.3);}
-.ml-row{display:grid;grid-template-columns:auto 104px minmax(0,1fr) auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:9px 14px;}
+.ml-row{display:grid;grid-template-columns:auto 104px minmax(0,1fr) auto minmax(0,1fr) auto auto;align-items:center;gap:12px;padding:10px 14px;}
 .ml-date{text-align:center;width:30px;flex-shrink:0;}
 .ml-day{font-size:15px;font-weight:800;line-height:1;color:var(--text);}
 .ml-mon{font-size:8px;color:var(--text3);letter-spacing:.06em;margin-top:2px;}
@@ -211,8 +211,13 @@ body {
 .ml-team .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .ml-teamA{justify-self:end;}
 .ml-teamB{justify-self:start;}
-.ml-score{display:flex;align-items:center;gap:8px;flex-shrink:0;justify-self:center;}
-.ml-sc{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.ml-score{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;justify-self:center;}
+.ml-sc{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:.02em;}
+.ml-res{font-size:9px;font-weight:800;letter-spacing:.05em;padding:2px 8px;border-radius:5px;}
+.ml-res.w{color:var(--green);background:var(--green-dim);border:1px solid var(--green-border);}
+.ml-res.l{color:var(--red);background:var(--red-dim);border:1px solid var(--red-border);}
+.ml-heroes{display:flex;gap:4px;flex-shrink:0;justify-self:end;}
+.ml-hero{width:28px;height:28px;border-radius:7px;object-fit:cover;background:var(--surface3);border:1px solid rgba(255,255,255,.08);}
 .ml-view{flex-shrink:0;justify-self:end;background:rgba(124,92,246,.12);border:1px solid rgba(124,92,246,.3);color:#CDBBFF;border-radius:8px;padding:6px 11px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;}
 .ml-view:hover{background:rgba(124,92,246,.2);}
 .ml-detail{display:none;padding:6px 16px 14px;border-top:1px solid rgba(255,255,255,.06);}
@@ -245,7 +250,7 @@ body {
 .md-headctrls{display:flex;align-items:center;gap:6px;flex-shrink:0;}
 .md-follow{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:var(--text);border-radius:9px;padding:7px 12px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;}
 .md-follow:hover{background:rgba(255,255,255,.09);}
-.md-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.md-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
 .md-kpi{text-align:left;}
 .md-kv{font-size:17px;font-weight:800;color:var(--text);line-height:1;font-variant-numeric:tabular-nums;}
 .md-kl{font-size:9px;color:var(--text3);margin-top:5px;letter-spacing:.02em;}
@@ -256,7 +261,7 @@ body {
 .md-ai-list li::before{content:'';position:absolute;left:0;top:6px;width:4px;height:4px;border-radius:50%;background:#7C5CF6;}
 .md-genreport{width:100%;background:linear-gradient(135deg,#7C5CF6,#6D4DE0);border:none;color:#fff;border-radius:9px;padding:9px;font:inherit;font-size:11px;font-weight:700;cursor:pointer;margin-top:11px;}
 .md-genreport:hover{filter:brightness(1.08);}
-.md-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;}
+.md-tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;}
 .md-tile{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 12px;display:flex;align-items:center;gap:10px;}
 .md-tile-ic{width:30px;height:30px;border-radius:9px;background:rgba(124,92,246,.13);border:1px solid rgba(124,92,246,.26);display:flex;align-items:center;justify-content:center;font-size:14px;color:#A78BFA;flex-shrink:0;}
 .md-tile-v{font-size:16px;font-weight:800;color:var(--text);line-height:1;}
@@ -2270,6 +2275,9 @@ function computeFocusStats(name, matches){
   t.redSideWR  = t.redSideGames ?Math.round(t.redWins/t.redSideGames*100):null;
   const pickC={},banC={},pickW={},banRecC={};
   let ftG=0,ftO=0,flG=0,flO=0, tk=0,ta=0,td=0;
+  let turtleTot=0,turtleOurs=0, lordTot=0,lordOurs=0;     // objective WIN RATE (% secured)
+  let fbG=0,fbO=0;                                         // first blood
+  let towerSum=0,towerG=0;                                 // towers pushed per game
   games.forEach(m=>{
     const ours=m.blueTeam===name, side=ours?'blue':'red';
     const won=(ours&&m.winner==='blue')||(!ours&&m.winner==='red');
@@ -2285,13 +2293,27 @@ function computeFocusStats(name, matches){
     const lArr=obj.lord||[obj.l1,obj.l2,obj.l3].filter(Boolean)||[];
     const fT=tArr.find(v=>v==='blue'||v==='red'); if(fT){ftG++; if(fT===side)ftO++;}
     const fL=lArr.find(v=>v==='blue'||v==='red'); if(fL){flG++; if(fL===side)flO++;}
+    // Turtle / Lord WIN RATE = share of ALL contested objectives this team secured
+    tArr.forEach(v=>{ if(v==='blue'||v==='red'){ turtleTot++; if(v===side) turtleOurs++; } });
+    lArr.forEach(v=>{ if(v==='blue'||v==='red'){ lordTot++;   if(v===side) lordOurs++;   } });
+    // First Blood
+    if(m.firstBlood==='blue'||m.firstBlood==='red'){ fbG++; if(m.firstBlood===side) fbO++; }
+    // Towers pushed (our side's tower count)
+    if(m.towers&&(m.towers.blue!=null||m.towers.red!=null)){ const ourT=ours?m.towers.blue:m.towers.red; if(ourT!=null){ towerG++; towerSum+=Number(ourT)||0; } }
   });
   t.topPicks=Object.entries(pickC).sort((a,b)=>b[1]-a[1]).map(([n,c])=>({name:n,count:c,wr:pickW[n]?Math.round(pickW[n]/c*100):0}));
   t.topBans=Object.entries(banC).sort((a,b)=>b[1]-a[1]).map(([n,c])=>({name:n,count:c}));
   t.bansReceived=Object.entries(banRecC).sort((a,b)=>b[1]-a[1]).map(([n,c])=>({name:n,count:c}));
   t.firstTurtleRate = ftG?Math.round(ftO/ftG*100):null;
   t.firstLordRate   = flG?Math.round(flO/flG*100):null;
-  t.kd = td?(tk/td).toFixed(2):'—';  // pure Kills ÷ Deaths (label is "Kills / Death")
+  t.kd = td?(tk/td).toFixed(2):'—';
+  // ── Replacement metrics (real, from scout data) ──
+  t.turtleWR   = turtleTot?Math.round(turtleOurs/turtleTot*100):null;   // Turtle Win Rate
+  t.lordWR     = lordTot  ?Math.round(lordOurs/lordTot*100):null;       // Lord Win Rate
+  t.fbRate     = fbG?Math.round(fbO/fbG*100):null;                      // First Blood %
+  t.avgTowers  = towerG?(towerSum/towerG).toFixed(1):null;              // Avg Towers Pushed
+  t.avgKills   = t.gamesPlayed?(tk/t.gamesPlayed).toFixed(1):null;      // Avg Kills / game
+  t.avgDeaths  = t.gamesPlayed?(td/t.gamesPlayed).toFixed(1):null;      // Avg Death / game
   return t;
 }
 function cycleFocusTeam(dir){
@@ -2348,6 +2370,7 @@ function renderMatchList() {
            <div class="md-kpis">
              <div class="md-kpi"><div class="md-kv" style="color:${_wrc(wr)}">${wr}%</div><div class="md-kl">Win Rate</div></div>
              <div class="md-kpi"><div class="md-kv">${t.wins||0}W - ${t.losses||0}L</div><div class="md-kl">Last ${t.gamesPlayed||0} Games</div></div>
+             <div class="md-kpi"><div class="md-kv">${t.fbRate!=null?t.fbRate+'%':'—'}</div><div class="md-kl">First Blood %</div></div>
              <div class="md-kpi"><div class="md-kv" style="color:${t.blueSideWR!=null?_wrc(t.blueSideWR):'var(--text3)'}">${t.blueSideWR!=null?t.blueSideWR+'%':'—'}</div><div class="md-kl">Blue Side WR</div></div>
              <div class="md-kpi"><div class="md-kv" style="color:${t.redSideWR!=null?_wrc(t.redSideWR):'var(--text3)'}">${t.redSideWR!=null?t.redSideWR+'%':'—'}</div><div class="md-kl">Red Side WR</div></div>
            </div>
@@ -2359,9 +2382,11 @@ function renderMatchList() {
          </aside>
        </div>
        <div class="md-tiles">
-         <div class="md-tile"><div class="md-tile-ic">◓</div><div><div class="md-tile-v">${t.firstTurtleRate!=null?t.firstTurtleRate+'%':'—'}</div><div class="md-tile-l">First Turtle · Take Rate</div></div></div>
-         <div class="md-tile"><div class="md-tile-ic">✦</div><div><div class="md-tile-v">${t.firstLordRate!=null?t.firstLordRate+'%':'—'}</div><div class="md-tile-l">First Lord · Take Rate</div></div></div>
-         <div class="md-tile"><div class="md-tile-ic">⚔</div><div><div class="md-tile-v">${_kd}</div><div class="md-tile-l">Kills / Death · Average</div></div></div>
+         <div class="md-tile"><div class="md-tile-ic">🗼</div><div><div class="md-tile-v">${t.avgTowers!=null?t.avgTowers:'—'}</div><div class="md-tile-l">Avg Towers Pushed</div></div></div>
+         <div class="md-tile"><div class="md-tile-ic">◓</div><div><div class="md-tile-v">${t.turtleWR!=null?t.turtleWR+'%':'—'}</div><div class="md-tile-l">Turtle Win Rate</div></div></div>
+         <div class="md-tile"><div class="md-tile-ic">✦</div><div><div class="md-tile-v">${t.lordWR!=null?t.lordWR+'%':'—'}</div><div class="md-tile-l">Lord Win Rate</div></div></div>
+         <div class="md-tile"><div class="md-tile-ic">⚔</div><div><div class="md-tile-v">${t.avgKills!=null?t.avgKills:'—'}</div><div class="md-tile-l">Avg Kills · per game</div></div></div>
+         <div class="md-tile"><div class="md-tile-ic">💀</div><div><div class="md-tile-v">${t.avgDeaths!=null?t.avgDeaths:'—'}</div><div class="md-tile-l">Avg Death · per game</div></div></div>
        </div>
        <section class="md-logcard" id="matchListStatic">
          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
@@ -2530,13 +2555,19 @@ function renderMatchListBody() {
 
     const _mono=n=>(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(n||'?'):{init:(n||'?')[0]||'?',color:'#7C5CF6'};
     const _bm=_mono(s.blueTeam), _rm=_mono(s.redTeam);
+    const _tlogo=n=>(typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(n):'';
+    // 4 hero preview = blue (left) team's most-used picks across the series
+    const _blP=[]; s.games.forEach(g=>{(g.bluePicks||[]).forEach(h=>{const n=h&&(h.name||h); if(n&&!_blP.includes(n))_blP.push(n);});});
+    const _heroPrev=_blP.slice(0,4).map(h=>`<img class="ml-hero" src="${_heroIcon(h)}" onerror="${_heroIconErr(h)}" title="${h}">`).join('');
+    const _res = seriesWinner===s.blueTeam ? 'WIN' : (seriesWinner===s.redTeam ? 'LOSS' : '');
     return groupHdr + `<div class="ml-card">
       <div class="ml-row">
         <div class="ml-date"><div class="ml-day">${day}</div><div class="ml-mon">${(mon||'').toUpperCase()}</div></div>
         <div class="ml-stage"><span class="ml-stage-t">${s.stage||s.league||'Match'}</span><span class="ml-bo">${s.seriesFormat||('BO'+s.games.length)}</span></div>
-        <div class="ml-team ml-teamA${seriesWinner===s.blueTeam?' win':''}"><span class="nm">${s.blueTeam}</span><span class="ml-logo" style="--mc:${_bm.color}"><img src="${(typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(s.blueTeam):''}" loading="lazy" onerror="this.closest('.ml-logo').classList.add('noimg')"><i>${_bm.init}</i></span></div>
-        <div class="ml-score"><span class="ml-sc" style="color:${scoreColor}">${blueWins} - ${redWins}</span></div>
-        <div class="ml-team ml-teamB${seriesWinner===s.redTeam?' win':''}"><span class="ml-logo" style="--mc:${_rm.color}"><img src="${(typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(s.redTeam):''}" loading="lazy" onerror="this.closest('.ml-logo').classList.add('noimg')"><i>${_rm.init}</i></span><span class="nm">${s.redTeam}</span></div>
+        <div class="ml-team ml-teamA${seriesWinner===s.blueTeam?' win':''}"><span class="nm">${s.blueTeam}</span><span class="ml-logo" style="--mc:${_bm.color}"><img src="${_tlogo(s.blueTeam)}" loading="lazy" onerror="this.closest('.ml-logo').classList.add('noimg')"><i>${_bm.init}</i></span></div>
+        <div class="ml-score"><span class="ml-sc" style="color:${scoreColor}">${blueWins} - ${redWins}</span>${_res?`<span class="ml-res ${_res==='WIN'?'w':'l'}">${_res}</span>`:''}</div>
+        <div class="ml-team ml-teamB${seriesWinner===s.redTeam?' win':''}"><span class="ml-logo" style="--mc:${_rm.color}"><img src="${_tlogo(s.redTeam)}" loading="lazy" onerror="this.closest('.ml-logo').classList.add('noimg')"><i>${_rm.init}</i></span><span class="nm">${s.redTeam}</span></div>
+        <div class="ml-heroes">${_heroPrev}</div>
         <button class="ml-view" onclick="const x=this.closest('.ml-card').querySelector('.ml-detail');x.classList.toggle('open');this.textContent=x.classList.contains('open')?'Hide ▾':'View Details ▸';">View Details ▸</button>
       </div>
       <div class="ml-detail">${gameRows}</div>
