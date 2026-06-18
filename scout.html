@@ -193,7 +193,7 @@ body {
 .ml-group{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin:14px 0 7px;}
 .ml-card{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:14px;margin-bottom:9px;overflow:hidden;transition:border-color .15s;}
 .ml-card:hover{border-color:rgba(124,92,246,.3);}
-.ml-row{display:flex;align-items:center;gap:14px;padding:12px 16px;}
+.ml-row{display:grid;grid-template-columns:auto 118px minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:14px;padding:12px 16px;}
 .ml-date{text-align:center;width:34px;flex-shrink:0;}
 .ml-day{font-size:18px;font-weight:800;line-height:1;color:var(--text);}
 .ml-mon{font-size:9px;color:var(--text3);letter-spacing:.06em;margin-top:2px;}
@@ -205,14 +205,14 @@ body {
 .ml-team{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text);min-width:0;}
 .ml-team .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .ml-vs{font-size:10px;color:var(--text3);flex-shrink:0;}
-.ml-score{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+.ml-score{display:flex;align-items:center;gap:10px;flex-shrink:0;justify-self:center;}
 .ml-sc{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;}
 .ml-win{font-size:9px;font-weight:800;letter-spacing:.04em;padding:3px 8px;border-radius:5px;color:var(--gold);background:var(--gold-dim);border:1px solid var(--gold-border);white-space:nowrap;}
-.ml-view{flex-shrink:0;background:rgba(124,92,246,.12);border:1px solid rgba(124,92,246,.3);color:#CDBBFF;border-radius:9px;padding:7px 13px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.ml-view{flex-shrink:0;justify-self:end;background:rgba(124,92,246,.12);border:1px solid rgba(124,92,246,.3);color:#CDBBFF;border-radius:9px;padding:7px 13px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
 .ml-view:hover{background:rgba(124,92,246,.2);}
 .ml-detail{display:none;padding:6px 16px 14px;border-top:1px solid rgba(255,255,255,.06);}
 .ml-detail.open{display:block;}
-@media(max-width:760px){.ml-stage{display:none;}.ml-row{gap:10px;}}
+@media(max-width:760px){.ml-stage{display:none;}.ml-row{display:flex;gap:10px;}.ml-teams{flex:1;}.ml-score,.ml-view{justify-self:auto;}}
 
 /* ── MATCH DASHBOARD (Scout · Matches view) ── */
 .md-dash{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start;}
@@ -2232,9 +2232,60 @@ function getFilteredSeries() {
 let _focusTeam=null;
 let _slideDir=0;
 function setFocusTeam(n){ _focusTeam=n; renderMatchList(); }
+// Header pool = league + season scope ONLY (ignores the week filter + search so the
+// header always shows the team's WHOLE season history, independent of the match log).
+function _headerPool(){
+  let pool = DB_MODULE.getMatches();
+  if (leagueFilter !== 'all') pool = pool.filter(m => m.league === leagueFilter);
+  if (seasonFilter !== 'all') pool = pool.filter(m => (m.season||'') === seasonFilter);
+  return pool;
+}
+function _headerTeams(){
+  const tg={}; _headerPool().forEach(m=>{[m.blueTeam,m.redTeam].forEach(n=>{if(n)tg[n]=(tg[n]||0)+1;});});
+  return Object.keys(tg).sort((a,b)=>tg[b]-tg[a]);
+}
+// Compute the focus team's stats scoped to a given match pool (the season pool).
+function computeFocusStats(name, matches){
+  const t={name};
+  const games = matches.filter(m=>m.blueTeam===name||m.redTeam===name);
+  t.gamesPlayed = games.length;
+  t.wins = games.filter(m=>(m.winner==='blue'&&m.blueTeam===name)||(m.winner==='red'&&m.redTeam===name)).length;
+  t.losses = t.gamesPlayed - t.wins;
+  t.winRate = t.gamesPlayed>0 ? Math.round(t.wins/t.gamesPlayed*100) : 0;
+  t.leagues = [...new Set(games.map(m=>m.league).filter(Boolean))];
+  const bg=games.filter(m=>m.blueTeam===name), rg=games.filter(m=>m.redTeam===name);
+  t.blueSideGames=bg.length; t.redSideGames=rg.length;
+  t.blueWins=bg.filter(m=>m.winner==='blue').length; t.redWins=rg.filter(m=>m.winner==='red').length;
+  t.blueSideWR = t.blueSideGames?Math.round(t.blueWins/t.blueSideGames*100):null;
+  t.redSideWR  = t.redSideGames ?Math.round(t.redWins/t.redSideGames*100):null;
+  const pickC={},banC={},pickW={},banRecC={};
+  let ftG=0,ftO=0,flG=0,flO=0, tk=0,ta=0,td=0;
+  games.forEach(m=>{
+    const ours=m.blueTeam===name, side=ours?'blue':'red';
+    const won=(ours&&m.winner==='blue')||(!ours&&m.winner==='red');
+    const picks=ours?(m.bluePicks||[]):(m.redPicks||[]);
+    const bans =ours?(m.blueBans||[]):(m.redBans||[]);
+    const oppBans=ours?(m.redBans||[]):(m.blueBans||[]);
+    picks.forEach(p=>{const n=p.name||p; pickC[n]=(pickC[n]||0)+1; if(won)pickW[n]=(pickW[n]||0)+1;
+      if(p&&p.kda){tk+=Number(p.kda.k)||0; ta+=Number(p.kda.a)||0; td+=Number(p.kda.d)||0;}});
+    bans.forEach(b=>{const n=b.name||b; banC[n]=(banC[n]||0)+1;});
+    oppBans.forEach(b=>{const n=b.name||b; banRecC[n]=(banRecC[n]||0)+1;});
+    const obj=m.objectives||{};
+    const tArr=obj.turtle||[obj.t1,obj.t2,obj.t3].filter(Boolean)||[];
+    const lArr=obj.lord||[obj.l1,obj.l2,obj.l3].filter(Boolean)||[];
+    const fT=tArr.find(v=>v==='blue'||v==='red'); if(fT){ftG++; if(fT===side)ftO++;}
+    const fL=lArr.find(v=>v==='blue'||v==='red'); if(fL){flG++; if(fL===side)flO++;}
+  });
+  t.topPicks=Object.entries(pickC).sort((a,b)=>b[1]-a[1]).map(([n,c])=>({name:n,count:c,wr:pickW[n]?Math.round(pickW[n]/c*100):0}));
+  t.topBans=Object.entries(banC).sort((a,b)=>b[1]-a[1]).map(([n,c])=>({name:n,count:c}));
+  t.bansReceived=Object.entries(banRecC).sort((a,b)=>b[1]-a[1]).map(([n,c])=>({name:n,count:c}));
+  t.firstTurtleRate = ftG?Math.round(ftO/ftG*100):null;
+  t.firstLordRate   = flG?Math.round(flO/flG*100):null;
+  t.kd = td?((tk+ta)/td).toFixed(2):'—';
+  return t;
+}
 function cycleFocusTeam(dir){
-  const tg={}; getFilteredMatches().forEach(m=>{[m.blueTeam,m.redTeam].forEach(n=>{if(n)tg[n]=(tg[n]||0)+1;});});
-  const list=Object.keys(tg).sort((a,b)=>tg[b]-tg[a]);
+  const list=_headerTeams();
   if(!list.length) return;
   let i=list.indexOf(_focusTeam); if(i<0) i=0;
   i=(i+dir+list.length)%list.length;
@@ -2243,14 +2294,14 @@ function cycleFocusTeam(dir){
 function renderMatchList() {
   const area = document.getElementById('mainArea');
   const _wrc = wr => wr>=60?'var(--green)':wr>=50?'var(--gold)':'var(--red)';
-  // focus team = most-played team in the current filter (selectable)
-  const _tg={}; getFilteredMatches().forEach(m=>{[m.blueTeam,m.redTeam].forEach(n=>{if(n)_tg[n]=(_tg[n]||0)+1;});});
-  const _teams=Object.keys(_tg).sort((a,b)=>_tg[b]-_tg[a]);
-  if(!_focusTeam || !_tg[_focusTeam]) _focusTeam=_teams[0]||null;
-  const t = _focusTeam ? (DB_MODULE.getTeams()[_focusTeam]||{}) : {};
+  // Header = team's WHOLE-SEASON history (league + season scope, NOT the week filter).
+  // It is independent of the match log below — switching team here never touches the log.
+  const _seasonPool=_headerPool();
+  const _teams=_headerTeams();
+  if(!_focusTeam || !_teams.includes(_focusTeam)) _focusTeam=_teams[0]||null;
+  const t = _focusTeam ? computeFocusStats(_focusTeam, _seasonPool) : {};
   const wr=t.winRate||0;
-  let _tk=0,_td=0; if(t.playerKDA) Object.values(t.playerKDA).forEach(p=>{_tk+=(p.k||0)+(p.a||0);_td+=p.d||0;});
-  const _kd=_td?(_tk/_td).toFixed(2):'—';
+  const _kd=t.kd||'—';
   const _mo=(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(_focusTeam||'?'):{init:'?',color:'#7C5CF6'};
   const _logoUrl=(typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(_focusTeam||''):'';
   const _league=(t.leagues&&t.leagues[0])||'';
@@ -2365,8 +2416,9 @@ function renderMatchListBody() {
         }).join('');
     seasonSel.disabled = seasons.length === 0;
   }
-  let series = getFilteredSeries();
-  if (typeof _focusTeam !== 'undefined' && _focusTeam) series = series.filter(s => s.blueTeam === _focusTeam || s.redTeam === _focusTeam);
+  // Match log is INDEPENDENT of the header's focus team — it shows every series in the
+  // current league/season/week/search filter. Switching the header team never changes it.
+  const series = getFilteredSeries();
   const subEl = document.getElementById('matchListSub');
   if (subEl) subEl.textContent = `${series.length} series · ${series.reduce((t,s)=>t+s.games.length,0)} games`;
   if (!series.length) {
