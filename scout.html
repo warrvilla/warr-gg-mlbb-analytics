@@ -212,7 +212,59 @@ body {
 .ml-view:hover{background:rgba(124,92,246,.2);}
 .ml-detail{display:none;padding:6px 16px 14px;border-top:1px solid rgba(255,255,255,.06);}
 .ml-detail.open{display:block;}
-@media(max-width:760px){.ml-stage{display:none;}.ml-row{gap:10px;}}
+.ml-heroes{display:flex;gap:5px;flex-shrink:0;}
+.ml-hero{width:30px;height:30px;border-radius:8px;object-fit:cover;background:var(--surface3);border:1px solid rgba(255,255,255,.08);}
+@media(max-width:760px){.ml-stage{display:none;}.ml-row{gap:10px;}.ml-heroes{display:none;}}
+
+/* ── MATCH DASHBOARD (Scout · Matches view) ── */
+.md-dash{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start;}
+.md-main{min-width:0;display:flex;flex-direction:column;gap:14px;}
+.md-toprow{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:14px;align-items:stretch;}
+.md-headcard,.md-aicard,.md-logcard,.md-sidecard{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:18px;}
+.md-headcard{padding:20px 22px;}
+.md-head-row{display:flex;align-items:center;gap:16px;margin-bottom:18px;}
+.md-logo{width:62px;height:62px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;flex-shrink:0;position:relative;overflow:hidden;}
+.md-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.md-name{font-size:23px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.md-verif{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#7C5CF6;color:#fff;font-size:10px;flex-shrink:0;}
+.md-tags{display:flex;align-items:center;gap:8px;margin-top:7px;}
+.md-league{font-size:10px;font-weight:700;letter-spacing:.04em;color:#A78BFA;background:rgba(124,92,246,.14);border:1px solid rgba(124,92,246,.28);border-radius:6px;padding:3px 9px;}
+.md-teamsel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);color:var(--text2);border-radius:7px;padding:3px 8px;font:inherit;font-size:11px;cursor:pointer;max-width:160px;}
+.md-follow{margin-left:auto;align-self:flex-start;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:var(--text);border-radius:11px;padding:9px 15px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.md-follow:hover{background:rgba(255,255,255,.09);}
+.md-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.md-kpi{text-align:left;}
+.md-kv{font-size:21px;font-weight:800;color:var(--text);line-height:1;font-variant-numeric:tabular-nums;}
+.md-kl{font-size:10px;color:var(--text3);margin-top:6px;letter-spacing:.02em;}
+.md-aicard{padding:18px 20px;display:flex;flex-direction:column;}
+.md-ai-t{font-size:13px;font-weight:700;color:#CDBBFF;display:flex;align-items:center;gap:7px;margin-bottom:12px;}
+.md-ai-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px;}
+.md-ai-list li{position:relative;padding-left:16px;font-size:12px;line-height:1.45;color:var(--text2);}
+.md-ai-list li::before{content:'';position:absolute;left:0;top:7px;width:5px;height:5px;border-radius:50%;background:#7C5CF6;}
+.md-genreport{margin-top:auto;width:100%;background:linear-gradient(135deg,#7C5CF6,#6D4DE0);border:none;color:#fff;border-radius:11px;padding:11px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;margin-top:14px;}
+.md-genreport:hover{filter:brightness(1.08);}
+.md-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.md-tile{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:15px 16px;display:flex;align-items:center;gap:13px;}
+.md-tile-ic{width:38px;height:38px;border-radius:11px;background:rgba(124,92,246,.13);border:1px solid rgba(124,92,246,.26);display:flex;align-items:center;justify-content:center;font-size:17px;color:#A78BFA;flex-shrink:0;}
+.md-tile-v{font-size:19px;font-weight:800;color:var(--text);line-height:1;}
+.md-tile-l{font-size:10px;color:var(--text3);margin-top:5px;}
+.md-logcard{padding:18px 18px 14px;}
+.md-side{display:flex;flex-direction:column;gap:16px;position:sticky;top:14px;}
+.md-sidecard{padding:16px 16px;}
+.md-side-t{font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;}
+.md-hhdr{display:flex;justify-content:flex-end;gap:18px;font-size:9px;font-weight:700;letter-spacing:.05em;color:var(--text3);text-transform:uppercase;margin-bottom:6px;padding-right:2px;}
+.md-hrow{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid rgba(255,255,255,.05);}
+.md-hrow:first-of-type{border-top:none;}
+.md-hrow img{width:30px;height:30px;border-radius:8px;object-fit:cover;background:var(--surface3);flex-shrink:0;}
+.md-hn{flex:1;font-size:12px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.md-hp{font-size:12px;font-weight:700;color:var(--text2);font-variant-numeric:tabular-nums;width:38px;text-align:right;}
+.md-hw{font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;width:38px;text-align:right;}
+.md-empty{font-size:11px;color:var(--text3);padding:8px 0;}
+.md-donuts{display:flex;justify-content:space-around;text-align:center;gap:10px;}
+.md-dl{font-size:11px;font-weight:700;margin-top:8px;}
+.md-ds{font-size:10px;color:var(--text3);margin-top:3px;}
+@media(max-width:1180px){.md-dash{grid-template-columns:1fr;}.md-side{position:static;flex-direction:row;flex-wrap:wrap;}.md-side>*{flex:1;min-width:240px;}}
+@media(max-width:720px){.md-toprow{grid-template-columns:1fr;}.md-kpis{grid-template-columns:repeat(2,1fr);}.md-tiles{grid-template-columns:1fr;}}
 
 /* ── MATCH LIST ── */
 .series-card {
@@ -2174,45 +2226,82 @@ function getFilteredSeries() {
 // ══════════════════════════════════════════════════════════════
 // MATCH LIST VIEW
 // ══════════════════════════════════════════════════════════════
+let _focusTeam=null;
+function setFocusTeam(n){ _focusTeam=n; renderMatchList(); }
 function renderMatchList() {
   const area = document.getElementById('mainArea');
-  const series = getFilteredSeries();
-  const totalGames = series.reduce((t,s) => t+s.games.length, 0);
-
-  if (!document.getElementById('matchListStatic')) {
-    area.innerHTML = `
-      <div id="matchListStatic">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-          <div>
-            <div class="page-title" style="font-size:16px;">Match Log</div>
-            <div class="page-sub" id="matchListSub" style="margin-top:2px;">${series.length} series · ${totalGames} games</div>
-          </div>
-          <button class="btn btn-accent" onclick="openNewMatch()" style="margin-left:auto;padding:7px 14px;font-size:11px;">+ New Match</button>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <div class="search-bar" style="flex:1;min-width:160px;">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--text3);flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-            <input id="matchSearchInput" placeholder="Search teams or notes…" oninput="onMatchSearch(this.value)">
-          </div>
-          <select class="form-select" style="width:auto;font-size:11px;" onchange="matchSort=this.value;renderMatchListBody()">
-            <option value="date">Sort by Date</option>
-            <option value="league">League</option>
-            <option value="blue">Blue Team</option>
-            <option value="red">Red Team</option>
-          </select>
-          <select id="seasonFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="setSeasonFilter(this.value)">
-            <option value="all">All Seasons</option>
-          </select>
-          <select id="weekFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="setWeekFilter(this.value)">
-            <option value="all">All Weeks</option>
-          </select>
-        </div>
-      </div>
-      <div id="matchListBody"></div>`;
-  } else {
-    document.getElementById('matchListSub').textContent = `${series.length} series · ${totalGames} games`;
-  }
-
+  const _wrc = wr => wr>=60?'var(--green)':wr>=50?'var(--gold)':'var(--red)';
+  // focus team = most-played team in the current filter (selectable)
+  const _tg={}; getFilteredMatches().forEach(m=>{[m.blueTeam,m.redTeam].forEach(n=>{if(n)_tg[n]=(_tg[n]||0)+1;});});
+  const _teams=Object.keys(_tg).sort((a,b)=>_tg[b]-_tg[a]);
+  if(!_focusTeam || !_tg[_focusTeam]) _focusTeam=_teams[0]||null;
+  const t = _focusTeam ? (DB_MODULE.getTeams()[_focusTeam]||{}) : {};
+  const wr=t.winRate||0;
+  let _tk=0,_td=0; if(t.playerKDA) Object.values(t.playerKDA).forEach(p=>{_tk+=(p.k||0)+(p.a||0);_td+=p.d||0;});
+  const _kd=_td?(_tk/_td).toFixed(2):'—';
+  const _mo=(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(_focusTeam||'?'):{init:'?',color:'#7C5CF6'};
+  const _logoUrl=(typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(_focusTeam||''):'';
+  const _league=(t.leagues&&t.leagues[0])||'';
+  const bl=[];
+  if(t.blueSideWR!=null&&t.redSideWR!=null) bl.push(`Strongest on ${t.blueSideWR>=t.redSideWR?'Blue':'Red'} side (${Math.max(t.blueSideWR,t.redSideWR)}% WR).`);
+  const cp=(t.topPicks||[]).filter(p=>p.count>=2).slice(0,2).map(p=>p.name); if(cp.length) bl.push(`${cp.join(' and ')} are comfort picks.`);
+  if(t.firstLordRate!=null) bl.push(`Takes First Lord in ${t.firstLordRate}% of games.`);
+  if((t.bansReceived||[]).length) bl.push(`Opponents target: ${(t.bansReceived||[]).slice(0,2).map(b=>b.name).join(', ')}.`);
+  if(!bl.length) bl.push('Not enough games logged yet for insights.');
+  const mp=(t.topPicks||[]).slice(0,5).map(p=>{const pr=t.gamesPlayed?Math.round(p.count/t.gamesPlayed*100):0;return `<div class="md-hrow"><img src="${_heroIcon(p.name)}" onerror="${_heroIconErr(p.name)}"><span class="md-hn">${p.name}</span><span class="md-hp">${pr}%</span><span class="md-hw" style="color:${_wrc(p.wr)}">${p.wr}%</span></div>`;}).join('')||'<div class="md-empty">No data</div>';
+  const mb=(t.topBans||[]).slice(0,5).map(b=>{const br=t.gamesPlayed?Math.round(b.count/t.gamesPlayed*100):0;return `<div class="md-hrow"><img src="${_heroIcon(b.name)}" onerror="${_heroIconErr(b.name)}"><span class="md-hn">${b.name}</span><span class="md-hp" style="color:var(--red)">${br}%</span></div>`;}).join('')||'<div class="md-empty">No data</div>';
+  const _donut=(pct,color)=>{const r=26,c=2*Math.PI*r,o=c*(1-((pct||0)/100));return `<svg width="84" height="84" viewBox="0 0 84 84"><circle cx="42" cy="42" r="26" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="7"/><circle cx="42" cy="42" r="26" fill="none" stroke="${color}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${o.toFixed(1)}" transform="rotate(-90 42 42)"/><text x="42" y="47" text-anchor="middle" font-size="17" font-weight="800" fill="${color}">${pct==null?'—':pct+'%'}</text></svg>`;};
+  const _bw=t.blueWins||0,_blL=(t.blueSideGames||0)-_bw,_rw=t.redWins||0,_rlL=(t.redSideGames||0)-_rw;
+  const teamSel=_teams.map(n=>`<option${n===_focusTeam?' selected':''}>${n.replace(/"/g,'&quot;')}</option>`).join('');
+  area.innerHTML = `
+   <div class="md-dash">
+     <div class="md-main">
+       <div class="md-toprow">
+         <section class="md-headcard">
+           <div class="md-head-row">
+             <div class="md-logo" style="background:linear-gradient(135deg,${_mo.color},${_mo.color}99)">${_mo.init}<img src="${_logoUrl}" onerror="this.style.display='none'"></div>
+             <div style="flex:1;min-width:0;">
+               <div class="md-name">${_focusTeam||'—'}<span class="md-verif">✔</span></div>
+               <div class="md-tags">${_league?`<span class="md-league">${_league}</span>`:''}<select class="md-teamsel" onchange="setFocusTeam(this.value)">${teamSel}</select></div>
+             </div>
+             <button class="md-follow">★ Follow Team</button>
+           </div>
+           <div class="md-kpis">
+             <div class="md-kpi"><div class="md-kv" style="color:${_wrc(wr)}">${wr}%</div><div class="md-kl">Win Rate</div></div>
+             <div class="md-kpi"><div class="md-kv">${t.wins||0}W - ${t.losses||0}L</div><div class="md-kl">Last ${t.gamesPlayed||0} Games</div></div>
+             <div class="md-kpi"><div class="md-kv" style="color:${t.blueSideWR!=null?_wrc(t.blueSideWR):'var(--text3)'}">${t.blueSideWR!=null?t.blueSideWR+'%':'—'}</div><div class="md-kl">Blue Side WR</div></div>
+             <div class="md-kpi"><div class="md-kv" style="color:${t.redSideWR!=null?_wrc(t.redSideWR):'var(--text3)'}">${t.redSideWR!=null?t.redSideWR+'%':'—'}</div><div class="md-kl">Red Side WR</div></div>
+           </div>
+         </section>
+         <aside class="md-aicard">
+           <div class="md-ai-t"><span>✨</span> AI Scout Summary</div>
+           <ul class="md-ai-list">${bl.map(b=>`<li>${b}</li>`).join('')}</ul>
+           <button class="md-genreport" onclick="openTeamReport('${(_focusTeam||'').replace(/'/g,"\\'")}')">✦ Generate Full Report</button>
+         </aside>
+       </div>
+       <div class="md-tiles">
+         <div class="md-tile"><div class="md-tile-ic">◓</div><div><div class="md-tile-v">${t.firstTurtleRate!=null?t.firstTurtleRate+'%':'—'}</div><div class="md-tile-l">First Turtle · Take Rate</div></div></div>
+         <div class="md-tile"><div class="md-tile-ic">✦</div><div><div class="md-tile-v">${t.firstLordRate!=null?t.firstLordRate+'%':'—'}</div><div class="md-tile-l">First Lord · Take Rate</div></div></div>
+         <div class="md-tile"><div class="md-tile-ic">⚔</div><div><div class="md-tile-v">${_kd}</div><div class="md-tile-l">Kills / Death · Average</div></div></div>
+       </div>
+       <section class="md-logcard" id="matchListStatic">
+         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+           <div><div class="page-title" style="font-size:16px;">Match Log</div><div class="page-sub" id="matchListSub" style="margin-top:2px;"></div></div>
+           <div class="search-bar" style="flex:1;min-width:150px;margin-left:auto;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--text3);flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg><input id="matchSearchInput" placeholder="Search teams or notes…" oninput="onMatchSearch(this.value)"></div>
+           <select class="form-select" style="width:auto;font-size:11px;" onchange="matchSort=this.value;renderMatchListBody()"><option value="date">Sort by Date</option><option value="league">League</option><option value="blue">Blue Team</option><option value="red">Red Team</option></select>
+           <select id="seasonFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="setSeasonFilter(this.value)"><option value="all">All Seasons</option></select>
+           <select id="weekFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="setWeekFilter(this.value)"><option value="all">All Weeks</option></select>
+           <button class="btn btn-accent" onclick="openNewMatch()" style="padding:7px 14px;font-size:11px;">+ New Match</button>
+         </div>
+         <div id="matchListBody"></div>
+       </section>
+     </div>
+     <aside class="md-side">
+       <div class="md-sidecard"><div class="md-side-t">Most Picked Heroes</div><div class="md-hhdr"><span>Pick%</span><span>WR</span></div>${mp}</div>
+       <div class="md-sidecard"><div class="md-side-t">Most Banned Heroes</div>${mb}</div>
+       <div class="md-sidecard"><div class="md-side-t">Side Performance</div><div class="md-donuts"><div>${_donut(t.blueSideWR,'#5EA0D8')}<div class="md-dl" style="color:var(--blue)">Blue Side</div><div class="md-ds">${_bw}W - ${_blL}L</div></div><div>${_donut(t.redSideWR,'#D87880')}<div class="md-dl" style="color:var(--red)">Red Side</div><div class="md-ds">${_rw}W - ${_rlL}L</div></div></div></div>
+     </aside>
+   </div>`;
   renderMatchListBody();
   updateSidebarCounts();
 }
@@ -2260,7 +2349,8 @@ function renderMatchListBody() {
         }).join('');
     seasonSel.disabled = seasons.length === 0;
   }
-  const series = getFilteredSeries();
+  let series = getFilteredSeries();
+  if (typeof _focusTeam !== 'undefined' && _focusTeam) series = series.filter(s => s.blueTeam === _focusTeam || s.redTeam === _focusTeam);
   const subEl = document.getElementById('matchListSub');
   if (subEl) subEl.textContent = `${series.length} series · ${series.reduce((t,s)=>t+s.games.length,0)} games`;
   if (!series.length) {
@@ -2360,6 +2450,10 @@ function renderMatchListBody() {
 
     const _mono=n=>(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(n||'?'):{init:(n||'?')[0]||'?',color:'#7C5CF6'};
     const _bm=_mono(s.blueTeam), _rm=_mono(s.redTeam);
+    // Focus team's picks across the series (first 4 unique) for the row preview
+    const _ft = (typeof _focusTeam!=='undefined' && _focusTeam) ? _focusTeam : s.blueTeam;
+    const _picks=[]; s.games.forEach(g=>{ const ps=(g.blueTeam===_ft?g.bluePicks:g.redTeam===_ft?g.redPicks:[])||[]; ps.forEach(h=>{ if(h && !_picks.includes(h)) _picks.push(h); }); });
+    const _heroPrev = _picks.slice(0,4).map(h=>`<img class="ml-hero" src="${_heroIcon(h)}" onerror="${_heroIconErr(h)}" title="${h}">`).join('');
     return groupHdr + `<div class="ml-card">
       <div class="ml-row">
         <div class="ml-date"><div class="ml-day">${day}</div><div class="ml-mon">${(mon||'').toUpperCase()}</div></div>
@@ -2370,6 +2464,7 @@ function renderMatchListBody() {
           <div class="ml-team"><span class="ml-logo" style="background:${_rm.color}">${_rm.init}</span><span class="nm">${s.redTeam}</span></div>
         </div>
         <div class="ml-score"><span class="ml-sc" style="color:${scoreColor}">${blueWins} - ${redWins}</span>${seriesWinner?`<span class="ml-win">${seriesWinner} ✓</span>`:''}</div>
+        <div class="ml-heroes">${_heroPrev}</div>
         <button class="ml-view" onclick="const x=this.closest('.ml-card').querySelector('.ml-detail');x.classList.toggle('open');this.textContent=x.classList.contains('open')?'Hide ▾':'View Details ▸';">View Details ▸</button>
       </div>
       <div class="ml-detail">${gameRows}</div>
