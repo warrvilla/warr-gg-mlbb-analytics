@@ -431,6 +431,109 @@
 .meta-tier-badge.t-A{background:rgba(94,160,216,.16);color:#5EA0D8;}
 .meta-tier-badge.t-B{background:rgba(255,255,255,.06);color:var(--text2);}
 .meta-tier-badge.t-C{background:rgba(255,255,255,.04);color:var(--text3);}
+
+/* ════════ HEROES — Counter & Draft Intelligence (mockup layout) ════════ */
+.hpage{display:grid;grid-template-columns:198px minmax(0,1fr);gap:18px;align-items:start;max-width:1640px;margin:0 auto;padding:6px 4px 30px;}
+.hsb{position:sticky;top:14px;display:flex;flex-direction:column;gap:18px;}
+.hsb-gt{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin:0 0 7px 10px;}
+.hsb-link{display:block;padding:8px 12px;border-radius:9px;font-size:13px;font-weight:600;color:var(--text2);text-decoration:none;transition:background .14s,color .14s;}
+.hsb-link:hover{background:rgba(255,255,255,.04);color:var(--text);}
+.hsb-link.active{background:rgba(124,92,246,.16);color:#CDBBFF;box-shadow:inset 0 0 0 1px rgba(124,92,246,.32);}
+.hmain{min-width:0;display:flex;flex-direction:column;gap:14px;}
+.htop{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;}
+.htitle{font-size:20px;font-weight:800;color:var(--text);letter-spacing:-.01em;}
+.hsub{font-size:12px;color:var(--text3);margin-top:3px;}
+.htop-right{margin-left:auto;display:flex;align-items:center;gap:9px;}
+.hsearch{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:7px 11px;min-width:200px;}
+.hsearch input{background:none;border:none;outline:none;color:var(--text);font:inherit;font-size:12px;width:100%;}
+.hsel{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);color:var(--text2);border-radius:10px;padding:7px 11px;font:inherit;font-size:12px;cursor:pointer;}
+.hfilters{display:flex;flex-direction:column;gap:8px;}
+.hf-line{display:flex;align-items:center;gap:10px;}
+.hf-cap{width:46px;flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);}
+.hf-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.hchip{padding:5px 12px;border-radius:8px;font-size:11px;font-weight:600;color:var(--text2);background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.09);cursor:pointer;white-space:nowrap;transition:all .14s;}
+.hchip:hover{background:rgba(255,255,255,.06);color:var(--text);}
+.hchip.on{background:rgba(124,92,246,.18);border-color:rgba(124,92,246,.4);color:#CDBBFF;}
+/* Carousel */
+.hcar-wrap{position:relative;}
+.hcar{display:flex;gap:10px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:thin;}
+.hcar::-webkit-scrollbar{height:6px;}.hcar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px;}
+.hcar-card{flex:0 0 122px;width:122px;border-radius:14px;overflow:hidden;cursor:pointer;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);transition:border-color .14s,transform .14s;}
+.hcar-card:hover{transform:translateY(-2px);border-color:rgba(124,92,246,.35);}
+.hcar-card.sel{border-color:#7C5CF6;box-shadow:0 0 0 1px #7C5CF6,0 8px 22px rgba(124,92,246,.25);}
+.hcar-img{position:relative;height:128px;background:var(--surface3);}
+.hcar-img img{width:100%;height:100%;object-fit:cover;object-position:top center;}
+.hcar-img::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(10,8,16,.92) 0%,rgba(10,8,16,.25) 45%,transparent 70%);}
+.hcar-pin{position:absolute;top:6px;right:6px;z-index:2;width:20px;height:20px;border-radius:6px;background:rgba(124,92,246,.85);display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;}
+.hcar-body{padding:8px 10px 10px;}
+.hcar-nm{font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hcar-wr{font-size:13px;font-weight:800;margin-top:2px;}
+.hcar-wl{font-size:9px;color:var(--text3);margin-top:1px;}
+/* Detail layout */
+.hd-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) 288px;gap:14px;align-items:start;}
+.hcard{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:16px;}
+.hd-prof{padding:0;overflow:hidden;display:flex;flex-direction:column;}
+.hd-prof-top{display:flex;gap:0;}
+.hd-art{flex:0 0 150px;width:150px;align-self:stretch;background:var(--surface3);position:relative;min-height:200px;}
+.hd-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center;}
+.hd-prof-info{flex:1;min-width:0;padding:16px 16px 4px;}
+.hd-nm-row{display:flex;align-items:center;gap:9px;}
+.hd-nm{font-size:24px;font-weight:800;color:var(--text);}
+.hd-tier{font-size:11px;font-weight:800;padding:3px 9px;border-radius:7px;}
+.hd-roles{display:flex;gap:7px;margin-top:11px;flex-wrap:wrap;}
+.hd-role{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--text2);background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:5px 10px;}
+.hd-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px;}
+.hd-kv{font-size:18px;font-weight:800;line-height:1;}
+.hd-kl{font-size:9px;color:var(--text3);margin-top:5px;}
+.hd-maps2{display:flex;gap:9px;padding:12px 16px 16px;}
+.hd-map2{flex:1;display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.07);border-radius:11px;padding:9px 11px;}
+.hd-map2-th{width:34px;height:34px;border-radius:8px;object-fit:cover;background:var(--surface3);flex-shrink:0;}
+.hd-map2-cap{font-size:8px;font-weight:700;letter-spacing:.05em;color:var(--text3);text-transform:uppercase;}
+.hd-map2-nm{font-size:12px;font-weight:700;color:var(--text);margin-top:2px;}
+.hd-map2-wr{font-size:11px;font-weight:800;margin-top:2px;}
+/* AI Draft Notes */
+.hd-ai{padding:16px 17px;}
+.hd-ai-t{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--text);margin-bottom:13px;}
+.hd-ai-ic{width:22px;height:22px;border-radius:7px;background:rgba(124,92,246,.18);border:1px solid rgba(124,92,246,.34);display:flex;align-items:center;justify-content:center;font-size:10px;color:#CDBBFF;}
+.hd-ai-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:11px;}
+.hd-ai-list li{position:relative;padding-left:17px;font-size:12px;line-height:1.5;color:var(--text2);}
+.hd-ai-list li::before{content:'';position:absolute;left:1px;top:7px;width:5px;height:5px;border-radius:50%;background:#7C5CF6;}
+/* Relation rail */
+.hrail{display:flex;flex-direction:column;gap:14px;}
+.hrail-card{padding:14px 15px;}
+.hrail-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;}
+.hrail-t{font-size:13px;font-weight:700;color:var(--text);}
+.hrail-src{font-size:9px;color:var(--text3);}
+.hrel{display:flex;align-items:center;gap:9px;padding:5px 0;}
+.hrel img{width:26px;height:26px;border-radius:7px;object-fit:cover;background:var(--surface3);flex-shrink:0;}
+.hrel-nm{font-size:12px;font-weight:600;color:var(--text);flex-shrink:0;width:74px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hrel-bar{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden;}
+.hrel-fill{height:100%;border-radius:3px;}
+.hrel-pct{font-size:11px;font-weight:800;width:36px;text-align:right;font-variant-numeric:tabular-nums;}
+.hrail-btn{display:block;text-align:center;margin-top:11px;padding:8px;border-radius:9px;background:rgba(124,92,246,.1);border:1px solid rgba(124,92,246,.26);color:#CDBBFF;font-size:11px;font-weight:600;cursor:pointer;}
+/* Bottom analytics row */
+.hd-bottom{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:14px;}
+.hd-sec{padding:15px 16px;}
+.hd-sec-t{font-size:13px;font-weight:700;color:var(--text);margin-bottom:13px;}
+.hd-maprow{display:flex;align-items:center;gap:10px;padding:5px 0;}
+.hd-maprow img{width:24px;height:24px;border-radius:6px;object-fit:cover;background:var(--surface3);flex-shrink:0;}
+.hd-maprow-nm{font-size:12px;color:var(--text2);width:118px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.hd-dp{display:flex;align-items:flex-end;justify-content:space-around;gap:10px;height:150px;padding-top:8px;}
+.hd-dp-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:6px;}
+.hd-dp-bar{width:100%;max-width:42px;border-radius:7px 7px 0 0;background:linear-gradient(to top,#6D4DE0,#8B6FF7);min-height:3px;}
+.hd-dp-val{font-size:11px;font-weight:800;color:var(--text);}
+.hd-dp-lbl{font-size:10px;color:var(--text3);}
+/* Most used by teams */
+.hd-teams{display:grid;grid-template-columns:repeat(5,1fr);gap:11px;margin-top:14px;}
+.hd-team{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:13px;padding:14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;}
+.hd-team-logo{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;overflow:hidden;position:relative;}
+.hd-team-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.hd-team-nm{font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.hd-team-wr{font-size:16px;font-weight:800;}
+.hd-team-wl{font-size:9px;color:var(--text3);}
+.hd-wide-t{font-size:13px;font-weight:700;color:var(--text);margin:18px 0 0;}
+@media(max-width:1180px){.hpage{grid-template-columns:1fr;}.hsb{position:static;flex-direction:row;flex-wrap:wrap;gap:20px;}.hd-grid{grid-template-columns:1fr;}.hd-teams{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:720px){.hd-bottom{grid-template-columns:1fr;}.hd-teams{grid-template-columns:repeat(2,1fr);}.hd-kpis{grid-template-columns:repeat(2,1fr);}}
 </style>
 </head>
 <body>
@@ -439,78 +542,80 @@
 <div id="warr-nav-root"></div>
 
 <div class="page-body">
+ <div class="hpage">
 
-  <!-- Intro paragraph -->
-  <div class="heroes-intro">
-    <p>
-      Counters and best-with picks per hero, computed from your Scout database
-      (MPL&nbsp;PH/MY/ID/SG, MSC, M-Series only — Scrims are excluded).
-      Admin-curated picks override the computed ones.
-    </p>
-  </div>
+  <!-- ── PRODUCT NAV SIDEBAR (heroes) ── -->
+  <aside class="hsb">
+    <div class="hsb-group">
+      <div class="hsb-gt">Scout</div>
+      <a class="hsb-link" href="scout.html">Matches</a>
+      <a class="hsb-link" href="scout.html#teams">Teams</a>
+      <a class="hsb-link" href="scout.html#report">Reports</a>
+    </div>
+    <div class="hsb-group">
+      <div class="hsb-gt">Draft</div>
+      <a class="hsb-link" href="ai_battle.html">AI Battle</a>
+      <a class="hsb-link active" href="heroes.html">Heroes</a>
+    </div>
+    <div class="hsb-group">
+      <div class="hsb-gt">Scrims</div>
+      <a class="hsb-link" href="scrims.html">Find Scrims</a>
+      <a class="hsb-link" href="scrims.html#mine">My Listings</a>
+    </div>
+  </aside>
 
-  <div class="heroes-wrap">
+  <main class="hmain">
 
-    <!-- Stats strip — populated after matches load. Empty during initial load
-         since the grid below already shows the loading spinner. -->
-    <div class="stat-strip" id="statsRow"></div>
-
-    <!-- Controls -->
-    <div class="controls">
-      <select class="ctrl-select" id="roleFilter" onchange="onFilter()" title="Filter by hero class">
-        <option value="">All roles</option>
-        <option>Assassin</option><option>Fighter</option><option>Marksman</option>
-        <option>Mage</option><option>Support</option><option>Tank</option>
-      </select>
-      <select class="ctrl-select" id="laneFilter" onchange="onFilter()" title="Filter by primary lane observed in Scout matches">
-        <option value="">All lanes</option>
-        <option value="Gold">Gold</option>
-        <option value="Jungle">Jungle</option>
-        <option value="Mid">Mid</option>
-        <option value="EXP">EXP</option>
-        <option value="Roam">Roam</option>
-      </select>
-      <select class="ctrl-select" id="mapFilter" onchange="onMapChange()" title="Filter stats to games on a specific map">
-        <option value="">All maps</option>
-        <option value="Dangerous Grass">Dangerous Grass</option>
-        <option value="Broken Walls">Broken Walls</option>
-        <option value="Flying Cloud">Flying Cloud</option>
-        <option value="Expanding River">Expanding River</option>
-      </select>
-      <select class="ctrl-select" id="leagueFilterH" onchange="onLeagueChange()" title="Which league's meta to show — tiers are computed from that league's scout matches">
-        <option value="all">All leagues</option>
-      </select>
-      <select class="ctrl-select" id="seasonFilter" onchange="onSeasonChange()" title="Filter stats to games from a specific season — defaults to the admin's current season so meta-shift between seasons doesn't blend data">
-        <option value="">All seasons</option>
-      </select>
-      <select class="ctrl-select" id="sortBy" onchange="onFilter()">
-        <option value="games">Most played</option>
-        <option value="name">Name A–Z</option>
-        <option value="hasData">Has Scout data</option>
-      </select>
-      <select class="ctrl-select" id="dataOnly" onchange="onFilter()">
-        <option value="yes">Heroes with data only</option>
-        <option value="no">Show all heroes</option>
-      </select>
-      <input class="ctrl-input" id="searchIn" placeholder="Search hero…" oninput="onFilter()">
-      <span class="header-count" id="countBadge" style="margin-left:auto;font-size:11px;color:var(--text3);align-self:center;white-space:nowrap;">— heroes</span>
-      <div style="width:1px;height:18px;background:var(--border);margin:0 4px;" aria-hidden="true"></div>
-      <button class="ctrl-action" id="heroesPdfBtn" onclick="exportHeroesPDF()" title="Export currently filtered heroes as PDF">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
-        Export PDF
-      </button>
-      <button class="admin-toggle" id="adminToggle" onclick="toggleAdminMode()" style="font-size:11px;padding:6px 12px;">
-        <span>✎</span> Edit curation
-      </button>
+    <!-- Top header -->
+    <div class="htop">
+      <div class="htitle-wrap">
+        <div class="htitle">Heroes Counter &amp; Draft Intelligence</div>
+        <div class="hsub">Counters, synergies and draft intel computed from your Scout database.</div>
+      </div>
+      <div class="htop-right">
+        <div class="hsearch">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="color:var(--text3);flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input id="searchIn" placeholder="Search hero…" oninput="onFilter()">
+        </div>
+        <select class="hsel" id="seasonFilter" onchange="onSeasonChange()" title="Filter to a season">
+          <option value="">All seasons</option>
+        </select>
+      </div>
     </div>
 
-    <!-- Grid -->
-    <div id="gridWrap">
-      <div class="empty-state"><div class="spin"></div><br>Loading Scout matches…</div>
+    <!-- Filter rows (moved out of the sidebar) -->
+    <div class="hfilters">
+      <div class="hf-line"><span class="hf-cap">Role</span><div class="hf-chips" id="roleChips"></div></div>
+      <div class="hf-line"><span class="hf-cap">Lane</span><div class="hf-chips" id="laneChips"></div></div>
+      <div class="hf-line"><span class="hf-cap">League</span><div class="hf-chips" id="leagueChips"></div></div>
     </div>
 
-  </div><!-- /.heroes-wrap -->
+    <!-- Hero carousel -->
+    <div class="hcar-wrap">
+      <div class="hcar" id="heroCarousel">
+        <div class="empty-state" style="padding:30px;"><div class="spin"></div><br>Loading Scout matches…</div>
+      </div>
+    </div>
 
+    <!-- Selected hero detail -->
+    <div id="heroDetail"></div>
+
+    <!-- Legacy controls — kept hidden so existing handlers/state still work -->
+    <div style="display:none" aria-hidden="true">
+      <select id="roleFilter" onchange="onFilter()"><option value="">All roles</option><option>Assassin</option><option>Fighter</option><option>Marksman</option><option>Mage</option><option>Support</option><option>Tank</option></select>
+      <select id="laneFilter" onchange="onFilter()"><option value="">All lanes</option><option value="Gold">Gold</option><option value="Jungle">Jungle</option><option value="Mid">Mid</option><option value="EXP">EXP</option><option value="Roam">Roam</option></select>
+      <select id="mapFilter" onchange="onMapChange()"><option value="">All maps</option><option value="Dangerous Grass">Dangerous Grass</option><option value="Broken Walls">Broken Walls</option><option value="Flying Cloud">Flying Cloud</option><option value="Expanding River">Expanding River</option></select>
+      <select id="leagueFilterH" onchange="onLeagueChange()"><option value="all">All leagues</option></select>
+      <select id="sortBy" onchange="onFilter()"><option value="games">Most played</option><option value="name">Name A–Z</option><option value="hasData">Has Scout data</option></select>
+      <select id="dataOnly" onchange="onFilter()"><option value="yes">Heroes with data only</option><option value="no">Show all heroes</option></select>
+      <span id="countBadge"></span>
+      <button id="heroesPdfBtn" onclick="exportHeroesPDF()"></button>
+      <button id="adminToggle" onclick="toggleAdminMode()"></button>
+      <div id="statsRow"></div>
+    </div>
+
+  </main>
+ </div><!-- /.hpage -->
 </div><!-- /.page-body -->
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -671,13 +776,14 @@ async function loadAll() {
   // Deep link: heroes.html#HeroName (homepage Meta Hierarchies cards link here)
   if (location.hash) {
     const hn = decodeURIComponent(location.hash.slice(1));
-    if (hn && HEROES.some(x => x.name === hn)) setTimeout(() => openHeroDrawer(hn), 60);
+    if (hn && HEROES.some(x => x.name === hn)) { _selectedHero = hn; setTimeout(() => renderHeroPage(), 60); }
   }
 }
 
 function showNoData(msg) {
-  document.getElementById('statsRow').innerHTML = '';
-  document.getElementById('gridWrap').innerHTML = `
+  const sr=document.getElementById('statsRow'); if(sr) sr.innerHTML='';
+  const car=document.getElementById('heroCarousel'); if(car) car.innerHTML='';
+  const det=document.getElementById('heroDetail'); if(det) det.innerHTML = `
     <div class="empty-state">
       <div class="empty-icon">—</div>
       <div>${msg || 'No Scout matches yet.'}</div>
@@ -839,19 +945,164 @@ function getFilteredHeroes() {
 }
 
 // ── Grid render ───────────────────────────────────────────────
-function renderGrid() {
-  const list = getFilteredHeroes();
-  document.getElementById('countBadge').textContent =
-    `${list.length} hero${list.length !== 1 ? 's' : ''}`;
+// Legacy callers (onFilter/onLeagueChange/onSeasonChange/onMapChange) → new page.
+function renderGrid(){ renderHeroPage(); }
 
-  if (!list.length) {
-    document.getElementById('gridWrap').innerHTML =
-      '<div class="empty-state"><div class="empty-icon">—</div><div>No heroes match your filters.</div></div>';
-    return;
-  }
+let _selectedHero = null;
+function _mapKey(m){ return (m||'').toLowerCase().replace(/[^a-z0-9]+/g,'_'); }
+function _wrColor(wr){ return wr>=60?'var(--green)':wr>=50?'var(--gold)':'var(--red)'; }
+function _hImg(name){ return (typeof WDB!=='undefined'&&WDB.heroPortrait)?WDB.heroPortrait(name):('portraits/'+name.replace(/[^A-Za-z0-9]/g,'')+'.png'); }
 
-  document.getElementById('gridWrap').innerHTML =
-    `<div class="hero-grid">${list.map(heroCardHTML).join('')}</div>`;
+// Per-hero aggregate over the scoped (league+season) pool.
+function heroAgg(name){
+  const pool=_scopedMatches(); const total=pool.length||1;
+  let g=0,w=0,bans=0; const slots=[0,0,0,0,0];
+  pool.forEach(m=>{
+    [['blue',m.bluePicks||[]],['red',m.redPicks||[]]].forEach(([side,picks])=>{
+      picks.forEach((p,i)=>{ const n=p&&(p.name||p); if(n===name){ g++; if(m.winner===side) w++; if(i<5) slots[i]++; } });
+    });
+    [...(m.blueBans||[]),...(m.redBans||[])].forEach(b=>{ const n=b&&(b.name||b); if(n===name) bans++; });
+  });
+  return { games:g, wins:w, losses:g-w, wr:g?Math.round(w/g*100):0,
+           pickRate:+(g/total*100).toFixed(1), banRate:+(bans/total*100).toFixed(1), slots };
+}
+function heroTeams(name){
+  const pool=_scopedMatches(); const tm={};
+  pool.forEach(m=>{
+    [['blue',m.blueTeam,m.bluePicks||[]],['red',m.redTeam,m.redPicks||[]]].forEach(([side,team,picks])=>{
+      if(!team) return; if(picks.some(p=>(p&&(p.name||p))===name)){ tm[team]=tm[team]||{g:0,w:0}; tm[team].g++; if(m.winner===side) tm[team].w++; }
+    });
+  });
+  return Object.entries(tm).map(([t,v])=>({team:t,games:v.g,wins:v.w,wr:Math.round(v.w/v.g*100)}))
+    .sort((a,b)=>b.games-a.games||b.wr-a.wr).slice(0,5);
+}
+function heroMapList(name){
+  const st=_heroMapStats[name]||{};
+  return MAP_NAMES.map(mp=>{ const s=st[mp]; return { map:mp, games:s?s.games:0, wr:(s&&s.games)?Math.round(s.wins/s.games*100):null }; });
+}
+function aiNotes(name,a){
+  const out=[]; const maps=heroMapList(name).filter(m=>m.games>=2).sort((x,y)=>y.wr-x.wr);
+  if(maps.length) out.push(`Performs best on <b>${maps[0].map}</b> (${maps[0].wr}% WR).`);
+  const syn=(_synergiesMap[name]||[]).slice(0,3).map(x=>x.name);
+  if(syn.length) out.push(`Commonly paired with ${syn.join(', ')}.`);
+  const ctr=(_countersMap[name]||[])[0];
+  if(ctr) out.push(`Win rate drops against <b>${ctr.name}</b> — the strongest answer in your scout data.`);
+  const da=(_draftedAgainst[name]||[])[0];
+  if(da) out.push(`Opponents most often respond with ${da.name} when ${name} is on the board.`);
+  if(a.banRate>=10) out.push(`Contested pick — banned in ${a.banRate}% of scouted games.`);
+  const tier=_metaTiers[name];
+  if(tier==='S'||tier==='S+') out.push(`Currently an ${tier}-tier meta pick at ${a.pickRate}% pick rate.`);
+  if(maps.length>1) out.push(`Weakest on ${maps[maps.length-1].map} (${maps[maps.length-1].wr}% WR).`);
+  if(!out.length) out.push('Not enough scouted games yet to generate draft notes for this hero.');
+  return out.slice(0,6);
+}
+
+// ── Filter chips (role / lane / league) ──
+function _chips(elId, items, curVal, fn){
+  const el=document.getElementById(elId); if(!el) return;
+  el.innerHTML=items.map(it=>`<span class="hchip${it.v===curVal?' on':''}" onclick="${fn}('${String(it.v).replace(/'/g,"\\'")}')">${escHtml(it.l)}</span>`).join('');
+}
+function renderFilterChips(){
+  _chips('roleChips',[{v:'',l:'All'},{v:'Tank',l:'Tank'},{v:'Fighter',l:'Fighter'},{v:'Mage',l:'Mage'},{v:'Assassin',l:'Assassin'},{v:'Marksman',l:'Marksman'},{v:'Support',l:'Support'}],document.getElementById('roleFilter').value,'setRole');
+  _chips('laneChips',[{v:'',l:'All'},{v:'Gold',l:'Gold'},{v:'Mid',l:'Mid'},{v:'Jungle',l:'Jungle'},{v:'EXP',l:'EXP'},{v:'Roam',l:'Roam'}],document.getElementById('laneFilter').value,'setLane');
+  const lgSel=document.getElementById('leagueFilterH');
+  const lgItems=[...lgSel.options].map(o=>({v:o.value,l:o.value==='all'?'All':o.textContent}));
+  _chips('leagueChips',lgItems,lgSel.value,'setLeague');
+}
+function setRole(v){document.getElementById('roleFilter').value=v;onFilter();}
+function setLane(v){document.getElementById('laneFilter').value=v;onFilter();}
+function setLeague(v){document.getElementById('leagueFilterH').value=v;onLeagueChange();}
+
+// ── Page render ──
+function renderHeroPage(){
+  const list=getFilteredHeroes();
+  const cb=document.getElementById('countBadge'); if(cb) cb.textContent=`${list.length} heroes`;
+  renderFilterChips();
+  const car=document.getElementById('heroCarousel'); const det=document.getElementById('heroDetail');
+  if(!list.length){ car.innerHTML='<div class="empty-state" style="padding:30px;">No heroes match your filters.</div>'; det.innerHTML=''; return; }
+  if(!_selectedHero || !list.some(h=>h.name===_selectedHero)) _selectedHero=list[0].name;
+  car.innerHTML=list.slice(0,24).map(h=>{ const a=heroAgg(h.name); const sel=h.name===_selectedHero;
+    return `<div class="hcar-card${sel?' sel':''}" onclick="selectHero('${escJs(h.name)}')">
+      <div class="hcar-img"><img src="${_hImg(h.name)}" loading="lazy" onerror="this.style.display='none'">${sel?'<span class="hcar-pin">★</span>':''}</div>
+      <div class="hcar-body"><div class="hcar-nm">${escHtml(h.name)}</div><div class="hcar-wr" style="color:${_wrColor(a.wr)}">${a.wr}%</div><div class="hcar-wl">Win Rate</div></div>
+    </div>`; }).join('');
+  renderHeroDetail(_selectedHero);
+}
+function selectHero(n){ _selectedHero=n; renderHeroPage(); try{document.getElementById('heroDetail').scrollIntoView({behavior:'smooth',block:'nearest'});}catch(_){ } }
+
+function renderHeroDetail(name){
+  const h=HEROES.find(x=>x.name===name)||{name};
+  const a=heroAgg(name);
+  const lane=_heroLaneMap[name]||h.lane||''; const role=h.role||h.r||'';
+  const tier=_metaTiers[name]||''; const tcls=tier?('t-'+tier.replace('+','p')):'';
+  const maps=heroMapList(name); const usable=maps.filter(m=>m.wr!=null);
+  const byWR=[...usable].sort((x,y)=>y.wr-x.wr); const best=byWR[0]||null; const worst=byWR.length>1?byWR[byWR.length-1]:null;
+  const over=_overrides[name]||{counter:[],synergy:[]};
+  const counters=(over.counter.length?over.counter.map(n=>({name:n})):(_countersMap[name]||[])).slice(0,5);
+  const synergies=(over.synergy.length?over.synergy.map(n=>({name:n})):(_synergiesMap[name]||[])).slice(0,5);
+  const drafted=(_draftedAgainst[name]||[]).slice(0,5);
+  const notes=aiNotes(name,a);
+  const teams=heroTeams(name);
+  const relRow=(x,val,color)=>`<div class="hrel"><img src="${_hImg(x.name)}" onerror="this.style.visibility='hidden'"><span class="hrel-nm">${escHtml(x.name)}</span><div class="hrel-bar"><div class="hrel-fill" style="width:${val!=null?Math.min(100,val):0}%;background:${color}"></div></div><span class="hrel-pct" style="color:${color}">${val!=null?val+'%':'—'}</span></div>`;
+  const empty='<div style="font-size:11px;color:var(--text3);padding:7px 0;">No scout data yet</div>';
+  const counterHTML=counters.length?counters.map(c=>relRow(c,c.wr!=null?Math.round(c.wr*100):null,'var(--green)')).join(''):empty;
+  const synHTML=synergies.length?synergies.map(c=>relRow(c,c.wr!=null?Math.round(c.wr*100):null,'var(--green)')).join(''):empty;
+  const draftHTML=drafted.length?drafted.map(c=>relRow(c,a.games?Math.round(c.count/a.games*100):null,'var(--red)')).join(''):empty;
+  const slotTot=a.slots.reduce((x,y)=>x+y,0)||1;
+  const dp=a.slots.map((c,i)=>({lbl:'P'+(i+1),pct:Math.round(c/slotTot*100)}));
+  const dpMax=Math.max(...dp.map(d=>d.pct),1);
+  const portrait=_hImg(name);
+  const mapThumb=m=>`maps/${_mapKey(m)}.webp`;
+  const mapMini=(label,m,color)=>m?`<div class="hd-map2"><img class="hd-map2-th" src="${mapThumb(m.map)}" onerror="this.style.visibility='hidden'"><div><div class="hd-map2-cap">${label}</div><div class="hd-map2-nm">${m.map}</div><div class="hd-map2-wr" style="color:${color}">${m.wr}% Win Rate</div></div></div>`:'';
+  document.getElementById('heroDetail').innerHTML=`
+   <div class="hd-grid">
+     <!-- Profile -->
+     <section class="hcard hd-prof">
+       <div class="hd-prof-top">
+         <div class="hd-art"><img src="${portrait}" onerror="this.style.display='none'"></div>
+         <div class="hd-prof-info">
+           <div class="hd-nm-row"><span class="hd-nm">${escHtml(name)}</span>${tier?`<span class="hd-tier meta-tier-badge ${tcls}">${tier}</span>`:''}</div>
+           <div class="hd-roles">${role?`<span class="hd-role">⚔ ${escHtml(role)}</span>`:''}${lane?`<span class="hd-role">◎ ${escHtml(lane)}</span>`:''}</div>
+           <div class="hd-kpis">
+             <div><div class="hd-kv" style="color:${_wrColor(a.wr)}">${a.wr}%</div><div class="hd-kl">Win Rate</div></div>
+             <div><div class="hd-kv">${a.games}</div><div class="hd-kl">Games</div></div>
+             <div><div class="hd-kv">${a.pickRate}%</div><div class="hd-kl">Pick Rate</div></div>
+             <div><div class="hd-kv">${a.banRate}%</div><div class="hd-kl">Ban Rate</div></div>
+           </div>
+         </div>
+       </div>
+       <div class="hd-maps2">
+         ${best?mapMini('BEST MAP',best,'var(--green)'):'<div class="hd-map2" style="color:var(--text3);font-size:11px;">No map data</div>'}
+         ${worst?mapMini('WORST MAP',worst,'var(--red)'):''}
+       </div>
+     </section>
+     <!-- AI Draft Notes -->
+     <section class="hcard hd-ai">
+       <div class="hd-ai-t"><span class="hd-ai-ic">AI</span> AI Draft Notes</div>
+       <ul class="hd-ai-list">${notes.map(n=>`<li>${n}</li>`).join('')}</ul>
+     </section>
+     <!-- Relation rail -->
+     <div class="hrail">
+       <div class="hcard hrail-card"><div class="hrail-h"><span class="hrail-t">Counters</span><span class="hrail-src">From Scout Database</span></div>${counterHTML}</div>
+       <div class="hcard hrail-card"><div class="hrail-h"><span class="hrail-t">Best With</span><span class="hrail-src">From Scout Database</span></div>${synHTML}</div>
+       <div class="hcard hrail-card"><div class="hrail-h"><span class="hrail-t">Drafted Against</span><span class="hrail-src">From Scout Database</span></div>${draftHTML}</div>
+     </div>
+   </div>
+   <!-- Bottom row -->
+   <div class="hd-bottom">
+     <section class="hcard hd-sec"><div class="hd-sec-t">Best On Maps</div>
+       ${maps.map(m=>`<div class="hd-maprow"><img src="${mapThumb(m.map)}" onerror="this.style.visibility='hidden'"><span class="hd-maprow-nm">${m.map}</span><div class="hrel-bar"><div class="hrel-fill" style="width:${m.wr!=null?m.wr:0}%;background:${m.wr!=null?_wrColor(m.wr):'var(--text3)'}"></div></div><span class="hrel-pct" style="color:${m.wr!=null?_wrColor(m.wr):'var(--text3)'}">${m.wr!=null?m.wr+'%':'—'}</span></div>`).join('')}
+     </section>
+     <section class="hcard hd-sec"><div class="hd-sec-t">Draft Priority</div>
+       <div class="hd-dp">${dp.map(d=>`<div class="hd-dp-col"><div class="hd-dp-val">${d.pct}%</div><div class="hd-dp-bar" style="height:${Math.max(3,Math.round(d.pct/dpMax*120))}px"></div><div class="hd-dp-lbl">${d.lbl}</div></div>`).join('')}</div>
+       <div style="text-align:center;font-size:10px;color:var(--text3);margin-top:8px;">Position in Draft</div>
+     </section>
+   </div>
+   <!-- Most used by teams -->
+   <div class="hd-wide-t">Most Used By Teams</div>
+   <div class="hd-teams">
+     ${teams.length?teams.map(t=>{const mo=(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(t.team):{init:(t.team||'?')[0],color:'#7C5CF6'};const lg=(typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(t.team):'';return `<div class="hd-team"><div class="hd-team-logo" style="background:linear-gradient(135deg,${mo.color},${mo.color}99)">${mo.init}<img src="${lg}" onerror="this.style.display='none'"></div><div class="hd-team-nm">${escHtml(t.team)}</div><div class="hd-team-wr" style="color:${_wrColor(t.wr)}">${t.wr}%</div><div class="hd-team-wl">${t.games} games</div></div>`;}).join(''):'<div style="grid-column:1/-1;font-size:12px;color:var(--text3);padding:8px;">No teams have picked this hero in the current filter.</div>'}
+   </div>`;
 }
 
 function heroCardHTML(h) {
