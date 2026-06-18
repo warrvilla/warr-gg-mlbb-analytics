@@ -193,7 +193,7 @@ body {
 .ml-group{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin:14px 0 7px;}
 .ml-card{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:12px;margin-bottom:7px;overflow:hidden;transition:border-color .15s;}
 .ml-card:hover{border-color:rgba(124,92,246,.3);}
-.ml-row{display:grid;grid-template-columns:auto 104px minmax(0,1fr) auto minmax(0,1fr) auto auto;align-items:center;gap:12px;padding:10px 14px;}
+.ml-row{display:grid;grid-template-columns:auto 104px minmax(0,1fr) auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px 14px;}
 .ml-date{text-align:center;width:30px;flex-shrink:0;}
 .ml-day{font-size:15px;font-weight:800;line-height:1;color:var(--text);}
 .ml-mon{font-size:8px;color:var(--text3);letter-spacing:.06em;margin-top:2px;}
@@ -229,31 +229,31 @@ body {
 .md-main{min-width:0;display:flex;flex-direction:column;gap:11px;}
 .md-toprow{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:11px;align-items:stretch;}
 .md-headcard,.md-aicard,.md-logcard,.md-sidecard{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:14px;}
-.md-headcard{padding:14px 16px;}
-.md-head-row{display:flex;align-items:center;gap:11px;margin-bottom:13px;}
+.md-headcard{padding:18px 20px;}
+.md-head-row{display:flex;align-items:center;gap:15px;margin-bottom:16px;}
 .md-nav{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);color:var(--text2);font-size:15px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0 0 1px;transition:background .15s,color .15s;}
 .md-nav:hover{background:rgba(124,92,246,.18);border-color:rgba(124,92,246,.4);color:#fff;}
 .md-slideclip{flex:1;min-width:0;overflow:hidden;}
-.md-slide{display:flex;align-items:center;gap:12px;min-width:0;animation:mdSlideIn .24s cubic-bezier(.22,.7,.3,1);}
+.md-slide{display:flex;align-items:center;gap:15px;min-width:0;animation:mdSlideIn .24s cubic-bezier(.22,.7,.3,1);}
 @keyframes mdSlideIn{from{opacity:0;transform:translateX(var(--md-sx,0));}to{opacity:1;transform:translateX(0);}}
-.md-logo{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;flex-shrink:0;position:relative;overflow:hidden;background:transparent;}
-.md-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:6px;}
+.md-logo{width:72px;height:72px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:#fff;flex-shrink:0;position:relative;overflow:hidden;background:transparent;}
+.md-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:4px;}
 .md-logo i{font-style:normal;display:none;}
 .md-logo.noimg{background:linear-gradient(135deg,var(--mc,#7C5CF6),var(--mc,#7C5CF6));}
 .md-logo.noimg img{display:none;}
 .md-logo.noimg i{display:flex;}
-.md-name{font-size:17px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:7px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.md-verif{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:#7C5CF6;color:#fff;font-size:8px;flex-shrink:0;}
-.md-tags{display:flex;align-items:center;gap:7px;margin-top:5px;}
-.md-league{font-size:9px;font-weight:700;letter-spacing:.04em;color:#A78BFA;background:rgba(124,92,246,.14);border:1px solid rgba(124,92,246,.28);border-radius:5px;padding:2px 7px;}
-.md-teamsel{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);color:var(--text2);border-radius:6px;padding:2px 7px;font:inherit;font-size:10px;cursor:pointer;max-width:140px;}
+.md-name{font-size:22px;font-weight:800;color:var(--text);letter-spacing:-.01em;display:flex;align-items:center;gap:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.md-verif{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#7C5CF6;color:#fff;font-size:10px;flex-shrink:0;}
+.md-tags{display:flex;align-items:center;gap:8px;margin-top:7px;}
+.md-league{font-size:10px;font-weight:700;letter-spacing:.04em;color:#A78BFA;background:rgba(124,92,246,.14);border:1px solid rgba(124,92,246,.28);border-radius:5px;padding:3px 8px;}
+.md-rank{font-size:11px;font-weight:600;color:var(--text3);}
 .md-headctrls{display:flex;align-items:center;gap:6px;flex-shrink:0;}
-.md-follow{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:var(--text);border-radius:9px;padding:7px 12px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;}
-.md-follow:hover{background:rgba(255,255,255,.09);}
-.md-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;}
+.md-follow{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:var(--text2);border-radius:9px;padding:8px 13px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.md-follow:hover{background:rgba(255,255,255,.09);color:var(--text);}
+.md-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;border-top:1px solid rgba(255,255,255,.06);padding-top:14px;}
 .md-kpi{text-align:left;}
-.md-kv{font-size:17px;font-weight:800;color:var(--text);line-height:1;font-variant-numeric:tabular-nums;}
-.md-kl{font-size:9px;color:var(--text3);margin-top:5px;letter-spacing:.02em;}
+.md-kv{font-size:18px;font-weight:800;color:var(--text);line-height:1;font-variant-numeric:tabular-nums;}
+.md-kl{font-size:10px;color:var(--text3);margin-top:6px;letter-spacing:.02em;}
 .md-aicard{padding:13px 15px;display:flex;flex-direction:column;}
 .md-ai-t{font-size:12px;font-weight:700;color:#CDBBFF;display:flex;align-items:center;gap:6px;margin-bottom:9px;}
 .md-ai-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px;}
@@ -2358,7 +2358,7 @@ function renderMatchList() {
                <div class="md-logo${_logoUrl?'':' noimg'}" style="--mc:${_mo.color}"><img src="${_logoUrl}" onerror="this.closest('.md-logo').classList.add('noimg')"><i>${_mo.init}</i></div>
                <div style="flex:1;min-width:0;">
                  <div class="md-name">${_focusTeam||'—'}<span class="md-verif">✔</span></div>
-                 <div class="md-tags">${_league?`<span class="md-league">${_league}</span>`:''}<select class="md-teamsel" onchange="setFocusTeam(this.value)">${teamSel}</select></div>
+                 <div class="md-tags">${_league?`<span class="md-league">${_league}</span>`:''}${t.gamesPlayed?`<span class="md-rank">${t.wins||0}W · ${t.losses||0}L · ${t.gamesPlayed} games</span>`:''}</div>
                </div>
              </div></div>
              <div class="md-headctrls">
@@ -2382,11 +2382,11 @@ function renderMatchList() {
          </aside>
        </div>
        <div class="md-tiles">
-         <div class="md-tile"><div class="md-tile-ic">🗼</div><div><div class="md-tile-v">${t.avgTowers!=null?t.avgTowers:'—'}</div><div class="md-tile-l">Avg Towers Pushed</div></div></div>
+         <div class="md-tile"><div class="md-tile-ic">♜</div><div><div class="md-tile-v">${t.avgTowers!=null?t.avgTowers:'—'}</div><div class="md-tile-l">Avg Towers Pushed</div></div></div>
          <div class="md-tile"><div class="md-tile-ic">◓</div><div><div class="md-tile-v">${t.turtleWR!=null?t.turtleWR+'%':'—'}</div><div class="md-tile-l">Turtle Win Rate</div></div></div>
          <div class="md-tile"><div class="md-tile-ic">✦</div><div><div class="md-tile-v">${t.lordWR!=null?t.lordWR+'%':'—'}</div><div class="md-tile-l">Lord Win Rate</div></div></div>
-         <div class="md-tile"><div class="md-tile-ic">⚔</div><div><div class="md-tile-v">${t.avgKills!=null?t.avgKills:'—'}</div><div class="md-tile-l">Avg Kills · per game</div></div></div>
-         <div class="md-tile"><div class="md-tile-ic">💀</div><div><div class="md-tile-v">${t.avgDeaths!=null?t.avgDeaths:'—'}</div><div class="md-tile-l">Avg Death · per game</div></div></div>
+         <div class="md-tile"><div class="md-tile-ic">⚔&#xFE0E;</div><div><div class="md-tile-v">${t.avgKills!=null?t.avgKills:'—'}</div><div class="md-tile-l">Avg Kills · per game</div></div></div>
+         <div class="md-tile"><div class="md-tile-ic">†</div><div><div class="md-tile-v">${t.avgDeaths!=null?t.avgDeaths:'—'}</div><div class="md-tile-l">Avg Death · per game</div></div></div>
        </div>
        <section class="md-logcard" id="matchListStatic">
          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
@@ -2556,9 +2556,6 @@ function renderMatchListBody() {
     const _mono=n=>(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(n||'?'):{init:(n||'?')[0]||'?',color:'#7C5CF6'};
     const _bm=_mono(s.blueTeam), _rm=_mono(s.redTeam);
     const _tlogo=n=>(typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(n):'';
-    // 4 hero preview = blue (left) team's most-used picks across the series
-    const _blP=[]; s.games.forEach(g=>{(g.bluePicks||[]).forEach(h=>{const n=h&&(h.name||h); if(n&&!_blP.includes(n))_blP.push(n);});});
-    const _heroPrev=_blP.slice(0,4).map(h=>`<img class="ml-hero" src="${_heroIcon(h)}" onerror="${_heroIconErr(h)}" title="${h}">`).join('');
     const _res = seriesWinner===s.blueTeam ? 'WIN' : (seriesWinner===s.redTeam ? 'LOSS' : '');
     return groupHdr + `<div class="ml-card">
       <div class="ml-row">
@@ -2567,7 +2564,6 @@ function renderMatchListBody() {
         <div class="ml-team ml-teamA${seriesWinner===s.blueTeam?' win':''}"><span class="nm">${s.blueTeam}</span><span class="ml-logo" style="--mc:${_bm.color}"><img src="${_tlogo(s.blueTeam)}" loading="lazy" onerror="this.closest('.ml-logo').classList.add('noimg')"><i>${_bm.init}</i></span></div>
         <div class="ml-score"><span class="ml-sc" style="color:${scoreColor}">${blueWins} - ${redWins}</span>${_res?`<span class="ml-res ${_res==='WIN'?'w':'l'}">${_res}</span>`:''}</div>
         <div class="ml-team ml-teamB${seriesWinner===s.redTeam?' win':''}"><span class="ml-logo" style="--mc:${_rm.color}"><img src="${_tlogo(s.redTeam)}" loading="lazy" onerror="this.closest('.ml-logo').classList.add('noimg')"><i>${_rm.init}</i></span><span class="nm">${s.redTeam}</span></div>
-        <div class="ml-heroes">${_heroPrev}</div>
         <button class="ml-view" onclick="const x=this.closest('.ml-card').querySelector('.ml-detail');x.classList.toggle('open');this.textContent=x.classList.contains('open')?'Hide ▾':'View Details ▸';">View Details ▸</button>
       </div>
       <div class="ml-detail">${gameRows}</div>
