@@ -1400,10 +1400,14 @@ WDB._teamLogoOverrides = WDB._teamLogoOverrides || {};
 WDB.teamLogoKey = function(name){
   return String(name||'').trim().toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
 };
+// Bump LOGO_VER whenever logos are added/changed. The version query busts any
+// stale negatively-cached 404s (paths fetched before the file existed) in
+// browsers and the CDN, since the URL differs from the cached one.
+WDB.LOGO_VER = '3';
 WDB.teamLogo = function(name){
   if (!name) return '';
   if (WDB._teamLogoOverrides[name]) return WDB._teamLogoOverrides[name];
-  return `logos/${WDB.teamLogoKey(name)}.webp`;
+  return `logos/${WDB.teamLogoKey(name)}.webp?v=${WDB.LOGO_VER}`;
 };
 /** Deterministic monogram + color for a team when no logo exists. */
 WDB.teamMonogram = function(name){
