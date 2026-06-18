@@ -212,9 +212,7 @@ body {
 .ml-view:hover{background:rgba(124,92,246,.2);}
 .ml-detail{display:none;padding:6px 16px 14px;border-top:1px solid rgba(255,255,255,.06);}
 .ml-detail.open{display:block;}
-.ml-heroes{display:flex;gap:5px;flex-shrink:0;}
-.ml-hero{width:30px;height:30px;border-radius:8px;object-fit:cover;background:var(--surface3);border:1px solid rgba(255,255,255,.08);}
-@media(max-width:760px){.ml-stage{display:none;}.ml-row{gap:10px;}.ml-heroes{display:none;}}
+@media(max-width:760px){.ml-stage{display:none;}.ml-row{gap:10px;}}
 
 /* ── MATCH DASHBOARD (Scout · Matches view) ── */
 .md-dash{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start;}
@@ -222,7 +220,12 @@ body {
 .md-toprow{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:14px;align-items:stretch;}
 .md-headcard,.md-aicard,.md-logcard,.md-sidecard{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:18px;}
 .md-headcard{padding:20px 22px;}
-.md-head-row{display:flex;align-items:center;gap:16px;margin-bottom:18px;}
+.md-head-row{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+.md-nav{flex-shrink:0;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:var(--text2);font-size:20px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0 0 2px;transition:background .15s,color .15s;}
+.md-nav:hover{background:rgba(124,92,246,.18);border-color:rgba(124,92,246,.4);color:#fff;}
+.md-slideclip{flex:1;min-width:0;overflow:hidden;}
+.md-slide{display:flex;align-items:center;gap:16px;min-width:0;animation:mdSlideIn .26s cubic-bezier(.22,.7,.3,1);}
+@keyframes mdSlideIn{from{opacity:0;transform:translateX(var(--md-sx,0));}to{opacity:1;transform:translateX(0);}}
 .md-logo{width:62px;height:62px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;flex-shrink:0;position:relative;overflow:hidden;}
 .md-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
 .md-name{font-size:23px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -2227,7 +2230,16 @@ function getFilteredSeries() {
 // MATCH LIST VIEW
 // ══════════════════════════════════════════════════════════════
 let _focusTeam=null;
+let _slideDir=0;
 function setFocusTeam(n){ _focusTeam=n; renderMatchList(); }
+function cycleFocusTeam(dir){
+  const tg={}; getFilteredMatches().forEach(m=>{[m.blueTeam,m.redTeam].forEach(n=>{if(n)tg[n]=(tg[n]||0)+1;});});
+  const list=Object.keys(tg).sort((a,b)=>tg[b]-tg[a]);
+  if(!list.length) return;
+  let i=list.indexOf(_focusTeam); if(i<0) i=0;
+  i=(i+dir+list.length)%list.length;
+  _slideDir=dir; _focusTeam=list[i]; renderMatchList(); _slideDir=0;
+}
 function renderMatchList() {
   const area = document.getElementById('mainArea');
   const _wrc = wr => wr>=60?'var(--green)':wr>=50?'var(--gold)':'var(--red)';
@@ -2259,11 +2271,15 @@ function renderMatchList() {
        <div class="md-toprow">
          <section class="md-headcard">
            <div class="md-head-row">
-             <div class="md-logo" style="background:linear-gradient(135deg,${_mo.color},${_mo.color}99)">${_mo.init}<img src="${_logoUrl}" onerror="this.style.display='none'"></div>
-             <div style="flex:1;min-width:0;">
-               <div class="md-name">${_focusTeam||'—'}<span class="md-verif">✔</span></div>
-               <div class="md-tags">${_league?`<span class="md-league">${_league}</span>`:''}<select class="md-teamsel" onchange="setFocusTeam(this.value)">${teamSel}</select></div>
-             </div>
+             <button class="md-nav" onclick="cycleFocusTeam(-1)" title="Previous team" aria-label="Previous team">‹</button>
+             <div class="md-slideclip"><div class="md-slide" style="--md-sx:${_slideDir>0?'46px':_slideDir<0?'-46px':'0'}">
+               <div class="md-logo" style="background:linear-gradient(135deg,${_mo.color},${_mo.color}99)">${_mo.init}<img src="${_logoUrl}" onerror="this.style.display='none'"></div>
+               <div style="flex:1;min-width:0;">
+                 <div class="md-name">${_focusTeam||'—'}<span class="md-verif">✔</span></div>
+                 <div class="md-tags">${_league?`<span class="md-league">${_league}</span>`:''}<select class="md-teamsel" onchange="setFocusTeam(this.value)">${teamSel}</select></div>
+               </div>
+             </div></div>
+             <button class="md-nav" onclick="cycleFocusTeam(1)" title="Next team" aria-label="Next team">›</button>
              <button class="md-follow">★ Follow Team</button>
            </div>
            <div class="md-kpis">
@@ -2450,10 +2466,6 @@ function renderMatchListBody() {
 
     const _mono=n=>(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(n||'?'):{init:(n||'?')[0]||'?',color:'#7C5CF6'};
     const _bm=_mono(s.blueTeam), _rm=_mono(s.redTeam);
-    // Focus team's picks across the series (first 4 unique) for the row preview
-    const _ft = (typeof _focusTeam!=='undefined' && _focusTeam) ? _focusTeam : s.blueTeam;
-    const _picks=[]; s.games.forEach(g=>{ const ps=(g.blueTeam===_ft?g.bluePicks:g.redTeam===_ft?g.redPicks:[])||[]; ps.forEach(h=>{ if(h && !_picks.includes(h)) _picks.push(h); }); });
-    const _heroPrev = _picks.slice(0,4).map(h=>`<img class="ml-hero" src="${_heroIcon(h)}" onerror="${_heroIconErr(h)}" title="${h}">`).join('');
     return groupHdr + `<div class="ml-card">
       <div class="ml-row">
         <div class="ml-date"><div class="ml-day">${day}</div><div class="ml-mon">${(mon||'').toUpperCase()}</div></div>
@@ -2464,7 +2476,6 @@ function renderMatchListBody() {
           <div class="ml-team"><span class="ml-logo" style="background:${_rm.color}">${_rm.init}</span><span class="nm">${s.redTeam}</span></div>
         </div>
         <div class="ml-score"><span class="ml-sc" style="color:${scoreColor}">${blueWins} - ${redWins}</span>${seriesWinner?`<span class="ml-win">${seriesWinner} ✓</span>`:''}</div>
-        <div class="ml-heroes">${_heroPrev}</div>
         <button class="ml-view" onclick="const x=this.closest('.ml-card').querySelector('.ml-detail');x.classList.toggle('open');this.textContent=x.classList.contains('open')?'Hide ▾':'View Details ▸';">View Details ▸</button>
       </div>
       <div class="ml-detail">${gameRows}</div>
