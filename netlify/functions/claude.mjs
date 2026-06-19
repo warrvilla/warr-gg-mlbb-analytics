@@ -22,12 +22,16 @@ const MAX_TOKENS_CAP = 1200;
 // When the month's estimated spend reaches the cap, this function returns
 // 429 and every client falls back to the free local Draft Brain. The bill
 // cannot exceed the budget. Override via Netlify env vars if ever needed.
-const BUDGET_PHP   = Number(process.env.MONTHLY_BUDGET_PHP || 5000);
+// Default sized for a ~$10 wallet during free early access. Raise via the
+// MONTHLY_BUDGET_PHP env var once you top up. At ~$0.005-0.02 per analysis this
+// is the absolute monthly ceiling — past it everyone uses the free local engine.
+const BUDGET_USD_CAP = Number(process.env.MONTHLY_BUDGET_USD || 6);      // hard ceiling in USD (~$6 of your $10)
 const PHP_PER_USD  = Number(process.env.PHP_PER_USD || 59);
-const BUDGET_USD   = BUDGET_PHP / PHP_PER_USD;          // ≈ $85 at default FX
-const USER_DAILY_CALLS = Number(process.env.USER_DAILY_CALLS || 60);     // Pro accounts, per day
-const TEAM_DAILY_CALLS = Number(process.env.TEAM_DAILY_CALLS || 200);    // Team accounts, per day
-const FREE_MONTHLY_CALLS = Number(process.env.FREE_MONTHLY_CALLS || 10); // Free accounts, per MONTH (≈3 analyses + retries)
+const BUDGET_PHP   = Number(process.env.MONTHLY_BUDGET_PHP || 0);        // optional PHP override
+const BUDGET_USD   = BUDGET_PHP > 0 ? BUDGET_PHP / PHP_PER_USD : BUDGET_USD_CAP;
+const USER_DAILY_CALLS = Number(process.env.USER_DAILY_CALLS || 30);     // approved accounts, per day
+const TEAM_DAILY_CALLS = Number(process.env.TEAM_DAILY_CALLS || 60);     // team accounts, per day
+const FREE_MONTHLY_CALLS = Number(process.env.FREE_MONTHLY_CALLS || 4);  // free accounts, per MONTH
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'wrrenvillapando@gmail.com';
 // claude-sonnet pricing (USD per 1M tokens)
 const PRICE_IN_PER_M  = 3;
@@ -104,7 +108,7 @@ export default async (req) => {
       return Response.json({ error: 'USER_DAILY_CAP', detail: 'Daily AI limit reached for this account — back tomorrow.' }, { status: 429, headers: _cors() });
     }
     if (!isPaid && userCalls >= FREE_MONTHLY_CALLS) {
-      return Response.json({ error: 'FREE_PLAN_CAP', detail: 'Free plan AI allowance used this month — Pro (₱199/mo) unlocks 100 deep analyses. Upgrade in Profile.' }, { status: 429, headers: _cors() });
+      return Response.json({ error: 'FREE_PLAN_CAP', detail: "You've used this month's free AI analyses — the local Draft Brain still works unlimited. Pro teams who need more can contact the developer." }, { status: 429, headers: _cors() });
     }
   } catch { /* blobs unavailable — allow the request, never break the product */ }
 
