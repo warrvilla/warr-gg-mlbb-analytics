@@ -1112,6 +1112,8 @@ WDB.HERO_ROSTER = [
   {n:'Novaria',r:'Mage'},
   {n:'Luo Yi',r:'Mage'},
   {n:'Zhuxin',r:'Mage'},
+  {n:"Chang'e",r:'Mage'},
+  {n:'Hirara',r:'Mage'},
   {n:'Faramis',r:'Mage/Support'},
   {n:'Kadita',r:'Mage/Assassin'},
   {n:'Kimmy',r:'Mage/MM'},
@@ -1403,7 +1405,7 @@ WDB.teamLogoKey = function(name){
 // Bump LOGO_VER whenever logos are added/changed. The version query busts any
 // stale negatively-cached 404s (paths fetched before the file existed) in
 // browsers and the CDN, since the URL differs from the cached one.
-WDB.LOGO_VER = '3';
+WDB.LOGO_VER = '4';
 WDB.teamLogo = function(name){
   if (!name) return '';
   if (WDB._teamLogoOverrides[name]) return WDB._teamLogoOverrides[name];
@@ -1487,7 +1489,7 @@ WDB.HERO_LANE_DEFAULTS = {
   'Lunox':['Mid'],'Kadita':['Mid','Jungle'],'Luo Yi':['Mid'],'Odette':['Mid'],
   'Cecilion':['Mid'],'Vale':['Mid'],'Eudora':['Mid'],'Aurora':['Mid'],
   'Gord':['Mid'],'Cyclops':['Mid'],'Vexana':['Mid'],'Zhask':['Mid'],
-  'Nana':['Mid','Roam'],'Kimmy':['Mid'],"Chang'e":['Mid'],
+  'Nana':['Mid','Roam'],'Kimmy':['Mid'],"Chang'e":['Mid'],'Hirara':['Mid','Roam'],
   'Selena':['Mid','Roam'],'Faramis':['Roam','Mid'],'Valir':['Mid','Roam'],
   // EXP
   'Aulus':['EXP'],'Guinevere':['Jungle'],

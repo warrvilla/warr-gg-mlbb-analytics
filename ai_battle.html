@@ -884,8 +884,12 @@ input:focus, .search-input:focus {
 
 /* rich opponent card */
 .ab-opp-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px;}
-.ab-opp-logo{width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;color:#fff;flex-shrink:0;position:relative;overflow:hidden;}
-.ab-opp-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.ab-opp-logo{width:54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;color:#fff;flex-shrink:0;position:relative;overflow:hidden;background:transparent;}
+.ab-opp-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:5px;}
+.ab-opp-logo i{font-style:normal;display:none;}
+.ab-opp-logo.noimg{background:linear-gradient(135deg,var(--mc,#5E5CE6),var(--mc,#5E5CE6));}
+.ab-opp-logo.noimg img{display:none;}
+.ab-opp-logo.noimg i{display:flex;}
 .ab-opp-name{font-size:19px;font-weight:800;color:var(--text);}
 .ab-opp-tags{display:flex;align-items:center;gap:8px;margin-top:5px;flex-wrap:wrap;}
 .ab-opp-league{font-size:10.5px;font-weight:800;color:#A78BFA;background:rgba(124,92,246,.14);border:1px solid rgba(124,92,246,.3);border-radius:6px;padding:2px 8px;}
@@ -1944,7 +1948,7 @@ function renderEnemyProfileCard(name){
   card.innerHTML=`
     <div class="ab-opp">
       <div class="ab-opp-head">
-        <div class="ab-opp-logo" style="background:linear-gradient(135deg,${mono.color},${mono.color}99)">${mono.init}<img src="${WDB.teamLogo(name)}" onerror="this.style.display='none'" alt=""></div>
+        <div class="ab-opp-logo" style="--mc:${mono.color}"><img src="${WDB.teamLogo(name)}" onerror="this.closest('.ab-opp-logo').classList.add('noimg')" alt=""><i>${mono.init}</i></div>
         <div style="flex:1;min-width:0;">
           <div class="ab-opp-name">${name}</div>
           <div class="ab-opp-tags">${league?`<span class="ab-opp-league">${league}</span>`:''}<span class="ab-opp-games">${games} games logged</span></div>
