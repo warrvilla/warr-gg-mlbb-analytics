@@ -520,50 +520,38 @@ body { background: var(--bg); min-height: 100vh; }
     </div>
 
     <!-- PLAN CARDS -->
-    <div class="section-label" id="plansLabel" style="margin-bottom:14px;">Subscription Plans</div>
+    <div class="section-label" id="plansLabel" style="margin-bottom:14px;">Access</div>
     <div class="plans-grid" id="plansGrid">
-      <div class="plan-card" id="planCard-free" onclick="selectPlanPreview('free')">
-        <div class="plan-name" style="color:var(--text2);">Free</div>
-        <div class="plan-price" style="color:var(--text);">₱0<span>/mo</span></div>
+      <div class="plan-card" id="planCard-free">
+        <div class="plan-popular">EARLY ACCESS</div>
+        <div class="plan-name" style="color:var(--text2);">Free for everyone</div>
+        <div class="plan-price" style="color:var(--text);">Free</div>
         <ul class="plan-features">
-          <li>3 AI deep analyses / month</li>
-          <li>Full Draft Brain arena — PvP, vs AI, vs scouted teams</li>
+          <li>Scout, Heroes, Scrims &amp; AI Battle — unlimited</li>
+          <li>AI deep analyses included <span style="color:var(--text3);">(fair-use monthly cap)</span></li>
           <li>Series mode (BO3 / BO5 / BO7)</li>
-          <li>Scout &amp; Heroes — unlimited, forever</li>
+          <li>MPL PH data now — more leagues coming</li>
         </ul>
-        <button class="plan-cta" onclick="event.stopPropagation()">Current Plan</button>
+        <button class="plan-cta" onclick="event.stopPropagation()">Your Plan</button>
       </div>
 
-      <div class="plan-card" id="planCard-pro" onclick="selectPlanPreview('pro')">
-        <div class="plan-popular">MOST POPULAR</div>
-        <div class="plan-name" style="color:var(--purple);">Pro</div>
-        <div class="plan-price" style="color:var(--purple);">₱199<span>/mo</span></div>
+      <div class="plan-card" id="planCard-pro">
+        <div class="plan-name" style="color:var(--purple);">For Pro Teams &amp; Orgs</div>
+        <div class="plan-price" style="color:var(--purple);font-size:22px;">Let's talk</div>
         <ul class="plan-features">
-          <li><strong>100 deep analyses</strong> / month — 33× Free</li>
-          <li>Claude-powered AI Battle reasoning (Hard &amp; GM)</li>
-          <li>Early access to new coach tools</li>
-          <li>Less than ₱7 a day — one less coffee, better drafts</li>
-        </ul>
-        <button class="plan-cta" onclick="event.stopPropagation();upgradePlan('pro')">Go Pro — ₱199/mo</button>
-      </div>
-
-      <div class="plan-card" id="planCard-team" onclick="selectPlanPreview('team')">
-        <div class="plan-name" style="color:var(--gold);">Team</div>
-        <div class="plan-price" style="color:var(--gold);">₱4,999<span>/mo</span></div>
-        <ul class="plan-features">
-          <li><strong>1,000 pooled analyses</strong> / month</li>
-          <li>Pro access for 2 accounts — coach + analyst</li>
-          <li>Priority feature requests — your workflow shapes the tool</li>
+          <li>Higher / unlimited AI analysis volume</li>
+          <li>Dedicated scouting &amp; data support</li>
+          <li>Priority feature requests — built around your workflow</li>
           <li>Direct line to the developer</li>
         </ul>
-        <button class="plan-cta" onclick="event.stopPropagation();upgradePlan('team')">Contact for Team</button>
+        <a class="plan-cta" href="mailto:wrrenvillapando@gmail.com?subject=Warr.GG%20%E2%80%94%20Pro%20Team%20Inquiry" style="display:block;text-align:center;text-decoration:none;">✉ Get in touch</a>
       </div>
     </div>
 
     <!-- CONTACT / ACTIVATION STRIP -->
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:4px 0 24px;padding:12px 16px;border:0.5px solid var(--glass-border,rgba(255,255,255,.08));border-radius:14px;background:rgba(124,92,246,.05);">
-      <span style="font-size:11.5px;color:var(--text2);flex:1;min-width:220px;line-height:1.5;">Activation is personal for now — message me, pay via GCash, and I'll switch your account on the spot. Usually under an hour.</span>
-      <a href="mailto:wrrenvillapando@gmail.com?subject=Warr.GG%20Upgrade" style="padding:9px 18px;border-radius:10px;background:linear-gradient(135deg,#7C5CF6,#5E5CE6);color:#fff;font-size:12px;font-weight:700;text-decoration:none;flex-shrink:0;">✉ Email Me</a>
+      <span style="font-size:11.5px;color:var(--text2);flex:1;min-width:220px;line-height:1.5;">Warr.GG is free during early access. If you're a pro team or org that needs higher AI limits or dedicated support, message me and we'll sort it out.</span>
+      <a href="mailto:wrrenvillapando@gmail.com?subject=Warr.GG%20%E2%80%94%20Pro%20Team%20Inquiry" style="padding:9px 18px;border-radius:10px;background:linear-gradient(135deg,#7C5CF6,#5E5CE6);color:#fff;font-size:12px;font-weight:700;text-decoration:none;flex-shrink:0;">✉ Email Me</a>
       <span style="font-size:10px;color:var(--text3);flex-shrink:0;">IG &amp; TikTok soon</span>
     </div>
 
