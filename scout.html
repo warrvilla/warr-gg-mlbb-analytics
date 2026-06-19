@@ -225,11 +225,14 @@ body {
 @media(max-width:760px){.ml-stage{display:none;}.ml-row{display:flex;flex-wrap:wrap;gap:8px;}.ml-teamA,.ml-teamB{flex:1;justify-self:auto;}.ml-score,.ml-view{justify-self:auto;}}
 
 /* ── MATCH DASHBOARD (Scout · Matches view) — compact ── */
-.md-dash{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:14px;align-items:start;}
-.md-main{min-width:0;display:flex;flex-direction:column;gap:11px;}
-/* Top row shares the SAME 5-column track as the stat tiles below, so the header
-   ends at the Lord-WR tile (col 3) and the AI summary starts at the Avg-Kills tile (col 4). */
-.md-toprow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;align-items:stretch;}
+/* Shared 2-col grid with explicit rows so the right column always lines up:
+   row1 = header/AI ↔ Most Picked, row3 = Match Log ↔ Most Banned + Side. */
+.md-dash{display:grid;grid-template-columns:minmax(0,1fr) 290px;grid-template-rows:auto auto auto;column-gap:14px;row-gap:11px;align-items:start;}
+.md-toprow{grid-column:1;grid-row:1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;align-items:stretch;}
+.md-tiles{grid-column:1;grid-row:2;}
+.md-logcard{grid-column:1;grid-row:3;}
+.md-side-top{grid-column:2;grid-row:1 / span 2;align-self:start;}
+.md-side-bot{grid-column:2;grid-row:3;display:flex;flex-direction:column;gap:11px;}
 .md-headcard{grid-column:span 3;}
 .md-aicard{grid-column:span 2;}
 .md-headcard,.md-aicard,.md-logcard,.md-sidecard{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.08);border-radius:14px;}
@@ -247,7 +250,7 @@ body {
 .md-logo.noimg img{display:none;}
 .md-logo.noimg i{display:flex;}
 .md-name{font-size:22px;font-weight:800;color:var(--text);letter-spacing:-.01em;display:flex;align-items:center;gap:8px;min-width:0;}
-.md-nm-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.md-nm-txt{min-width:0;white-space:normal;overflow-wrap:anywhere;line-height:1.12;}
 .md-verif{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#7C5CF6;color:#fff;font-size:10px;flex-shrink:0;}
 .md-tags{display:flex;align-items:center;gap:8px;margin-top:7px;}
 .md-league{font-size:10px;font-weight:700;letter-spacing:.04em;color:#A78BFA;background:rgba(124,92,246,.14);border:1px solid rgba(124,92,246,.28);border-radius:5px;padding:3px 8px;}
@@ -286,7 +289,10 @@ body {
 .md-donuts{display:flex;justify-content:space-around;text-align:center;gap:8px;}
 .md-dl{font-size:10px;font-weight:700;margin-top:6px;}
 .md-ds{font-size:9px;color:var(--text3);margin-top:2px;}
-@media(max-width:1180px){.md-dash{grid-template-columns:1fr;}.md-side{position:static;flex-direction:row;flex-wrap:wrap;}.md-side>*{flex:1;min-width:230px;}}
+@media(max-width:1180px){
+  .md-dash{grid-template-columns:1fr;grid-template-rows:none;}
+  .md-toprow,.md-tiles,.md-logcard,.md-side-top,.md-side-bot{grid-column:auto;grid-row:auto;}
+}
 @media(max-width:720px){.md-toprow{grid-template-columns:1fr;}.md-kpis{grid-template-columns:repeat(2,1fr);}.md-tiles{grid-template-columns:1fr;}}
 
 /* ── MATCH LIST ── */
@@ -2104,7 +2110,24 @@ loadFromSupabase().catch(() => {});
 DB_MODULE.load();
 DB_MODULE.rebuildTeams();
 DB_MODULE.save();
-showView('teams');
+// View selection:
+//  • Clicking the top-nav "Scout" link → /scout?go=matches → always opens Matches.
+//  • A plain reload / browser restart → restore the last section the user was in.
+//  • First-ever visit (no saved view) → Matches.
+(function initScoutView(){
+  let v = 'matches';
+  try {
+    const go = new URLSearchParams(location.search).get('go');
+    if (go) {
+      v = go;
+      history.replaceState(null, '', location.pathname);  // clean URL so a later reload restores normally
+    } else {
+      v = localStorage.getItem('warr_scout_view') || 'matches';
+    }
+  } catch(_) { v = 'matches'; }
+  if (!['matches','teams','meta','report'].includes(v)) v = 'matches';
+  showView(v);
+})();
 document.getElementById('sb-all').classList.add('active');
 
 // ══════════════════════════════════════════════════════════════
@@ -2124,6 +2147,7 @@ function _defaultScoutLeague() {
 }
 function showView(v) {
   currentView = v;
+  try { localStorage.setItem('warr_scout_view', v); } catch(_){}   // remember section across reloads/restarts
   // Matches AND Teams are per-league only (all-leagues was an endless scroll).
   // Only the Meta view keeps 'All Leagues'.
   if ((v==='matches' || v==='teams') && leagueFilter==='all') { setLeagueFilter(_defaultScoutLeague()); return; }
@@ -2355,7 +2379,6 @@ function renderMatchList() {
   const teamSel=_teams.map(n=>`<option${n===_focusTeam?' selected':''}>${n.replace(/"/g,'&quot;')}</option>`).join('');
   area.innerHTML = `
    <div class="md-dash">
-     <div class="md-main">
        <div class="md-toprow">
          <section class="md-headcard">
            <div class="md-head-row">
@@ -2363,7 +2386,7 @@ function renderMatchList() {
                <div class="md-logo${_logoUrl?'':' noimg'}" style="--mc:${_mo.color}"><img src="${_logoUrl}" onerror="this.closest('.md-logo').classList.add('noimg')"><i>${_mo.init}</i></div>
                <div style="flex:1;min-width:0;">
                  <div class="md-name"><span class="md-nm-txt">${_focusTeam||'—'}</span><span class="md-verif">✔</span></div>
-                 <div class="md-tags">${_league?`<span class="md-league">${_league}</span>`:''}${t.gamesPlayed?`<span class="md-rank">${t.wins||0}W · ${t.losses||0}L · ${t.gamesPlayed} games</span>`:''}</div>
+                 <div class="md-tags">${_league?`<span class="md-league">${_league}</span>`:''}${t.gamesPlayed?`<span class="md-rank">${t.gamesPlayed} games scouted</span>`:''}</div>
                </div>
              </div></div>
              <div class="md-headctrls">
@@ -2404,12 +2427,11 @@ function renderMatchList() {
          </div>
          <div id="matchListBody"></div>
        </section>
-     </div>
-     <aside class="md-side">
-       <div class="md-sidecard"><div class="md-side-t">Most Picked Heroes</div><div class="md-hhdr"><span>Pick%</span><span>WR</span></div>${mp}</div>
-       <div class="md-sidecard"><div class="md-side-t">Most Banned Heroes</div>${mb}</div>
-       <div class="md-sidecard"><div class="md-side-t">Side Performance</div><div class="md-donuts"><div>${_donut(t.blueSideWR,'#5EA0D8')}<div class="md-dl" style="color:var(--blue)">Blue Side</div><div class="md-ds">${_bw}W - ${_blL}L</div></div><div>${_donut(t.redSideWR,'#D87880')}<div class="md-dl" style="color:var(--red)">Red Side</div><div class="md-ds">${_rw}W - ${_rlL}L</div></div></div></div>
-     </aside>
+       <div class="md-sidecard md-side-top"><div class="md-side-t">Most Picked Heroes</div><div class="md-hhdr"><span>Pick%</span><span>WR</span></div>${mp}</div>
+       <div class="md-side-bot">
+         <div class="md-sidecard"><div class="md-side-t">Most Banned Heroes</div>${mb}</div>
+         <div class="md-sidecard"><div class="md-side-t">Side Performance</div><div class="md-donuts"><div>${_donut(t.blueSideWR,'#5EA0D8')}<div class="md-dl" style="color:var(--blue)">Blue Side</div><div class="md-ds">${_bw}W - ${_blL}L</div></div><div>${_donut(t.redSideWR,'#D87880')}<div class="md-dl" style="color:var(--red)">Red Side</div><div class="md-ds">${_rw}W - ${_rlL}L</div></div></div></div>
+       </div>
    </div>`;
   renderMatchListBody();
   updateSidebarCounts();

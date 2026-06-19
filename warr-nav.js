@@ -163,7 +163,7 @@
   const NAV_LINKS = [
     { href: '/',             label: 'Home'      },
     { href: '/ai_battle',    label: 'AI Battle' },
-    { href: '/scout',        label: 'Scout'     },
+    { href: '/scout?go=matches', label: 'Scout'   },
     { href: '/scrims',       label: 'Scrims'    },
     { href: '/stats',        label: 'Analysis'  },
     { href: '/heroes',       label: 'Heroes'    },
@@ -179,7 +179,8 @@
   }
 
   function isActive(href) {
-    const h = href === '/' ? 'index' : href.replace(/^\//, '').replace(/\.html$/, '').toLowerCase();
+    const base = href.split('?')[0].split('#')[0];   // ignore query/hash (e.g. /scout?go=matches)
+    const h = base === '/' ? 'index' : base.replace(/^\//, '').replace(/\.html$/, '').toLowerCase();
     return h === currentPage();
   }
 
