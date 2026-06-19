@@ -458,42 +458,7 @@ body { background: var(--bg); min-height: 100vh; }
         <div class="field-label">Team Affiliation</div>
         <select id="teamSelect" class="field-select" onchange="handleTeamSelect()">
           <option value="">— No team —</option>
-          <optgroup label="MPL Philippines">
-            <option value="ECHO">ECHO</option>
-            <option value="ONIC Philippines">ONIC Philippines</option>
-            <option value="Blacklist International">Blacklist International</option>
-            <option value="RSG Philippines">RSG Philippines</option>
-            <option value="Aurora Esports">Aurora Esports</option>
-            <option value="AP Bren">AP Bren</option>
-            <option value="Omega Esports">Omega Esports</option>
-            <option value="Smart Omega">Smart Omega</option>
-            <option value="Nexplay EVOS">Nexplay EVOS</option>
-            <option value="TNC Esports">TNC Esports</option>
-          </optgroup>
-          <optgroup label="MPL Malaysia">
-            <option value="Team HAQ">Team HAQ</option>
-            <option value="Todak">Todak</option>
-            <option value="Geek Fam">Geek Fam</option>
-            <option value="Team SMG">Team SMG</option>
-            <option value="ONIC MY">ONIC MY</option>
-            <option value="DRX MY">DRX MY</option>
-            <option value="Selangor Red Giants">Selangor Red Giants</option>
-            <option value="The Solid5">The Solid5</option>
-          </optgroup>
-          <optgroup label="MPL Indonesia">
-            <option value="RRQ Hoshi">RRQ Hoshi</option>
-            <option value="ONIC Esports">ONIC Esports</option>
-            <option value="Evos Legends">Evos Legends</option>
-            <option value="Bigetron Alpha">Bigetron Alpha</option>
-            <option value="Alter Ego">Alter Ego</option>
-            <option value="Rebellion Zion">Rebellion Zion</option>
-            <option value="BTR Alpha">BTR Alpha</option>
-          </optgroup>
-          <optgroup label="MSC / M-Series">
-            <option value="Falcons">Falcons</option>
-            <option value="Liquid">Team Liquid</option>
-            <option value="Luminaire">Luminaire</option>
-          </optgroup>
+          <optgroup label="Scouted teams" id="teamAffOpts"></optgroup>
           <optgroup label="Other">
             <option value="__custom__">Custom team…</option>
           </optgroup>
@@ -1352,7 +1317,21 @@ async function saveProfile() {
 }
 
 // ── Render profile data into UI ──
+// Populate the Team Affiliation dropdown from REAL scouted teams (not a hardcoded list).
+let _affLoaded = false;
+async function populateTeamAffiliation(){
+  try{
+    const matches = await (WDB.loadMatches ? WDB.loadMatches().catch(()=>[]) : Promise.resolve([]));
+    const names = [...new Set(matches.flatMap(m=>[m.blueTeam, m.redTeam]).filter(Boolean))]
+      .sort((a,b)=>a.localeCompare(b));
+    const og = document.getElementById('teamAffOpts');
+    if(!og) return;
+    og.innerHTML = names.map(n=>`<option value="${String(n).replace(/"/g,'&quot;')}">${n}</option>`).join('');
+    renderProfile(); // re-apply the saved team value now that the real options exist
+  }catch(_){}
+}
 function renderProfile() {
+  if(!_affLoaded){ _affLoaded = true; populateTeamAffiliation(); }
   // Merge Supabase profile with localStorage fallback
   const lp = localGet();
   const sp = _sbProfile || {};

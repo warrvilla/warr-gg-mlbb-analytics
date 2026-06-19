@@ -625,7 +625,10 @@ const PORTRAIT_ALIAS = {
   'Luo Yi':      'luoyi',
 };
 function imgSrc(name) {
-  return `portraits/${PORTRAIT_ALIAS[name] || name}.png`;
+  // Use the real webp portraits (PNGs no longer exist). WDB.heroPortrait → portraits/t/<key>.webp
+  if (typeof WDB !== 'undefined' && WDB.heroPortrait) return WDB.heroPortrait(name);
+  const base = PORTRAIT_ALIAS[name] || name;
+  return `portraits/t/${String(base).toLowerCase().replace(/ /g,'_').replace(/[^a-z0-9_.]/g,'')}.webp`;
 }
 
 // ── Full role name map (no abbreviations) ───────────────────────────────────
