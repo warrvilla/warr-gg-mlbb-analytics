@@ -939,11 +939,12 @@ input:focus, .search-input:focus {
 #setup .ab-opp-behave{background:rgba(124,92,246,.08);border-color:rgba(124,92,246,.22);}
 #setup .setup-card-engine{border-color:rgba(124,92,246,.22) !important;}
 /* layout: two independent columns — setup steps (left) · opponent + summary (right) */
-#setup .ab-top{display:grid;grid-template-columns:1fr 1.05fr;gap:16px;align-items:stretch;margin-bottom:16px;}
-#setup .ab-bottom{display:grid;grid-template-columns:1.62fr 1fr;gap:16px;align-items:stretch;margin-bottom:18px;}
+/* align-items:start so the two boxes keep their natural height and stay TOP-aligned.
+   (stretch made "Your Setup" grow with empty space whenever the opponent panel expanded,
+   so the row jumped when the team dropdown/profile opened.) */
+#setup .ab-top{display:grid;grid-template-columns:1fr 1.05fr;gap:16px;align-items:start;margin-bottom:16px;}
+#setup .ab-bottom{display:grid;grid-template-columns:1.62fr 1fr;gap:16px;align-items:start;margin-bottom:18px;}
 #setup .ab-colL{display:flex;flex-direction:column;gap:16px;min-width:0;}
-/* right-column cards fill their row height so columns align (no ragged gap) */
-#setup .ab-top > .ab-card{height:100%;}
 #setup .ab-summary .ab-start{margin-top:auto;}
 #setup .ab-colL .ab-hero{margin-bottom:0;}
 @media(max-width:900px){#setup .ab-top,#setup .ab-bottom{grid-template-columns:1fr;}}
