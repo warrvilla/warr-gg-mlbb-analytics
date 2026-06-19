@@ -890,6 +890,24 @@ input:focus, .search-input:focus {
 .ab-opp-logo.noimg{background:linear-gradient(135deg,var(--mc,#5E5CE6),var(--mc,#5E5CE6));}
 .ab-opp-logo.noimg img{display:none;}
 .ab-opp-logo.noimg i{display:flex;}
+/* Opponent picker — click dropdown (no typing) */
+.ab-dd{position:relative;}
+.ab-dd-trigger{width:100%;display:flex;align-items:center;gap:10px;background:#191921;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:9px 12px;color:var(--text);font:inherit;font-size:13px;font-weight:600;cursor:pointer;text-align:left;}
+.ab-dd-trigger:hover{border-color:rgba(124,92,246,.45);}
+.ab-dd-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ab-dd-caret{color:var(--text3);font-size:11px;flex-shrink:0;}
+.ab-dd-logo,.ab-dd-ilogo{width:26px;height:26px;border-radius:7px;position:relative;overflow:hidden;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:10px;background:transparent;}
+.ab-dd-logo:empty{display:none;}
+.ab-dd-logo img,.ab-dd-ilogo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:2px;}
+.ab-dd-logo i,.ab-dd-ilogo i{font-style:normal;display:none;}
+.ab-dd-logo.noimg,.ab-dd-ilogo.noimg{background:var(--mc,#5E5CE6);}
+.ab-dd-logo.noimg img,.ab-dd-ilogo.noimg img{display:none;}
+.ab-dd-logo.noimg i,.ab-dd-ilogo.noimg i{display:inline-flex;}
+.ab-dd-menu{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:10px;z-index:100;max-height:320px;overflow-y:auto;box-shadow:0 10px 28px rgba(0,0,0,.55);}
+.ab-dd-item{padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.ab-dd-item:last-child{border-bottom:none;}
+.ab-dd-item:hover{background:var(--surface2);}
+.ab-dd-item[aria-selected="true"]{background:rgba(124,92,246,.14);}
 .ab-opp-name{font-size:19px;font-weight:800;color:var(--text);}
 .ab-opp-tags{display:flex;align-items:center;gap:8px;margin-top:5px;flex-wrap:wrap;}
 .ab-opp-league{font-size:10.5px;font-weight:800;color:#A78BFA;background:rgba(124,92,246,.14);border:1px solid rgba(124,92,246,.3);border-radius:6px;padding:2px 8px;}
@@ -1057,10 +1075,13 @@ input:focus, .search-input:focus {
     <div id="genericNote" class="ab-note" style="margin-top:14px;">The AI optimizes its draft to beat whatever you pick — a clean sparring partner that adapts to your choices.</div>
     <div id="enemyTeamPanel" style="display:none;margin-top:14px;">
       <div id="enemyLeagueRow" class="ab-chips" style="margin-bottom:10px;"></div>
-      <div style="position:relative;margin-bottom:12px;">
-        <input class="ab-input" id="enemySearch" placeholder="Search a scouted team…" autocomplete="off"
-          oninput="filterEnemyTeams(this.value)" onfocus="openEnemyDrop()" onblur="setTimeout(closeEnemyDrop,180)"/>
-        <div id="enemyDrop" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:10px;z-index:100;max-height:300px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);"></div>
+      <div id="enemyDD" class="ab-dd" style="margin-bottom:12px;">
+        <button type="button" class="ab-dd-trigger" id="enemyDDBtn" onclick="toggleEnemyDrop(event)">
+          <span class="ab-dd-logo" id="enemyDDLogo"></span>
+          <span class="ab-dd-label" id="enemyDDLabel">Select a team</span>
+          <span class="ab-dd-caret">▾</span>
+        </button>
+        <div id="enemyDrop" class="ab-dd-menu" style="display:none;"></div>
       </div>
       <div id="enemyProfileCard" style="display:none;"></div>
     </div>
@@ -1762,36 +1783,38 @@ function setAIMode(m){
   if(pp)pp.style.display=m==='pvp'?'block':'none';
   // keep modes in their selected (ab-mode) class so the flex icon layout persists
   ['generic','enemy'].forEach(x=>{const el=document.getElementById('mode-'+x);if(el)el.classList.add('ab-mode');});
-  if(m==='enemy') populateEnemyDrop('');
+  if(m==='enemy') populateEnemyDrop();
 }
 function getAllScoutedTeams(){
   try{const db=loadScoutAB();return Object.values(db.teams||{}).filter(t=>t.gamesPlayed>=1).sort((a,b)=>(b.gamesPlayed||0)-(a.gamesPlayed||0));}catch(e){return[];}
 }
-function populateEnemyDrop(q){
+function populateEnemyDrop(){
   const teams=getAllScoutedTeams();
-  let filtered=q?teams.filter(t=>t.name.toLowerCase().includes(q.toLowerCase())):teams;
+  let filtered=teams;
   if(enemyLeagueFilter!=='all'){
     const lm=_teamLeaguesMap();
     filtered=filtered.filter(t=>lm[t.name]&&lm[t.name].has(enemyLeagueFilter));
   }
   const dd=document.getElementById('enemyDrop');
-  dd.style.display='block';
   if(!filtered.length){
-    dd.innerHTML=`<div style="padding:12px;font-size:11px;color:var(--text3);">${teams.length?'No match for "'+q+'"':'No scouted teams yet — log matches in Scout tab first'}</div>`;
+    dd.innerHTML=`<div style="padding:12px;font-size:11px;color:var(--text3);">No scouted teams yet — log matches in Scout tab first</div>`;
     return;
   }
-  dd.innerHTML=filtered.slice(0,80).map(t=>{
+  const _mono=n=>(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(n):{init:(n||'?')[0],color:'#5E5CE6'};
+  const _logo=n=>(typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(n):'';
+  dd.innerHTML=filtered.slice(0,120).map(t=>{
     const wr=t.winRate||0;const wrc=wr>=55?'var(--green)':wr>=45?'var(--gold)':'var(--red)';
     const picks=(t.topPicks||[]).slice(0,3).map(p=>p.name).join(', ')||'—';
-    const safeName=t.name.replace(/"/g,'&quot;');
-    return`<div data-ename="${safeName}" style="padding:9px 13px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
-      <div style="width:26px;height:26px;border-radius:50%;background:var(--red-dim);border:1px solid var(--red-border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--red);flex-shrink:0;">${(t.name||'?')[0].toUpperCase()}</div>
-      <div><div style="font-size:12px;font-weight:700;">${t.name}</div><div style="font-size:9px;color:var(--text3);">${t.gamesPlayed||0}g · <span style="color:${wrc};font-weight:700;">${wr}%WR</span> · ${picks}</div></div>
+    const safeName=t.name.replace(/"/g,'&quot;');const mo=_mono(t.name);
+    const sel=t.name===enemyTeamName?' aria-selected="true"':'';
+    return`<div class="ab-dd-item" data-ename="${safeName}"${sel}>
+      <span class="ab-dd-ilogo" style="--mc:${mo.color}"><img src="${_logo(t.name)}" onerror="this.closest('.ab-dd-ilogo').classList.add('noimg')"><i>${mo.init}</i></span>
+      <div style="min-width:0;"><div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.name}</div><div style="font-size:9px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.gamesPlayed||0}g · <span style="color:${wrc};font-weight:700;">${wr}%WR</span> · ${picks}</div></div>
     </div>`;
   }).join('');
-  dd.querySelectorAll('[data-ename]').forEach(el=>el.addEventListener('mousedown',e=>{e.preventDefault();selectEnemy(el.dataset.ename);}));
+  dd.querySelectorAll('[data-ename]').forEach(el=>el.addEventListener('click',e=>{e.stopPropagation();selectEnemy(el.dataset.ename);}));
 }
-function filterEnemyTeams(q){populateEnemyDrop(q);}
+function toggleEnemyDrop(e){ if(e)e.stopPropagation(); const dd=document.getElementById('enemyDrop'); const open=dd.style.display!=='none'&&dd.style.display!==''; if(open){dd.style.display='none';} else {populateEnemyDrop();dd.style.display='block';} }
 let enemyLeagueFilter='all';
 let _tlmCache=null;
 function _teamLeaguesMap(){
@@ -1803,18 +1826,28 @@ function _teamLeaguesMap(){
 function setEnemyLeague(l){
   enemyLeagueFilter=l;
   renderLeagueChipsAB();
-  populateEnemyDrop(document.getElementById('enemySearch').value);
+  populateEnemyDrop();
+  const dd=document.getElementById('enemyDrop'); if(dd) dd.style.display='block';   // keep list open after switching league
 }
-function openEnemyDrop(){populateEnemyDrop(document.getElementById('enemySearch').value);}
-function closeEnemyDrop(){document.getElementById('enemyDrop').style.display='none';}
+function openEnemyDrop(){ populateEnemyDrop(); const dd=document.getElementById('enemyDrop'); if(dd) dd.style.display='block'; }
+function closeEnemyDrop(){ const dd=document.getElementById('enemyDrop'); if(dd) dd.style.display='none'; }
 function selectEnemy(name){
   enemyTeamName=name;
-  document.getElementById('enemySearch').value=name;
-  document.getElementById('enemyDrop').style.display='none';
+  const lbl=document.getElementById('enemyDDLabel'); if(lbl) lbl.textContent=name;
+  const lw=document.getElementById('enemyDDLogo');
+  if(lw){
+    const mo=(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(name):{init:(name||'?')[0],color:'#5E5CE6'};
+    const u=(typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(name):'';
+    lw.style.setProperty('--mc',mo.color); lw.classList.remove('noimg');
+    lw.innerHTML=`<img src="${u}" onerror="this.closest('.ab-dd-logo').classList.add('noimg')"><i>${mo.init}</i>`;
+  }
+  const dd=document.getElementById('enemyDrop'); if(dd) dd.style.display='none';
   buildEnemyProfileCache(name);
   renderEnemyProfileCard(name);
   if(typeof updateSummary==='function') updateSummary();
 }
+// Close the opponent dropdown when clicking anywhere outside it
+document.addEventListener('click',e=>{ if(!e.target.closest('#enemyDD')){ const dd=document.getElementById('enemyDrop'); if(dd) dd.style.display='none'; } });
 function buildEnemyProfileCache(name){
   try{
     const db=loadScoutAB();
