@@ -1371,6 +1371,10 @@ WDB.uploadSlideBackground = async function(file) {
  *    3. local portraits/<Name>.png (the existing 132 files)
  *  @param {string} name     — hero name, e.g. 'Aamon'
  *  @param {string} variant  — 'icon' (default) | 'portrait' */
+// Portraits are cached "immutable" for a year, so re-uploading a file under the
+// SAME name won't refresh on its own. Bump PORTRAIT_VER whenever you replace any
+// portrait image — the ?v= changes the URL and forces every browser to refetch.
+WDB.PORTRAIT_VER = '2';
 WDB.heroPortrait = function(name, variant) {
   variant = WDB.PORTRAIT_VARIANTS.includes(variant) ? variant : 'icon';
   const overrides = WDB._portraitOverrides && WDB._portraitOverrides[name];
@@ -1380,16 +1384,15 @@ WDB.heroPortrait = function(name, variant) {
   }
   const base = WDB.PORTRAIT_ALIAS[name] || name;
   const safe = String(base).replace(/ /g,'_').replace(/[^a-zA-Z0-9_.]/g,'');
-  // 'portrait' = big card art (4:5 webp) when available; default = small webp
-  // thumbnail. Both ~5x lighter than the old PNGs. Consumers keep PNG onerror
-  // fallbacks, so a missing webp degrades gracefully.
-  if (variant === 'portrait') return `portraits/400x500/${safe}.webp`;
-  return `portraits/t/${safe.toLowerCase()}.webp`;
+  const v = '?v=' + WDB.PORTRAIT_VER;
+  // 'portrait' = big card art (4:5 webp) when available; default = small webp thumbnail.
+  if (variant === 'portrait') return `portraits/400x500/${safe}.webp` + v;
+  return `portraits/t/${safe.toLowerCase()}.webp` + v;
 };
 /** PNG fallback path for onerror handlers. */
 WDB.heroPortraitPng = function(name) {
   const base = WDB.PORTRAIT_ALIAS[name] || name;
-  return `portraits/${String(base).replace(/ /g,'_').replace(/[^a-zA-Z0-9_.]/g,'')}.png`;
+  return `portraits/${String(base).replace(/ /g,'_').replace(/[^a-zA-Z0-9_.]/g,'')}.png` + '?v=' + WDB.PORTRAIT_VER;
 };
 
 // ── TEAM LOGOS ────────────────────────────────────────────────
