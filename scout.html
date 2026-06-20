@@ -1644,11 +1644,20 @@ function _heroIcon(name){
   const id = heroByName(name)?.id || _normKey(name);
   return './portraits/t/'+id+'.webp';
 }
+// Lettered placeholder for heroes whose portrait file doesn't exist yet
+// (e.g. brand-new heroes like Hirara / Chang'e) — keeps them VISIBLE & pickable.
+function _heroPh(name){
+  const init = ((name||'?').trim()[0]||'?').toUpperCase();
+  const cols = ['#7C5CF6','#5E9CE6','#4CB87A','#C89050','#D87880','#4AAABB','#7878CC'];
+  let h=0; for(const c of (name||'')) h=(h*31+c.charCodeAt(0))>>>0;
+  const svg="<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64'><rect width='64' height='64' rx='12' fill='"+cols[h%cols.length]+"'/><text x='32' y='43' font-family='Arial' font-size='30' font-weight='bold' fill='white' text-anchor='middle'>"+init+"</text></svg>";
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(svg);
+}
 function _heroIconErr(name){
   const id = (heroByName(name)?.id || _normKey(name));
   const safe = (name||'').replace(/ /g,'_').replace(/[^a-zA-Z0-9_.]/g,'');
-  // try id-png then name-png then hide
-  return "this.onerror=null;this.src='./portraits/"+id+".png';this.onerror=function(){this.onerror=null;this.src='./portraits/Hero Icon/"+safe+".png';this.onerror=function(){this.style.display='none'}}";
+  // try id-png then name-png then a lettered placeholder (never hide → hero stays visible)
+  return "this.onerror=null;this.src='./portraits/"+id+".png';this.onerror=function(){this.onerror=null;this.src='./portraits/Hero Icon/"+safe+".png';this.onerror=function(){this.onerror=null;this.src='"+_heroPh(name)+"'}}";
 }
 const HERO_BY_NORM = Object.fromEntries(ALL_HEROES.map(h => [_normKey(h.name), h]));
 // Also index by id normalization for legacy keys
