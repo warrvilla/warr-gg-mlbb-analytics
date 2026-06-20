@@ -2030,6 +2030,7 @@ function renderCurrentView() {
 // UI STATE
 // ══════════════════════════════════════════════════════════════
 let currentView = 'teams';
+let _focusTeam = null, _slideDir = 0;   // hoisted: initScoutView() renders Matches before the old declaration site ran (TDZ fix)
 let leagueFilter = 'all';
 let seasonFilter = 'all';
 let matchSearch = '';
@@ -2273,8 +2274,6 @@ function getFilteredSeries() {
 // ══════════════════════════════════════════════════════════════
 // MATCH LIST VIEW
 // ══════════════════════════════════════════════════════════════
-let _focusTeam=null;
-let _slideDir=0;
 function setFocusTeam(n){ _focusTeam=n; renderMatchList(); }
 // Header pool = league + season scope ONLY (ignores the week filter + search so the
 // header always shows the team's WHOLE season history, independent of the match log).
