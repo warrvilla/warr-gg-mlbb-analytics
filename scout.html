@@ -2481,7 +2481,7 @@ function renderMatchList() {
              <div class="md-slideclip"><div class="md-slide" style="--md-sx:${_slideDir>0?'40px':_slideDir<0?'-40px':'0'}">
                <div class="md-logo${_logoUrl?'':' noimg'}" style="--mc:${_mo.color}"><img src="${_logoUrl}" onerror="this.closest('.md-logo').classList.add('noimg')"><i>${_mo.init}</i></div>
                <div style="flex:1;min-width:0;">
-                 <div class="md-name"><span class="md-nm-txt">${_focusTeam||'—'}</span><span class="md-verif">✔</span></div>
+                 <div class="md-name"><span class="md-nm-txt">${_focusTeam||'—'}</span></div>
                  <div class="md-tags">${_league?`<span class="md-league">${_league}</span>`:''}${t.gamesPlayed?`<span class="md-rank">${t.gamesPlayed} games scouted</span>`:''}</div>
                </div>
              </div></div>
