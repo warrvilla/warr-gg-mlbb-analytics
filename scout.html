@@ -3523,7 +3523,7 @@ function renderTeams() {
           <div class="page-title">Team Profiles</div>
           <div class="tc-hsub">Detailed team performance and insights</div>
         </div>
-        <button class="btn btn-accent btn-sm" onclick="openTeamEditor(null)">+ Add Team</button>
+        ${(typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin())?`<button class="btn btn-accent btn-sm" onclick="openTeamEditor(null)">+ Add Team</button>`:''}
         <div class="search-bar tc-search"><input id="teamSearchInput" placeholder="Search teams…" oninput="_onTeamSearch(this.value)"></div>
         <div id="teamSortRow" class="tc-sortrow"></div>
       </div>
@@ -3614,7 +3614,7 @@ function _renderTeamsGrid() {
       <div class="tc-foot">
         <button class="tc-btn primary" onclick="event.stopPropagation();openTeamReport('${esc}')">▥ View Report</button>
         <button class="tc-btn" onclick="event.stopPropagation();openH2H('${esc}')">⚔︎ H2H</button>
-        <button class="tc-btn" onclick="event.stopPropagation();openTeamEditor('${esc}')">✎ Edit</button>
+        ${(typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin())?`<button class="tc-btn" onclick="event.stopPropagation();openTeamEditor('${esc}')">✎ Edit</button>`:''}
       </div>
     </div>`;
   }).join('') + _renderPager(teams.length, TEAM_PAGE_SIZE, _teamPage, 'goTeamPage');
