@@ -1953,6 +1953,34 @@ function buildEnemyProfileCache(name){
         freq:Object.fromEntries([...Object.entries(p1),...Object.entries(p2)].reduce((m,[n,c])=>{m.set(n,(m.get(n)||0)+c);return m;},new Map())),
       };
     }
+    // HERO MASTERY (team-level): how often + how WELL the team plays each hero.
+    // Combines frequency (confidence), win rate, and KDA performance — so the
+    // emulated team favours heroes its players actually master, not just meta.
+    function heroMasteryTable(){
+      const agg={}; // hero -> {games,wins,k,d,a}
+      matches.forEach(mt=>{
+        const isBlue=mt.blueTeam===name;
+        const won=(isBlue&&mt.winner==='blue')||(!isBlue&&mt.winner==='red');
+        ((isBlue?mt.bluePicks:mt.redPicks)||[]).forEach(p=>{
+          const n=p&&(p.name||p);if(!n)return;
+          const e=agg[n]||(agg[n]={games:0,wins:0,k:0,d:0,a:0});
+          e.games++; if(won)e.wins++;
+          const kd=p.kda||{}; e.k+=Number(kd.k)||0; e.d+=Number(kd.d)||0; e.a+=Number(kd.a)||0;
+        });
+      });
+      const out={};
+      Object.entries(agg).forEach(([n,e])=>{
+        const wr=e.games?e.wins/e.games:0;
+        const kdaRatio=(e.k+e.a)/Math.max(e.d,1);
+        const kdaNorm=Math.min(kdaRatio/5,1);           // 5+ KDA ≈ elite
+        const hasKda=(e.k+e.d+e.a)>0;
+        const conf=Math.min(e.games/4,1);               // 4+ games = full confidence
+        // If no KDA logged, lean on games+WR only so mastery still works.
+        const perf=hasKda?(0.55*wr+0.45*kdaNorm):wr;
+        out[n]={games:e.games,wr:Math.round(wr*100),kda:Math.round(kdaRatio*10)/10,score:Math.round(conf*perf*100)/100};
+      });
+      return out;
+    }
     const bPhased=phasedCore(bm,true),rPhased=phasedCore(rm,false);
     const bBans=phasedBans(bm,true),rBans=phasedBans(rm,false);
     enemyProfile={
@@ -1974,9 +2002,12 @@ function buildEnemyProfileCache(name){
       // Side match counts — used to detect thin data and trigger league fallback
       blueSideCount:bm.length,
       redSideCount:rm.length,
-      // Phase-specific ban patterns
+      // Phase-specific ban patterns (arrays are sorted by frequency = priority order)
       blueBanPhase1:bBans.phase1, blueBanPhase2:bBans.phase2,
       redBanPhase1:rBans.phase1,  redBanPhase2:rBans.phase2,
+      blueBanFreq:bBans.freq, redBanFreq:rBans.freq,
+      // Team hero mastery (games + win rate + KDA)
+      heroMastery:heroMasteryTable(),
     };
   }catch(e){enemyProfile=null;}
 }
@@ -3754,8 +3785,12 @@ function draftBrainAB(step,opts){
         const bp1=side==='blue'?(ep.blueBanPhase1||[]):(ep.redBanPhase1||[]);
         const bp2=side==='blue'?(ep.blueBanPhase2||[]):(ep.redBanPhase2||[]);
         const tr=ev.teamBanRate(h.name,side);
-        if(!isP2&&bp1.includes(h.name)){comp.mimic=1.0;why.mimic=`${ep.name} opens phase-1 bans with ${h.name} — on pattern`;}
-        else if(isP2&&bp2.includes(h.name)){comp.mimic=0.95;why.mimic=`${ep.name}'s phase-2 ban pattern`;}
+        // Phase arrays are sorted by frequency, so index = ban priority within the
+        // phase. Earlier in their order → stronger mimic, so the AI bans what this
+        // team bans FIRST, not just anything in the bucket.
+        const i1=bp1.indexOf(h.name), i2=bp2.indexOf(h.name);
+        if(!isP2&&i1>=0){comp.mimic=0.8+0.2*Math.max(0,1-i1*0.18);why.mimic=`${ep.name}'s phase-1 ban priority #${i1+1} — on pattern`;}
+        else if(isP2&&i2>=0){comp.mimic=0.78+0.17*Math.max(0,1-i2*0.18);why.mimic=`${ep.name}'s phase-2 ban priority #${i2+1}`;}
         else if(tr&&tr>0.2){comp.mimic=Math.min(0.7,tr);why.mimic=`${ep.name} bans this ${Math.round(tr*100)}% of games`;}
       }
       // SELF-WANT GUARD: never ban a hero we'd rather first-pick ourselves.
@@ -3766,14 +3801,23 @@ function draftBrainAB(step,opts){
       if(h.mp!=='mustban'){
         const _myLns=getHeroLanesAB(h,myCtx).filter(l=>l!=='Flex');
         const _fillsMine=_myLns.length===0||_myLns.some(L=>myNeeded.includes(L));
-        if(_fillsMine&&['S','A'].includes(_dbTier(h.name))){
-          const _after=DRAFT_ORDER.slice(idx+1);
-          const _myNext=_after.findIndex(s2=>s2.type==='pick'&&s2.team===side);
-          const _oppNext=_after.findIndex(s2=>s2.type==='pick'&&s2.team!==side);
-          if(_myNext>=0&&(_oppNext<0||_myNext<_oppNext)){
-            comp.comfort=0;comp.meta=0;comp.preempt=0;
-            delete why.comfort;delete why.preempt;
-          }
+        const _after=DRAFT_ORDER.slice(idx+1);
+        const _myNext=_after.findIndex(s2=>s2.type==='pick'&&s2.team===side);
+        const _oppNext=_after.findIndex(s2=>s2.type==='pick'&&s2.team!==side);
+        const _canTakeFirst=_myNext>=0&&(_oppNext<0||_myNext<_oppNext);
+        if(_fillsMine&&['S','A'].includes(_dbTier(h.name))&&_canTakeFirst){
+          comp.comfort=0;comp.meta=0;comp.preempt=0;
+          delete why.comfort;delete why.preempt;
+        }
+        // EMULATION: never ban our OWN signature — a hero this team masters or
+        // first-picks. Banning it (even "to protect a pick") is exactly the
+        // "AI bans its own favourite" bug. If we can take it, zero ALL ban drive.
+        if(ep&&_canTakeFirst){
+          const _mas=ep.heroMastery&&ep.heroMastery[h.name];
+          const _pp=((side==='blue'?ep.bluePickPos:ep.redPickPos)||{})[h.name];
+          const _ownSig=(_mas&&_mas.score>=0.45)||(_pp!=null&&_pp<=1);
+          if(_ownSig){comp.protect=0;comp.combo=0;comp.comfort=0;comp.meta=0;comp.preempt=0;comp.lane=0;
+            delete why.protect;delete why.combo;delete why.comfort;delete why.preempt;delete why.lane;}
         }
       }
       // BAN EQUITY (§9): P(pick) × damage. Slot ladder tunes the emphasis.
@@ -3917,6 +3961,23 @@ function draftBrainAB(step,opts){
     if(wr>0.55)s+=(wr-0.5)*60;
     if(teamRate!==null&&teamRate!==undefined){s+=teamRate*260;if(teamRate>=0.4)notes.unshift(`${ep.name} runs this ${Math.round(teamRate*100)}% of ${side}-side games`);}
     if(phaseFit){s+=45;notes.push(`on their phase-${pickPhase} schedule`);}
+    // HERO MASTERY + PICK PRIORITY/ORDER — emulated team only
+    if(ep){
+      const mas=ep.heroMastery&&ep.heroMastery[h.name];
+      if(mas&&mas.score>0){
+        s+=mas.score*130;
+        if(mas.games>=3&&mas.score>=0.45)notes.push(`${ep.name} masters this — ${mas.wr}% WR${mas.kda?`, ${mas.kda} KDA`:''} over ${mas.games}g`);
+      }
+      // Draft in the team's real priority order: align this hero's typical pick
+      // position with where we are in our own pick sequence.
+      const posMap=(side==='blue'?ep.bluePickPos:ep.redPickPos)||{};
+      const pp=posMap[h.name];
+      if(pp!=null){
+        const fit=Math.max(0,1-Math.abs(pp-myP.length)/4);
+        s+=fit*55;
+        if(fit>=0.75&&myP.length<=1)notes.push(`their early-priority pick (avg slot ${Math.round(pp)+1})`);
+      }
+    }
     if(threat){
       if(h.name===threat.name){s+=45;notes.unshift(`steals ${threat.name} — their best answer to your ${keyCarry.name} (${Math.round(threat.wr*100)}%)`);}
       else if(_LC(threat.name).some(x=>x.name===h.name)){s+=16;notes.push(`covers the ${threat.name} threat`);}
