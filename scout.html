@@ -295,6 +295,62 @@ body {
 }
 @media(max-width:720px){.md-toprow{grid-template-columns:1fr;}.md-kpis{grid-template-columns:repeat(2,1fr);}.md-tiles{grid-template-columns:1fr;}}
 
+/* ── TEAM PROFILES (Scout · Teams view) ── */
+.tc-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+.tc-htitle{margin-right:auto;}
+.tc-htitle .page-title{font-size:26px;font-weight:800;}
+.tc-hsub{font-size:12px;color:var(--text3);margin-top:3px;}
+.tc-search{min-width:190px;}
+.tc-sortrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:18px;align-items:start;}
+.tc{background:rgba(255,255,255,.022);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:18px;cursor:pointer;transition:border-color .15s,box-shadow .15s;display:flex;flex-direction:column;gap:13px;}
+.tc:hover{border-color:rgba(124,92,246,.4);box-shadow:0 0 0 1px rgba(124,92,246,.25),0 10px 30px rgba(124,92,246,.12);}
+.tc-head{display:flex;align-items:center;gap:11px;}
+.tc-rank{flex-shrink:0;width:20px;height:20px;border-radius:6px;background:rgba(255,255,255,.06);color:var(--text3);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;}
+.tc-logo{width:50px;height:50px;border-radius:13px;flex-shrink:0;position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px;background:transparent;}
+.tc-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:5px;}
+.tc-logo i{font-style:normal;display:none;}
+.tc-logo.noimg{background:linear-gradient(135deg,var(--mc,#7C5CF6),var(--mc,#7C5CF6));}
+.tc-logo.noimg img{display:none;}.tc-logo.noimg i{display:flex;}
+.tc-name{display:flex;align-items:center;gap:7px;font-size:19px;font-weight:800;color:var(--text);min-width:0;}
+.tc-name-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tc-verif{flex-shrink:0;width:16px;height:16px;border-radius:50%;background:#7C5CF6;color:#fff;font-size:9px;display:inline-flex;align-items:center;justify-content:center;}
+.tc-form{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+.tc-dot{width:8px;height:8px;border-radius:50%;}
+.tc-dot.w{background:var(--green);}.tc-dot.l{background:var(--red);}
+.tc-streak{margin-left:3px;font-size:9px;font-weight:800;padding:2px 6px;border-radius:5px;}
+.tc-streak.w{color:var(--green);background:var(--green-dim);border:1px solid var(--green-border);}
+.tc-streak.l{color:var(--red);background:var(--red-dim);border:1px solid var(--red-border);}
+.tc-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:12px 8px;}
+.tc-kpi{text-align:center;}
+.tc-kv{font-size:20px;font-weight:800;color:var(--text);line-height:1;}
+.tc-kl{font-size:9px;color:var(--text3);margin-top:5px;text-transform:uppercase;letter-spacing:.03em;}
+.tc-sec{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);padding:11px 2px;}
+.tc-sl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px;}
+.tc-sv{font-size:14px;font-weight:800;color:var(--text);}
+.tc-sv span{font-size:11px;font-weight:400;color:var(--text3);}
+.tc-mid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.tc-seclbl{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.tc-more{font-size:9px;color:#A78BFA;font-weight:600;letter-spacing:0;text-transform:none;margin-left:auto;}
+.tc-map{display:flex;align-items:center;gap:6px;margin-bottom:7px;font-size:10px;}
+.tc-map-nm{width:92px;flex-shrink:0;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tc-map-bar{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden;}
+.tc-map-bar i{display:block;height:100%;border-radius:3px;}
+.tc-map-pct{font-weight:800;width:30px;text-align:right;}
+.tc-map-g{color:var(--text3);width:30px;}
+.tc-hrow{display:flex;gap:9px;}
+.tc-hero{text-align:center;width:48px;flex-shrink:0;}
+.tc-hero img{width:42px;height:42px;border-radius:10px;object-fit:cover;background:var(--surface3);}
+.tc-hero-nm{font-size:9px;color:var(--text2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tc-hero-sub{font-size:10px;font-weight:800;}
+.tc-none{font-size:10px;color:var(--text3);padding:8px 0;}
+.tc-foot{display:flex;gap:8px;}
+.tc-btn{flex:1;padding:9px;border-radius:9px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:var(--text2);}
+.tc-btn:hover{background:rgba(255,255,255,.08);color:var(--text);}
+.tc-btn.primary{background:linear-gradient(135deg,#7C5CF6,#6D4DE0);border:none;color:#fff;}
+.tc-btn.primary:hover{filter:brightness(1.08);}
+@media(max-width:560px){.tc-mid{grid-template-columns:1fr;}.tc-kpis{grid-template-columns:repeat(2,1fr);}}
+
 /* ── MATCH LIST ── */
 .series-card {
   background: var(--surface);
@@ -3430,15 +3486,14 @@ function renderTeams() {
   // Only build the header once — preserve input focus across re-renders
   if (!document.getElementById('teamsGrid')) {
     area.innerHTML = `
-      <div class="page-header">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <div class="tc-header">
+        <div class="tc-htitle">
           <div class="page-title">Team Profiles</div>
-          <button class="btn btn-accent btn-sm" onclick="openTeamEditor(null)" style="margin-left:auto;">+ Add Team</button>
+          <div class="tc-hsub">Detailed team performance and insights</div>
         </div>
-        <div class="search-bar" style="margin-bottom:10px;">
-          <input id="teamSearchInput" placeholder="Search teams…" oninput="_onTeamSearch(this.value)">
-        </div>
-        <div id="teamSortRow" class="filter-row"></div>
+        <button class="btn btn-accent btn-sm" onclick="openTeamEditor(null)">+ Add Team</button>
+        <div class="search-bar tc-search"><input id="teamSearchInput" placeholder="Search teams…" oninput="_onTeamSearch(this.value)"></div>
+        <div id="teamSortRow" class="tc-sortrow"></div>
       </div>
       <div id="teamsGrid"></div>`;
     const inp = document.getElementById('teamSearchInput');
@@ -3447,7 +3502,7 @@ function renderTeams() {
 
   // Always update sort buttons (reflects active sort)
   const sortRow = document.getElementById('teamSortRow');
-  if (sortRow) sortRow.innerHTML = `<span style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1.5px;text-transform:uppercase;">SORT</span>${tSorts.map(([k,l]) => `<button class="filter-badge${teamSort===k?' active':''}" onclick="teamSort='${k}';renderTeams()">${l}</button>`).join('')}`;
+  if (sortRow) sortRow.innerHTML = `<span style="font-size:11px;font-weight:600;color:var(--text3);">Sort by:</span>${tSorts.map(([k,l]) => `<button class="filter-badge${teamSort===k?' active':''}" onclick="teamSort='${k}';renderTeams()">${l}</button>`).join('')}`;
 
   _renderTeamsGrid();
 }
@@ -3477,87 +3532,56 @@ function _renderTeamsGrid() {
   const _tPages = Math.max(1, Math.ceil(teams.length / TEAM_PAGE_SIZE));
   if (_teamPage > _tPages) _teamPage = 1;
   const _pageTeams = teams.slice((_teamPage-1)*TEAM_PAGE_SIZE, _teamPage*TEAM_PAGE_SIZE);
-  grid.innerHTML = _pageTeams.map(t => {
-    const wr  = t.winRate||0;
-    const wrc = wr>=60?'var(--green)':wr>=50?'var(--gold)':'var(--red)';
-    const bwrc = (t.blueSideWR??0)>=60?'var(--green)':(t.blueSideWR??0)>=50?'var(--gold)':'var(--red)';
-    const rwrc = (t.redSideWR??0)>=60?'var(--green)':(t.redSideWR??0)>=50?'var(--gold)':'var(--red)';
-    const lb = (t.leagues||[]).map(l=>`<span class="league-badge ${LEAGUE_CSS[l]||'lg-other'}">${l}</span>`).join(' ');
-    const tpc = (t.topPicks||[]).slice(0,6).map(p=>{
-      const pwrc = (p.wr||0)>=60?'var(--green)':(p.wr||0)>=50?'var(--gold)':'var(--text3)';
-      return `<span class="hero-chip">${p.name} <span style="color:var(--text4);">x${p.count}</span> <span style="color:${pwrc};">${p.wr}%</span></span>`;
-    }).join('');
-    const tbc = (t.topBans||[]).slice(0,6).map(b=>`<span class="hero-chip" style="border-color:rgba(240,82,82,.2);color:#f87171;">${b.name} <span style="opacity:.6;">x${b.count}</span></span>`).join('');
-    const formDots = (t.form||[]).map(r=>`<div class="form-dot ${r==='W'?'w':'l'}" title="${r}"></div>`).join('');
-    const streakLabel = t.streak?.count > 1 ? `<span style="font-size:9px;font-weight:700;color:${t.streak.type==='W'?'var(--green)':'var(--red)'};">${t.streak.type}${t.streak.count}</span>` : '';
-
-    const mapRows = Object.entries(t.mapStats||{}).map(([mp,s])=>{
-      const mc = s.wr>=60?'var(--green)':s.wr>=50?'var(--gold)':'var(--red)';
-      return `<div class="map-wr-row">
-        <span class="map-wr-name">${mp}</span>
-        <div class="map-wr-bar-wrap"><div class="map-wr-bar" style="width:${s.wr}%;background:${mc};"></div></div>
-        <span class="map-wr-pct" style="color:${mc};">${s.wr}%</span>
-        <span class="map-wr-games">${s.games}g</span>
-      </div>`;
-    }).join('');
-
-    return `<div class="team-card" onclick="openTeamReport('${t.name}')">
-
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px;">
-        <div class="team-name">${t.name}</div>
-        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;padding-top:2px;">
-          <div class="form-dots" title="Recent form">${formDots}</div>
-          ${streakLabel}
+  const _TMAPS=['Dangerous Grass','Broken Walls','Flying Cloud','Expanding River'];
+  const _C=v=>v>=60?'var(--green)':v>=50?'var(--gold)':'var(--red)';
+  grid.innerHTML = _pageTeams.map((t,_i) => {
+    const rank=(_teamPage-1)*TEAM_PAGE_SIZE+_i+1;
+    const wr=t.winRate||0, wrc=_C(wr), bwrc=_C(t.blueSideWR??0), rwrc=_C(t.redSideWR??0);
+    const lg=(t.leagues&&t.leagues[0])||''; const lgCss=LEAGUE_CSS[lg]||'lg-other';
+    const mo=(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(t.name):{init:(t.name||'?')[0],color:'#7C5CF6'};
+    const logo=(typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(t.name):'';
+    const form=(t.form||[]).slice(-5).map(r=>`<span class="tc-dot ${r==='W'?'w':'l'}"></span>`).join('');
+    const streak=(t.streak&&t.streak.count>1)?`<span class="tc-streak ${t.streak.type==='W'?'w':'l'}">${t.streak.type}${t.streak.count}</span>`:'';
+    const maps=_TMAPS.map(mp=>{const s=(t.mapStats||{})[mp]; if(!s||!s.games) return `<div class="tc-map"><span class="tc-map-nm">${mp}</span><div class="tc-map-bar"></div><span class="tc-map-pct" style="color:var(--text3)">—</span><span class="tc-map-g"></span></div>`; const c=_C(s.wr); return `<div class="tc-map"><span class="tc-map-nm">${mp}</span><div class="tc-map-bar"><i style="width:${s.wr}%;background:${c}"></i></div><span class="tc-map-pct" style="color:${c}">${s.wr}%</span><span class="tc-map-g">(${s.games}g)</span></div>`;}).join('');
+    const cell=(name,sub,subc)=>`<div class="tc-hero"><img src="${_heroIcon(name)}" onerror="${_heroIconErr(name)}"><div class="tc-hero-nm">${name}</div><div class="tc-hero-sub" style="color:${subc}">${sub}</div></div>`;
+    const picks=(t.topPicks||[]), bans=(t.topBans||[]);
+    const tpc=picks.slice(0,3).map(p=>cell(p.name,(p.wr||0)+'%',_C(p.wr||0))).join('')||'<span class="tc-none">No data</span>';
+    const tbc=bans.slice(0,3).map(b=>cell(b.name,'x'+b.count,'var(--red)')).join('')||'<span class="tc-none">No data</span>';
+    const moreP=picks.length>3?`<span class="tc-more">+${picks.length-3} more</span>`:'';
+    const moreB=bans.length>3?`<span class="tc-more">+${bans.length-3} more</span>`:'';
+    const esc=(t.name||'').replace(/'/g,"\\'");
+    return `<div class="tc" onclick="openTeamReport('${esc}')">
+      <div class="tc-head">
+        <span class="tc-rank">${rank}</span>
+        <span class="tc-logo${logo?'':' noimg'}" style="--mc:${mo.color}"><img src="${logo}" onerror="this.closest('.tc-logo').classList.add('noimg')"><i>${mo.init}</i></span>
+        <div style="flex:1;min-width:0;">
+          <div class="tc-name"><span class="tc-name-t">${t.name}</span><span class="tc-verif">✔</span></div>
+          ${lg?`<span class="league-badge ${lgCss}" style="margin-top:5px;display:inline-block;">${lg}</span>`:''}
+        </div>
+        <div class="tc-form">${form}${streak}</div>
+      </div>
+      <div class="tc-kpis">
+        <div class="tc-kpi"><div class="tc-kv" style="color:${wrc}">${wr}%</div><div class="tc-kl">Win Rate</div></div>
+        <div class="tc-kpi"><div class="tc-kv">${t.wins||0}W ${t.losses||0}L</div><div class="tc-kl">Record</div></div>
+        <div class="tc-kpi"><div class="tc-kv" style="color:${bwrc}">${t.blueSideWR!=null?t.blueSideWR+'%':'—'}</div><div class="tc-kl">Blue Side</div></div>
+        <div class="tc-kpi"><div class="tc-kv" style="color:${rwrc}">${t.redSideWR!=null?t.redSideWR+'%':'—'}</div><div class="tc-kl">Red Side</div></div>
+      </div>
+      <div class="tc-sec">
+        <div class="tc-s"><div class="tc-sl">Turtle Ctrl</div><div class="tc-sv" style="color:var(--green)">${t.turtleCtrl!=null?t.turtleCtrl+'%':'—'}<span> ${t.turtleTotal?'('+t.turtleTotal+')':''}</span></div></div>
+        <div class="tc-s"><div class="tc-sl">Lord Ctrl</div><div class="tc-sv" style="color:var(--gold)">${t.lordCtrl!=null?t.lordCtrl+'%':'—'}<span> ${t.lordTotal?'('+t.lordTotal+')':''}</span></div></div>
+        <div class="tc-s"><div class="tc-sl">Hero Pool</div><div class="tc-sv">${t.poolDepth||0}</div></div>
+      </div>
+      <div class="tc-mid">
+        <div class="tc-maps"><div class="tc-seclbl">Map Win Rates</div>${maps}</div>
+        <div class="tc-heroes">
+          <div class="tc-seclbl">Top Picks ${moreP}</div><div class="tc-hrow">${tpc}</div>
+          <div class="tc-seclbl" style="margin-top:11px;">Top Bans ${moreB}</div><div class="tc-hrow">${tbc}</div>
         </div>
       </div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:2px;">${lb}</div>
-
-      <div class="team-kpi-row">
-        <div class="team-kpi">
-          <div class="team-kpi-val" style="color:${wrc};">${wr}%</div>
-          <div class="team-kpi-label">Win Rate</div>
-        </div>
-        <div class="team-kpi">
-          <div class="team-kpi-val">${t.wins||0}W ${t.losses||0}L</div>
-          <div class="team-kpi-label">Record</div>
-        </div>
-        <div class="team-kpi">
-          <div class="team-kpi-val" style="color:${bwrc};">${t.blueSideWR!==null?t.blueSideWR+'%':'—'}</div>
-          <div class="team-kpi-label">Blue Side</div>
-        </div>
-        <div class="team-kpi">
-          <div class="team-kpi-val" style="color:${rwrc};">${t.redSideWR!==null?t.redSideWR+'%':'—'}</div>
-          <div class="team-kpi-label">Red Side</div>
-        </div>
-      </div>
-
-      <div style="display:flex;gap:16px;">
-        ${t.turtleCtrl!==null?`<div class="team-stat-row" style="flex-direction:column;align-items:flex-start;gap:1px;margin:0;"><span class="team-stat-label">Turtle Ctrl</span><span class="team-stat-val" style="color:var(--neon);">${t.turtleCtrl}% <span style="color:var(--text3);font-size:10px;font-weight:400;">${t.turtleTotal}g</span></span></div>`:''}
-        ${t.lordCtrl!==null?`<div class="team-stat-row" style="flex-direction:column;align-items:flex-start;gap:1px;margin:0;"><span class="team-stat-label">Lord Ctrl</span><span class="team-stat-val" style="color:var(--gold);">${t.lordCtrl}% <span style="color:var(--text3);font-size:10px;font-weight:400;">${t.lordTotal}g</span></span></div>`:''}
-        <div class="team-stat-row" style="flex-direction:column;align-items:flex-start;gap:1px;margin:0;"><span class="team-stat-label">Hero Pool</span><span class="team-stat-val">${t.poolDepth||0}</span></div>
-      </div>
-
-      ${mapRows ? `<div class="team-section">
-        <div class="team-section-label">Map Win Rates</div>
-        ${mapRows}
-      </div>` : ''}
-
-      ${tpc ? `<div class="team-section">
-        <div class="team-section-label">Top Picks</div>
-        <div class="hero-chips">${tpc}</div>
-      </div>` : ''}
-
-      ${tbc ? `<div class="team-section">
-        <div class="team-section-label">Top Bans</div>
-        <div class="hero-chips">${tbc}</div>
-      </div>` : ''}
-
-      ${t.coachNotes ? `<div class="team-section" style="font-size:10.5px;color:var(--text3);font-style:italic;line-height:1.6;">${t.coachNotes.slice(0,120)}${t.coachNotes.length>120?'…':''}</div>` : ''}
-
-      <div class="team-section" style="padding-top:8px;display:flex;gap:5px;">
-        <button class="btn btn-ghost btn-sm" style="flex:1;font-size:10px;" onclick="event.stopPropagation();openTeamReport('${t.name}')">View Report</button>
-        <button class="btn btn-ghost btn-sm" style="flex:1;font-size:10px;" onclick="event.stopPropagation();openH2H('${t.name}')">H2H</button>
-        <button class="btn btn-ghost btn-sm" style="flex:1;font-size:10px;" onclick="event.stopPropagation();openTeamEditor('${t.name}')">Edit</button>
+      <div class="tc-foot">
+        <button class="tc-btn primary" onclick="event.stopPropagation();openTeamReport('${esc}')">View Report</button>
+        <button class="tc-btn" onclick="event.stopPropagation();openH2H('${esc}')">H2H</button>
+        <button class="tc-btn" onclick="event.stopPropagation();openTeamEditor('${esc}')">Edit</button>
       </div>
     </div>`;
   }).join('') + _renderPager(teams.length, TEAM_PAGE_SIZE, _teamPage, 'goTeamPage');
