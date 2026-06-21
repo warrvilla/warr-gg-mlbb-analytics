@@ -572,6 +572,41 @@ body {
   background: var(--accent);
   box-shadow: 0 0 6px var(--accent-glow);
 }
+/* ── Disclaimer / Trademark Notice ── */
+.legal-note { display: block !important; padding: 30px 34px; }
+.legal-head {
+  display: flex; align-items: center; gap: 14px;
+  padding-bottom: 18px; margin-bottom: 20px;
+  border-bottom: 0.5px solid var(--border-2);
+}
+.legal-shield {
+  flex-shrink: 0; width: 42px; height: 42px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, rgba(124,92,246,0.22), rgba(94,92,230,0.10));
+  border: 0.5px solid var(--accent-border); color: var(--accent);
+}
+.legal-head h2 { margin: 0; }
+.legal-eyebrow {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent);
+  margin-bottom: 4px;
+}
+.legal-head .legal-chips { margin-left: auto; }
+.legal-body {
+  column-count: 2; column-gap: 40px;
+}
+.legal-body p {
+  font-size: 12.5px; color: var(--text-2); line-height: 1.65;
+  margin: 0 0 12px 0; max-width: none !important;
+  break-inside: avoid;
+}
+.legal-body p:last-child { margin-bottom: 0; }
+.legal-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 720px) {
+  .legal-body { column-count: 1; }
+  .legal-head { flex-wrap: wrap; }
+  .legal-head .legal-chips { margin-left: 0; width: 100%; }
+}
 
 /* ── MODAL (admin slide editor) ── */
 .modal-backdrop {
@@ -802,17 +837,24 @@ body {
     </div>
 
     <!-- ────────────── DISCLAIMER / TRADEMARK NOTICE ────────────── -->
-    <section class="ai-battle-cta legal-note" style="grid-template-columns:1fr;">
-      <div>
-        <h2>Disclaimer &amp; <em>Trademark Notice</em></h2>
+    <section class="ai-battle-cta legal-note">
+      <div class="legal-head">
+        <span class="legal-shield">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </span>
+        <div>
+          <div class="legal-eyebrow">Legal</div>
+          <h2>Disclaimer &amp; <em>Trademark Notice</em></h2>
+        </div>
+        <div class="legal-chips">
+          <span class="ai-chip"><span class="ai-chip-dot"></span> Independent Platform</span>
+          <span class="ai-chip"><span class="ai-chip-dot"></span> Assets &copy; their owners</span>
+        </div>
+      </div>
+      <div class="legal-body">
         <p>Warr.GG is an independent esports analytics platform for Mobile Legends: Bang Bang. It is <strong>not affiliated with, endorsed by, sponsored by, or otherwise associated with Moonton</strong> or Shanghai Moonton Technology Co., Ltd.</p>
         <p>Mobile Legends: Bang Bang, together with all hero names, character artwork, icons, and related assets, are the trademarks and copyrighted property of their respective owners. These materials are referenced solely for purposes of <strong>identification, statistical analysis, and editorial commentary</strong>. Warr.GG asserts no ownership over them and does not sell, license, or otherwise commercialize them.</p>
         <p>All match data, statistics, and draft analysis presented are independently compiled. Rights holders who wish to request removal of any material may contact <a href="mailto:wrrenvillapando@gmail.com" style="color:var(--accent);text-decoration:none;">wrrenvillapando@gmail.com</a>, and such requests will be addressed promptly.</p>
-        <div class="ai-battle-chips" style="margin-top:14px;">
-          <span class="ai-chip"><span class="ai-chip-dot"></span> Independent Platform</span>
-          <span class="ai-chip"><span class="ai-chip-dot"></span> Trademark Notice</span>
-          <span class="ai-chip"><span class="ai-chip-dot"></span> Assets &copy; their owners</span>
-        </div>
       </div>
     </section>
 
