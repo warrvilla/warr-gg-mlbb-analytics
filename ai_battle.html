@@ -879,7 +879,7 @@ input:focus, .search-input:focus {
 /* opponent mode cards (icon + text) */
 .ab-modes-2{grid-template-columns:1fr 1fr;}
 /* reserve a stable height so switching opponent modes doesn't shift the layout */
-.ab-oppbody{height:360px;overflow-y:auto;overflow-x:hidden;}
+.ab-oppbody{height:280px;overflow-y:auto;overflow-x:hidden;}
 #setup .ab-mode{display:flex;align-items:center;gap:11px;text-align:left;}
 .ab-mode-ico{width:40px;height:40px;border-radius:11px;background:rgba(124,92,246,.12);border:1px solid rgba(124,92,246,.25);
   display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:18px;flex-shrink:0;}
@@ -964,6 +964,7 @@ input:focus, .search-input:focus {
    so the row jumped when the team dropdown/profile opened.) */
 #setup .ab-top{display:grid;grid-template-columns:1fr 1.05fr;gap:16px;align-items:stretch;margin-bottom:16px;}
 #setup .ab-top > .ab-card{height:100%;}
+#setup .ab-colL > .ab-card{flex:1 1 auto;}  /* Your Setup card fills its column so its bottom aligns with the opponent box */
 #setup .ab-bottom{display:grid;grid-template-columns:1.62fr 1fr;gap:16px;align-items:start;margin-bottom:18px;}
 #setup .ab-colL{display:flex;flex-direction:column;gap:16px;min-width:0;}
 #setup .ab-summary .ab-start{margin-top:auto;}
