@@ -962,7 +962,8 @@ input:focus, .search-input:focus {
 /* align-items:start so the two boxes keep their natural height and stay TOP-aligned.
    (stretch made "Your Setup" grow with empty space whenever the opponent panel expanded,
    so the row jumped when the team dropdown/profile opened.) */
-#setup .ab-top{display:grid;grid-template-columns:1fr 1.05fr;gap:16px;align-items:start;margin-bottom:16px;}
+#setup .ab-top{display:grid;grid-template-columns:1fr 1.05fr;gap:16px;align-items:stretch;margin-bottom:16px;}
+#setup .ab-top > .ab-card{height:100%;}
 #setup .ab-bottom{display:grid;grid-template-columns:1.62fr 1fr;gap:16px;align-items:start;margin-bottom:18px;}
 #setup .ab-colL{display:flex;flex-direction:column;gap:16px;min-width:0;}
 #setup .ab-summary .ab-start{margin-top:auto;}
