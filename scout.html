@@ -3569,7 +3569,6 @@ function _renderTeamsGrid() {
       <div class="tc-head">
         <span class="tc-rank">${rankBadge}</span>
         <div class="tc-htext"><div class="tc-name"><span class="tc-name-t">${t.name}</span><span class="tc-verif">✔</span></div><div class="tc-league">${lg}${t.placement?` · <span class="tc-place${t.placement==='Champion'?' champ':''}">${t.placement}</span>`:''}</div></div>
-        <div class="tc-form">${form}${streak}</div>
       </div>
       <div class="tc-top">
         <div class="tc-logo-lg${logo?'':' noimg'}"><img src="${logo}" onerror="this.closest('.tc-logo-lg').classList.add('noimg')"><i>${mo.init}</i></div>
