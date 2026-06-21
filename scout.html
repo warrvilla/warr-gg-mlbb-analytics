@@ -316,8 +316,10 @@ body {
 .tc-name{display:flex;align-items:center;gap:6px;font-size:16px;font-weight:800;color:var(--text);letter-spacing:-.01em;min-width:0;}
 .tc-name-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tc-verif{flex-shrink:0;width:14px;height:14px;border-radius:50%;background:#7C5CF6;color:#fff;font-size:8px;display:inline-flex;align-items:center;justify-content:center;}
-.tc-sub{display:flex;align-items:center;gap:6px;margin-top:3px;}
+.tc-sub{display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;}
 .tc-rank{font-size:10px;font-weight:800;color:#A78BFA;}
+.tc-place{font-size:9px;font-weight:800;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.06);color:var(--text2);}
+.tc-place.champ{background:rgba(200,144,80,.16);color:var(--gold);border:1px solid var(--gold-border);}
 /* Tier 2: stat values */
 .tc-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:11px;padding:10px 6px;}
 .tc-kpi{text-align:center;min-width:0;}
@@ -1823,7 +1825,7 @@ const DB_MODULE = (() => {
   function rebuildTeams() {
     const preserved = {};
     Object.values(_db.teams).forEach(t => {
-      preserved[t.name] = { winCondition: t.winCondition||'', coachNotes: t.coachNotes||'' };
+      preserved[t.name] = { winCondition: t.winCondition||'', coachNotes: t.coachNotes||'', rsRank: t.rsRank||'', placement: t.placement||'' };
     });
     _db.teams = {};
 
@@ -2115,7 +2117,7 @@ function _weekSortKey(w){ const m=String(w).match(/\d+/); return m? parseInt(m[0
 // their label minus any 'Day N' suffix (e.g. 'Playoffs Day 2' → 'Playoffs').
 function _weekGroup(w){ return String(w||'').replace(/\s*[-—]?\s*day\s*\d+.*$/i,'').trim() || String(w||'').trim(); }
 function setWeekFilter(v){ weekFilter = v; _weekAutoPicked = true; _matchPage = 1; renderMatchListBody(); }
-let teamSort = 'games';
+let teamSort = 'standing';
 let metaSort = 'presence';
 let metaLeague = 'all';
 let metaRole = 'All';
@@ -3486,7 +3488,7 @@ function _onTeamSearch(v) {
 
 function renderTeams() {
   const area = document.getElementById('mainArea');
-  const tSorts = [['games','Games'],['winrate','WR'],['wins','Wins'],['bluewr','Blue WR'],['redwr','Red WR'],['pool','Pool'],['name','Name']];
+  const tSorts = [['standing','Standing'],['games','Games'],['winrate','WR'],['wins','Wins'],['bluewr','Blue WR'],['redwr','Red WR'],['pool','Pool'],['name','Name']];
 
   // Only build the header once — preserve input focus across re-renders
   if (!document.getElementById('teamsGrid')) {
@@ -3518,6 +3520,7 @@ function _renderTeamsGrid() {
     if (teamSearch && !t.name.toLowerCase().includes(teamSearch.toLowerCase())) return false;
     return true;
   }).sort((a,b) => {
+    if (teamSort==='standing'){ const ar=a.rsRank?+a.rsRank:9999, br=b.rsRank?+b.rsRank:9999; if(ar!==br) return ar-br; return (b.winRate||0)-(a.winRate||0); }
     if (teamSort==='games')   return (b.gamesPlayed||0)-(a.gamesPlayed||0);
     if (teamSort==='winrate') return (b.winRate||0)-(a.winRate||0);
     if (teamSort==='wins')    return (b.wins||0)-(a.wins||0);
@@ -3553,12 +3556,15 @@ function _renderTeamsGrid() {
     const tpc=picks.slice(0,6).map(p=>cell(p.name,(p.wr||0)+'% WR',_C(p.wr||0),'x'+p.count)).join('')||'<span class="tc-none">No pick data yet</span>';
     const tbc=bans.slice(0,6).map(b=>cell(b.name,'x'+b.count,'var(--red)','')).join('')||'<span class="tc-none">No ban data yet</span>';
     const esc=(t.name||'').replace(/'/g,"\\'");
+    const rankTxt = t.rsRank ? `RS #${t.rsRank}` : `#${rank}`;
+    const _picon = t.placement==='Champion'?'🏆':t.placement==='Runner-up'?'🥈':t.placement==='3rd Place'?'🥉':'';
+    const placeBadge = t.placement ? `<span class="tc-place${t.placement==='Champion'?' champ':''}">${_picon} ${t.placement}</span>` : '';
     return `<div class="tc" onclick="openTeamReport('${esc}')">
       <div class="tc-head">
         <span class="tc-logo${logo?'':' noimg'}" style="--mc:${mo.color}"><img src="${logo}" onerror="this.closest('.tc-logo').classList.add('noimg')"><i>${mo.init}</i></span>
         <div style="flex:1;min-width:0;">
           <div class="tc-name"><span class="tc-name-t">${t.name}</span><span class="tc-verif">✔</span></div>
-          <div class="tc-sub"><span class="tc-rank">#${rank}</span>${lg?`<span class="league-badge ${lgCss}">${lg}</span>`:''}</div>
+          <div class="tc-sub"><span class="tc-rank">${rankTxt}</span>${lg?`<span class="league-badge ${lgCss}">${lg}</span>`:''}${placeBadge}</div>
         </div>
       </div>
       <div class="tc-kpis">
@@ -3605,6 +3611,18 @@ function openTeamEditor(teamName) {
           <label class="form-label">Team Name</label>
           <input class="form-input" id="tf-name" placeholder="e.g. RSG PH" value="${t.name||''}">
         </div>` : ''}
+        <div style="display:flex;gap:12px;margin-bottom:12px;">
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">Regular Season Rank</label>
+            <input class="form-input" id="tf-rs" type="number" min="1" placeholder="e.g. 1" value="${t.rsRank||''}">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label class="form-label">Playoff Placement</label>
+            <select class="form-select" id="tf-po">
+              ${['','Champion','Runner-up','3rd Place','4th Place','Top 6','Top 8','Did not qualify'].map(o=>`<option value="${o}"${(t.placement||'')===o?' selected':''}>${o||'— none —'}</option>`).join('')}
+            </select>
+          </div>
+        </div>
         <div class="form-group" style="margin-bottom:12px;">
           <label class="form-label">Win Condition</label>
           <input class="form-input" id="tf-wc" placeholder="e.g. Hypercarry protect composition" value="${t.winCondition||''}">
@@ -3726,6 +3744,8 @@ function saveTeam(existing) {
   DB_MODULE.upsertTeam(name, {
     winCondition: document.getElementById('tf-wc')?.value||'',
     coachNotes:   document.getElementById('tf-notes')?.value||'',
+    rsRank:       document.getElementById('tf-rs')?.value||'',
+    placement:    document.getElementById('tf-po')?.value||'',
   });
   DB_MODULE.save();
   document.getElementById('teamModal')?.remove();
