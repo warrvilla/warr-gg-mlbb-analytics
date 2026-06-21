@@ -2488,7 +2488,7 @@ function renderMatchList() {
              <div class="md-headctrls">
                <button class="md-nav" onclick="cycleFocusTeam(-1)" title="Previous team" aria-label="Previous team">‹</button>
                <button class="md-nav" onclick="cycleFocusTeam(1)" title="Next team" aria-label="Next team">›</button>
-               ${_flink?`<a class="md-follow" href="${_flink.replace(/"/g,'&quot;')}" target="_blank" rel="noopener">★ Follow Team</a>`:`<button class="md-follow" onclick="openTeamEditor('${(_focusTeam||'').replace(/'/g,"\\'")}')" title="No link yet — click to add a Team Link in Edit">★ Follow Team</button>`}
+               ${_flink?`<a class="md-follow" href="${_flink.replace(/"/g,'&quot;')}" target="_blank" rel="noopener">★ Follow Team</a>`:((typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin())?`<button class="md-follow" onclick="openTeamEditor('${(_focusTeam||'').replace(/'/g,"\\'")}')" title="No link yet — click to add a Team Link in Edit">★ Follow Team</button>`:'')}
              </div>
            </div>
            <div class="md-kpis">
@@ -3621,6 +3621,12 @@ function _renderTeamsGrid() {
 }
 
 function openTeamEditor(teamName) {
+  // Team profiles (rank, link, win condition, notes) are admin-curated — only
+  // the admin may edit. Non-admins can't open the editor at all.
+  if (!(typeof WAdmin!=='undefined' && WAdmin.isAdmin && WAdmin.isAdmin())) {
+    if (typeof toast==='function') toast('Only the admin can edit team info','error');
+    return;
+  }
   const t = teamName ? DB_MODULE.getTeams()[teamName] : {name:'',winCondition:'',coachNotes:''};
   if (!t) return;
   const overlay = document.createElement('div');
@@ -4414,7 +4420,7 @@ function openTeamReport(teamName) {
         <div class="modal-title">Scout Report — ${teamName}${_reportMapFilter ? ` <span style="font-size:11px;color:var(--accent);font-weight:500;margin-left:6px;">on ${_reportMapFilter}</span>` : ''}</div>
         <div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0;align-items:center;">
           ${playedMaps.length > 1 ? `<select class="form-select" style="font-size:11px;padding:5px 8px;height:auto;" onchange="setReportMapFilter(this.value)" title="Filter the entire report to a single map">${mapOpts}</select>` : ''}
-          <button class="btn btn-ghost btn-sm" onclick="openTeamEditor('${teamName}');document.getElementById('teamReportModal').remove();">Edit</button>
+          ${(typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin())?`<button class="btn btn-ghost btn-sm" onclick="openTeamEditor('${teamName}');document.getElementById('teamReportModal').remove();">Edit</button>`:''}
           <button class="btn btn-ghost btn-sm" onclick="openH2H('${teamName}')">H2H</button>
           <button class="btn btn-accent btn-sm" id="pdfBtn" onclick="generateTeamImage('${teamName}')">Export PDF</button>
           <button class="btn btn-ghost btn-sm" onclick="_reportMapFilter='';document.getElementById('teamReportModal').remove();">✕</button>
