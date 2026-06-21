@@ -3715,6 +3715,24 @@ function draftBrainAB(step,opts){
         else if(isP2&&bp2.includes(h.name)){comp.mimic=0.95;why.mimic=`${ep.name}'s phase-2 ban pattern`;}
         else if(tr&&tr>0.2){comp.mimic=Math.min(0.7,tr);why.mimic=`${ep.name} bans this ${Math.round(tr*100)}% of games`;}
       }
+      // SELF-WANT GUARD: never ban a hero we'd rather first-pick ourselves.
+      // If it fills one of OUR open lanes, is a strong tier, and we own a pick
+      // slot before the opponent can grab it, taking beats banning. (Patch-broken
+      // must-bans are exempt — those we deny no matter what.) Works in every mode,
+      // unlike the older ep-only guard, so the AI stops banning its own favorites.
+      if(h.mp!=='mustban'){
+        const _myLns=getHeroLanesAB(h).filter(l=>l!=='Flex');
+        const _fillsMine=_myLns.length===0||_myLns.some(L=>myNeeded.includes(L));
+        if(_fillsMine&&['S','A'].includes(_dbTier(h.name))){
+          const _after=DRAFT_ORDER.slice(idx+1);
+          const _myNext=_after.findIndex(s2=>s2.type==='pick'&&s2.team===side);
+          const _oppNext=_after.findIndex(s2=>s2.type==='pick'&&s2.team!==side);
+          if(_myNext>=0&&(_oppNext<0||_myNext<_oppNext)){
+            comp.comfort=0;comp.meta=0;comp.preempt=0;
+            delete why.comfort;delete why.preempt;
+          }
+        }
+      }
       // BAN EQUITY (§9): P(pick) × damage. Slot ladder tunes the emphasis.
       const dmg=Math.max(comp.must*0.95,comp.protect,comp.combo,comp.comfort,comp.lane,comp.meta);
       let score=pr*dmg*420;
