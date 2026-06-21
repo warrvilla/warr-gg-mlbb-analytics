@@ -304,46 +304,53 @@ body {
 .tc-sortrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .team-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;}
 @media(max-width:760px){.team-grid{grid-template-columns:1fr;}}
-.tc{background:rgba(255,255,255,.022);border:1px solid rgba(255,255,255,.08);border-radius:15px;padding:14px;cursor:pointer;transition:border-color .15s,box-shadow .15s;display:flex;flex-direction:column;gap:11px;}
+.tc{position:relative;overflow:hidden;background:rgba(255,255,255,.022);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;cursor:pointer;transition:border-color .15s,box-shadow .15s;display:flex;flex-direction:column;gap:12px;}
+.tc::before{content:'';position:absolute;top:-8%;left:-3%;width:52%;height:116%;background-image:var(--bg);background-repeat:no-repeat;background-position:center;background-size:contain;opacity:.05;pointer-events:none;}
+.tc>*{position:relative;z-index:1;}
 .tc:hover{border-color:rgba(124,92,246,.4);box-shadow:0 0 0 1px rgba(124,92,246,.22),0 8px 24px rgba(124,92,246,.1);}
-.tc-head{display:flex;align-items:center;gap:10px;}
-.tc-logo{width:40px;height:40px;border-radius:11px;flex-shrink:0;position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px;background:transparent;}
-.tc-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:4px;}
-.tc-logo i{font-style:normal;display:none;}
-.tc-logo.noimg{background:linear-gradient(135deg,var(--mc,#7C5CF6),var(--mc,#7C5CF6));}
-.tc-logo.noimg img{display:none;}.tc-logo.noimg i{display:flex;}
-/* Tier 1: team name */
-.tc-name{display:flex;align-items:center;gap:6px;font-size:16px;font-weight:800;color:var(--text);letter-spacing:-.01em;min-width:0;}
+.tc-head{display:flex;align-items:flex-start;gap:10px;}
+.tc-rank{width:24px;height:24px;border-radius:7px;background:rgba(255,255,255,.06);color:var(--text2);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.tc-htext{flex:1;min-width:0;}
+.tc-name{display:flex;align-items:center;gap:6px;font-size:17px;font-weight:800;color:var(--text);min-width:0;}
 .tc-name-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tc-verif{flex-shrink:0;width:14px;height:14px;border-radius:50%;background:#7C5CF6;color:#fff;font-size:8px;display:inline-flex;align-items:center;justify-content:center;}
-.tc-sub{display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;}
-.tc-rank{font-size:10px;font-weight:800;color:#A78BFA;}
-.tc-place{font-size:9px;font-weight:800;padding:2px 7px;border-radius:5px;background:rgba(255,255,255,.06);color:var(--text2);}
-.tc-place.champ{background:rgba(200,144,80,.16);color:var(--gold);border:1px solid var(--gold-border);}
-/* Tier 2: stat values */
-.tc-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:11px;padding:10px 6px;}
-.tc-kpi{text-align:center;min-width:0;}
-.tc-kv{font-size:16px;font-weight:800;color:var(--text);line-height:1;white-space:nowrap;}
-.tc-kl{font-size:8px;color:var(--text3);margin-top:5px;text-transform:uppercase;letter-spacing:.04em;}
-.tc-sec{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);padding:9px 2px;}
-.tc-sl{font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
+.tc-league{font-size:10px;color:var(--text3);font-weight:600;margin-top:3px;letter-spacing:.04em;}
+.tc-place{font-weight:800;color:var(--text2);}
+.tc-place.champ{color:var(--gold);}
+.tc-form{display:flex;align-items:center;gap:3px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;max-width:130px;}
+.tc-fl{width:18px;height:18px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;}
+.tc-fl.w{color:var(--green);background:var(--green-dim);border:1px solid var(--green-border);}
+.tc-fl.l{color:var(--red);background:var(--red-dim);border:1px solid var(--red-border);}
+.tc-streak{font-size:9px;font-weight:800;color:var(--green);background:var(--green-dim);border:1px solid var(--green-border);padding:2px 6px;border-radius:5px;}
+/* hero row: big logo + headline stats */
+.tc-top{display:flex;align-items:center;gap:14px;}
+.tc-logo-lg{width:108px;height:108px;flex-shrink:0;position:relative;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:38px;border-radius:14px;}
+.tc-logo-lg img{width:100%;height:100%;object-fit:contain;}
+.tc-logo-lg i{font-style:normal;display:none;}
+.tc-logo-lg.noimg{background:linear-gradient(135deg,var(--mc,#7C5CF6),var(--mc,#7C5CF6)cc);}
+.tc-logo-lg.noimg img{display:none;}.tc-logo-lg.noimg i{display:flex;}
+.tc-hstats{flex:1;min-width:0;display:flex;flex-direction:column;gap:14px;}
+.tc-h1{display:flex;gap:22px;align-items:flex-end;}
+.tc-h2{display:flex;gap:18px;}
+.tc-bigv{font-size:34px;font-weight:800;line-height:1;}
+.tc-kv{font-size:19px;font-weight:800;color:var(--text);line-height:1;white-space:nowrap;}
+.tc-kl{font-size:9px;color:var(--text3);margin-top:5px;text-transform:uppercase;letter-spacing:.04em;}
+.tc-sec{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);padding:10px 2px;}
+.tc-sl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:5px;}
 .tc-sv{font-size:13px;font-weight:800;color:var(--text);}
 .tc-sv span{font-size:10px;font-weight:400;color:var(--text3);}
-.tc-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;}
-.tc-bodyR{display:flex;flex-direction:column;gap:11px;min-width:0;}
 .tc-block{display:flex;flex-direction:column;min-width:0;}
-@media(max-width:520px){.tc-body{grid-template-columns:1fr;}}
-/* Tier 3: section labels (muted, tiny) */
-.tc-seclbl{font-size:8px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;}
-.tc-maps{display:flex;flex-direction:column;gap:7px;}
-.tc-map{font-size:9px;}
-.tc-map-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:3px;}
-.tc-map-nm{color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.tc-map-meta{display:flex;align-items:baseline;gap:5px;flex-shrink:0;}
-.tc-map-pct{font-weight:800;}
-.tc-map-g{color:var(--text3);font-size:8px;}
-.tc-map-bar{height:5px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden;}
+.tc-seclbl{display:flex;align-items:center;justify-content:space-between;font-size:8px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;}
+.tc-seclbl-r{color:var(--text4);}
+.tc-maps{display:flex;flex-direction:column;gap:8px;}
+.tc-map{display:flex;align-items:center;gap:8px;font-size:10px;}
+.tc-map-ico{color:var(--text3);font-size:8px;flex-shrink:0;}
+.tc-map-nm{width:104px;flex-shrink:0;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tc-map-bar{flex:1;min-width:0;height:6px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden;}
 .tc-map-bar i{display:block;height:100%;border-radius:3px;}
+.tc-map-pct{width:32px;text-align:right;font-weight:800;flex-shrink:0;}
+.tc-map-g{width:26px;color:var(--text3);font-size:9px;flex-shrink:0;}
+.tc-pb{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;}
 .tc-hrow{display:flex;gap:7px;flex-wrap:wrap;}
 .tc-hero{text-align:center;width:38px;flex-shrink:0;}
 .tc-hero img{width:36px;height:36px;border-radius:9px;object-fit:cover;background:var(--surface3);}
@@ -352,11 +359,11 @@ body {
 .tc-hero-l2{font-size:7px;color:var(--text3);}
 .tc-none{font-size:10px;color:var(--text3);padding:6px 0;}
 .tc-foot{display:flex;gap:6px;}
-.tc-btn{flex:1;padding:7px;border-radius:8px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:var(--text2);}
+.tc-btn{flex:1;padding:8px;border-radius:8px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:var(--text2);}
 .tc-btn:hover{background:rgba(255,255,255,.08);color:var(--text);}
 .tc-btn.primary{background:linear-gradient(135deg,#7C5CF6,#6D4DE0);border:none;color:#fff;}
 .tc-btn.primary:hover{filter:brightness(1.08);}
-@media(max-width:560px){.tc-mid{grid-template-columns:1fr;}.tc-kpis{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:560px){.tc-top{flex-direction:column;align-items:flex-start;}.tc-pb{grid-template-columns:1fr;}}
 
 /* ── MATCH LIST ── */
 .series-card {
@@ -3545,50 +3552,52 @@ function _renderTeamsGrid() {
   grid.innerHTML = _pageTeams.map((t,_i) => {
     const rank=(_teamPage-1)*TEAM_PAGE_SIZE+_i+1;
     const wr=t.winRate||0, wrc=_C(wr), bwrc=_C(t.blueSideWR??0), rwrc=_C(t.redSideWR??0);
-    const lg=(t.leagues&&t.leagues[0])||''; const lgCss=LEAGUE_CSS[lg]||'lg-other';
+    const lg=(t.leagues&&t.leagues[0])||'';
     const mo=(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(t.name):{init:(t.name||'?')[0],color:'#7C5CF6'};
     const logo=(typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(t.name):'';
     const form=(t.form||[]).slice(-5).map(r=>`<span class="tc-fl ${r==='W'?'w':'l'}">${r}</span>`).join('');
+    const streak=(t.streak&&t.streak.count>1&&t.streak.type==='W')?`<span class="tc-streak">W${t.streak.count}</span>`:'';
     const maps=_TMAPS.map(mp=>{const sm=(t.mapStats||{})[mp]; const has=sm&&sm.games; const c=has?_C(sm.wr):'var(--text3)';
-      return `<div class="tc-map"><div class="tc-map-top"><span class="tc-map-nm">${mp}</span><span class="tc-map-meta"><span class="tc-map-pct" style="color:${c}">${has?sm.wr+'%':'—'}</span>${has?`<span class="tc-map-g">${sm.games}g</span>`:''}</span></div><div class="tc-map-bar"><i style="width:${has?sm.wr:0}%;background:${c}"></i></div></div>`;}).join('');
+      return `<div class="tc-map"><span class="tc-map-ico">◈</span><span class="tc-map-nm">${mp}</span><div class="tc-map-bar"><i style="width:${has?sm.wr:0}%;background:${c}"></i></div><span class="tc-map-pct" style="color:${c}">${has?sm.wr+'%':'—'}</span><span class="tc-map-g">${has?sm.games+'g':''}</span></div>`;}).join('');
     const cell=(name,l1,l1c,l2)=>`<div class="tc-hero"><img src="${_heroIcon(name)}" onerror="${_heroIconErr(name)}"><div class="tc-hero-nm">${name}</div><div class="tc-hero-l1" style="color:${l1c}">${l1}</div>${l2?`<div class="tc-hero-l2">${l2}</div>`:''}</div>`;
-    const picks=(t.topPicks||[]), bans=(t.topBans||[]);
-    const tpc=picks.slice(0,6).map(p=>cell(p.name,(p.wr||0)+'% WR',_C(p.wr||0),'x'+p.count)).join('')||'<span class="tc-none">No pick data yet</span>';
-    const tbc=bans.slice(0,6).map(b=>cell(b.name,'x'+b.count,'var(--red)','')).join('')||'<span class="tc-none">No ban data yet</span>';
+    const tpc=(t.topPicks||[]).slice(0,5).map(p=>cell(p.name,(p.wr||0)+'%',_C(p.wr||0),'x'+p.count)).join('')||'<span class="tc-none">No data</span>';
+    const tbc=(t.topBans||[]).slice(0,5).map(b=>cell(b.name,'x'+b.count,'var(--red)','')).join('')||'<span class="tc-none">No data</span>';
+    const rankBadge = t.rsRank ? ('#'+t.rsRank) : String(rank);
     const esc=(t.name||'').replace(/'/g,"\\'");
-    const rankTxt = t.rsRank ? `RS #${t.rsRank}` : `#${rank}`;
-    const _picon = t.placement==='Champion'?'🏆':t.placement==='Runner-up'?'🥈':t.placement==='3rd Place'?'🥉':'';
-    const placeBadge = t.placement ? `<span class="tc-place${t.placement==='Champion'?' champ':''}">${_picon} ${t.placement}</span>` : '';
-    return `<div class="tc" onclick="openTeamReport('${esc}')">
+    return `<div class="tc" style="--mc:${mo.color};--bg:url('${logo}')" onclick="openTeamReport('${esc}')">
       <div class="tc-head">
-        <span class="tc-logo${logo?'':' noimg'}" style="--mc:${mo.color}"><img src="${logo}" onerror="this.closest('.tc-logo').classList.add('noimg')"><i>${mo.init}</i></span>
-        <div style="flex:1;min-width:0;">
-          <div class="tc-name"><span class="tc-name-t">${t.name}</span><span class="tc-verif">✔</span></div>
-          <div class="tc-sub"><span class="tc-rank">${rankTxt}</span>${lg?`<span class="league-badge ${lgCss}">${lg}</span>`:''}${placeBadge}</div>
-        </div>
+        <span class="tc-rank">${rankBadge}</span>
+        <div class="tc-htext"><div class="tc-name"><span class="tc-name-t">${t.name}</span><span class="tc-verif">✔</span></div><div class="tc-league">${lg}${t.placement?` · <span class="tc-place${t.placement==='Champion'?' champ':''}">${t.placement}</span>`:''}</div></div>
+        <div class="tc-form">${form}${streak}</div>
       </div>
-      <div class="tc-kpis">
-        <div class="tc-kpi"><div class="tc-kv" style="color:${wrc}">${wr}%</div><div class="tc-kl">Win Rate</div></div>
-        <div class="tc-kpi"><div class="tc-kv">${t.wins||0}W ${t.losses||0}L</div><div class="tc-kl">Record</div></div>
-        <div class="tc-kpi"><div class="tc-kv" style="color:${bwrc}">${t.blueSideWR!=null?t.blueSideWR+'%':'—'}</div><div class="tc-kl">Blue Side</div></div>
-        <div class="tc-kpi"><div class="tc-kv" style="color:${rwrc}">${t.redSideWR!=null?t.redSideWR+'%':'—'}</div><div class="tc-kl">Red Side</div></div>
+      <div class="tc-top">
+        <div class="tc-logo-lg${logo?'':' noimg'}"><img src="${logo}" onerror="this.closest('.tc-logo-lg').classList.add('noimg')"><i>${mo.init}</i></div>
+        <div class="tc-hstats">
+          <div class="tc-h1">
+            <div class="tc-big"><div class="tc-bigv" style="color:${wrc}">${wr}%</div><div class="tc-kl">Win Rate</div></div>
+            <div><div class="tc-kv">${t.wins||0}W ${t.losses||0}L</div><div class="tc-kl">Record</div></div>
+          </div>
+          <div class="tc-h2">
+            <div><div class="tc-kv" style="color:${bwrc}">${t.blueSideWR!=null?t.blueSideWR+'%':'—'}</div><div class="tc-kl">Blue Side</div></div>
+            <div><div class="tc-kv" style="color:${rwrc}">${t.redSideWR!=null?t.redSideWR+'%':'—'}</div><div class="tc-kl">Red Side</div></div>
+            <div><div class="tc-kv">${t.poolDepth||0}</div><div class="tc-kl">Hero Pool</div></div>
+          </div>
+        </div>
       </div>
       <div class="tc-sec">
         <div class="tc-s"><div class="tc-sl">Turtle Ctrl</div><div class="tc-sv" style="color:var(--green)">${t.turtleCtrl!=null?t.turtleCtrl+'%':'—'}<span> ${t.turtleTotal?'('+t.turtleTotal+')':''}</span></div></div>
         <div class="tc-s"><div class="tc-sl">Lord Ctrl</div><div class="tc-sv" style="color:var(--gold)">${t.lordCtrl!=null?t.lordCtrl+'%':'—'}<span> ${t.lordTotal?'('+t.lordTotal+')':''}</span></div></div>
-        <div class="tc-s"><div class="tc-sl">Hero Pool</div><div class="tc-sv">${t.poolDepth||0}</div></div>
+        <div class="tc-s"><div class="tc-sl">First Blood</div><div class="tc-sv">${t.fbRate!=null?t.fbRate+'%':'—'}</div></div>
       </div>
-      <div class="tc-body">
-        <div class="tc-block"><div class="tc-seclbl">Map Win Rates</div><div class="tc-maps">${maps}</div></div>
-        <div class="tc-bodyR">
-          <div class="tc-block"><div class="tc-seclbl">Top Picks</div><div class="tc-hrow">${tpc}</div></div>
-          <div class="tc-block"><div class="tc-seclbl">Top Bans</div><div class="tc-hrow">${tbc}</div></div>
-        </div>
+      <div class="tc-block"><div class="tc-seclbl"><span>Map Win Rates</span><span class="tc-seclbl-r">Win Rate</span></div><div class="tc-maps">${maps}</div></div>
+      <div class="tc-pb">
+        <div class="tc-block"><div class="tc-seclbl"><span>Top Picks</span></div><div class="tc-hrow">${tpc}</div></div>
+        <div class="tc-block"><div class="tc-seclbl"><span>Top Bans</span></div><div class="tc-hrow">${tbc}</div></div>
       </div>
       <div class="tc-foot">
-        <button class="tc-btn primary" onclick="event.stopPropagation();openTeamReport('${esc}')">View Report</button>
-        <button class="tc-btn" onclick="event.stopPropagation();openH2H('${esc}')">H2H</button>
-        <button class="tc-btn" onclick="event.stopPropagation();openTeamEditor('${esc}')">Edit</button>
+        <button class="tc-btn primary" onclick="event.stopPropagation();openTeamReport('${esc}')">▥ View Report</button>
+        <button class="tc-btn" onclick="event.stopPropagation();openH2H('${esc}')">⚔︎ H2H</button>
+        <button class="tc-btn" onclick="event.stopPropagation();openTeamEditor('${esc}')">✎ Edit</button>
       </div>
     </div>`;
   }).join('') + _renderPager(teams.length, TEAM_PAGE_SIZE, _teamPage, 'goTeamPage');
