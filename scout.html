@@ -305,7 +305,7 @@ body {
 .team-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;}
 @media(max-width:760px){.team-grid{grid-template-columns:1fr;}}
 .tc{position:relative;overflow:hidden;background:rgba(255,255,255,.022);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;cursor:pointer;transition:border-color .15s,box-shadow .15s;display:flex;flex-direction:column;gap:12px;}
-.tc::before{content:'';position:absolute;top:50%;right:-7%;transform:translateY(-50%);width:200px;height:200px;background-image:var(--bg);background-repeat:no-repeat;background-position:center;background-size:contain;opacity:.04;pointer-events:none;filter:grayscale(.2);}
+.tc::before{content:none;}
 .tc>*{position:relative;z-index:1;}
 .tc:hover{border-color:rgba(124,92,246,.4);box-shadow:0 0 0 1px rgba(124,92,246,.22),0 8px 24px rgba(124,92,246,.1);}
 .tc-head{display:flex;align-items:flex-start;gap:10px;}
@@ -324,8 +324,13 @@ body {
 .tc-streak{font-size:9px;font-weight:800;color:var(--green);background:var(--green-dim);border:1px solid var(--green-border);padding:2px 6px;border-radius:5px;}
 /* hero row: big logo + headline stats */
 .tc-top{display:flex;align-items:center;gap:14px;}
-.tc-logo-lg{width:108px;height:108px;flex-shrink:0;position:relative;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:38px;border-radius:14px;}
-.tc-logo-lg img{width:100%;height:100%;object-fit:contain;}
+.tc-logo-lg{width:108px;height:108px;flex-shrink:0;position:relative;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:38px;border-radius:14px;overflow:visible;}
+/* colored glow behind the logo, tinted to the team's colour */
+.tc-logo-lg::before{content:'';position:absolute;inset:-18%;border-radius:50%;background:radial-gradient(circle,var(--mc,#7C5CF6) 0%,transparent 60%);opacity:.30;filter:blur(14px);z-index:0;}
+/* faint enlarged echo of the logo, directly behind it */
+.tc-logo-lg::after{content:'';position:absolute;inset:-14%;background-image:var(--bg);background-repeat:no-repeat;background-position:center;background-size:contain;opacity:.08;z-index:0;}
+.tc-logo-lg img{position:relative;z-index:1;width:100%;height:100%;object-fit:contain;}
+.tc-logo-lg i{position:relative;z-index:1;}
 .tc-logo-lg i{font-style:normal;display:none;}
 .tc-logo-lg.noimg{background:linear-gradient(135deg,var(--mc,#7C5CF6),var(--mc,#7C5CF6)cc);}
 .tc-logo-lg.noimg img{display:none;}.tc-logo-lg.noimg i{display:flex;}
