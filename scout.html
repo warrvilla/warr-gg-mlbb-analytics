@@ -305,7 +305,7 @@ body {
 .team-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start;}
 @media(max-width:760px){.team-grid{grid-template-columns:1fr;}}
 .tc{position:relative;overflow:hidden;background:rgba(255,255,255,.022);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;cursor:pointer;transition:border-color .15s,box-shadow .15s;display:flex;flex-direction:column;gap:12px;}
-.tc::before{content:'';position:absolute;top:-8%;left:-3%;width:52%;height:116%;background-image:var(--bg);background-repeat:no-repeat;background-position:center;background-size:contain;opacity:.05;pointer-events:none;}
+.tc::before{content:'';position:absolute;top:50%;right:-7%;transform:translateY(-50%);width:200px;height:200px;background-image:var(--bg);background-repeat:no-repeat;background-position:center;background-size:contain;opacity:.04;pointer-events:none;filter:grayscale(.2);}
 .tc>*{position:relative;z-index:1;}
 .tc:hover{border-color:rgba(124,92,246,.4);box-shadow:0 0 0 1px rgba(124,92,246,.22),0 8px 24px rgba(124,92,246,.1);}
 .tc-head{display:flex;align-items:flex-start;gap:10px;}
