@@ -3523,7 +3523,7 @@ function renderTeams() {
           <div class="page-title">Team Profiles</div>
           <div class="tc-hsub">Detailed team performance and insights</div>
         </div>
-        ${(typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin())?`<button class="btn btn-accent btn-sm" onclick="openTeamEditor(null)">+ Add Team</button>`:''}
+        ${(typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin())?`<button class="btn btn-accent btn-sm" onclick="openTeamEditor(null)">+ Add Team</button><button class="btn btn-ghost btn-sm" onclick="syncAllTeamMeta()" title="Push all team profile info (rank, link, notes) to the cloud so every account sees it">⟳ Sync profiles to cloud</button>`:''}
         <div class="search-bar tc-search"><input id="teamSearchInput" placeholder="Search teams…" oninput="_onTeamSearch(this.value)"></div>
         <div id="teamSortRow" class="tc-sortrow"></div>
       </div>
@@ -3618,6 +3618,27 @@ function _renderTeamsGrid() {
       </div>
     </div>`;
   }).join('') + _renderPager(teams.length, TEAM_PAGE_SIZE, _teamPage, 'goTeamPage');
+}
+
+// One-click: push every locally-stored team profile (rank, placement, link,
+// win condition, notes) up to the cloud team_meta table. Fixes the case where
+// info was entered before the table/sync existed, so it never reached other accounts.
+async function syncAllTeamMeta() {
+  if (!(typeof WAdmin!=='undefined' && WAdmin.isAdmin && WAdmin.isAdmin())) { toast('Admin only','error'); return; }
+  if (!(typeof WDB!=='undefined' && WDB.saveTeamMeta)) { toast('Sync unavailable','error'); return; }
+  const teams = DB_MODULE.getTeams();
+  const targets = Object.entries(teams).filter(([,t]) =>
+    t && ((t.rsRank!=='' && t.rsRank!=null) || t.placement || t.link || t.winCondition || t.coachNotes));
+  if (!targets.length) { toast('No team profile info found to sync'); return; }
+  let ok = 0, fail = 0, firstErr = '';
+  for (const [name, t] of targets) {
+    try {
+      await WDB.saveTeamMeta(name, { rsRank: t.rsRank, placement: t.placement, link: t.link, winCondition: t.winCondition, coachNotes: t.coachNotes });
+      ok++;
+    } catch(e) { fail++; if(!firstErr) firstErr = (e && e.message) || 'unknown'; }
+  }
+  if (fail) toast(`Synced ${ok}/${targets.length} — ${fail} failed: ${firstErr}`,'error');
+  else toast(`✓ Synced ${ok} team profile${ok>1?'s':''} to cloud — other accounts will see them on refresh`);
 }
 
 function openTeamEditor(teamName) {
