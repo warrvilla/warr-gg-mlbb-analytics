@@ -957,6 +957,44 @@ WDB.saveHeroRelation = async function(hero, type, heroes) {
   return { inserted: rows.length };
 };
 
+// ── TEAM PROFILE METADATA (cloud-synced so edits show on every device) ──
+// Stores admin-set fields that aren't derivable from matches: rank, playoff
+// placement, social link, win condition, coach notes. Requires migration 014.
+WDB.loadTeamMeta = async function() {
+  if (typeof _sbClient === 'undefined') return {};
+  try {
+    const { data, error } = await _sbClient
+      .from('team_meta')
+      .select('team_name, rs_rank, placement, link, win_condition, coach_notes');
+    if (error) throw error;
+    const out = {};
+    (data || []).forEach(r => {
+      out[r.team_name] = {
+        rsRank: r.rs_rank || '', placement: r.placement || '', link: r.link || '',
+        winCondition: r.win_condition || '', coachNotes: r.coach_notes || '',
+      };
+    });
+    return out;
+  } catch (e) { console.warn('[WDB] loadTeamMeta failed:', e.message); return {}; }
+};
+WDB.saveTeamMeta = async function(name, d) {
+  if (typeof _sbClient === 'undefined') throw new Error('Supabase not ready');
+  if (!name) return;
+  const user = (typeof WAuth !== 'undefined' && WAuth.getUser) ? WAuth.getUser() : null;
+  const row = {
+    team_name: name,
+    rs_rank: (d.rsRank===''||d.rsRank==null) ? null : Number(d.rsRank),
+    placement: d.placement || null,
+    link: d.link || null,
+    win_condition: d.winCondition || null,
+    coach_notes: d.coachNotes || null,
+    updated_by: user?.id || null,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await _sbClient.from('team_meta').upsert(row, { onConflict: 'team_name' });
+  if (error) throw error;
+};
+
 // ═══════════════════════════════════════════════════════════════
 // ── SUBSCRIPTION / TOKEN SYSTEM ──
 // 3-tier: free (10 tokens/mo) / pro (50/mo) / team (200/mo)

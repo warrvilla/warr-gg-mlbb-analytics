@@ -2071,6 +2071,14 @@ async function loadFromSupabase() {
       WDB.saveMatch(m).catch(() => {});
     }
     DB_MODULE.rebuildTeams();
+    // Apply cloud-synced team profile metadata (rank, placement, link, notes)
+    try {
+      if (WDB.loadTeamMeta) {
+        const meta = await WDB.loadTeamMeta();
+        const teams = DB_MODULE.getTeams();
+        Object.entries(meta).forEach(([n, d]) => { if (teams[n]) Object.assign(teams[n], d); });
+      }
+    } catch(_){}
     DB_MODULE.save();
     _setSyncStatus('ok');
     renderCurrentView();
@@ -3768,14 +3776,17 @@ function saveTeam(existing) {
     if (DB_MODULE.getTeams()[name] && !confirm(`"${name}" already exists — merge "${existing}" into it?`)) return;
     renamed = _renameTeamLocal(existing, name);   // rewrites all matches + moves profile (local)
   }
-  DB_MODULE.upsertTeam(name, {
+  const meta = {
     winCondition: document.getElementById('tf-wc')?.value||'',
     coachNotes:   document.getElementById('tf-notes')?.value||'',
     rsRank:       document.getElementById('tf-rs')?.value||'',
     placement:    document.getElementById('tf-po')?.value||'',
     link:         document.getElementById('tf-link')?.value?.trim()||'',
-  });
+  };
+  DB_MODULE.upsertTeam(name, meta);
   DB_MODULE.save();
+  // Cloud-sync the profile so it shows on every device (requires migration 014)
+  try { if (typeof WDB!=='undefined' && WDB.saveTeamMeta) WDB.saveTeamMeta(name, meta).catch(()=>{}); } catch(_){}
   document.getElementById('teamModal')?.remove();
   renderTeams();
   toast(`✓ ${name} saved`);
