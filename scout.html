@@ -256,7 +256,7 @@ body {
 .md-league{font-size:10px;font-weight:700;letter-spacing:.04em;color:#A78BFA;background:rgba(124,92,246,.14);border:1px solid rgba(124,92,246,.28);border-radius:5px;padding:3px 8px;}
 .md-rank{font-size:11px;font-weight:600;color:var(--text3);}
 .md-headctrls{display:flex;align-items:center;gap:6px;flex-shrink:0;}
-.md-follow{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:var(--text2);border-radius:9px;padding:8px 13px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.md-follow{display:inline-flex;align-items:center;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14);color:var(--text2);border-radius:9px;padding:8px 13px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;text-decoration:none;}
 .md-follow:hover{background:rgba(255,255,255,.09);color:var(--text);}
 .md-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;border-top:1px solid rgba(255,255,255,.06);padding-top:13px;}
 .md-kpi{text-align:left;min-width:0;}
@@ -1833,7 +1833,7 @@ const DB_MODULE = (() => {
   function rebuildTeams() {
     const preserved = {};
     Object.values(_db.teams).forEach(t => {
-      preserved[t.name] = { winCondition: t.winCondition||'', coachNotes: t.coachNotes||'', rsRank: t.rsRank||'', placement: t.placement||'' };
+      preserved[t.name] = { winCondition: t.winCondition||'', coachNotes: t.coachNotes||'', rsRank: t.rsRank||'', placement: t.placement||'', link: t.link||'' };
     });
     _db.teams = {};
 
@@ -2452,6 +2452,7 @@ function renderMatchList() {
   const _kd=t.kd||'—';
   const _mo=(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(_focusTeam||'?'):{init:'?',color:'#7C5CF6'};
   const _logoUrl=(typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(_focusTeam||''):'';
+  const _flink=((DB_MODULE.getTeams()[_focusTeam]||{}).link||'').trim();
   const _league=(t.leagues&&t.leagues[0])||'';
   const bl=[];
   if(t.blueSideWR!=null&&t.redSideWR!=null) bl.push(`Strongest on ${t.blueSideWR>=t.redSideWR?'Blue':'Red'} side (${Math.max(t.blueSideWR,t.redSideWR)}% WR).`);
@@ -2479,7 +2480,7 @@ function renderMatchList() {
              <div class="md-headctrls">
                <button class="md-nav" onclick="cycleFocusTeam(-1)" title="Previous team" aria-label="Previous team">‹</button>
                <button class="md-nav" onclick="cycleFocusTeam(1)" title="Next team" aria-label="Next team">›</button>
-               <button class="md-follow">★ Follow Team</button>
+               ${_flink?`<a class="md-follow" href="${_flink.replace(/"/g,'&quot;')}" target="_blank" rel="noopener">★ Follow Team</a>`:`<button class="md-follow" onclick="openTeamEditor('${(_focusTeam||'').replace(/'/g,"\\'")}')" title="No link yet — click to add a Team Link in Edit">★ Follow Team</button>`}
              </div>
            </div>
            <div class="md-kpis">
@@ -3641,6 +3642,10 @@ function openTeamEditor(teamName) {
           </div>
         </div>
         <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label">Team Link <span style="color:var(--text4);font-size:11px;font-weight:400;">(Follow Team button opens this — FB/IG/YouTube/page)</span></label>
+          <input class="form-input" id="tf-link" placeholder="https://facebook.com/teamname" value="${(t.link||'').replace(/"/g,'&quot;')}">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
           <label class="form-label">Win Condition</label>
           <input class="form-input" id="tf-wc" placeholder="e.g. Hypercarry protect composition" value="${t.winCondition||''}">
         </div>
@@ -3768,6 +3773,7 @@ function saveTeam(existing) {
     coachNotes:   document.getElementById('tf-notes')?.value||'',
     rsRank:       document.getElementById('tf-rs')?.value||'',
     placement:    document.getElementById('tf-po')?.value||'',
+    link:         document.getElementById('tf-link')?.value?.trim()||'',
   });
   DB_MODULE.save();
   document.getElementById('teamModal')?.remove();
