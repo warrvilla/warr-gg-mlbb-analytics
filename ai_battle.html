@@ -284,33 +284,42 @@ body {background: var(--bg);color:var(--text);font-family:var(--font-body);heigh
 .scout-lb.active{background:var(--blue-dim);border-color:var(--blue-border);color:var(--blue);}
 
 /* ── MOBILE / TABLET RESPONSIVE ── */
-@media (max-width: 1100px) {
+@media (max-width: 1300px) {
   .draft-layout { grid-template-columns: 260px 1fr 260px; }
 }
-/* iPad / small-laptop landscape: the 3-col layout squeezes the pool to ~3 cards.
-   Narrow the side panels and shrink hero cards so 5-6 fit per row. */
-@media (min-width: 901px) and (max-width: 1200px) {
+/* iPad (portrait + landscape) and small laptops: KEEP all 3 columns so the full
+   draft (both teams' bans + picks) stays on screen with NO page scroll — only the
+   hero pool scrolls internally. Narrow the side panels, shrink hero cards, and
+   compact the pick/ban slots so all 10 slots fit the viewport height. */
+@media (min-width: 681px) and (max-width: 1300px) {
+  .draft-layout { grid-template-columns: 176px 1fr 176px; }
+  .hero-card { width: 96px; height: 118px; padding: 6px 5px 5px; }
+  .hero-img { width: 74px; height: 74px; }
+  .hero-cname { font-size: 10px; }
+  .hero-crole { font-size: 8px; }
+  .team-panel { padding: 9px 10px; }
+  .team-header { margin-bottom: 8px; padding-bottom: 7px; }
+  .team-name-lbl { font-size: 12px; }
+  .side-tag { font-size: 8px; }
+  .panel-sec-label { margin-bottom: 4px; font-size: 9px; }
+  .bans-row { gap: 3px; margin-bottom: 8px; }
+  .ban-slot { width: 36px; height: 44px; }
+  .ban-slot img { width: 28px; height: 28px; }
+  .pick-slots { gap: 4px; }
+  .pick-slot { min-height: 0; padding: 5px 7px; gap: 7px; }
+  .slot-img, .slot-placeholder { width: 34px; height: 34px; }
+  .slot-hname { font-size: 11px; }
+  .slot-role { font-size: 8px; margin-top: 0; }
+  .slot-lane { font-size: 7px; margin-top: 2px; }
+  .hero-grid { gap: 6px; padding: 10px 12px; }
+}
+/* Larger iPads / laptops have room for slightly bigger side panels */
+@media (min-width: 1000px) and (max-width: 1300px) {
   .draft-layout { grid-template-columns: 200px 1fr 200px; }
-  .hero-card { width: 104px; height: 128px; }
+  .hero-card { width: 104px; height: 126px; }
   .hero-img { width: 80px; height: 80px; }
 }
-@media (max-width: 900px) {
-  .draft-layout { grid-template-columns: 1fr 1fr; min-height: auto; }
-  .team-panel.blue-panel { grid-column: 1; border-right: 1px solid var(--border); }
-  .team-panel.red-panel { grid-column: 2; border-left: 1px solid var(--border); }
-  .pool-section { grid-column: 1 / -1; }
-}
-@media (min-width: 769px) and (max-width: 900px) {
-  /* iPad portrait: pool is full-width here, so 110px cards fit ~6 per row */
-  .hero-card { width: 110px; height: 134px; }
-  .hero-img { width: 88px; height: 88px; }
-}
-@media (max-width: 768px) {
-  /* hero-grid columns handled by flex-wrap + hero-card width */
-  .hero-card { width: 110px; height: 134px; }
-  .hero-img { width: 88px; height: 88px; }
-}
-@media (max-width: 640px) {
+@media (max-width: 680px) {
   /* Teams side-by-side, pool below */
   .draft-layout { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; }
   .team-panel.blue-panel { grid-column: 1; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
@@ -809,6 +818,9 @@ input:focus, .search-input:focus {
 /* Scroll fix: page scrolls as one column under the sticky nav (was a fragile
    inner flex-scroll container that clipped top/bottom). */
 .page-body{overflow-y:auto !important;}
+/* In the draft arena, lock the page so the whole board fits the viewport — only
+   the hero pool scrolls. (The page-scroll above is only for the setup screen.) */
+body.in-battle .page-body{overflow:hidden !important;}
 #setup{overflow:visible !important;flex:0 0 auto !important;height:auto !important;min-height:calc(100dvh - var(--nav-h,52px)) !important;}
 .ab-hero{position:relative;border-radius:22px;overflow:hidden;margin-bottom:20px;padding:30px 30px 26px;
   background:radial-gradient(ellipse 60% 130% at 88% 15%,rgba(150,70,210,.34) 0%,transparent 60%),linear-gradient(120deg,#0E0A18,#130A20);
@@ -2116,10 +2128,11 @@ function startBattle(){
   else _seriesClear();
   document.getElementById('setup').style.display='none';
   document.getElementById('battle').style.display='flex';
+  document.body.classList.add('in-battle');
   document.getElementById('result').classList.remove('show');
   initBattle();
 }
-function goSetup(){_seriesClear();const sc=document.getElementById('seriesChip');if(sc)sc.style.display='none';document.getElementById('result').classList.remove('show');document.getElementById('battle').style.display='none';document.getElementById('setup').style.display='block';}
+function goSetup(){_seriesClear();const sc=document.getElementById('seriesChip');if(sc)sc.style.display='none';document.getElementById('result').classList.remove('show');document.getElementById('battle').style.display='none';document.getElementById('setup').style.display='block';document.body.classList.remove('in-battle');}
 function rematch(){document.getElementById('result').classList.remove('show');initBattle();}
 
 // ═══════ INIT ═══════
