@@ -1694,7 +1694,11 @@ const LANE_ICONS_AB  = { Gold:'GLD', Mid:'MID', Roam:'RMG', Jungle:'JGL', EXP:'E
 // Populated at startup from WDB.computeHeroLaneSets in the boot block below.
 const SCOUT_CONFIRMED_LANES = {};
 
-function getHeroLanesAB(h) {
+function getHeroLanesAB(h, ctx) {
+  // 0. TEAM IDENTITY (ctx) wins over everything: lane is team-specific. When the
+  //    AI emulates a scouted team, that team's own recent lanes for this hero are
+  //    authoritative (BTR's Yi Sun-shin = Jungle even if the global set says Gold).
+  if (ctx && ctx[h.name]) return ctx[h.name];
   // 1. Scout-confirmed lanes are authoritative — return ONLY observed lanes,
   //    no role-based speculation. Fixes Phoveus-as-Jungle (he's an EXP fighter).
   if (SCOUT_CONFIRMED_LANES[h.name]) return SCOUT_CONFIRMED_LANES[h.name];
@@ -1721,6 +1725,13 @@ function getHeroLanesAB(h) {
 let pName='You',pSide='blue',aiSide='red',diff='hard';
 let ST={step:0,bb:[],rb:[],bp:[],rp:[],hist:[]};
 let af='All',alane='All',sq='',aiThink=false,done=false,laneAssignmentsAB={},laneManualAB={};
+// Team-identity lane table for the team the AI emulates (enemy mode). Built at
+// initBattle from that team's recent games (with region fallback). Lane is
+// team-specific, so this only applies to the emulated (AI) side's reasoning.
+let _emuLaneTable=null;
+// Lane context for a given side: the emulated team's table for the AI side in
+// enemy mode, else null (global lanes — the human opponent has no identity).
+function _laneCtxForSide(sideTeam){return (aiMode==='enemy'&&_emuLaneTable&&sideTeam===aiSide)?_emuLaneTable:null;}
 let heroFilterModeAB = 'lane'; // 'lane' | 'role'
 let _side='blue',_diff='hard';
 let aiMode='enemy',enemyTeamName='',enemyProfile=null,aiArchetype=null;
@@ -2101,6 +2112,22 @@ function initBattle(){
   document.getElementById('bhAIName').style.color=aiColor;
   document.getElementById('bhAITag').textContent=isPvp?'P2':(isEnemy?'ENEMY':'AI');
   document.getElementById('bhAITag').style.cssText=isEnemy?'background:rgba(240,82,82,.12);color:var(--red);border:1px solid rgba(240,82,82,.3);':'';
+  // TEAM-IDENTITY LANES: when emulating a scouted team, learn how THAT team
+  // (then its region) actually plays each hero recently, so the AI drafts heroes
+  // into the lanes the team really uses — not a stale global default.
+  _emuLaneTable=null;
+  if(isEnemy && typeof WDB!=='undefined' && WDB.computeHeroLanesScoped){
+    try{
+      const _ms=loadScoutAB().matches||[];
+      const _tn=enemyProfile.name;
+      const _teamL=WDB.computeHeroLanesScoped(_ms,{team:_tn});
+      // region = the league this team plays most
+      const _lgC={};_ms.forEach(m=>{if((m.blueTeam===_tn||m.redTeam===_tn)&&m.league)_lgC[m.league]=(_lgC[m.league]||0)+1;});
+      const _region=Object.entries(_lgC).sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
+      const _regionL=_region?WDB.computeHeroLanesScoped(_ms,{league:_region}):{};
+      _emuLaneTable=Object.assign({},_regionL,_teamL); // team overrides region
+    }catch(e){_emuLaneTable=null;}
+  }
   // Determine AI archetype: infer from scout identity, else random
   const _aiSide=pSide==='blue'?'red':'blue';
   const _epCoreForArch=isEnemy?[...new Set([...(_aiSide==='blue'?enemyProfile.blueSideCore||[]:enemyProfile.redSideCore||[]),...(enemyProfile.topPicks||[]).slice(0,6)])]:[];
@@ -2181,7 +2208,7 @@ function canPickHero(h,myPicks){
 // first reads Roam, but once a dedicated roamer lands, Baxia re-reads Jungle.
 // The old commit-time greedy lock froze the first guess for the whole draft,
 // which made the AI model the wrong board against flex picks.
-function resolveTeamLanesAB(team){
+function resolveTeamLanesAB(team,ctx){
   if(!team||!team.length)return;
   const fixed={},flexIdx=[];
   team.forEach((p,i)=>{
@@ -2189,7 +2216,7 @@ function resolveTeamLanesAB(team){
     else flexIdx.push(i);
   });
   const ALL5=['Gold','Jungle','Mid','EXP','Roam'];
-  const opts=team.map(p=>{const o=getHeroLanesAB(p).filter(l=>l!=='Flex');return o.length?o:ALL5.slice();});
+  const opts=team.map(p=>{const o=getHeroLanesAB(p,ctx).filter(l=>l!=='Flex');return o.length?o:ALL5.slice();});
   let best=null,bestScore=-1;
   const used=new Set(Object.values(fixed)),cur={};
   const order=flexIdx.slice().sort((a,b)=>opts[a].length-opts[b].length);
@@ -2407,7 +2434,7 @@ function commit(h){
     // Push first, then re-resolve the WHOLE team's lanes. Flex reads update as
     // the comp fills; the user's manual lane cycles stay locked.
     s.team==='blue'?ST.bp.push(h):ST.rp.push(h);
-    resolveTeamLanesAB(s.team==='blue'?ST.bp:ST.rp);
+    resolveTeamLanesAB(s.team==='blue'?ST.bp:ST.rp,_laneCtxForSide(s.team));
   }
   // Track EVERY AI ban across recent matches so future games diversify ban pools.
   if(s.type==='ban'&&s.team===aiSide){
@@ -2442,7 +2469,7 @@ function undoPick(){
   }
   done=false;document.getElementById('anaBtn').disabled=(ST.bp.length+ST.rp.length)<6;
   // Re-normalize both ledgers — resolution depends on full team state.
-  resolveTeamLanesAB(ST.bp);resolveTeamLanesAB(ST.rp);
+  resolveTeamLanesAB(ST.bp,_laneCtxForSide('blue'));resolveTeamLanesAB(ST.rp,_laneCtxForSide('red'));
   document.getElementById('result').classList.remove('show');
   renderAll();updateTurn();toast('Undone');
 }
@@ -3469,17 +3496,18 @@ function evidenceAB(){
 }
 
 // ═══════ LANE LEDGER (§5) — duplicate lanes structurally impossible ═══════
-function _laneOptsAB(p){
+function _laneOptsAB(p,ctx){
   const a=laneAssignmentsAB[p.id];
   if(a&&a!=='Flex')return[a];
-  const o=getHeroLanesAB(p).filter(l=>l!=='Flex');
+  const o=getHeroLanesAB(p,ctx).filter(l=>l!=='Flex');
   return o.length?o:LANES5.slice();
 }
 // Bipartite check: after adding cand, does a valid 1-per-lane assignment still exist?
-function laneFeasibleAB(myP,cand){
+// ctx (optional) = team-identity lane table for the side being evaluated.
+function laneFeasibleAB(myP,cand,ctx){
   const team=cand?[...myP,cand]:myP.slice();
   if(team.length>5)return false;
-  const opts=team.map(_laneOptsAB);
+  const opts=team.map(p=>_laneOptsAB(p,ctx));
   const order=opts.map((_,i)=>i).sort((a,b)=>opts[a].length-opts[b].length);
   const used=new Set();
   const bt=k=>{
@@ -3595,6 +3623,9 @@ function draftBrainAB(step,opts){
   const avail=HEROES.filter(h=>!usedIds.has(h.id));
   const myP=step.team==='blue'?ST.bp:ST.rp;
   const oppP=step.team==='blue'?ST.rp:ST.bp;
+  // Lane-identity context for OUR side only (the emulated team). The opponent
+  // (human) stays on global lanes, so we never mis-model their picks.
+  const myCtx=(!forHuman&&aiMode==='enemy'&&_emuLaneTable&&step.team===aiSide)?_emuLaneTable:null;
   const myNames=myP.map(h=>h.name),oppNames=oppP.map(h=>h.name);
   const {needed:myNeeded}=needs(myP),{needed:oppNeeded}=needs(oppP);
   const ev=evidenceAB();
@@ -3721,7 +3752,7 @@ function draftBrainAB(step,opts){
       // must-bans are exempt — those we deny no matter what.) Works in every mode,
       // unlike the older ep-only guard, so the AI stops banning its own favorites.
       if(h.mp!=='mustban'){
-        const _myLns=getHeroLanesAB(h).filter(l=>l!=='Flex');
+        const _myLns=getHeroLanesAB(h,myCtx).filter(l=>l!=='Flex');
         const _fillsMine=_myLns.length===0||_myLns.some(L=>myNeeded.includes(L));
         if(_fillsMine&&['S','A'].includes(_dbTier(h.name))){
           const _after=DRAFT_ORDER.slice(idx+1);
@@ -3777,7 +3808,7 @@ function draftBrainAB(step,opts){
 
   // ═══════ PICK TURN ═══════
   // LEGAL (§5): feasibility via lane ledger — no scoring can override this
-  let legal=avail.filter(h=>myP.length<5&&laneFeasibleAB(myP,h));
+  let legal=avail.filter(h=>myP.length<5&&laneFeasibleAB(myP,h,myCtx));
   // ENEMY pool gate (§6): thick data + never picked + rare league-wide → not their hero
   if(ep){
     const sideGames=side==='blue'?(ep.blueSideCount||0):(ep.redSideCount||0);
@@ -3823,7 +3854,7 @@ function draftBrainAB(step,opts){
     const br=blindRiskAB(h.name,usedIds);
     const flex=flexCountAB(h);
     const gateFix=_fixesGateAB(h,audit.gates);
-    const fillsScarce=!!(scarce.lane&&getHeroLanesAB(h).includes(scarce.lane));
+    const fillsScarce=!!(scarce.lane&&getHeroLanesAB(h,myCtx).includes(scarce.lane));
     const teamRate=ep?ev.teamPickRate(h.name,side):null;
     const phaseFit=ep?(pickPhase===1?phase1.includes(h.name):phase2.includes(h.name)):false;
     const archFit=arch?((arch.roleWeights[getHeroRole(h.name)]||0)*8+(arch.heroKeys.includes(h.name)?20:0)):0;
@@ -3910,7 +3941,7 @@ function draftBrainAB(step,opts){
   const best=cands[0];
   const hero=best?.h
     ||legal.sort((a,b)=>_dbTierScore(b.name)-_dbTierScore(a.name))[0]
-    ||avail.filter(h=>laneFeasibleAB(myP,h))[0]
+    ||avail.filter(h=>laneFeasibleAB(myP,h,myCtx))[0]
     ||avail[0];
   const lnPick=pickLaneForHero(hero,myP);
   const lead={

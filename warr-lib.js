@@ -1635,6 +1635,67 @@ WDB.computeHeroLaneSets = async function(minSamples = 2) {
   return result;
 };
 
+/**
+ * Team/region-scoped hero→lanes, with a recency window AND a share threshold.
+ * Lane is *identity*, not a hero attribute — BTR may run Yi Sun-shin Jungle
+ * while another team runs him Gold. This returns, for the requested scope,
+ * the lane(s) that scope ACTUALLY plays each hero in recent games — so stale
+ * one-off / old-patch lanes age out instead of polluting the set forever.
+ *
+ * @param {Array}  matches  match objects (from loadMatches) with {date, league, blueTeam, redTeam, bluePicks, redPicks}
+ * @param {Object} opts
+ *   - team        only count this team's side of each match (the identity we emulate)
+ *   - league      only count matches in this league (the regional fallback)
+ *   - recentDays  ignore games older than this many days (default 150)
+ *   - recentN     hard cap on how many recent games to consider (default 30)
+ *   - minShare    a lane must be >= this fraction of the hero's games to qualify (default 0.25)
+ *   - minGames    ...and appear at least this many times (default 2)
+ * Returns { heroName: [lane, ...] } ordered by frequency. The single most-common
+ * lane is always kept even if below threshold, so a hero with data always resolves.
+ */
+WDB.computeHeroLanesScoped = function(matches, opts = {}) {
+  const { team = null, league = null, recentDays = 150, recentN = 30, minShare = 0.25, minGames = 2 } = opts;
+  if (!Array.isArray(matches) || !matches.length) return {};
+  let scoped = matches.filter(m => {
+    if (team)   return m.blueTeam === team || m.redTeam === team;
+    if (league) return m.league === league;
+    return true;
+  });
+  // newest first; matches with no usable date sort to the bottom (treated as old)
+  const dated = scoped
+    .map(m => ({ m, t: m.date ? (Date.parse(m.date) || 0) : 0 }))
+    .sort((a, b) => b.t - a.t);
+  const cutoff = recentDays ? (Date.now() - recentDays * 86400000) : 0;
+  let recent = dated.filter(d => d.t && d.t >= cutoff);
+  // too little fresh data → fall back to the most recent N regardless of age,
+  // so a team that hasn't played lately still has an identity to emulate.
+  if (recent.length < 4) recent = dated.slice(0, recentN);
+  else recent = recent.slice(0, recentN);
+
+  const counts = {}; // hero -> { lane: n, _tot: n }
+  recent.forEach(({ m }) => {
+    const sides = team
+      ? [ m.blueTeam === team ? m.bluePicks : null, m.redTeam === team ? m.redPicks : null ].filter(Boolean)
+      : [ m.bluePicks, m.redPicks ];
+    sides.forEach(picks => (picks || []).forEach(p => {
+      if (!p || !p.name || !p.lane) return;
+      const c = counts[p.name] || (counts[p.name] = { _tot: 0 });
+      c[p.lane] = (c[p.lane] || 0) + 1;
+      c._tot++;
+    }));
+  });
+
+  const out = {};
+  Object.entries(counts).forEach(([hero, lc]) => {
+    const tot = lc._tot;
+    const ranked = Object.entries(lc).filter(([k]) => k !== '_tot').sort((a, b) => b[1] - a[1]);
+    let lanes = ranked.filter(([, n]) => n >= minGames && (n / tot) >= minShare).map(([l]) => l);
+    if (!lanes.length && ranked.length) lanes = [ranked[0][0]]; // always keep the primary
+    if (lanes.length) out[hero] = lanes;
+  });
+  return out;
+};
+
 // ═══════════════════════════════════════════════════════════════
 // ADMIN HELPERS
 // ═══════════════════════════════════════════════════════════════
