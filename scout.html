@@ -2090,6 +2090,21 @@ async function loadFromSupabase() {
         const meta = await WDB.loadTeamMeta();
         const teams = DB_MODULE.getTeams();
         Object.entries(meta).forEach(([n, d]) => { if (teams[n]) Object.assign(teams[n], d); });
+        // ADMIN AUTO-BACKFILL: any team profile that exists only in this admin's
+        // local data (e.g. links set before the cloud table existed) gets pushed
+        // up automatically, so free users see it without a manual sync step.
+        const _isAdm = typeof WAdmin!=='undefined' && WAdmin.isAdmin && WAdmin.isAdmin();
+        if (_isAdm && WDB.saveTeamMeta) {
+          Object.entries(teams).forEach(([n, t]) => {
+            if (!t) return;
+            const hasLocal = t.link || t.rsRank || t.placement || t.winCondition || t.coachNotes;
+            const c = meta[n];
+            const cloudHas = c && (c.link || c.rsRank || c.placement || c.winCondition || c.coachNotes);
+            if (hasLocal && !cloudHas) {
+              WDB.saveTeamMeta(n, { rsRank:t.rsRank, placement:t.placement, link:t.link, winCondition:t.winCondition, coachNotes:t.coachNotes }).catch(()=>{});
+            }
+          });
+        }
       }
     } catch(_){}
     DB_MODULE.save();
