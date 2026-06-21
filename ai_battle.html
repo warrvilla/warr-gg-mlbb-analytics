@@ -879,7 +879,7 @@ input:focus, .search-input:focus {
 /* opponent mode cards (icon + text) */
 .ab-modes-2{grid-template-columns:1fr 1fr;}
 /* reserve a stable height so switching opponent modes doesn't shift the layout */
-.ab-oppbody{min-height:300px;}
+.ab-oppbody{height:360px;overflow-y:auto;overflow-x:hidden;}
 #setup .ab-mode{display:flex;align-items:center;gap:11px;text-align:left;}
 .ab-mode-ico{width:40px;height:40px;border-radius:11px;background:rgba(124,92,246,.12);border:1px solid rgba(124,92,246,.25);
   display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:18px;flex-shrink:0;}
