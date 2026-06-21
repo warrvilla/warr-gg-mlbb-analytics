@@ -2291,7 +2291,15 @@ function getFilteredMatches() {
       const wk = _weekGroup(m.week) || _UNLABELED_WEEK;
       if (wk !== weekFilter) return false;
     }
-    if (q && !m.blueTeam.toLowerCase().includes(q) && !m.redTeam.toLowerCase().includes(q) && !(m.notes||'').toLowerCase().includes(q)) return false;
+    if (q) {
+      const inText = m.blueTeam.toLowerCase().includes(q) || m.redTeam.toLowerCase().includes(q) || (m.notes||'').toLowerCase().includes(q);
+      let inHero = false;
+      if (!inText) {
+        inHero = [...(m.bluePicks||[]), ...(m.redPicks||[]), ...(m.blueBans||[]), ...(m.redBans||[])]
+          .some(h => String((h && (h.name||h)) || '').toLowerCase().includes(q));
+      }
+      if (!inText && !inHero) return false;
+    }
     return true;
   });
 }
@@ -2498,7 +2506,7 @@ function renderMatchList() {
        <section class="md-logcard" id="matchListStatic">
          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
            <div><div class="page-title" style="font-size:16px;">Match Log</div><div class="page-sub" id="matchListSub" style="margin-top:2px;"></div></div>
-           <div class="search-bar" style="flex:1;min-width:150px;margin-left:auto;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--text3);flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg><input id="matchSearchInput" placeholder="Search teams or notes…" oninput="onMatchSearch(this.value)"></div>
+           <div class="search-bar" style="flex:1;min-width:150px;margin-left:auto;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--text3);flex-shrink:0;"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg><input id="matchSearchInput" placeholder="Search teams, heroes, or notes…" oninput="onMatchSearch(this.value)"></div>
            <select class="form-select" style="width:auto;font-size:11px;" onchange="matchSort=this.value;renderMatchListBody()"><option value="date">Sort by Date</option><option value="league">League</option><option value="blue">Blue Team</option><option value="red">Red Team</option></select>
            <select id="seasonFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="setSeasonFilter(this.value)"><option value="all">All Seasons</option></select>
            <select id="weekFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="setWeekFilter(this.value)"><option value="all">All Weeks</option></select>
