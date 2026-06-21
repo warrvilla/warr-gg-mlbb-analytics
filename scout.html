@@ -3616,10 +3616,10 @@ function openTeamEditor(teamName) {
         <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="document.getElementById('teamModal').remove()">✕</button>
       </div>
       <div class="modal-body">
-        ${!teamName ? `<div class="form-group" style="margin-bottom:12px;">
-          <label class="form-label">Team Name</label>
-          <input class="form-input" id="tf-name" placeholder="e.g. RSG PH" value="${t.name||''}">
-        </div>` : ''}
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label">Team Name${teamName ? ` <span style="color:var(--text4);font-size:11px;font-weight:400;">(renaming updates every match + page)</span>` : ''}</label>
+          <input class="form-input" id="tf-name" placeholder="e.g. RSG PH" value="${(t.name||teamName||'').replace(/"/g,'&quot;')}">
+        </div>
         <div style="display:flex;gap:12px;margin-bottom:12px;">
           <div class="form-group" style="flex:1;">
             <label class="form-label">Regular Season Rank</label>
@@ -3748,8 +3748,13 @@ function openTeamEditor(teamName) {
 }
 
 function saveTeam(existing) {
-  const name = existing || document.getElementById('tf-name')?.value?.trim();
+  const name = (document.getElementById('tf-name')?.value || existing || '').trim();
   if (!name) { toast('Enter team name'); return; }
+  let renamed = [];
+  if (existing && name !== existing) {
+    if (DB_MODULE.getTeams()[name] && !confirm(`"${name}" already exists — merge "${existing}" into it?`)) return;
+    renamed = _renameTeamLocal(existing, name);   // rewrites all matches + moves profile (local)
+  }
   DB_MODULE.upsertTeam(name, {
     winCondition: document.getElementById('tf-wc')?.value||'',
     coachNotes:   document.getElementById('tf-notes')?.value||'',
@@ -3760,6 +3765,36 @@ function saveTeam(existing) {
   document.getElementById('teamModal')?.remove();
   renderTeams();
   toast(`✓ ${name} saved`);
+  if (renamed.length) _renameTeamCloud(renamed, existing, name);   // push the renamed matches to the cloud
+}
+
+// Rewrite a team's name on every match + move its profile/logo override. Returns
+// the list of changed matches so the cloud sync can persist them.
+function _renameTeamLocal(oldName, newName) {
+  const changed = [];
+  DB_MODULE.getMatches().forEach(m => {
+    let ch = false;
+    if (m.blueTeam === oldName) { m.blueTeam = newName; ch = true; }
+    if (m.redTeam  === oldName) { m.redTeam  = newName; ch = true; }
+    if (ch) changed.push(m);
+  });
+  const teams = DB_MODULE.getTeams();
+  if (teams[oldName]) {
+    const prof = teams[oldName];
+    teams[newName] = { ...(teams[newName]||{}), ...prof, name: newName };
+    delete teams[oldName];
+  }
+  try { if (WDB._teamLogoOverrides && WDB._teamLogoOverrides[oldName]) { WDB._teamLogoOverrides[newName] = WDB._teamLogoOverrides[oldName]; delete WDB._teamLogoOverrides[oldName]; } } catch(_){}
+  DB_MODULE.rebuildTeams();
+  DB_MODULE.save();
+  return changed;
+}
+async function _renameTeamCloud(changed, oldName, newName) {
+  _setSyncStatus('syncing');
+  let ok = 0;
+  for (const m of changed) { try { await WDB.saveMatch(m); ok++; } catch(_){} }
+  _setSyncStatus(ok === changed.length ? 'ok' : 'err');
+  toast(`✓ "${oldName}" → "${newName}" · ${ok}/${changed.length} matches synced to cloud`);
 }
 
 function deleteTeam(name) {
