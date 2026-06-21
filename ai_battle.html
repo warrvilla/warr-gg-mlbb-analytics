@@ -878,6 +878,8 @@ input:focus, .search-input:focus {
 
 /* opponent mode cards (icon + text) */
 .ab-modes-2{grid-template-columns:1fr 1fr;}
+/* reserve a stable height so switching opponent modes doesn't shift the layout */
+.ab-oppbody{min-height:300px;}
 #setup .ab-mode{display:flex;align-items:center;gap:11px;text-align:left;}
 .ab-mode-ico{width:40px;height:40px;border-radius:11px;background:rgba(124,92,246,.12);border:1px solid rgba(124,92,246,.25);
   display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:18px;flex-shrink:0;}
@@ -1062,17 +1064,22 @@ input:focus, .search-input:focus {
   <section class="ab-card" style="position:relative;z-index:2;">
     <div class="ab-step"><span class="ab-num">2</span> CHOOSE YOUR OPPONENT</div>
     <div class="ab-modes ab-modes-2">
-      <div class="opt-card sel-gold ab-mode" id="mode-generic" onclick="setAIMode('generic');updateSummary()">
-        <span class="ab-mode-ico">◎</span>
-        <div><div class="opt-name">VS AI</div><div class="opt-desc">Optimized AI difficulty</div></div>
-      </div>
-      <div class="opt-card ab-mode" id="mode-enemy" onclick="setAIMode('enemy');updateSummary()">
+      <div class="opt-card sel-gold ab-mode" id="mode-enemy" onclick="setAIMode('enemy');updateSummary()">
         <span class="ab-mode-ico">✦</span>
         <div><div class="opt-name">VS MPL Team</div><div class="opt-desc">Real teams from MPL</div></div>
       </div>
+      <div class="opt-card ab-mode" id="mode-pvp" onclick="setAIMode('pvp');updateSummary()">
+        <span class="ab-mode-ico">⚔︎</span>
+        <div><div class="opt-name">VS Player</div><div class="opt-desc">1v1 hot-seat — 2 players draft</div></div>
+      </div>
     </div>
-    <input type="hidden" id="p2In" value="Player 2"/>
-    <div id="genericNote" class="ab-note" style="margin-top:14px;">The AI optimizes its draft to beat whatever you pick — a clean sparring partner that adapts to your choices.</div>
+    <div class="ab-oppbody">
+    <div id="pvpPanel" style="display:none;margin-top:14px;">
+      <div class="ab-lbl">Player names</div>
+      <input class="ab-input" id="p1In" placeholder="Player 1 (Blue)" value="Player 1" autocomplete="off" style="margin-bottom:8px;"/>
+      <input class="ab-input" id="p2In" placeholder="Player 2 (Red)" value="Player 2" autocomplete="off"/>
+      <div class="ab-note" style="margin-top:10px;">Hot-seat 1v1 — two people draft on the same screen, taking turns. No AI; pure mock-draft practice.</div>
+    </div>
     <div id="enemyTeamPanel" style="display:none;margin-top:14px;">
       <div id="enemyLeagueRow" class="ab-chips" style="margin-bottom:10px;"></div>
       <div id="enemyDD" class="ab-dd" style="margin-bottom:12px;">
@@ -1085,6 +1092,7 @@ input:focus, .search-input:focus {
       </div>
       <div id="enemyProfileCard" style="display:none;"></div>
     </div>
+    </div><!-- /ab-oppbody -->
   </section>
   </div><!-- /ab-top -->
 
@@ -1713,7 +1721,7 @@ let ST={step:0,bb:[],rb:[],bp:[],rp:[],hist:[]};
 let af='All',alane='All',sq='',aiThink=false,done=false,laneAssignmentsAB={},laneManualAB={};
 let heroFilterModeAB = 'lane'; // 'lane' | 'role'
 let _side='blue',_diff='hard';
-let aiMode='generic',enemyTeamName='',enemyProfile=null,aiArchetype=null;
+let aiMode='enemy',enemyTeamName='',enemyProfile=null,aiArchetype=null;
 let _selectedMap='', _battleMap='';
 
 // ═══════ SETUP ═══════
@@ -1772,18 +1780,11 @@ document.addEventListener('DOMContentLoaded',async()=>{
 
 // ═══════ ENEMY TEAM MODE ═══════
 function setAIMode(m){
+  if(m==='generic') m='enemy';   // VS AI mode removed
   aiMode=m;
-  document.getElementById('mode-generic').className='opt-card'+(m==='generic'?' sel-gold':'');
-  document.getElementById('mode-enemy').className='opt-card'+(m==='enemy'?' sel-gold':'');
-  const pvpEl=document.getElementById('mode-pvp');
-  if(pvpEl)pvpEl.className='opt-card'+(m==='pvp'?' sel-gold':'');
-  document.getElementById('enemyTeamPanel').style.display=m==='enemy'?'block':'none';
-  const gn=document.getElementById('genericNote');
-  if(gn)gn.style.display=m==='generic'?'block':'none';
-  const pp=document.getElementById('pvpPanel');
-  if(pp)pp.style.display=m==='pvp'?'block':'none';
-  // keep modes in their selected (ab-mode) class so the flex icon layout persists
-  ['generic','enemy'].forEach(x=>{const el=document.getElementById('mode-'+x);if(el)el.classList.add('ab-mode');});
+  ['enemy','pvp'].forEach(x=>{const el=document.getElementById('mode-'+x); if(el) el.className='opt-card ab-mode'+(m===x?' sel-gold':'');});
+  const ep=document.getElementById('enemyTeamPanel'); if(ep) ep.style.display=m==='enemy'?'block':'none';
+  const pp=document.getElementById('pvpPanel'); if(pp) pp.style.display=m==='pvp'?'block':'none';
   if(m==='enemy') populateEnemyDrop();
 }
 function getAllScoutedTeams(){
@@ -2047,7 +2048,8 @@ function nextSeriesGame(){
   initBattle();
 }
 function startBattle(){
-  pName=document.getElementById('nameIn').value.trim()||'You';
+  const _p1=document.getElementById('p1In');
+  pName=((aiMode==='pvp'&&_p1?_p1.value:document.getElementById('nameIn').value)||'').trim()||'You';
   p2Name=(document.getElementById('p2In')?.value||'').trim()||'Player 2';
   pSide=_side==='random'?(Math.random()<.5?'blue':'red'):_side;
   aiSide=pSide==='blue'?'red':'blue';
