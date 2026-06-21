@@ -328,12 +328,10 @@ body {
 .tc-fl{width:17px;height:17px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;}
 .tc-fl.w{color:var(--green);background:var(--green-dim);border:1px solid var(--green-border);}
 .tc-fl.l{color:var(--red);background:var(--red-dim);border:1px solid var(--red-border);}
-.tc-kpis{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:8px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:13px 10px;}
-.tc-kpi{text-align:center;}
-.tc-kv{font-size:19px;font-weight:800;color:var(--text);line-height:1;}
-.tc-kl{font-size:9px;color:var(--text3);margin-top:5px;text-transform:uppercase;letter-spacing:.03em;}
-.tc-kpi-hero .tc-kv{font-size:30px;}
-.tc-kpi-hero .tc-kl{color:var(--text2);font-weight:700;}
+.tc-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:13px 8px;}
+.tc-kpi{text-align:center;min-width:0;}
+.tc-kv{font-size:18px;font-weight:800;color:var(--text);line-height:1;white-space:nowrap;}
+.tc-kl{font-size:9px;color:var(--text3);margin-top:6px;text-transform:uppercase;letter-spacing:.03em;}
 .tc-sec{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);padding:11px 2px;}
 .tc-sl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px;}
 .tc-sv{font-size:14px;font-weight:800;color:var(--text);}
@@ -347,8 +345,8 @@ body {
 .tc-map-meta{display:flex;align-items:baseline;gap:6px;flex-shrink:0;}
 .tc-map-pct{font-weight:800;}
 .tc-map-g{color:var(--text3);font-size:9px;}
-.tc-map-bar{height:8px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden;}
-.tc-map-bar i{display:block;height:100%;border-radius:4px;}
+.tc-map-bar{height:5px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden;}
+.tc-map-bar i{display:block;height:100%;border-radius:3px;}
 .tc-hrow{display:flex;gap:10px;flex-wrap:wrap;}
 .tc-hero{text-align:center;width:46px;flex-shrink:0;}
 .tc-hero img{width:44px;height:44px;border-radius:11px;object-fit:cover;background:var(--surface3);}
@@ -3567,10 +3565,9 @@ function _renderTeamsGrid() {
           <div class="tc-name"><span class="tc-name-t">${t.name}</span><span class="tc-verif">✔</span></div>
           <div class="tc-sub"><span class="tc-rank">#${rank}</span>${lg?`<span class="league-badge ${lgCss}">${lg}</span>`:''}</div>
         </div>
-        <div class="tc-form">${form}</div>
       </div>
       <div class="tc-kpis">
-        <div class="tc-kpi tc-kpi-hero"><div class="tc-kv" style="color:${wrc}">${wr}%</div><div class="tc-kl">Win Rate</div></div>
+        <div class="tc-kpi"><div class="tc-kv" style="color:${wrc}">${wr}%</div><div class="tc-kl">Win Rate</div></div>
         <div class="tc-kpi"><div class="tc-kv">${t.wins||0}W ${t.losses||0}L</div><div class="tc-kl">Record</div></div>
         <div class="tc-kpi"><div class="tc-kv" style="color:${bwrc}">${t.blueSideWR!=null?t.blueSideWR+'%':'—'}</div><div class="tc-kl">Blue Side</div></div>
         <div class="tc-kpi"><div class="tc-kv" style="color:${rwrc}">${t.redSideWR!=null?t.redSideWR+'%':'—'}</div><div class="tc-kl">Red Side</div></div>
