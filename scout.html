@@ -3791,8 +3791,16 @@ function saveTeam(existing) {
   };
   DB_MODULE.upsertTeam(name, meta);
   DB_MODULE.save();
-  // Cloud-sync the profile so it shows on every device (requires migration 014)
-  try { if (typeof WDB!=='undefined' && WDB.saveTeamMeta) WDB.saveTeamMeta(name, meta).catch(()=>{}); } catch(_){}
+  // Cloud-sync the profile so it shows on every device (requires migration 014).
+  // Surface failures instead of swallowing them — a silent fail here is exactly
+  // why "I edited it but other accounts don't see it" happens.
+  try {
+    if (typeof WDB!=='undefined' && WDB.saveTeamMeta) {
+      WDB.saveTeamMeta(name, meta)
+        .then(()=>{ if(typeof toast==='function') toast('Team info synced to all devices'); })
+        .catch(e=>{ if(typeof toast==='function') toast('Saved locally only — cloud sync failed: '+(e&&e.message||'run migration 014'),'error'); });
+    }
+  } catch(e){ if(typeof toast==='function') toast('Cloud sync error: '+(e&&e.message||''),'error'); }
   document.getElementById('teamModal')?.remove();
   renderTeams();
   toast(`✓ ${name} saved`);
