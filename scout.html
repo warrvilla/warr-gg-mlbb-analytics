@@ -331,18 +331,19 @@ body {
 .tc-sl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px;}
 .tc-sv{font-size:14px;font-weight:800;color:var(--text);}
 .tc-sv span{font-size:11px;font-weight:400;color:var(--text3);}
-.tc-mid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.tc-mid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;}
+.tc-maps,.tc-heroes{min-width:0;}
 .tc-seclbl{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
 .tc-more{font-size:9px;color:#A78BFA;font-weight:600;letter-spacing:0;text-transform:none;margin-left:auto;}
-.tc-map{display:flex;align-items:center;gap:6px;margin-bottom:7px;font-size:10px;}
-.tc-map-nm{width:92px;flex-shrink:0;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.tc-map-bar{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden;}
+.tc-map{display:flex;align-items:center;gap:5px;margin-bottom:7px;font-size:10px;}
+.tc-map-nm{flex:0 1 80px;min-width:0;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tc-map-bar{flex:1 1 18px;min-width:0;height:6px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden;}
 .tc-map-bar i{display:block;height:100%;border-radius:3px;}
-.tc-map-pct{font-weight:800;width:30px;text-align:right;}
-.tc-map-g{color:var(--text3);width:30px;}
-.tc-hrow{display:flex;gap:9px;}
-.tc-hero{text-align:center;width:48px;flex-shrink:0;}
-.tc-hero img{width:42px;height:42px;border-radius:10px;object-fit:cover;background:var(--surface3);}
+.tc-map-pct{font-weight:800;width:28px;text-align:right;flex-shrink:0;}
+.tc-map-g{color:var(--text3);width:26px;flex-shrink:0;}
+.tc-hrow{display:flex;gap:8px;flex-wrap:wrap;}
+.tc-hero{text-align:center;width:44px;flex-shrink:0;}
+.tc-hero img{width:40px;height:40px;border-radius:10px;object-fit:cover;background:var(--surface3);}
 .tc-hero-nm{font-size:9px;color:var(--text2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tc-hero-sub{font-size:10px;font-weight:800;}
 .tc-none{font-size:10px;color:var(--text3);padding:8px 0;}
