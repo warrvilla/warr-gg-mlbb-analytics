@@ -323,30 +323,39 @@ body {
 .tc-streak{margin-left:3px;font-size:9px;font-weight:800;padding:2px 6px;border-radius:5px;}
 .tc-streak.w{color:var(--green);background:var(--green-dim);border:1px solid var(--green-border);}
 .tc-streak.l{color:var(--red);background:var(--red-dim);border:1px solid var(--red-border);}
-.tc-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:12px 8px;}
+.tc-sub{display:flex;align-items:center;gap:7px;margin-top:5px;}
+.tc-rank{font-size:11px;font-weight:800;color:#A78BFA;}
+.tc-fl{width:17px;height:17px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;}
+.tc-fl.w{color:var(--green);background:var(--green-dim);border:1px solid var(--green-border);}
+.tc-fl.l{color:var(--red);background:var(--red-dim);border:1px solid var(--red-border);}
+.tc-kpis{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:8px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:13px 10px;}
 .tc-kpi{text-align:center;}
-.tc-kv{font-size:20px;font-weight:800;color:var(--text);line-height:1;}
+.tc-kv{font-size:19px;font-weight:800;color:var(--text);line-height:1;}
 .tc-kl{font-size:9px;color:var(--text3);margin-top:5px;text-transform:uppercase;letter-spacing:.03em;}
+.tc-kpi-hero .tc-kv{font-size:30px;}
+.tc-kpi-hero .tc-kl{color:var(--text2);font-weight:700;}
 .tc-sec{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);padding:11px 2px;}
 .tc-sl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.03em;margin-bottom:5px;}
 .tc-sv{font-size:14px;font-weight:800;color:var(--text);}
 .tc-sv span{font-size:11px;font-weight:400;color:var(--text3);}
-.tc-mid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;}
-.tc-maps,.tc-heroes{min-width:0;}
-.tc-seclbl{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
-.tc-more{font-size:9px;color:#A78BFA;font-weight:600;letter-spacing:0;text-transform:none;margin-left:auto;}
-.tc-map{display:flex;align-items:center;gap:5px;margin-bottom:7px;font-size:10px;}
-.tc-map-nm{flex:0 1 80px;min-width:0;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.tc-map-bar{flex:1 1 18px;min-width:0;height:6px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden;}
-.tc-map-bar i{display:block;height:100%;border-radius:3px;}
-.tc-map-pct{font-weight:800;width:28px;text-align:right;flex-shrink:0;}
-.tc-map-g{color:var(--text3);width:26px;flex-shrink:0;}
-.tc-hrow{display:flex;gap:8px;flex-wrap:wrap;}
-.tc-hero{text-align:center;width:44px;flex-shrink:0;}
-.tc-hero img{width:40px;height:40px;border-radius:10px;object-fit:cover;background:var(--surface3);}
-.tc-hero-nm{font-size:9px;color:var(--text2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.tc-hero-sub{font-size:10px;font-weight:800;}
-.tc-none{font-size:10px;color:var(--text3);padding:8px 0;}
+.tc-block{display:flex;flex-direction:column;}
+.tc-seclbl{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px;}
+.tc-maps{display:flex;flex-direction:column;gap:9px;}
+.tc-map{font-size:10px;}
+.tc-map-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:4px;}
+.tc-map-nm{color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tc-map-meta{display:flex;align-items:baseline;gap:6px;flex-shrink:0;}
+.tc-map-pct{font-weight:800;}
+.tc-map-g{color:var(--text3);font-size:9px;}
+.tc-map-bar{height:8px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden;}
+.tc-map-bar i{display:block;height:100%;border-radius:4px;}
+.tc-hrow{display:flex;gap:10px;flex-wrap:wrap;}
+.tc-hero{text-align:center;width:46px;flex-shrink:0;}
+.tc-hero img{width:44px;height:44px;border-radius:11px;object-fit:cover;background:var(--surface3);}
+.tc-hero-nm{font-size:9px;color:var(--text);font-weight:600;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tc-hero-l1{font-size:10px;font-weight:800;margin-top:1px;}
+.tc-hero-l2{font-size:8px;color:var(--text3);margin-top:1px;}
+.tc-none{font-size:10px;color:var(--text3);padding:6px 0;}
 .tc-foot{display:flex;gap:8px;}
 .tc-btn{flex:1;padding:9px;border-radius:9px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:var(--text2);}
 .tc-btn:hover{background:rgba(255,255,255,.08);color:var(--text);}
@@ -3543,28 +3552,25 @@ function _renderTeamsGrid() {
     const lg=(t.leagues&&t.leagues[0])||''; const lgCss=LEAGUE_CSS[lg]||'lg-other';
     const mo=(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(t.name):{init:(t.name||'?')[0],color:'#7C5CF6'};
     const logo=(typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(t.name):'';
-    const form=(t.form||[]).slice(-5).map(r=>`<span class="tc-dot ${r==='W'?'w':'l'}"></span>`).join('');
-    const streak=(t.streak&&t.streak.count>1)?`<span class="tc-streak ${t.streak.type==='W'?'w':'l'}">${t.streak.type}${t.streak.count}</span>`:'';
-    const maps=_TMAPS.map(mp=>{const s=(t.mapStats||{})[mp]; if(!s||!s.games) return `<div class="tc-map"><span class="tc-map-nm">${mp}</span><div class="tc-map-bar"></div><span class="tc-map-pct" style="color:var(--text3)">—</span><span class="tc-map-g"></span></div>`; const c=_C(s.wr); return `<div class="tc-map"><span class="tc-map-nm">${mp}</span><div class="tc-map-bar"><i style="width:${s.wr}%;background:${c}"></i></div><span class="tc-map-pct" style="color:${c}">${s.wr}%</span><span class="tc-map-g">(${s.games}g)</span></div>`;}).join('');
-    const cell=(name,sub,subc)=>`<div class="tc-hero"><img src="${_heroIcon(name)}" onerror="${_heroIconErr(name)}"><div class="tc-hero-nm">${name}</div><div class="tc-hero-sub" style="color:${subc}">${sub}</div></div>`;
+    const form=(t.form||[]).slice(-5).map(r=>`<span class="tc-fl ${r==='W'?'w':'l'}">${r}</span>`).join('');
+    const maps=_TMAPS.map(mp=>{const sm=(t.mapStats||{})[mp]; const has=sm&&sm.games; const c=has?_C(sm.wr):'var(--text3)';
+      return `<div class="tc-map"><div class="tc-map-top"><span class="tc-map-nm">${mp}</span><span class="tc-map-meta"><span class="tc-map-pct" style="color:${c}">${has?sm.wr+'%':'—'}</span>${has?`<span class="tc-map-g">${sm.games}g</span>`:''}</span></div><div class="tc-map-bar"><i style="width:${has?sm.wr:0}%;background:${c}"></i></div></div>`;}).join('');
+    const cell=(name,l1,l1c,l2)=>`<div class="tc-hero"><img src="${_heroIcon(name)}" onerror="${_heroIconErr(name)}"><div class="tc-hero-nm">${name}</div><div class="tc-hero-l1" style="color:${l1c}">${l1}</div>${l2?`<div class="tc-hero-l2">${l2}</div>`:''}</div>`;
     const picks=(t.topPicks||[]), bans=(t.topBans||[]);
-    const tpc=picks.slice(0,3).map(p=>cell(p.name,(p.wr||0)+'%',_C(p.wr||0))).join('')||'<span class="tc-none">No data</span>';
-    const tbc=bans.slice(0,3).map(b=>cell(b.name,'x'+b.count,'var(--red)')).join('')||'<span class="tc-none">No data</span>';
-    const moreP=picks.length>3?`<span class="tc-more">+${picks.length-3} more</span>`:'';
-    const moreB=bans.length>3?`<span class="tc-more">+${bans.length-3} more</span>`:'';
+    const tpc=picks.slice(0,6).map(p=>cell(p.name,(p.wr||0)+'% WR',_C(p.wr||0),'x'+p.count)).join('')||'<span class="tc-none">No pick data yet</span>';
+    const tbc=bans.slice(0,6).map(b=>cell(b.name,'x'+b.count,'var(--red)','')).join('')||'<span class="tc-none">No ban data yet</span>';
     const esc=(t.name||'').replace(/'/g,"\\'");
     return `<div class="tc" onclick="openTeamReport('${esc}')">
       <div class="tc-head">
-        <span class="tc-rank">${rank}</span>
         <span class="tc-logo${logo?'':' noimg'}" style="--mc:${mo.color}"><img src="${logo}" onerror="this.closest('.tc-logo').classList.add('noimg')"><i>${mo.init}</i></span>
         <div style="flex:1;min-width:0;">
           <div class="tc-name"><span class="tc-name-t">${t.name}</span><span class="tc-verif">✔</span></div>
-          ${lg?`<span class="league-badge ${lgCss}" style="margin-top:5px;display:inline-block;">${lg}</span>`:''}
+          <div class="tc-sub"><span class="tc-rank">#${rank}</span>${lg?`<span class="league-badge ${lgCss}">${lg}</span>`:''}</div>
         </div>
-        <div class="tc-form">${form}${streak}</div>
+        <div class="tc-form">${form}</div>
       </div>
       <div class="tc-kpis">
-        <div class="tc-kpi"><div class="tc-kv" style="color:${wrc}">${wr}%</div><div class="tc-kl">Win Rate</div></div>
+        <div class="tc-kpi tc-kpi-hero"><div class="tc-kv" style="color:${wrc}">${wr}%</div><div class="tc-kl">Win Rate</div></div>
         <div class="tc-kpi"><div class="tc-kv">${t.wins||0}W ${t.losses||0}L</div><div class="tc-kl">Record</div></div>
         <div class="tc-kpi"><div class="tc-kv" style="color:${bwrc}">${t.blueSideWR!=null?t.blueSideWR+'%':'—'}</div><div class="tc-kl">Blue Side</div></div>
         <div class="tc-kpi"><div class="tc-kv" style="color:${rwrc}">${t.redSideWR!=null?t.redSideWR+'%':'—'}</div><div class="tc-kl">Red Side</div></div>
@@ -3574,13 +3580,9 @@ function _renderTeamsGrid() {
         <div class="tc-s"><div class="tc-sl">Lord Ctrl</div><div class="tc-sv" style="color:var(--gold)">${t.lordCtrl!=null?t.lordCtrl+'%':'—'}<span> ${t.lordTotal?'('+t.lordTotal+')':''}</span></div></div>
         <div class="tc-s"><div class="tc-sl">Hero Pool</div><div class="tc-sv">${t.poolDepth||0}</div></div>
       </div>
-      <div class="tc-mid">
-        <div class="tc-maps"><div class="tc-seclbl">Map Win Rates</div>${maps}</div>
-        <div class="tc-heroes">
-          <div class="tc-seclbl">Top Picks ${moreP}</div><div class="tc-hrow">${tpc}</div>
-          <div class="tc-seclbl" style="margin-top:11px;">Top Bans ${moreB}</div><div class="tc-hrow">${tbc}</div>
-        </div>
-      </div>
+      <div class="tc-block"><div class="tc-seclbl">Map Win Rates</div><div class="tc-maps">${maps}</div></div>
+      <div class="tc-block"><div class="tc-seclbl">Top Picks</div><div class="tc-hrow">${tpc}</div></div>
+      <div class="tc-block"><div class="tc-seclbl">Top Bans</div><div class="tc-hrow">${tbc}</div></div>
       <div class="tc-foot">
         <button class="tc-btn primary" onclick="event.stopPropagation();openTeamReport('${esc}')">View Report</button>
         <button class="tc-btn" onclick="event.stopPropagation();openH2H('${esc}')">H2H</button>
