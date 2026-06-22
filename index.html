@@ -926,17 +926,19 @@ function renderHeroBanner() {
 
   slidesEl.innerHTML = _slides.map((s, i) => {
     // Optional per-slide colors (set in Profile → Slides). Empty = theme default.
-    const tc=s.titleColor||'', sc=s.subColor||'', bb=s.btnBg||'', bt=s.btnText||'';
+    const tc=s.titleColor||'', sc=s.subColor||'', bb=s.btnBg||'', bt=s.btnText||'', eb=s.ebColor||'';
+    // Button glow follows the chosen color (8-digit hex = color + alpha).
+    const btnGlow = bb ? `background:${bb};border-color:${bb};box-shadow:inset 0 1px 0 rgba(255,255,255,0.20),0 0 22px ${bb}73,0 6px 20px ${bb}55;` : '';
     return `
     <article class="hero-slide ${i === _slideIdx ? 'active' : ''}" data-idx="${i}">
       ${s.bg ? `<div class="hero-bg" style="background-image:url('${s.bg}')"></div>` : ''}
       <div class="hero-bg-overlay"></div>
       <div class="hero-content">
-        ${s.eyebrow ? `<span class="hero-eyebrow">${s.eyebrow}</span>` : ''}
+        ${s.eyebrow ? `<span class="hero-eyebrow"${eb?` style="color:${eb};text-shadow:0 0 14px ${eb}80;"`:''}>${s.eyebrow}</span>` : ''}
         <h1 class="hero-title"${tc?` data-custom style="color:${tc}"`:''}>${s.title || ''}</h1>
         ${s.sub ? `<p class="hero-sub"${sc?` style="color:${sc}"`:''}>${s.sub}</p>` : ''}
         <div class="hero-ctas">
-          ${s.cta1 && s.cta1.url ? `<a class="cta-primary" href="${s.cta1.url}"${(bb||bt)?` style="${bb?`background:${bb};border-color:${bb};`:''}${bt?`color:${bt};`:''}"`:''}>${s.cta1.label || 'Get Started'}
+          ${s.cta1 && s.cta1.url ? `<a class="cta-primary" href="${s.cta1.url}"${(btnGlow||bt)?` style="${btnGlow}${bt?`color:${bt};`:''}"`:''}>${s.cta1.label || 'Get Started'}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </a>` : ''}
           ${s.cta2 && s.cta2.url ? `<a class="cta-secondary" href="${s.cta2.url}"${bb?` style="border-color:${bb};color:${bb};"`:''}>${s.cta2.label || 'Learn More'}</a>` : ''}
