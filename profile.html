@@ -748,6 +748,22 @@ body { background: var(--bg); min-height: 100vh; }
       return `<div style="display:flex;flex-direction:column;gap:4px;${full}">${labelEl}<input type="text" value="${v}" ${inputAttr}></div>`;
     }
 
+    // Color field: a swatch picker that drives a text input. Blank text = use the
+    // theme default. The text input carries data-idx/data-key so syncEditorState
+    // saves it automatically like any other field.
+    function _slideColorField(idx, key, label, value) {
+      const v = (value || '').replace(/"/g, '&quot;');
+      const swatch = value || '#7C5CF6';
+      const labelEl = `<label style="font-size:9.5px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.36);">${label}</label>`;
+      return `<div style="display:flex;flex-direction:column;gap:4px;">${labelEl}
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="color" value="${swatch}" oninput="this.nextElementSibling.value=this.value"
+            style="width:36px;height:30px;padding:0;border:0.5px solid rgba(255,255,255,0.10);border-radius:6px;background:#050509;cursor:pointer;flex-shrink:0;">
+          <input type="text" value="${v}" data-idx="${idx}" data-key="${key}" placeholder="default"
+            style="background:#050509;border:0.5px solid rgba(255,255,255,0.10);border-radius:6px;padding:7px 10px;font-size:12px;color:#F0F0F8;flex:1;font-family:var(--font-body,inherit);">
+        </div></div>`;
+    }
+
     async function uploadSlideBg(idx, input) {
       const file = input.files?.[0];
       if (!file) return;
@@ -825,6 +841,15 @@ body { background: var(--bg); min-height: 100vh; }
           ${_slideField(i, 'cta1.url',   'Primary button URL',                                        _escapeHtml(s.cta1?.url),   '', 'draft_board.html')}
           ${_slideField(i, 'cta2.label', 'Secondary button label',                                    _escapeHtml(s.cta2?.label), '', 'Scout Opponents')}
           ${_slideField(i, 'cta2.url',   'Secondary button URL',                                      _escapeHtml(s.cta2?.url),   '', 'scout.html')}
+          <div style="grid-column:1/-1;display:flex;align-items:center;gap:8px;margin-top:6px;">
+            <span style="font-size:9.5px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.36);">Colors (optional — blank = default)</span>
+            <div style="flex:1;height:1px;background:rgba(255,255,255,0.08);"></div>
+          </div>
+          ${_slideColorField(i, 'titleColor', 'Title color',          s.titleColor)}
+          ${_slideColorField(i, 'subColor',   'Subtitle color',       s.subColor)}
+          ${_slideColorField(i, 'btnBg',      'Button color',         s.btnBg)}
+          ${_slideColorField(i, 'btnText',    'Button text color',    s.btnText)}
+          ${_slideColorField(i, 'dotColor',   'Slide indicator color',s.dotColor)}
           ${_slideField(i, 'bg',         'Background image URL (optional)',                           _escapeHtml(s.bg),          'full', 'https://… (leave blank for cinematic dark)')}
         </div>
       `).join('');

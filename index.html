@@ -167,6 +167,13 @@ body {
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+/* When a custom title color is set per slide, the highlighted <em> follows it
+   instead of the default purple gradient. */
+.hero-title[data-custom] em {
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+  color: currentColor !important;
+}
 .hero-sub {
   font-size: 14px;
   line-height: 1.55;
@@ -917,26 +924,30 @@ function renderHeroBanner() {
   const dotsEl   = document.getElementById('heroDots');
   if (!slidesEl || !dotsEl) return;
 
-  slidesEl.innerHTML = _slides.map((s, i) => `
+  slidesEl.innerHTML = _slides.map((s, i) => {
+    // Optional per-slide colors (set in Profile → Slides). Empty = theme default.
+    const tc=s.titleColor||'', sc=s.subColor||'', bb=s.btnBg||'', bt=s.btnText||'';
+    return `
     <article class="hero-slide ${i === _slideIdx ? 'active' : ''}" data-idx="${i}">
       ${s.bg ? `<div class="hero-bg" style="background-image:url('${s.bg}')"></div>` : ''}
       <div class="hero-bg-overlay"></div>
       <div class="hero-content">
         ${s.eyebrow ? `<span class="hero-eyebrow">${s.eyebrow}</span>` : ''}
-        <h1 class="hero-title">${s.title || ''}</h1>
-        ${s.sub ? `<p class="hero-sub">${s.sub}</p>` : ''}
+        <h1 class="hero-title"${tc?` data-custom style="color:${tc}"`:''}>${s.title || ''}</h1>
+        ${s.sub ? `<p class="hero-sub"${sc?` style="color:${sc}"`:''}>${s.sub}</p>` : ''}
         <div class="hero-ctas">
-          ${s.cta1 && s.cta1.url ? `<a class="cta-primary" href="${s.cta1.url}">${s.cta1.label || 'Get Started'}
+          ${s.cta1 && s.cta1.url ? `<a class="cta-primary" href="${s.cta1.url}"${(bb||bt)?` style="${bb?`background:${bb};border-color:${bb};`:''}${bt?`color:${bt};`:''}"`:''}>${s.cta1.label || 'Get Started'}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </a>` : ''}
-          ${s.cta2 && s.cta2.url ? `<a class="cta-secondary" href="${s.cta2.url}">${s.cta2.label || 'Learn More'}</a>` : ''}
+          ${s.cta2 && s.cta2.url ? `<a class="cta-secondary" href="${s.cta2.url}"${bb?` style="border-color:${bb};color:${bb};"`:''}>${s.cta2.label || 'Learn More'}</a>` : ''}
         </div>
       </div>
     </article>
-  `).join('');
+  `;}).join('');
 
-  dotsEl.innerHTML = _slides.map((_, i) =>
-    `<button class="hero-dot ${i === _slideIdx ? 'active' : ''}" onclick="heroGoto(${i})" aria-label="Slide ${i+1}"></button>`
+  const curDot = (_slides[_slideIdx] && _slides[_slideIdx].dotColor) || '';
+  dotsEl.innerHTML = _slides.map((s, i) =>
+    `<button class="hero-dot ${i === _slideIdx ? 'active' : ''}" onclick="heroGoto(${i})" aria-label="Slide ${i+1}"${(i === _slideIdx && curDot)?` style="background:${curDot};border-color:${curDot};"`:''}></button>`
   ).join('');
 }
 
