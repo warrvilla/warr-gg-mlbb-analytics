@@ -971,7 +971,12 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
 .search-bar input::placeholder { color: var(--text3); }
 
 /* ── TEAM GRID ── */
-.team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+/* Fixed column counts (not auto-fill) so a wide Windows monitor doesn't cram in
+   5+ tiny cards — looks the same clean 3-up as on Mac, regardless of font/scrollbar. */
+.team-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (min-width: 1800px) { .team-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 1100px) { .team-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 680px)  { .team-grid { grid-template-columns: 1fr; } }
 .team-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1286,7 +1291,6 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
   }
   .sidebar-btn { width: 33.33%; text-align: center; justify-content: center; padding: 10px 8px; font-size: 12px; border-bottom: 2px solid transparent; border-left: none; }
   .sidebar-btn.active { border-bottom-color: var(--accent); background: var(--accent-dim); }
-  .team-grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
   .meta-table { font-size: 11px; }
   .meta-table th, .meta-table td { padding: 5px 7px; }
   .card { padding: 12px 14px; }
