@@ -3032,7 +3032,7 @@ function renderMatchListBody() {
         <div class="ml-date"><div class="ml-day">${day}</div><div class="ml-mon">${(mon||'').toUpperCase()}</div></div>
         <div class="ml-stage"><span class="ml-stage-t">${s.stage||s.league||'Match'}</span><span class="ml-bo">${s.seriesFormat||('BO'+s.games.length)}</span></div>
         <div class="ml-team ml-teamA${seriesWinner===s.blueTeam?' win':''}"><span class="nm">${s.blueTeam}</span><span class="ml-logo" style="--mc:${_bm.color}"><img src="${_tlogo(s.blueTeam)}" loading="lazy" onerror="this.closest('.ml-logo').classList.add('noimg')"><i>${_bm.init}</i></span></div>
-        <div class="ml-score"><span class="ml-sc" style="color:${scoreColor}">${blueWins} - ${redWins}</span>${_res?`<span class="ml-res ${_res==='WIN'?'w':'l'}">${_res}</span>`:''}</div>
+        <div class="ml-score"><span class="ml-sc" style="color:${scoreColor}">${blueWins} - ${redWins}</span></div>
         <div class="ml-team ml-teamB${seriesWinner===s.redTeam?' win':''}"><span class="ml-logo" style="--mc:${_rm.color}"><img src="${_tlogo(s.redTeam)}" loading="lazy" onerror="this.closest('.ml-logo').classList.add('noimg')"><i>${_rm.init}</i></span><span class="nm">${s.redTeam}</span></div>
         <button class="ml-view" onclick="const x=this.closest('.ml-card').querySelector('.ml-detail');x.classList.toggle('open');this.textContent=x.classList.contains('open')?'Hide ▾':'View Details ▸';">View Details ▸</button>
       </div>
