@@ -4523,7 +4523,7 @@ function openTeamReport(teamName) {
     `<option value="${mp}"${_reportMapFilter===mp?' selected':''}>${mp}</option>`
   ).join('');
   overlay.innerHTML = `
-    <div class="modal" style="max-width:920px;" id="teamReportContent">
+    <div class="modal" style="max-width:1400px;width:96vw;" id="teamReportContent">
       <div class="modal-header no-print" style="gap:8px;">
         <div class="modal-title">Scout Report — ${teamName}${_reportMapFilter ? ` <span style="font-size:11px;color:var(--accent);font-weight:500;margin-left:6px;">on ${_reportMapFilter}</span>` : ''}</div>
         <div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0;align-items:center;">
@@ -4723,7 +4723,7 @@ function openTeamReport(teamName) {
         <!-- PER-LANE ROSTER -->
         ${anyLaneData ? `
         <div style="margin-bottom:18px;">
-          ${sec('Per-Lane Roster · Players & Heroes', `<div>${lanePoolHTML}</div>`)}
+          ${sec('Hero Pools · Players & Heroes by Lane', `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;align-items:start;">${lanePoolHTML}</div>`)}
         </div>` : ''}
 
         <!-- MATCH HISTORY -->
