@@ -476,12 +476,15 @@ WDB.computeDynamicTiers = function(minGames = 3) {
     const raw = localStorage.getItem('warr_scout_data');
     if (!raw) return null;
     const db = JSON.parse(raw);
-    if (!db.matches || db.matches.length < minGames) return null;
+    // OFFICIAL ONLY: dynamic tiers reflect the real competitive meta — count
+    // MPL / tournament games, never scrims / practice / AI-battle drafts.
+    const matchesAll = (db.matches || []).filter(m => WDB.PUBLIC_LEAGUES.includes((m && m.league || '').trim()));
+    if (matchesAll.length < minGames) return null;
 
-    const totalGames = db.matches.length;
+    const totalGames = matchesAll.length;
     const heroStats = {};
 
-    db.matches.forEach(m => {
+    matchesAll.forEach(m => {
       const allPicks = [...(m.bluePicks || []), ...(m.redPicks || [])];
       const allBans = [...(m.blueBans || []), ...(m.redBans || [])];
       const winner = m.winner; // 'blue' or 'red'

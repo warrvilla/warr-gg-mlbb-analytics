@@ -1604,6 +1604,15 @@ let scoutLeagueAB = 'all';
 function loadScoutAB() {
   try{ const r=localStorage.getItem(SCOUT_KEY_AB); return r?JSON.parse(r):{matches:[],teams:{}}; }catch(e){return{matches:[],teams:{}};}
 }
+// The AI learns from OFFICIAL competitive data only (MPL / tournaments), never
+// scrims/other/AI-battle — scrim drafts are practice/experimental and would
+// pollute the real meta read. PUBLIC_LEAGUES is the official tournament set.
+function _isOfficialLeague(lg){
+  const x=(lg||'').trim();
+  return (typeof WDB!=='undefined' && WDB.PUBLIC_LEAGUES) ? WDB.PUBLIC_LEAGUES.includes(x)
+    : !['Scrims','Other','AI Battle',''].includes(x);
+}
+function _officialMatches(arr){ return (arr||[]).filter(m=>m && _isOfficialLeague(m.league)); }
 
 function getScoutProfileAB(teamName) {
   if(!teamName) return null;
@@ -1892,7 +1901,7 @@ function buildEnemyProfileCache(name){
     const db=loadScoutAB();
     const t=db.teams?.[name];
     if(!t){enemyProfile=null;return;}
-    const matches=(db.matches||[]).filter(m=>m.blueTeam===name||m.redTeam===name);
+    const matches=(db.matches||[]).filter(m=>(m.blueTeam===name||m.redTeam===name) && _isOfficialLeague(m.league));
     const bm=matches.filter(m=>m.blueTeam===name);
     const rm=matches.filter(m=>m.redTeam===name);
     const bwr=bm.length?Math.round(bm.filter(m=>m.winner==='blue').length/bm.length*100):0;
@@ -2174,7 +2183,7 @@ function initBattle(){
   _emuLaneTable=null;
   if(isEnemy && typeof WDB!=='undefined' && WDB.computeHeroLanesScoped){
     try{
-      const _ms=loadScoutAB().matches||[];
+      const _ms=_officialMatches(loadScoutAB().matches||[]);
       const _tn=enemyProfile.name;
       const _teamL=WDB.computeHeroLanesScoped(_ms,{team:_tn});
       // region = the league this team plays most
@@ -2608,12 +2617,14 @@ async function aiTurn(){
 // ═══════ TENDENCY ENGINE ═══════
 function getHumanTendencies(){
   const m=loadMem();
-  // Start with AI battle memory — tracks human picks + outcomes directly
+  // AI-battle memory is used ONLY to remember which heroes you tend to PICK
+  // (frequency), NOT to learn strength from the practice-game winner you declare.
+  // Win/loss "learning" comes exclusively from real scout/tournament results below,
+  // so a neutral 0.5 WR is used here — practice outcomes never bias hero strength.
   const merged={};
   Object.entries(m).forEach(([name,d])=>{
     if((d.humanPc||0)<1)return;
-    const wr=d.humanPc>0?(d.humanWins||0)/d.humanPc:0.5;
-    merged[name]={name,wr,count:d.humanPc,wins:d.humanWins||0,score:d.humanPc*wr,source:'battle'};
+    merged[name]={name,wr:0.5,count:d.humanPc,wins:0,score:d.humanPc*0.5,source:'battle'};
   });
 
   // Merge scout data — pName must match a team name in warr_scout_data
@@ -2636,7 +2647,7 @@ function getHumanTendencies(){
         }
       });
       // Also scan raw match history for per-match win tracking (more accurate)
-      const humanMatches=(db.matches||[]).filter(mx=>mx.blueTeam===pName||mx.redTeam===pName);
+      const humanMatches=(db.matches||[]).filter(mx=>(mx.blueTeam===pName||mx.redTeam===pName) && _isOfficialLeague(mx.league));
       humanMatches.forEach(mx=>{
         const isBlue=mx.blueTeam===pName;
         const won=(mx.winner==='blue')===isBlue;
@@ -2677,9 +2688,10 @@ function _buildScoutIntel(){
     if (!matches.length || typeof WDB === 'undefined') {
       return { counters:{}, synergies:{}, draftedAgainst:{}, laneCounters:{}, dynamicTiers:{}, n:0 };
     }
-    // includeAll:true → scrims count too. An MPL coach's scrim data is
-    // arguably the *most* relevant signal for their own team's intel.
-    const opts = { includeAll:true };
+    // OFFICIAL ONLY: includeAll:false → counters/synergies/etc. are built from
+    // MPL / tournament games only, excluding scrims (per coach preference — scrim
+    // experiments shouldn't shape the AI's real meta read).
+    const opts = { includeAll:false };
     let dynamicTiers = {};
     try { dynamicTiers = WDB.computeDynamicTiers ? (WDB.computeDynamicTiers(2) || {}) : {}; } catch(_) {}
     return {
@@ -3416,7 +3428,7 @@ function computeCoachSuggestions(step){
       category = 'tier';
     }
     // Annotations
-    if (tierUpgraded && (t==='S' || t==='A')) reason += ` · scout-promoted to ${t}-tier from your scrims`;
+    if (tierUpgraded && (t==='S' || t==='A')) reason += ` · scout-promoted to ${t}-tier from tournament data`;
     if (playerPoolBonus < 0 && playerPoolNote) reason += ` ⚠ ${playerPoolNote}`;
     if (isLastPick && counterBonus>0) reason = `[LAST PICK] ${reason}`;
     else if (isBlindFirst) reason = `[BLIND 1st] ${reason}`;
@@ -4128,9 +4140,11 @@ function buildMeta(){
   const hp=HEROES.filter(h=>h.mp==='highpick'&&!mb.includes(h.name)).map(h=>h.name);
   if(mb.length)lines.push(`MUST BAN: ${mb.join(', ')}`);
   if(hp.length)lines.push(`HIGH PICK: ${hp.join(', ')}`);
+  // Your in-app pick FREQUENCY only — practice-game win/loss is NOT a strength
+  // signal (win-rate learning comes from real scout/tournament results).
   const mem=loadMem();
-  const me=Object.entries(mem).filter(([,d])=>d.seen>=2).sort((a,b)=>b[1].seen-a[1].seen).slice(0,12);
-  if(me.length){lines.push('LEARNED:');me.forEach(([name,d])=>{const wr=d.wins+d.losses>0?Math.round(d.wins/(d.wins+d.losses)*100):50;lines.push(`  ${name}(${LANES_MAP[name]||'Flex'}): ${d.seen}x,${wr}%WR`);});}
+  const me=Object.entries(mem).filter(([,d])=>(d.humanPc||d.seen||0)>=2).sort((a,b)=>(b[1].humanPc||b[1].seen||0)-(a[1].humanPc||a[1].seen||0)).slice(0,12);
+  if(me.length){lines.push('YOUR FREQUENT PICKS:');me.forEach(([name,d])=>{lines.push(`  ${name}(${LANES_MAP[name]||'Flex'}): picked ${d.humanPc||d.seen}x`);});}
   if(!lines.length)lines.push('No sheet data loaded — using base hero data.');
   return lines.join('\n');
 }
