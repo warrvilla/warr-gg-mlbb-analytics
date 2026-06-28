@@ -3028,13 +3028,13 @@ function renderMatchListBody() {
     const _tlogo=n=>(typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(n):'';
     const _res = seriesWinner===s.blueTeam ? 'WIN' : (seriesWinner===s.redTeam ? 'LOSS' : '');
     return groupHdr + `<div class="ml-card">
-      <div class="ml-row">
+      <div class="ml-row" onclick="mlToggle(this)" style="cursor:pointer;">
         <div class="ml-date"><div class="ml-day">${day}</div><div class="ml-mon">${(mon||'').toUpperCase()}</div></div>
         <div class="ml-stage"><span class="ml-stage-t">${s.stage||s.league||'Match'}</span><span class="ml-bo">${s.seriesFormat||('BO'+s.games.length)}</span></div>
         <div class="ml-team ml-teamA${seriesWinner===s.blueTeam?' win':''}"><span class="nm">${s.blueTeam}</span><span class="ml-logo" style="--mc:${_bm.color}"><img src="${_tlogo(s.blueTeam)}" loading="lazy" onerror="this.closest('.ml-logo').classList.add('noimg')"><i>${_bm.init}</i></span></div>
         <div class="ml-score"><span class="ml-sc" style="color:${scoreColor}">${blueWins} - ${redWins}</span></div>
         <div class="ml-team ml-teamB${seriesWinner===s.redTeam?' win':''}"><span class="ml-logo" style="--mc:${_rm.color}"><img src="${_tlogo(s.redTeam)}" loading="lazy" onerror="this.closest('.ml-logo').classList.add('noimg')"><i>${_rm.init}</i></span><span class="nm">${s.redTeam}</span></div>
-        <button class="ml-view" onclick="const x=this.closest('.ml-card').querySelector('.ml-detail');x.classList.toggle('open');this.textContent=x.classList.contains('open')?'Hide ▾':'View Details ▸';">View Details ▸</button>
+        <button class="ml-view" onclick="event.stopPropagation();mlToggle(this.closest('.ml-row'))">View Details ▸</button>
       </div>
       <div class="ml-detail">${s.games.length>1?`<div class="game-tabs">${gameTabs}</div>`:''}${gamePanels}</div>
     </div>`;
@@ -3049,6 +3049,16 @@ function _pickGame(btn){
   const i = tabs.indexOf(btn);
   tabs.forEach((t,j)=>t.classList.toggle('active', j===i));
   panels.forEach((p,j)=>p.classList.toggle('active', j===i));
+}
+
+// Expand/collapse a series card from anywhere on its header row (and keep the
+// View Details / Hide button in sync).
+function mlToggle(row){
+  const card = row && row.closest('.ml-card'); if (!card) return;
+  const x = card.querySelector('.ml-detail'); if (!x) return;
+  const open = x.classList.toggle('open');
+  const btn = card.querySelector('.ml-view');
+  if (btn) btn.textContent = open ? 'Hide ▾' : 'View Details ▸';
 }
 
 function toggleSeries(sk) {
