@@ -1413,6 +1413,14 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
   #teamReportContent, #reportBody { width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; }
   #reportBody { padding: 0 !important; font-size: 11px; }
   #reportBody img, #reportBody svg { max-width: 100% !important; }
+  /* DENSE, PAPER-FIT KPIs: pack all stat tiles into one tight row (no giant boxes
+     wasting half the page) and shrink the numbers/padding for paper. */
+  .rpt-kpirow { grid-template-columns: repeat(8, 1fr) !important; gap: 6px !important; margin-bottom: 8px !important; }
+  .rpt-kpi { padding: 6px 8px !important; border-radius: 8px !important; }
+  .rpt-kpi-v { font-size: 15px !important; }
+  .rpt-kpi-l { font-size: 7px !important; margin-top: 3px !important; letter-spacing: .5px !important; }
+  /* Compact draft thumbnails in match history so series don't sprawl over pages */
+  #reportBody .hero-thumb, #reportBody .draft-heroes img, #reportBody .draft-bans img { width: 18px !important; height: 18px !important; }
   /* CLEAN DIVISIONS: every section keeps its heading WITH its content and is never
      sliced through the middle. Each numbered section starts its own block; the
      grids keep their natural columns (they already fit the landscape width). */
@@ -4881,9 +4889,9 @@ function openTeamReport(teamName) {
 
   // Stat tile — left-aligned big value over small caps label (mockup style)
   const kpiBox = (val, label, color='var(--text)') => `
-    <div style="background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));border:1px solid var(--border);border-radius:12px;padding:12px 13px;min-width:0;">
-      <div style="font-size:23px;font-weight:800;font-family:var(--font-head);line-height:1;color:${color};letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${val}</div>
-      <div style="font-size:8.5px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:7px;font-weight:700;">${label}</div>
+    <div class="rpt-kpi" style="background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));border:1px solid var(--border);border-radius:12px;padding:12px 13px;min-width:0;">
+      <div class="rpt-kpi-v" style="font-size:23px;font-weight:800;font-family:var(--font-head);line-height:1;color:${color};letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${val}</div>
+      <div class="rpt-kpi-l" style="font-size:8.5px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:7px;font-weight:700;">${label}</div>
     </div>`;
 
   const overlay = document.createElement('div');
@@ -4956,14 +4964,14 @@ function openTeamReport(teamName) {
             </div>
           </div>
           <!-- KPI STRIP -->
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px;">
+          <div class="rpt-kpirow" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px;">
             ${kpiBox(wr+'%', 'Win Rate', wrc(wr))}
             ${kpiBox((t.wins||0)+'W '+(t.losses||0)+'L', 'Record')}
             ${kpiBox(bsWr!==null?bsWr+'%':'—', 'Blue Side', bsWr!==null?wrc(bsWr):'var(--text3)')}
             ${kpiBox(rsWr!==null?rsWr+'%':'—', 'Red Side', rsWr!==null?wrc(rsWr):'var(--text3)')}
           </div>
           ${(t.fbRate!==null || t.avgTowers!==null || t.firstTurtleRate!==null || t.firstLordRate!==null) ? `
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;">
+          <div class="rpt-kpirow" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;">
             ${kpiBox(t.fbRate!==null?t.fbRate+'%':'—', 'First Blood', t.fbRate!==null?wrc(t.fbRate):'var(--text3)')}
             ${kpiBox(t.avgTowers!==null?t.avgTowers:'—', 'Avg Towers', t.avgTowers!==null?'var(--accent)':'var(--text3)')}
             ${kpiBox(t.firstTurtleRate!==null?t.firstTurtleRate+'%':'—', 'First Turtle', t.firstTurtleRate!==null?wrc(t.firstTurtleRate):'var(--text3)')}
