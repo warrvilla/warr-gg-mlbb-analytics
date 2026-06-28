@@ -405,7 +405,10 @@ function getSynergies(heroName,combos){
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
 function portrait(name){
-  return `portraits/${name}.png`;
+  // Use the shared webp portrait pipeline (cache-busted). Falls back to the old
+  // PNG path only if WDB isn't available.
+  if (typeof WDB!=='undefined' && WDB.heroPortrait) return WDB.heroPortrait(name);
+  return `portraits/${String(name||'').replace(/ /g,'_').replace(/[^a-zA-Z0-9_.]/g,'')}.png`;
 }
 
 function roleClass(role){
