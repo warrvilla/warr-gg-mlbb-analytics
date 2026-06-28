@@ -1316,8 +1316,8 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
 
 /* ── PRINT STYLES ── */
 @page {
-  size: A4 portrait;
-  margin: 12mm 14mm;
+  size: A4 landscape;
+  margin: 10mm 12mm;
 }
 @media print {
   /* Kill expensive effects — main source of lag */
@@ -1357,23 +1357,31 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
     overflow: visible !important;
     padding: 8px 12px !important;
   }
-  /* Convert CSS grids to block — grids don't honor break-inside */
-  #reportBody div[style*="display:grid"] {
-    display: block !important;
+  /* Landscape is wide enough to KEEP the dashboard's columns (what you see on
+     screen = what prints). We only guarantee that individual cards never split
+     across a page — if a card doesn't fit, it moves whole to the next page,
+     which reads as a clean continuation rather than a sudden cut. */
+  #reportBody div[style*="display:grid"] > div,
+  #reportBody div[style*="display: grid"] > div {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
-  #reportBody div[style*="display:grid"] > div {
-    display: block !important;
-    width: 100% !important;
-    margin-bottom: 10px;
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-  /* Each top-level section avoids breaking */
+  /* Each numbered section keeps its heading with its content and avoids
+     splitting where it can; oversized sections break BETWEEN their cards. */
   #reportBody > div {
     break-inside: avoid;
     page-break-inside: avoid;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
   }
+  /* Generic safety: any bordered/rounded card-like block prints whole */
+  #reportBody [class*="card"], #reportBody [class*="-block"],
+  #reportBody [class*="-panel"], #reportBody [class*="tile"] {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  /* A section heading should never be the last thing on a page */
+  #reportBody h2, #reportBody h3, #reportBody [class*="section-title"],
+  #reportBody [class*="seclbl"] { break-after: avoid; page-break-after: avoid; }
   /* Expand all collapsed match game rows */
   .series-games.hidden { display: block !important; }
   /* Series game rows don't break mid-card */
@@ -4508,7 +4516,8 @@ function openTeamReport(teamName) {
           ${playedMaps.length > 1 ? `<select class="form-select" style="font-size:11px;padding:5px 8px;height:auto;" onchange="setReportMapFilter(this.value)" title="Filter the entire report to a single map">${mapOpts}</select>` : ''}
           ${(typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin())?`<button class="btn btn-ghost btn-sm" onclick="openTeamEditor('${teamName}');document.getElementById('teamReportModal').remove();">Edit</button>`:''}
           <button class="btn btn-ghost btn-sm" onclick="openH2H('${teamName}')">H2H</button>
-          <button class="btn btn-accent btn-sm" id="pdfBtn" onclick="generateTeamImage('${teamName}')">Export PDF</button>
+          <button class="btn btn-accent btn-sm" onclick="window.print()" title="Print or Save as PDF — landscape, pages continue cleanly with no cut-offs">🖨 Print</button>
+          <button class="btn btn-ghost btn-sm" id="pdfBtn" onclick="generateTeamImage('${teamName}')">Export Image</button>
           <button class="btn btn-ghost btn-sm" onclick="_reportMapFilter='';document.getElementById('teamReportModal').remove();">✕</button>
         </div>
       </div>
