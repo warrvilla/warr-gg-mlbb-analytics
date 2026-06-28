@@ -1370,6 +1370,15 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
+  /* Fit the wide on-screen dashboard onto the printable page — the report is now
+     1400px wide on screen, so without this the right edge clips on paper. Constrain
+     widths and collapse multi-column grids to a tidy 2-up that always fits A4 landscape. */
+  #teamReportContent, #reportBody { width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; }
+  #reportBody div[style*="display:grid"], #reportBody div[style*="display: grid"] {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+  #reportBody img, #reportBody svg { max-width: 100% !important; }
   /* Each numbered section keeps its heading with its content and avoids
      splitting where it can; oversized sections break BETWEEN their cards. */
   #reportBody > div {
@@ -4343,7 +4352,7 @@ function openTeamReport(teamName) {
       const list = Object.entries(agg[L]||{}).sort((a,b)=>b[1].c-a[1].c)
         .map(([n,e]) => ({name:n, count:e.c, wr:Math.round(e.w/e.c*100)}));
       const rows = list.length
-        ? list.slice(0,8).map(p => `<div style="display:flex;align-items:center;gap:7px;padding:3px 0;">
+        ? list.map(p => `<div style="display:flex;align-items:center;gap:7px;padding:3px 0;">
             ${img(p.name,22)}
             <span style="flex:1;min-width:0;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</span>
             <span style="font-size:9px;color:var(--text3);font-family:var(--font-mono);">${p.count}g</span>
