@@ -1551,7 +1551,7 @@ table.kda td.r { text-align:right; }
       <span>Hero Meta</span>
     </button>
     <button class="sidebar-btn" id="sb-matchups" onclick="showView('matchups')">
-      <span class="icon">⚔</span><span>Matchups</span>
+      <span>Matchups</span>
     </button>
     <button class="sidebar-btn" id="sb-report" onclick="showView('report')">
       <span>My Team Report</span>
@@ -2188,7 +2188,7 @@ function renderCurrentView() {
 // UI STATE
 // ══════════════════════════════════════════════════════════════
 let currentView = 'teams';
-let _muTeam = null, _muHero = null, _muHeroSearch = '';
+let _muTeam = null, _muHero = null, _muHeroSearch = '', _muSeason = null;
 let _focusTeam = null, _slideDir = 0;   // hoisted: initScoutView() renders Matches before the old declaration site ran (TDZ fix)
 let leagueFilter = 'all';
 let seasonFilter = 'all';
@@ -2331,6 +2331,7 @@ function _muBuildRespMap(team){
   const map = {};
   DB_MODULE.getMatches().forEach(m => {
     if (!(m.blueTeam===team || m.redTeam===team)) return;
+    if (_muSeason && _muSeason!=='all' && (m.season||'').trim() !== _muSeason) return;
     const ours = m.blueTeam===team;
     const won = (ours && m.winner==='blue') || (!ours && m.winner==='red');
     const myPicks    = (ours ? m.bluePicks : m.redPicks) || [];
@@ -2351,6 +2352,7 @@ function _muBuildRespMap(team){
   return map;
 }
 function selectMuTeam(name){ _muTeam = name; _muHero = null; _muHeroSearch=''; renderMatchups(); }
+function selectMuSeason(s){ _muSeason = s; _muHero = null; renderMatchups(); }
 function selectMuHero(name){ _muHero = name; renderMatchups(); }
 function muHeroFilter(q){ _muHeroSearch = q||''; const ql=(q||'').toLowerCase();
   document.querySelectorAll('#muHeroList .mu-hero').forEach(el => { el.style.display = (!ql || (el.dataset.h||'').includes(ql)) ? '' : 'none'; }); }
@@ -2361,6 +2363,11 @@ function renderMatchups(){
   if (!teams.length) { area.innerHTML = `<div style="padding:48px 24px;color:var(--text3);text-align:center;">No teams scouted yet — log some matches first.</div>`; return; }
   if (!_muTeam || !teams.includes(_muTeam)) _muTeam = (_focusTeam && teams.includes(_focusTeam)) ? _focusTeam : teams[0];
   const team = _muTeam;
+  // Seasons this team has data for — default to the most recent, allow any past one or "all".
+  const _teamMatches = DB_MODULE.getMatches().filter(m => m.blueTeam===team || m.redTeam===team);
+  const _seasons = [...new Set(_teamMatches.map(m=>(m.season||'').trim()).filter(Boolean))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+  if (_muSeason===null) _muSeason = _seasons[0] || 'all';
+  else if (_muSeason!=='all' && !_seasons.includes(_muSeason)) _muSeason = _seasons[0] || 'all';
   const respMap = _muBuildRespMap(team);
   const faced = Object.entries(respMap).sort((a,b)=>b[1].games-a[1].games);
   if (!_muHero || !respMap[_muHero]) _muHero = faced.length ? faced[0][0] : null;
@@ -2381,7 +2388,11 @@ function renderMatchups(){
   const left = `
     <div class="mu-left">
       <div style="font-size:9px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">Scouting</div>
-      <select class="form-select" style="width:100%;font-size:12px;padding:8px 10px;margin-bottom:12px;" onchange="selectMuTeam(this.value)">${teamOpts}</select>
+      <select class="form-select" style="width:100%;font-size:12px;padding:8px 10px;margin-bottom:8px;" onchange="selectMuTeam(this.value)">${teamOpts}</select>
+      ${_seasons.length ? `<select class="form-select" style="width:100%;font-size:12px;padding:8px 10px;margin-bottom:12px;" onchange="selectMuSeason(this.value)" title="Scope to a season">
+        <option value="all"${_muSeason==='all'?' selected':''}>All seasons</option>
+        ${_seasons.map(s=>`<option value="${s.replace(/"/g,'&quot;')}"${s===_muSeason?' selected':''}>${s}</option>`).join('')}
+      </select>` : ''}
       <div style="font-size:9px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">Select Enemy Hero</div>
       <input placeholder="🔍  Search hero…" oninput="muHeroFilter(this.value)" autocomplete="off" style="width:100%;font-size:12px;padding:8px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);margin-bottom:10px;outline:none;">
       <div id="muHeroList" style="display:flex;flex-direction:column;gap:4px;overflow-y:auto;max-height:calc(100vh - 320px);padding-right:2px;">
