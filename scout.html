@@ -4296,12 +4296,16 @@ function openTeamReport(teamName) {
        <div class="draft-chipcount">${(t.topPicks||[]).length} distinct heroes picked</div>`
     : '';
 
-  const _banRow = (b, color) => `
-    <div class="draft-chiprow">
+  const _banRow = (b, color) => {
+    const pct = t.gamesPlayed ? Math.round(b.count / t.gamesPlayed * 100) : 0;
+    return `<div class="draft-chiprow" style="gap:8px;">
       ${img(b.name, 28)}
-      <span style="font-size:11px;flex:1;">${b.name}</span>
-      <span style="font-size:10px;font-weight:700;color:${color};font-family:var(--font-mono);">×${b.count}</span>
+      <span style="font-size:11px;flex:0 0 auto;min-width:72px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${b.name}</span>
+      <span style="flex:1;min-width:36px;height:7px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden;"><span style="display:block;height:100%;width:${pct}%;background:${color};border-radius:4px;"></span></span>
+      <span style="font-size:10px;font-weight:700;color:${color};font-family:var(--font-mono);white-space:nowrap;">${pct}%</span>
+      <span style="font-size:9px;color:var(--text3);font-family:var(--font-mono);white-space:nowrap;">×${b.count}</span>
     </div>`;
+  };
 
   const banAnalysisHTML = (t.topBans||[]).length
     ? `<div class="draft-chiplist">${(t.topBans||[]).map(b=>_banRow(b,'var(--red)')).join('')}</div>
