@@ -981,6 +981,7 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
 .mu-topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border); }
 .mu-crumbs { display:flex; align-items:center; gap:7px; font-size:11px; font-weight:700; letter-spacing:.4px; color:var(--text3); text-transform:uppercase; flex-wrap:wrap; }
 .mu-crumbs .sep { color:var(--text4); }
+.mu-teamnav { display:flex; align-items:center; gap:12px; min-width:0; }
 .mu-wrap { display: grid; grid-template-columns: 270px 1fr 280px; gap: 16px; align-items: start; }
 .mu-left, .mu-right { background: rgba(255,255,255,.022); border: 1px solid var(--border); border-radius: 14px; padding: 16px; position: sticky; top: 12px; }
 .mu-center { background: rgba(255,255,255,.022); border: 1px solid var(--border); border-radius: 14px; padding: 20px; min-height: 360px; }
@@ -2359,6 +2360,7 @@ function _muBuildRespMap(team){
   return map;
 }
 function selectMuTeam(name){ _muTeam = name; _muHero = null; _muHeroSearch=''; renderMatchups(); }
+function cycleMuTeam(dir){ const ts=_muTeamList(); if(!ts.length)return; let i=ts.indexOf(_muTeam); if(i<0)i=0; i=(i+dir+ts.length)%ts.length; selectMuTeam(ts[i]); }
 function selectMuSeason(s){ _muSeason = s; _muHero = null; renderMatchups(); }
 function _muNoteKey(team,hero){ return team+'|'+hero; }
 function _muGetNote(team,hero){ try{ return (JSON.parse(localStorage.getItem('warr_mu_notes')||'{}'))[_muNoteKey(team,hero)]||''; }catch(_){ return ''; } }
@@ -2402,16 +2404,19 @@ function renderMatchups(){
   const teamLeague = Object.entries(_lgCount).sort((a,b)=>b[1]-a[1])[0]?.[0] || '';
   const topbar = `
     <div class="mu-topbar">
-      <div class="mu-crumbs">
-        <span>MATCHUPS</span>${teamLeague?`<span class="sep">›</span><span>${teamLeague}</span>`:''}<span class="sep">›</span><span>${team}</span>${_muHero?`<span class="sep">›</span><span style="color:var(--text);">${_muHero}</span>`:''}
+      <div class="mu-teamnav">
+        <button class="md-nav" onclick="cycleMuTeam(-1)" title="Previous team" aria-label="Previous team">‹</button>
+        <div class="md-logo${tlogo?'':' noimg'}" style="--mc:${tmo.color};width:52px;height:52px;border-radius:13px;flex-shrink:0;"><img src="${tlogo}" onerror="this.closest('.md-logo').classList.add('noimg')"><i>${tmo.init}</i></div>
+        <div style="min-width:0;">
+          <div style="font-size:21px;font-weight:800;font-family:var(--font-head);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${team}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:4px;">${teamLeague?teamLeague+' · ':''}${_teamMatches.length} games · ${Object.keys(respMap).length} heroes faced</div>
+        </div>
+        <button class="md-nav" onclick="cycleMuTeam(1)" title="Next team" aria-label="Next team">›</button>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
-        <select class="form-select" style="font-size:12px;padding:7px 10px;" onchange="selectMuTeam(this.value)">${teamOpts}</select>
-        ${_seasons.length ? `<select class="form-select" style="font-size:12px;padding:7px 10px;" onchange="selectMuSeason(this.value)" title="Scope to a season">
-          <option value="all"${_muSeason==='all'?' selected':''}>All Time</option>
-          ${_seasons.map(s=>`<option value="${s.replace(/"/g,'&quot;')}"${s===_muSeason?' selected':''}>${s}</option>`).join('')}
-        </select>` : ''}
-      </div>
+      ${_seasons.length ? `<select class="form-select" style="font-size:12px;padding:7px 10px;flex-shrink:0;" onchange="selectMuSeason(this.value)" title="Scope to a season">
+        <option value="all"${_muSeason==='all'?' selected':''}>All Time</option>
+        ${_seasons.map(s=>`<option value="${s.replace(/"/g,'&quot;')}"${s===_muSeason?' selected':''}>${s}</option>`).join('')}
+      </select>` : ''}
     </div>`;
   const left = `
     <div class="mu-left">
@@ -2419,10 +2424,6 @@ function renderMatchups(){
       <input placeholder="🔍  Search hero…" oninput="muHeroFilter(this.value)" autocomplete="off" style="width:100%;font-size:12px;padding:8px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);margin-bottom:10px;outline:none;">
       <div id="muHeroList" style="display:flex;flex-direction:column;gap:4px;overflow-y:auto;max-height:calc(100vh - 320px);padding-right:2px;">
         ${heroItems || '<div style="font-size:11px;color:var(--text3);padding:8px 0;">No enemy heroes recorded vs this team yet.</div>'}
-      </div>
-      <div class="mu-teamcard">
-        <div class="md-logo${tlogo?'':' noimg'}" style="--mc:${tmo.color};width:36px;height:36px;border-radius:10px;"><img src="${tlogo}" onerror="this.closest('.md-logo').classList.add('noimg')"><i>${tmo.init}</i></div>
-        <div style="min-width:0;"><div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${team}</div><div style="font-size:9px;color:var(--text3);">${tm.gamesPlayed||0} games · ${Object.keys(respMap).length} heroes faced</div></div>
       </div>
     </div>`;
 
