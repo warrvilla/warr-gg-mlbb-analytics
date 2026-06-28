@@ -4856,36 +4856,66 @@ function _heroRespRender(q) {
   const key = Object.keys(data).find(k => k.toLowerCase() === ql) || Object.keys(data).find(k => k.toLowerCase().includes(ql));
   if (!key) { out.innerHTML = `<div style="color:var(--text3);font-size:11px;">No games where the opponent picked “${q}”.</div>`; return; }
   const b = data[key];
-  const wr = b.games ? Math.round(b.wins/b.games*100) : 0;
+  const total = b.games;
+  const wr = total ? Math.round(b.wins/total*100) : 0;
   const wcol = v => v>=60?'var(--green)':v>=50?'var(--gold)':'var(--red)';
   const ic = (n,s) => (typeof _heroIcon==='function')
     ? `<img src="${_heroIcon(n)}" onerror="${(typeof _heroIconErr==='function')?_heroIconErr(n):''}" style="width:${s}px;height:${s}px;border-radius:${Math.round(s*0.3)}px;object-fit:cover;flex-shrink:0;">` : '';
-  const all = Object.entries(b.picks).sort((a,c)=>c[1].c-a[1].c);
-  const top = all.slice(0,8);
-  const maxC = top.length ? top[0][1].c : 1;
-  const rows = top.map(([n,e]) => {
-    const w = e.c ? Math.round(e.w/e.c*100) : 0;
-    const barW = Math.round(e.c/maxC*100);
+  // Signal = how exploitable a response is: repeat count vs this hero + how often.
+  const sig = (cnt) => {
+    const pr = total ? cnt/total : 0;
+    if (cnt>=4 && pr>=0.5) return {t:'STRONG',  c:'#34d17a', bg:'rgba(52,209,122,.13)'};
+    if (cnt>=3)            return {t:'RELIABLE', c:'#f4a534', bg:'rgba(244,165,52,.13)'};
+    if (cnt>=2)            return {t:'TENTATIVE',c:'#9ca3af', bg:'rgba(255,255,255,.05)'};
+    return                        {t:'1 GAME',   c:'var(--text4)', bg:'rgba(255,255,255,.03)'};
+  };
+  const entries = Object.entries(b.picks).sort((a,c)=>c[1].c-a[1].c);
+  const usable = entries.filter(([,e]) => e.c >= 2);       // drop one-off noise
+  const oneoffs = entries.length - usable.length;
+
+  // Verdict line — the single most exploitable signal (or a "no read" note).
+  let verdict;
+  if (total < 2) {
+    verdict = `<div style="font-size:11px;color:var(--text3);">Only ${total} game vs ${key} — not enough to read a pattern.</div>`;
+  } else if (!usable.length) {
+    verdict = `<div style="font-size:11px;color:var(--text3);">${total} games vs ${key}, but every answer is a one-off — no repeatable response to exploit yet.</div>`;
+  } else {
+    const [bn,be] = usable[0]; const pr = Math.round(be.c/total*100); const w = be.c?Math.round(be.w/be.c*100):0; const s = sig(be.c);
+    verdict = `<div style="display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:11px;background:${s.bg};border:1px solid ${s.c}55;">
+      ${ic(bn,32)}
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:8px;font-weight:800;letter-spacing:1.2px;color:${s.c};margin-bottom:2px;">${s.t} SIGNAL</div>
+        <div style="font-size:13px;font-weight:800;">Go-to answer: ${bn}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">picks it <b style="color:var(--text2);">${pr}%</b> of games vs ${key} (${be.c}/${total}) · <b style="color:${wcol(w)};">${w}% WR</b></div>
+      </div>
+    </div>`;
+  }
+
+  // Other repeat answers (≥2 games), excluding the top one already shown.
+  const rest = usable.slice(1,5).map(([n,e]) => {
+    const pr = Math.round(e.c/total*100); const w = e.c?Math.round(e.w/e.c*100):0; const s = sig(e.c);
     return `<div style="display:flex;align-items:center;gap:9px;padding:5px 0;">
-      ${ic(n,24)}
-      <span style="width:96px;flex-shrink:0;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n}</span>
-      <span style="flex:1;min-width:30px;height:8px;border-radius:5px;background:rgba(255,255,255,.05);overflow:hidden;"><span style="display:block;height:100%;width:${barW}%;background:var(--accent);border-radius:5px;"></span></span>
-      <span style="width:30px;text-align:right;font-size:10px;color:var(--text3);font-family:var(--font-mono);">${e.c}×</span>
-      <span style="width:38px;text-align:right;font-size:11px;font-weight:700;color:${wcol(w)};font-family:var(--font-mono);">${w}%</span>
+      ${ic(n,20)}
+      <span style="width:86px;flex-shrink:0;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n}</span>
+      <span style="font-size:7.5px;font-weight:800;letter-spacing:.5px;color:${s.c};width:58px;flex-shrink:0;">${s.t}</span>
+      <span style="flex:1;min-width:24px;height:6px;border-radius:4px;background:rgba(255,255,255,.05);overflow:hidden;"><span style="display:block;height:100%;width:${pr}%;background:${s.c};"></span></span>
+      <span style="width:48px;text-align:right;font-size:9px;color:var(--text3);font-family:var(--font-mono);">${e.c}/${total}g</span>
+      <span style="width:34px;text-align:right;font-size:10px;font-weight:700;color:${wcol(w)};font-family:var(--font-mono);">${w}%</span>
     </div>`;
   }).join('');
+
   out.innerHTML = `
     <div style="background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.008));border:1px solid var(--border);border-radius:12px;padding:14px 16px;">
       <div style="display:flex;align-items:center;gap:11px;margin-bottom:12px;">
-        ${ic(key,34)}
+        ${ic(key,30)}
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:800;">Enemy picks <span style="color:var(--gold);">${key}</span></div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px;">${team} answered in ${b.games} game${b.games!==1?'s':''} · <span style="color:${wcol(wr)};font-weight:700;">${wr}% win rate</span></div>
+          <div style="font-size:12px;font-weight:800;">Enemy picks <span style="color:var(--gold);">${key}</span></div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;">${total} game${total!==1?'s':''} faced · ${team} won <span style="color:${wcol(wr)};font-weight:700;">${wr}%</span></div>
         </div>
       </div>
-      <div style="font-size:8.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text4);margin-bottom:4px;">Their go-to picks</div>
-      ${rows || '<div style="color:var(--text3);font-size:11px;">No picks recorded.</div>'}
-      ${all.length>8 ? `<div style="font-size:9.5px;color:var(--text4);margin-top:8px;">+ ${all.length-8} more</div>` : ''}
+      ${verdict}
+      ${rest ? `<div style="font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text4);margin:13px 0 4px;">Other repeat answers</div>${rest}` : ''}
+      ${oneoffs ? `<div style="font-size:9.5px;color:var(--text4);margin-top:10px;">+ ${oneoffs} one-off pick${oneoffs!==1?'s':''} ignored (no signal)</div>` : ''}
     </div>`;
 }
 
