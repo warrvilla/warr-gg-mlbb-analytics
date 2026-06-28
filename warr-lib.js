@@ -471,14 +471,19 @@ const WMigrate = {
 // Computes S/A/B/C tiers based on actual pick/ban rates observed in scout data
 // Call this on page load to override hardcoded tiers
 window.WDB = window.WDB || {};
-WDB.computeDynamicTiers = function(minGames = 3) {
+WDB.computeDynamicTiers = function(minGames = 3, opts) {
   try {
     const raw = localStorage.getItem('warr_scout_data');
     if (!raw) return null;
     const db = JSON.parse(raw);
-    // OFFICIAL ONLY: dynamic tiers reflect the real competitive meta — count
-    // MPL / tournament games, never scrims / practice / AI-battle drafts.
-    const matchesAll = (db.matches || []).filter(m => WDB.PUBLIC_LEAGUES.includes((m && m.league || '').trim()));
+    // OFFICIAL ONLY by default: dynamic tiers reflect the real competitive meta.
+    // opts.includeScrims also counts the current user's own scrims (their local
+    // cache only contains their own private rows, so no cross-user leakage).
+    const includeScrims = !!(opts && opts.includeScrims);
+    const matchesAll = (db.matches || []).filter(m => {
+      const lg = (m && m.league || '').trim();
+      return WDB.PUBLIC_LEAGUES.includes(lg) || (includeScrims && lg === 'Scrims');
+    });
     if (matchesAll.length < minGames) return null;
 
     const totalGames = matchesAll.length;
