@@ -4291,10 +4291,49 @@ function openTeamReport(teamName) {
       <span style="font-size:10px;color:var(--text3);font-family:var(--font-mono);">×${p.count}</span>
     </div>`;
   };
-  const pickAnalysisHTML = (t.topPicks||[]).length
-    ? `<div class="draft-chiplist">${(t.topPicks||[]).map(_pickRow).join('')}</div>
-       <div class="draft-chipcount">${(t.topPicks||[]).length} distinct heroes picked</div>`
-    : '';
+  // Top Picks grouped per lane (from the lane tagged on each pick). Falls back to
+  // the flat list when picks have no lane data.
+  const pickAnalysisHTML = (() => {
+    const LANES = ['Gold','Jungle','Mid','EXP','Roam'];
+    const lcMap = {Gold:'#f4a534',Mid:'#a855f7',Roam:'#34d17a',Jungle:'#f05252',EXP:'#38bdf8'};
+    const agg = {};
+    teamGames.forEach(m => {
+      const ours = m.blueTeam === teamName;
+      const won = (ours && m.winner==='blue') || (!ours && m.winner==='red');
+      const picks = ours ? (m.bluePicks||[]) : (m.redPicks||[]);
+      picks.forEach(p => {
+        const n = p && (p.name||p), L = p && p.lane;
+        if (!n || !L || !LANES.includes(L)) return;
+        const a = agg[L] || (agg[L] = {});
+        const e = a[n] || (a[n] = {c:0,w:0});
+        e.c++; if (won) e.w++;
+      });
+    });
+    const anyData = LANES.some(L => agg[L] && Object.keys(agg[L]).length);
+    if (!anyData) {
+      return (t.topPicks||[]).length
+        ? `<div class="draft-chiplist">${(t.topPicks||[]).map(_pickRow).join('')}</div>
+           <div class="draft-chipcount">${(t.topPicks||[]).length} distinct heroes picked</div>`
+        : '';
+    }
+    const col = (L) => {
+      const list = Object.entries(agg[L]||{}).sort((a,b)=>b[1].c-a[1].c)
+        .map(([n,e]) => ({name:n, count:e.c, wr:Math.round(e.w/e.c*100)}));
+      const rows = list.length
+        ? list.slice(0,8).map(p => `<div style="display:flex;align-items:center;gap:7px;padding:3px 0;">
+            ${img(p.name,22)}
+            <span style="flex:1;min-width:0;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</span>
+            <span style="font-size:9px;color:var(--text3);font-family:var(--font-mono);">${p.count}g</span>
+            <span style="font-size:10px;font-weight:700;color:${wrc(p.wr)};font-family:var(--font-mono);">${p.wr}%</span>
+          </div>`).join('')
+        : `<div style="font-size:10px;color:var(--text4);padding:4px 0;">No data</div>`;
+      return `<div class="lp-section"><div class="lp-section-head">
+          <span class="lp-lane-name" style="color:${lcMap[L]};">${L}</span>
+          <span class="lp-lane-meta">${list.length} hero${list.length!==1?'es':''}</span>
+        </div>${rows}</div>`;
+    };
+    return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;align-items:start;">${LANES.map(col).join('')}</div>`;
+  })();
 
   const _banRow = (b, color) => {
     const pct = t.gamesPlayed ? Math.round(b.count / t.gamesPlayed * 100) : 0;
