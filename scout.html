@@ -4489,16 +4489,22 @@ function openTeamReport(teamName) {
     </div>` : '';
 
   // ── Section helper ──
-  const sec = (title, content, color='var(--text3)') => `
-    <div style="margin-bottom:18px;break-inside:avoid;page-break-inside:avoid;">
-      <div style="font-size:9px;font-weight:800;font-family:var(--font-head);letter-spacing:1.5px;text-transform:uppercase;color:${color};margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid var(--border);">${title}</div>
+  // Section header — accent bar + uppercase title + trailing rule (mockup style)
+  const sec = (title, content, color='var(--accent)') => `
+    <div style="margin-bottom:16px;break-inside:avoid;page-break-inside:avoid;">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:11px;">
+        <span style="width:3px;height:14px;border-radius:2px;background:${color};flex-shrink:0;box-shadow:0 0 8px ${color}77;"></span>
+        <span style="font-size:10px;font-weight:800;font-family:var(--font-head);letter-spacing:1.7px;text-transform:uppercase;color:var(--text);">${title}</span>
+        <span style="flex:1;height:1px;background:linear-gradient(90deg,var(--border) 0%,transparent 100%);"></span>
+      </div>
       ${content}
     </div>`;
 
+  // Stat tile — left-aligned big value over small caps label (mockup style)
   const kpiBox = (val, label, color='var(--text)') => `
-    <div style="text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 6px;">
-      <div style="font-size:20px;font-weight:800;font-family:var(--font-head);line-height:1.1;color:${color};">${val}</div>
-      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-top:3px;">${label}</div>
+    <div style="background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.012));border:1px solid var(--border);border-radius:12px;padding:12px 13px;min-width:0;">
+      <div style="font-size:23px;font-weight:800;font-family:var(--font-head);line-height:1;color:${color};letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${val}</div>
+      <div style="font-size:8.5px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-top:7px;font-weight:700;">${label}</div>
     </div>`;
 
   const overlay = document.createElement('div');
@@ -4533,34 +4539,58 @@ function openTeamReport(teamName) {
           <div style="font-size:11px;color:#666;margin-top:2px;">Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div>
         </div>
 
-        <!-- HEADER ROW -->
-        <div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--border);">
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:22px;font-weight:800;font-family:var(--font-head);margin-bottom:5px;">${teamName}</div>
-            <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
-              ${lb || '<span style="color:var(--text3);font-size:11px;">No league data</span>'}
+        <!-- HEADER BAND: logo · team · draft-risk index -->
+        ${(() => {
+          const _logo = (typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(teamName):'';
+          const _mo = (typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(teamName):{init:(teamName[0]||'?').toUpperCase(),color:'#7C5CF6'};
+          // Draft Risk Index — how dangerous this team is to draft against.
+          let rs=0;
+          if(wr>=60)rs+=2; else if(wr>=50)rs+=1;
+          if((t.poolDepth||0)>=10)rs+=1;
+          if((t.turtleCtrl||0)>=60||(t.lordCtrl||0)>=60)rs+=1;
+          if((t.fbRate||0)>=55)rs+=1;
+          rs=Math.max(1,Math.min(5,rs||1));
+          const rLabel=rs>=5?'VERY HIGH':rs>=4?'HIGH':rs>=3?'MODERATE':rs>=2?'LOW':'MINIMAL';
+          const rColor=rs>=4?'var(--red)':rs>=3?'var(--gold)':'var(--green)';
+          const stars='★'.repeat(rs)+'<span style="opacity:.25;">'+'★'.repeat(5-rs)+'</span>';
+          return `
+          <div style="display:flex;align-items:center;gap:18px;margin-bottom:16px;padding:2px 0 16px;border-bottom:1px solid var(--border);">
+            <div style="width:84px;height:84px;border-radius:18px;flex-shrink:0;position:relative;overflow:hidden;background:linear-gradient(135deg,${_mo.color},${_mo.color}cc);display:flex;align-items:center;justify-content:center;">
+              <span style="font-size:34px;font-weight:800;color:#fff;font-family:var(--font-head);">${_mo.init}</span>
+              ${_logo?`<img src="${_logo}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:6px;background:var(--surface2);" onerror="this.style.display='none'">`:''}
             </div>
-            <div style="display:flex;gap:5px;align-items:center;">
-              <div style="display:flex;gap:3px;">${formDots}</div>
-              ${t.streak?.count > 1 ? `<span style="font-size:10px;font-weight:700;color:${t.streak.type==='W'?'var(--green)':'var(--red)'};">${t.streak.type}${t.streak.count} streak</span>` : ''}
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:27px;font-weight:800;font-family:var(--font-head);letter-spacing:-.01em;margin-bottom:5px;line-height:1;">${teamName}</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+                ${lb || '<span style="color:var(--text3);font-size:11px;">No league data</span>'}
+                ${t.placement?`<span style="font-size:11px;color:var(--gold);font-weight:700;">· ${t.placement}</span>`:''}
+              </div>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <div style="display:flex;gap:3px;">${formDots}</div>
+                ${t.streak?.count > 1 ? `<span style="font-size:10px;font-weight:700;color:${t.streak.type==='W'?'var(--green)':'var(--red)'};">${t.streak.type}${t.streak.count} streak</span>` : ''}
+              </div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+              <div style="font-size:8.5px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:var(--text3);margin-bottom:4px;">Draft Risk Index</div>
+              <div style="font-size:17px;font-weight:800;color:${rColor};font-family:var(--font-head);line-height:1;">${rLabel}</div>
+              <div style="font-size:15px;color:${rColor};letter-spacing:3px;margin-top:4px;">${stars}</div>
             </div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:6px;">
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
-              ${kpiBox(wr+'%', 'Win Rate', wrc(wr))}
-              ${kpiBox((t.wins||0)+'W '+(t.losses||0)+'L', 'Record')}
-              ${kpiBox(bsWr!==null?bsWr+'%':'—', 'Blue Side', bsWr!==null?wrc(bsWr):'var(--text3)')}
-              ${kpiBox(rsWr!==null?rsWr+'%':'—', 'Red Side', rsWr!==null?wrc(rsWr):'var(--text3)')}
-            </div>
-            ${(t.fbRate!==null || t.avgTowers!==null || t.firstTurtleRate!==null || t.firstLordRate!==null) ? `
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
-              ${kpiBox(t.fbRate!==null?t.fbRate+'%':'—', 'First Blood', t.fbRate!==null?wrc(t.fbRate):'var(--text3)')}
-              ${kpiBox(t.avgTowers!==null?t.avgTowers:'—', 'Avg Towers', t.avgTowers!==null?'var(--accent)':'var(--text3)')}
-              ${kpiBox(t.firstTurtleRate!==null?t.firstTurtleRate+'%':'—', 'First Turtle', t.firstTurtleRate!==null?wrc(t.firstTurtleRate):'var(--text3)')}
-              ${kpiBox(t.firstLordRate!==null?t.firstLordRate+'%':'—', 'First Lord', t.firstLordRate!==null?wrc(t.firstLordRate):'var(--text3)')}
-            </div>` : ''}
+          <!-- KPI STRIP -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px;">
+            ${kpiBox(wr+'%', 'Win Rate', wrc(wr))}
+            ${kpiBox((t.wins||0)+'W '+(t.losses||0)+'L', 'Record')}
+            ${kpiBox(bsWr!==null?bsWr+'%':'—', 'Blue Side', bsWr!==null?wrc(bsWr):'var(--text3)')}
+            ${kpiBox(rsWr!==null?rsWr+'%':'—', 'Red Side', rsWr!==null?wrc(rsWr):'var(--text3)')}
           </div>
-        </div>
+          ${(t.fbRate!==null || t.avgTowers!==null || t.firstTurtleRate!==null || t.firstLordRate!==null) ? `
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;">
+            ${kpiBox(t.fbRate!==null?t.fbRate+'%':'—', 'First Blood', t.fbRate!==null?wrc(t.fbRate):'var(--text3)')}
+            ${kpiBox(t.avgTowers!==null?t.avgTowers:'—', 'Avg Towers', t.avgTowers!==null?'var(--accent)':'var(--text3)')}
+            ${kpiBox(t.firstTurtleRate!==null?t.firstTurtleRate+'%':'—', 'First Turtle', t.firstTurtleRate!==null?wrc(t.firstTurtleRate):'var(--text3)')}
+            ${kpiBox(t.firstLordRate!==null?t.firstLordRate+'%':'—', 'First Lord', t.firstLordRate!==null?wrc(t.firstLordRate):'var(--text3)')}
+          </div>` : ''}`;
+        })()}
 
         <!-- STRENGTHS / WEAKNESSES -->
         ${(strengths.length || weaknesses.length) ? `
