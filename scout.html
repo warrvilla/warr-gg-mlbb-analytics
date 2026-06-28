@@ -804,6 +804,13 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
   padding-top: 10px;
   border-top: 0.5px solid var(--border);
 }
+/* Response Drafting hero chips */
+.rd-chip { display:inline-flex; align-items:center; gap:5px; padding:4px 9px 4px 5px; border:1px solid var(--border); border-radius:999px; background:var(--surface2); color:var(--text2); font-size:10.5px; cursor:pointer; transition:all .12s; line-height:1; }
+.rd-chip:hover { border-color:var(--gold); color:var(--text); }
+.rd-chip.active { background:rgba(244,165,52,.16); border-color:var(--gold); color:var(--text); }
+.rd-chip img { width:18px; height:18px; border-radius:5px; object-fit:cover; }
+.rd-chip b { font-family:var(--font-mono); font-size:9px; color:var(--text4); font-weight:700; }
+.rd-chip.active b { color:var(--gold); }
 .lp-player-line {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1374,18 +1381,18 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
      1400px wide on screen, so without this the right edge clips on paper. Constrain
      widths and collapse multi-column grids to a tidy 2-up that always fits A4 landscape. */
   #teamReportContent, #reportBody { width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; }
+  /* Densify for paper so the report doesn't sprawl over many pages */
+  #teamReportContent { zoom: 0.82; }
+  #reportBody { padding: 0 !important; }
   #reportBody div[style*="display:grid"], #reportBody div[style*="display: grid"] {
     grid-template-columns: 1fr 1fr !important;
-    gap: 10px !important;
+    gap: 8px !important;
   }
   #reportBody img, #reportBody svg { max-width: 100% !important; }
-  /* Each numbered section keeps its heading with its content and avoids
-     splitting where it can; oversized sections break BETWEEN their cards. */
-  #reportBody > div {
-    break-inside: avoid;
-    page-break-inside: avoid;
-    margin-bottom: 12px;
-  }
+  /* Let big sections FLOW and fill the page (forcing every section whole was
+     what created huge blank gaps and too many pages). Only small cards below
+     stay intact. */
+  #reportBody > div { margin-bottom: 10px; }
   /* Generic safety: any bordered/rounded card-like block prints whole */
   #reportBody [class*="card"], #reportBody [class*="-block"],
   #reportBody [class*="-panel"], #reportBody [class*="tile"] {
@@ -4763,15 +4770,20 @@ function openTeamReport(teamName) {
         </div>
 
         <!-- RESPONSE DRAFTING: vs a specific enemy hero -->
+        ${Object.keys(respMap).length ? `
         <div style="margin-bottom:18px;break-inside:avoid;page-break-inside:avoid;" class="no-print">
-          ${sec('Response Drafting · How They Draft vs a Hero', `
-            <div style="margin-bottom:12px;">
-              <input class="form-input" list="_heroRespList" placeholder="Type an enemy hero (e.g. Fanny, Lancelot)…" oninput="_heroRespRender(this.value)" autocomplete="off" style="width:100%;max-width:340px;font-size:12px;padding:8px 11px;">
-              <datalist id="_heroRespList">${Object.keys(respMap).sort().map(h=>`<option value="${h.replace(/"/g,'&quot;')}">`).join('')}</datalist>
+          ${sec('Response Drafting · What They Pick Against a Hero', `
+            <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Tap an enemy hero below — see what ${teamName} drafts against it and how they do.</div>
+            <input id="_heroRespSearch" placeholder="🔍  Filter heroes…" oninput="_heroRespFilter(this.value)" autocomplete="off"
+              style="width:100%;max-width:240px;font-size:12px;padding:8px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);margin-bottom:10px;outline:none;">
+            <div id="_heroRespChips" style="display:flex;flex-wrap:wrap;gap:6px;max-height:104px;overflow-y:auto;padding:2px;">
+              ${Object.entries(respMap).sort((a,b)=>b[1].games-a[1].games).map(([h,b]) =>
+                `<button type="button" class="rd-chip" data-h="${h.toLowerCase().replace(/"/g,'')}" onclick="_heroRespPick('${h.replace(/'/g,"\\'")}')">${img(h,18)}<span>${h}</span><b>${b.games}</b></button>`
+              ).join('')}
             </div>
-            <div id="_heroRespOut"><div style="color:var(--text3);font-size:11px;">Type an enemy hero above to see what ${teamName} picks against it, and their win rate in those games.</div></div>
+            <div id="_heroRespOut" style="margin-top:14px;"></div>
           `, 'var(--gold)')}
-        </div>
+        </div>` : ''}
 
         <!-- OBJECTIVE CONTROL RINGS -->
         ${(() => {
@@ -4821,41 +4833,60 @@ function openTeamReport(teamName) {
   document.body.appendChild(overlay);
 }
 
-// Renders "how this team drafts vs hero X" from the precomputed respMap.
+// Filter the hero chips by the search box.
+function _heroRespFilter(q) {
+  q = (q||'').trim().toLowerCase();
+  document.querySelectorAll('#_heroRespChips .rd-chip').forEach(c => {
+    c.style.display = (!q || (c.dataset.h||'').includes(q)) ? '' : 'none';
+  });
+}
+// Pick a hero chip → highlight it and render the response.
+function _heroRespPick(name) {
+  const k = String(name).toLowerCase();
+  document.querySelectorAll('#_heroRespChips .rd-chip').forEach(c => c.classList.toggle('active', (c.dataset.h||'') === k));
+  _heroRespRender(name);
+}
+// Renders "how this team drafts vs hero X" — calm, scannable layout (top 8).
 function _heroRespRender(q) {
   const out = document.getElementById('_heroRespOut'); if (!out) return;
   const data = window._heroRespData; const team = window._heroRespTeam || 'this team';
   q = (q||'').trim();
-  if (!data) { out.innerHTML = ''; return; }
-  if (!q) { out.innerHTML = `<div style="color:var(--text3);font-size:11px;">Type an enemy hero above to see what ${team} picks against it, and their win rate in those games.</div>`; return; }
+  if (!data || !q) { out.innerHTML = ''; return; }
   const ql = q.toLowerCase();
   const key = Object.keys(data).find(k => k.toLowerCase() === ql) || Object.keys(data).find(k => k.toLowerCase().includes(ql));
-  if (!key) { out.innerHTML = `<div style="color:var(--text3);font-size:11px;">No logged games where the opponent picked “${q}”.</div>`; return; }
+  if (!key) { out.innerHTML = `<div style="color:var(--text3);font-size:11px;">No games where the opponent picked “${q}”.</div>`; return; }
   const b = data[key];
   const wr = b.games ? Math.round(b.wins/b.games*100) : 0;
   const wcol = v => v>=60?'var(--green)':v>=50?'var(--gold)':'var(--red)';
-  const icon = (typeof _heroIcon==='function')
-    ? `<img src="${_heroIcon(key)}" onerror="${(typeof _heroIconErr==='function')?_heroIconErr(key):''}" style="width:30px;height:30px;border-radius:9px;object-fit:cover;flex-shrink:0;">` : '';
-  const rows = Object.entries(b.picks).sort((a,c)=>c[1].c-a[1].c).slice(0,14).map(([n,e]) => {
+  const ic = (n,s) => (typeof _heroIcon==='function')
+    ? `<img src="${_heroIcon(n)}" onerror="${(typeof _heroIconErr==='function')?_heroIconErr(n):''}" style="width:${s}px;height:${s}px;border-radius:${Math.round(s*0.3)}px;object-fit:cover;flex-shrink:0;">` : '';
+  const all = Object.entries(b.picks).sort((a,c)=>c[1].c-a[1].c);
+  const top = all.slice(0,8);
+  const maxC = top.length ? top[0][1].c : 1;
+  const rows = top.map(([n,e]) => {
     const w = e.c ? Math.round(e.w/e.c*100) : 0;
-    const ico = (typeof _heroIcon==='function')
-      ? `<img src="${_heroIcon(n)}" onerror="${(typeof _heroIconErr==='function')?_heroIconErr(n):''}" style="width:22px;height:22px;border-radius:7px;object-fit:cover;flex-shrink:0;">` : '';
-    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-top:0.5px solid rgba(255,255,255,.04);">
-      ${ico}
-      <span style="flex:1;min-width:0;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n}${e.lane?` <span style="font-size:8.5px;color:var(--text4);">${e.lane}</span>`:''}</span>
-      <span style="font-size:9px;color:var(--text3);font-family:var(--font-mono);">${e.c}g</span>
-      <span style="font-size:10px;font-weight:700;color:${wcol(w)};font-family:var(--font-mono);min-width:34px;text-align:right;">${w}%</span>
+    const barW = Math.round(e.c/maxC*100);
+    return `<div style="display:flex;align-items:center;gap:9px;padding:5px 0;">
+      ${ic(n,24)}
+      <span style="width:96px;flex-shrink:0;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n}</span>
+      <span style="flex:1;min-width:30px;height:8px;border-radius:5px;background:rgba(255,255,255,.05);overflow:hidden;"><span style="display:block;height:100%;width:${barW}%;background:var(--accent);border-radius:5px;"></span></span>
+      <span style="width:30px;text-align:right;font-size:10px;color:var(--text3);font-family:var(--font-mono);">${e.c}×</span>
+      <span style="width:38px;text-align:right;font-size:11px;font-weight:700;color:${wcol(w)};font-family:var(--font-mono);">${w}%</span>
     </div>`;
   }).join('');
   out.innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">
-      ${icon}
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:700;">When enemy picks ${key}</div>
-        <div style="font-size:10px;color:var(--text3);">${team} response — ${b.games} game${b.games!==1?'s':''} · <span style="color:${wcol(wr)};font-weight:700;">${wr}% WR</span></div>
+    <div style="background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.008));border:1px solid var(--border);border-radius:12px;padding:14px 16px;">
+      <div style="display:flex;align-items:center;gap:11px;margin-bottom:12px;">
+        ${ic(key,34)}
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:800;">Enemy picks <span style="color:var(--gold);">${key}</span></div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;">${team} answered in ${b.games} game${b.games!==1?'s':''} · <span style="color:${wcol(wr)};font-weight:700;">${wr}% win rate</span></div>
+        </div>
       </div>
-    </div>
-    <div>${rows || '<div style="color:var(--text3);font-size:11px;">No picks recorded.</div>'}</div>`;
+      <div style="font-size:8.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text4);margin-bottom:4px;">Their go-to picks</div>
+      ${rows || '<div style="color:var(--text3);font-size:11px;">No picks recorded.</div>'}
+      ${all.length>8 ? `<div style="font-size:9.5px;color:var(--text4);margin-top:8px;">+ ${all.length-8} more</div>` : ''}
+    </div>`;
 }
 
 function openH2H(teamName) {
