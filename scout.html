@@ -1360,7 +1360,22 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
   body::after, body::before { display: none !important; }
   /* Hide everything except the report */
   body > *:not(#teamReportModal) { display: none !important; }
-  body { background: #07070C !important; margin: 0 !important; padding: 0 !important; }
+  body { background: #ffffff !important; margin: 0 !important; padding: 0 !important; }
+  /* CLEAN LIGHT DOCUMENT THEME for paper. The report's inline styles all read CSS
+     variables, so recoloring the variables flips the whole thing to a crisp,
+     ink-friendly light layout — no heavy dark ink blocks, real visible borders. */
+  #teamReportModal, #teamReportModal * {
+    --bg:#ffffff; --text:#15151b; --text1:#15151b; --text2:#33333b; --text3:#5b5b66; --text4:#8a8a93;
+    --surface:#ffffff; --surface2:#f5f5f8; --surface3:#ececf1;
+    --border:rgba(0,0,0,.16); --border2:rgba(0,0,0,.10); --border3:rgba(0,0,0,.24);
+    --accent:#5b3fd6; --accent-border:rgba(91,63,214,.45); --accent-dim:#ede9fb; --accent-glow:rgba(91,63,214,.25);
+    --blue:#2563c9; --blue-border:rgba(37,99,201,.45); --blue-dim:#e6eefb;
+    --green:#15814a; --green-border:rgba(21,129,74,.45); --green-dim:#e2f2e9; --neon:#15814a; --neon-dim:#e2f2e9;
+    --red:#c0392b; --red-border:rgba(192,57,43,.45); --red-dim:#f8e3e0;
+    --gold:#9a6a00; --gold-border:rgba(154,106,0,.45); --gold-dim:#f6edd5;
+  }
+  #teamReportContent { background:#ffffff !important; border:none !important; }
+  #reportBody { color:#15151b; }
   /* Modal overlay: static so content flows across pages */
   #teamReportModal {
     position: static !important;
@@ -1396,21 +1411,21 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
      1400px wide on screen, so without this the right edge clips on paper. Constrain
      widths and collapse multi-column grids to a tidy 2-up that always fits A4 landscape. */
   #teamReportContent, #reportBody { width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; }
-  /* Densify for paper so the report doesn't sprawl over many pages */
-  #teamReportContent { zoom: 0.82; }
-  #reportBody { padding: 0 !important; }
-  #reportBody div[style*="display:grid"], #reportBody div[style*="display: grid"] {
-    grid-template-columns: 1fr 1fr !important;
-    gap: 8px !important;
-  }
+  #reportBody { padding: 0 !important; font-size: 11px; }
   #reportBody img, #reportBody svg { max-width: 100% !important; }
-  /* Let big sections FLOW and fill the page (forcing every section whole was
-     what created huge blank gaps and too many pages). Only small cards below
-     stay intact. */
-  #reportBody > div { margin-bottom: 10px; }
-  /* Generic safety: any bordered/rounded card-like block prints whole */
-  #reportBody [class*="card"], #reportBody [class*="-block"],
-  #reportBody [class*="-panel"], #reportBody [class*="tile"] {
+  /* CLEAN DIVISIONS: every section keeps its heading WITH its content and is never
+     sliced through the middle. Each numbered section starts its own block; the
+     grids keep their natural columns (they already fit the landscape width). */
+  #reportBody > div {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 12px;
+  }
+  /* Every grid cell, list row, and card prints whole — no info ever cut mid-item */
+  #reportBody div[style*="display:grid"] > div,
+  #reportBody div[style*="display: grid"] > div,
+  #reportBody [class*="card"], #reportBody [class*="-block"], #reportBody [class*="-panel"],
+  #reportBody [class*="tile"], #reportBody [class*="-row"], #reportBody [class*="lp-"] {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
