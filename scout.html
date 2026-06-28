@@ -4107,6 +4107,29 @@ function openTeamReport(teamName) {
     s.result = s.ourWins > s.oppWins ? 'W' : 'L';
   });
 
+  // ── RESPONSE MAP: when the OPPONENT had hero X, what did THIS team draft? ──
+  // enemyHero -> { games, wins, picks: { ourHero: {c, w, lane} } }
+  const respMap = {};
+  teamGames.forEach(m => {
+    const ours = m.blueTeam === teamName;
+    const won = (ours && m.winner==='blue') || (!ours && m.winner==='red');
+    const myPicks    = (ours ? m.bluePicks : m.redPicks) || [];
+    const enemyPicks = (ours ? m.redPicks  : m.bluePicks) || [];
+    const seen = new Set();
+    enemyPicks.forEach(ep => {
+      const eh = ep && (ep.name||ep); if (!eh || seen.has(eh)) return; seen.add(eh);
+      const b = respMap[eh] || (respMap[eh] = { games:0, wins:0, picks:{} });
+      b.games++; if (won) b.wins++;
+      myPicks.forEach(p => {
+        const n = p && (p.name||p); if (!n) return;
+        const e = b.picks[n] || (b.picks[n] = { c:0, w:0, lane:(p&&p.lane)||'' });
+        e.c++; if (won) e.w++; if (p&&p.lane) e.lane = p.lane;
+      });
+    });
+  });
+  window._heroRespData = respMap;
+  window._heroRespTeam = teamName;
+
   // Auto-derived strengths & weaknesses
   const weaknesses = [], strengths = [];
   const wrc = wr => wr >= 60 ? 'var(--green)' : wr >= 50 ? 'var(--gold)' : 'var(--red)';
@@ -4730,6 +4753,17 @@ function openTeamReport(teamName) {
           </div>
         </div>
 
+        <!-- RESPONSE DRAFTING: vs a specific enemy hero -->
+        <div style="margin-bottom:18px;break-inside:avoid;page-break-inside:avoid;" class="no-print">
+          ${sec('Response Drafting · How They Draft vs a Hero', `
+            <div style="margin-bottom:12px;">
+              <input class="form-input" list="_heroRespList" placeholder="Type an enemy hero (e.g. Fanny, Lancelot)…" oninput="_heroRespRender(this.value)" autocomplete="off" style="width:100%;max-width:340px;font-size:12px;padding:8px 11px;">
+              <datalist id="_heroRespList">${Object.keys(respMap).sort().map(h=>`<option value="${h.replace(/"/g,'&quot;')}">`).join('')}</datalist>
+            </div>
+            <div id="_heroRespOut"><div style="color:var(--text3);font-size:11px;">Type an enemy hero above to see what ${teamName} picks against it, and their win rate in those games.</div></div>
+          `, 'var(--gold)')}
+        </div>
+
         <!-- OBJECTIVE CONTROL RINGS -->
         ${(() => {
           if (t.fbRate===null && t.firstTurtleRate===null && t.firstLordRate===null && t.lordCtrl===null) return '';
@@ -4776,6 +4810,43 @@ function openTeamReport(teamName) {
     </div>`;
 
   document.body.appendChild(overlay);
+}
+
+// Renders "how this team drafts vs hero X" from the precomputed respMap.
+function _heroRespRender(q) {
+  const out = document.getElementById('_heroRespOut'); if (!out) return;
+  const data = window._heroRespData; const team = window._heroRespTeam || 'this team';
+  q = (q||'').trim();
+  if (!data) { out.innerHTML = ''; return; }
+  if (!q) { out.innerHTML = `<div style="color:var(--text3);font-size:11px;">Type an enemy hero above to see what ${team} picks against it, and their win rate in those games.</div>`; return; }
+  const ql = q.toLowerCase();
+  const key = Object.keys(data).find(k => k.toLowerCase() === ql) || Object.keys(data).find(k => k.toLowerCase().includes(ql));
+  if (!key) { out.innerHTML = `<div style="color:var(--text3);font-size:11px;">No logged games where the opponent picked “${q}”.</div>`; return; }
+  const b = data[key];
+  const wr = b.games ? Math.round(b.wins/b.games*100) : 0;
+  const wcol = v => v>=60?'var(--green)':v>=50?'var(--gold)':'var(--red)';
+  const icon = (typeof _heroIcon==='function')
+    ? `<img src="${_heroIcon(key)}" onerror="${(typeof _heroIconErr==='function')?_heroIconErr(key):''}" style="width:30px;height:30px;border-radius:9px;object-fit:cover;flex-shrink:0;">` : '';
+  const rows = Object.entries(b.picks).sort((a,c)=>c[1].c-a[1].c).slice(0,14).map(([n,e]) => {
+    const w = e.c ? Math.round(e.w/e.c*100) : 0;
+    const ico = (typeof _heroIcon==='function')
+      ? `<img src="${_heroIcon(n)}" onerror="${(typeof _heroIconErr==='function')?_heroIconErr(n):''}" style="width:22px;height:22px;border-radius:7px;object-fit:cover;flex-shrink:0;">` : '';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-top:0.5px solid rgba(255,255,255,.04);">
+      ${ico}
+      <span style="flex:1;min-width:0;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n}${e.lane?` <span style="font-size:8.5px;color:var(--text4);">${e.lane}</span>`:''}</span>
+      <span style="font-size:9px;color:var(--text3);font-family:var(--font-mono);">${e.c}g</span>
+      <span style="font-size:10px;font-weight:700;color:${wcol(w)};font-family:var(--font-mono);min-width:34px;text-align:right;">${w}%</span>
+    </div>`;
+  }).join('');
+  out.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">
+      ${icon}
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:700;">When enemy picks ${key}</div>
+        <div style="font-size:10px;color:var(--text3);">${team} response — ${b.games} game${b.games!==1?'s':''} · <span style="color:${wcol(wr)};font-weight:700;">${wr}% WR</span></div>
+      </div>
+    </div>
+    <div>${rows || '<div style="color:var(--text3);font-size:11px;">No picks recorded.</div>'}</div>`;
 }
 
 function openH2H(teamName) {
