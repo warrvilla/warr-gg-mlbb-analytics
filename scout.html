@@ -978,6 +978,9 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
 .search-bar input::placeholder { color: var(--text3); }
 
 /* ── MATCHUPS VIEW ── */
+.mu-topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border); }
+.mu-crumbs { display:flex; align-items:center; gap:7px; font-size:11px; font-weight:700; letter-spacing:.4px; color:var(--text3); text-transform:uppercase; flex-wrap:wrap; }
+.mu-crumbs .sep { color:var(--text4); }
 .mu-wrap { display: grid; grid-template-columns: 270px 1fr 280px; gap: 16px; align-items: start; }
 .mu-left, .mu-right { background: rgba(255,255,255,.022); border: 1px solid var(--border); border-radius: 14px; padding: 16px; position: sticky; top: 12px; }
 .mu-center { background: rgba(255,255,255,.022); border: 1px solid var(--border); border-radius: 14px; padding: 20px; min-height: 360px; }
@@ -2353,6 +2356,9 @@ function _muBuildRespMap(team){
 }
 function selectMuTeam(name){ _muTeam = name; _muHero = null; _muHeroSearch=''; renderMatchups(); }
 function selectMuSeason(s){ _muSeason = s; _muHero = null; renderMatchups(); }
+function _muNoteKey(team,hero){ return team+'|'+hero; }
+function _muGetNote(team,hero){ try{ return (JSON.parse(localStorage.getItem('warr_mu_notes')||'{}'))[_muNoteKey(team,hero)]||''; }catch(_){ return ''; } }
+function _muSaveNote(team,hero,val){ try{ const k='warr_mu_notes'; const d=JSON.parse(localStorage.getItem(k)||'{}'); if(val&&val.trim())d[_muNoteKey(team,hero)]=val; else delete d[_muNoteKey(team,hero)]; localStorage.setItem(k,JSON.stringify(d)); }catch(_){ } }
 function selectMuHero(name){ _muHero = name; renderMatchups(); }
 function muHeroFilter(q){ _muHeroSearch = q||''; const ql=(q||'').toLowerCase();
   document.querySelectorAll('#muHeroList .mu-hero').forEach(el => { el.style.display = (!ql || (el.dataset.h||'').includes(ql)) ? '' : 'none'; }); }
@@ -2385,14 +2391,24 @@ function renderMatchups(){
       ${ic(h,34)}
       <div style="flex:1;min-width:0;text-align:left;"><div style="font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h}</div><div style="font-size:9px;color:var(--text3);">${b.games} faced</div></div>
     </button>`).join('');
+  // Most-played league for this team → breadcrumb
+  const _lgCount = {}; _teamMatches.forEach(m=>{ const l=(m.league||'').trim(); if(l)_lgCount[l]=(_lgCount[l]||0)+1; });
+  const teamLeague = Object.entries(_lgCount).sort((a,b)=>b[1]-a[1])[0]?.[0] || '';
+  const topbar = `
+    <div class="mu-topbar">
+      <div class="mu-crumbs">
+        <span>MATCHUPS</span>${teamLeague?`<span class="sep">›</span><span>${teamLeague}</span>`:''}<span class="sep">›</span><span>${team}</span>${_muHero?`<span class="sep">›</span><span style="color:var(--text);">${_muHero}</span>`:''}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+        <select class="form-select" style="font-size:12px;padding:7px 10px;" onchange="selectMuTeam(this.value)">${teamOpts}</select>
+        ${_seasons.length ? `<select class="form-select" style="font-size:12px;padding:7px 10px;" onchange="selectMuSeason(this.value)" title="Scope to a season">
+          <option value="all"${_muSeason==='all'?' selected':''}>All Time</option>
+          ${_seasons.map(s=>`<option value="${s.replace(/"/g,'&quot;')}"${s===_muSeason?' selected':''}>${s}</option>`).join('')}
+        </select>` : ''}
+      </div>
+    </div>`;
   const left = `
     <div class="mu-left">
-      <div style="font-size:9px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">Scouting</div>
-      <select class="form-select" style="width:100%;font-size:12px;padding:8px 10px;margin-bottom:8px;" onchange="selectMuTeam(this.value)">${teamOpts}</select>
-      ${_seasons.length ? `<select class="form-select" style="width:100%;font-size:12px;padding:8px 10px;margin-bottom:12px;" onchange="selectMuSeason(this.value)" title="Scope to a season">
-        <option value="all"${_muSeason==='all'?' selected':''}>All seasons</option>
-        ${_seasons.map(s=>`<option value="${s.replace(/"/g,'&quot;')}"${s===_muSeason?' selected':''}>${s}</option>`).join('')}
-      </select>` : ''}
       <div style="font-size:9px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">Select Enemy Hero</div>
       <input placeholder="🔍  Search hero…" oninput="muHeroFilter(this.value)" autocomplete="off" style="width:100%;font-size:12px;padding:8px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);margin-bottom:10px;outline:none;">
       <div id="muHeroList" style="display:flex;flex-direction:column;gap:4px;overflow-y:auto;max-height:calc(100vh - 320px);padding-right:2px;">
@@ -2421,6 +2437,40 @@ function renderMatchups(){
     const oneoffs = entries.length - usable.length;
     const top = usable[0];
     const heroPortrait = (typeof WDB!=='undefined'&&WDB.heroPortrait)?WDB.heroPortrait(_muHero,'portrait'):_heroIcon(_muHero);
+
+    // Win-rate-over-time sparkline (cumulative WR across games vs this hero, oldest→newest)
+    const dd = (b.drafts||[]).filter(d=>d.date).slice().sort((a,c)=>new Date(a.date)-new Date(c.date));
+    let _cw=0; const _pts = dd.map((d,i)=>{ _cw += d.won?1:0; return Math.round(_cw/(i+1)*100); });
+    let spark = '';
+    if (_pts.length >= 2) {
+      const W=148,H=44,step=W/(_pts.length-1);
+      const poly=_pts.map((p,i)=>`${(i*step).toFixed(1)},${(H-(p/100)*(H-6)-3).toFixed(1)}`).join(' ');
+      const last=_pts[_pts.length-1];
+      spark = `<div style="flex-shrink:0;">
+        <div style="font-size:8px;font-weight:800;letter-spacing:1px;color:var(--text3);text-align:right;margin-bottom:4px;">WIN RATE OVER TIME</div>
+        <svg width="${W}" height="${H}" style="overflow:visible;">
+          <line x1="0" y1="${H-3}" x2="${W}" y2="${H-3}" stroke="rgba(255,255,255,.08)" stroke-width="1"/>
+          <polyline points="${poly}" fill="none" stroke="${wcol(last)}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle cx="${W.toFixed(1)}" cy="${(H-(last/100)*(H-6)-3).toFixed(1)}" r="3" fill="${wcol(last)}"/>
+        </svg>
+      </div>`;
+    }
+
+    // Pick timing of the go-to answer (when in the draft they pick it)
+    let ptF=0, ptS=0, ptL=0, ptT=0, goHero=top?top[0]:null;
+    if (goHero) {
+      DB_MODULE.getMatches().forEach(m=>{
+        if(!(m.blueTeam===team||m.redTeam===team))return;
+        if(_muSeason&&_muSeason!=='all'&&(m.season||'').trim()!==_muSeason)return;
+        const ours=m.blueTeam===team;
+        const enemy=(ours?m.redPicks:m.bluePicks)||[];
+        if(!enemy.some(p=>(p&&(p.name||p))===_muHero))return;
+        const myPicks=(ours?m.bluePicks:m.redPicks)||[];
+        const idx=myPicks.findIndex(p=>(p&&(p.name||p))===goHero);
+        if(idx<0)return; ptT++;
+        if(idx<=2)ptF++; else if(idx===3)ptS++; else ptL++;
+      });
+    }
 
     const goCard = top ? (() => {
       const [n,e] = top; const pr=Math.round(e.c/total*100); const w=e.c?Math.round(e.w/e.c*100):0; const s=sig(e.c);
@@ -2463,6 +2513,7 @@ function renderMatchups(){
             <div><div style="font-size:20px;font-weight:800;font-family:var(--font-head);color:${wcol(teamWR)};">${teamWR}%</div><div style="font-size:8.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;">${team} Win Rate</div></div>
           </div>
         </div>
+        ${spark}
       </div>
       ${goCard}
       ${top?`<div style="margin-top:18px;">
@@ -2482,16 +2533,37 @@ function renderMatchups(){
     const hiWin = usable.filter(([,e])=>e.c>=2 && Math.round(e.w/e.c*100)>=70);
     if (hiWin.length) insights.push({t:'High-confidence picks', d:`${hiWin.map(([n])=>n).join(', ')} ${hiWin.length>1?'all win':'wins'} ≥70% vs this hero.`});
     if (teamWR<=40 && total>=3) insights.push({t:'They struggle here', d:`${team} only wins ${teamWR}% when facing ${_muHero} — a hero worth forcing.`});
+    // Pick-timing donut segments
+    const ptSeg = [{v:ptF,c:'#7C5CF6',l:'First Rotation'},{v:ptS,c:'#9b7cf0',l:'Second Rotation'},{v:ptL,c:'#3a3a52',l:'Last Pick'}];
+    const _R=30, _CIRC=2*Math.PI*_R; let _off=0;
+    const arcs = ptT ? ptSeg.map(s=>{ const len=(s.v/ptT)*_CIRC; const a=`<circle cx="40" cy="40" r="${_R}" fill="none" stroke="${s.c}" stroke-width="9" stroke-dasharray="${len.toFixed(1)} ${(_CIRC-len).toFixed(1)}" stroke-dashoffset="${(-_off).toFixed(1)}" transform="rotate(-90 40 40)"/>`; _off+=len; return a; }).join('') : '';
+    // Notes (saved locally, per team+hero)
+    const _et = team.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const _eh = _muHero.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const noteEsc = _muGetNote(team,_muHero).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     right = `<div class="mu-right">
       <div style="font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--text3);margin-bottom:12px;">Draft Insights</div>
       ${insights.length?insights.map(x=>`<div style="display:flex;gap:10px;margin-bottom:14px;">
         <span style="width:6px;height:6px;border-radius:50%;background:var(--accent);margin-top:5px;flex-shrink:0;box-shadow:0 0 6px var(--accent);"></span>
         <div><div style="font-size:11.5px;font-weight:700;margin-bottom:2px;">${x.t}</div><div style="font-size:10.5px;color:var(--text3);line-height:1.45;">${x.d}</div></div>
       </div>`).join(''):'<div style="font-size:11px;color:var(--text3);">Not enough data for insights yet.</div>'}
+      ${(goHero&&ptT>=2)?`<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+        <div style="font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Pick Timing · ${goHero}</div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="position:relative;width:80px;height:80px;flex-shrink:0;"><svg width="80" height="80">${arcs}</svg><div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;"><span style="font-size:15px;font-weight:800;font-family:var(--font-head);">${ptT}</span><span style="font-size:7px;color:var(--text4);letter-spacing:.5px;">GAMES</span></div></div>
+          <div style="flex:1;min-width:0;">
+            ${ptSeg.map(s=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:10px;"><span style="width:8px;height:8px;border-radius:2px;background:${s.c};flex-shrink:0;"></span><span style="flex:1;color:var(--text2);">${s.l}</span><b style="font-family:var(--font-mono);color:var(--text);">${ptT?Math.round(s.v/ptT*100):0}% (${s.v})</b></div>`).join('')}
+          </div>
+        </div>
+      </div>`:''}
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+        <div style="font-size:10px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">Notes</div>
+        <textarea oninput="_muSaveNote('${_et}','${_eh}',this.value)" placeholder="Scouting notes for ${_muHero}…" style="width:100%;min-height:68px;font-size:11px;line-height:1.5;padding:9px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);resize:vertical;outline:none;font-family:inherit;">${noteEsc}</textarea>
+      </div>
     </div>`;
   }
 
-  area.innerHTML = `<div class="mu-wrap">${left}${center}${right}</div>`;
+  area.innerHTML = `${topbar}<div class="mu-wrap">${left}${center}${right}</div>`;
 }
 
 function setLeagueFilter(lf) {
