@@ -1,0 +1,25 @@
+<!-- Warr.GG — Supabase "Magic Link" email template.
+     Paste into: Supabase → Authentication → Email Templates → Magic Link.
+     Subject suggestion: Your Warr.GG sign-in link -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#070710;margin:0;padding:32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+  <tr><td align="center">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#0f0f1a;border:1px solid rgba(124,92,246,0.25);border-radius:16px;overflow:hidden;">
+      <tr><td style="padding:26px 32px 18px;border-bottom:1px solid rgba(255,255,255,0.06);">
+        <span style="font-size:20px;font-weight:800;letter-spacing:.5px;color:#ffffff;">WARR<span style="color:#7C5CF6;">.GG</span></span>
+        <span style="font-size:11px;color:#8a8a99;margin-left:8px;">MLBB Esports Intelligence</span>
+      </td></tr>
+      <tr><td style="padding:30px 32px;">
+        <h1 style="margin:0 0 12px;font-size:22px;font-weight:800;color:#ffffff;">Sign in to Warr.GG</h1>
+        <p style="margin:0 0 22px;font-size:14px;line-height:1.6;color:#c2c2cf;">Tap the button below to sign in. This link is single-use and expires shortly.</p>
+        <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:10px;background:linear-gradient(135deg,#7C5CF6,#5E5CE6);">
+          <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:13px 30px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:10px;">Sign in to Warr.GG</a>
+        </td></tr></table>
+        <p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:#7a7a8a;">Or paste this link into your browser:<br><a href="{{ .ConfirmationURL }}" style="color:#7C5CF6;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
+        <p style="margin:18px 0 0;font-size:12px;color:#7a7a8a;">If you didn't request this, you can ignore this email.</p>
+      </td></tr>
+      <tr><td style="padding:18px 32px 24px;border-top:1px solid rgba(255,255,255,0.06);">
+        <p style="margin:0;font-size:11px;line-height:1.5;color:#6a6a78;">Warr.GG is an independent MLBB analytics platform and is not affiliated with Moonton. © 2026 Warr.GG.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
