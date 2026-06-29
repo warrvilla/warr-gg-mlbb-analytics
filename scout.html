@@ -982,6 +982,8 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
 .mu-crumbs { display:flex; align-items:center; gap:7px; font-size:11px; font-weight:700; letter-spacing:.4px; color:var(--text3); text-transform:uppercase; flex-wrap:wrap; }
 .mu-crumbs .sep { color:var(--text4); }
 .mu-teamnav { display:flex; align-items:center; gap:12px; min-width:0; }
+.mu-more { background:var(--surface2); border:1px solid var(--border); color:var(--text2); border-radius:9px; padding:7px 16px; font:inherit; font-size:11px; font-weight:600; cursor:pointer; transition:all .12s; }
+.mu-more:hover { border-color:var(--accent-border); color:var(--text); background:var(--accent-dim); }
 .mu-wrap { display: grid; grid-template-columns: 270px 1fr 280px; gap: 16px; align-items: start; }
 .mu-left, .mu-right { background: rgba(255,255,255,.022); border: 1px solid var(--border); border-radius: 14px; padding: 16px; position: sticky; top: 12px; }
 .mu-center { background: rgba(255,255,255,.022); border: 1px solid var(--border); border-radius: 14px; padding: 20px; min-height: 360px; }
@@ -2389,6 +2391,13 @@ function _muNoteKey(team,hero){ return team+'|'+hero; }
 function _muGetNote(team,hero){ try{ return (JSON.parse(localStorage.getItem('warr_mu_notes')||'{}'))[_muNoteKey(team,hero)]||''; }catch(_){ return ''; } }
 function _muSaveNote(team,hero,val){ try{ const k='warr_mu_notes'; const d=JSON.parse(localStorage.getItem(k)||'{}'); if(val&&val.trim())d[_muNoteKey(team,hero)]=val; else delete d[_muNoteKey(team,hero)]; localStorage.setItem(k,JSON.stringify(d)); }catch(_){ } }
 function selectMuHero(name){ _muHero = name; renderMatchups(); }
+function _muToggleDrafts(btn){
+  const wrap = document.getElementById('muDrafts'); if(!wrap) return;
+  const extras = wrap.querySelectorAll('.mu-draft-extra');
+  const showing = extras.length && extras[0].style.display !== 'none';
+  extras.forEach(e => e.style.display = showing ? 'none' : '');
+  btn.innerHTML = showing ? `View more drafts (${extras.length}) ▾` : 'Show fewer ▴';
+}
 function muHeroFilter(q){ _muHeroSearch = q||''; const ql=(q||'').toLowerCase();
   document.querySelectorAll('#muHeroList .mu-hero').forEach(el => { el.style.display = (!ql || (el.dataset.h||'').includes(ql)) ? '' : 'none'; }); }
 
@@ -2537,13 +2546,15 @@ function renderMatchups(){
       </div>`;
     }).join('');
 
-    // example drafts (most recent 3)
-    const exDrafts = (b.drafts||[]).slice(-3).reverse().map((d,i)=>`
-      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;">
+    // example drafts (newest first; show 3, rest behind a "View more" expander)
+    const _allDrafts = (b.drafts||[]).slice().reverse();
+    const exDrafts = _allDrafts.map((d,i)=>`
+      <div class="mu-draft${i>=3?' mu-draft-extra':''}" style="${i>=3?'display:none;':''}background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px;"><span style="font-size:8.5px;font-weight:800;letter-spacing:.8px;color:var(--text3);">DRAFT ${i+1}</span><span style="font-size:9px;font-weight:800;color:${d.won?'var(--green)':'var(--red)'};">${d.won?'WIN':'LOSS'}</span></div>
         <div style="display:flex;gap:3px;margin-bottom:5px;"><span style="font-size:7px;color:var(--red);width:34px;flex-shrink:0;align-self:center;">ENEMY</span>${d.enemy.slice(0,5).map(n=>ic(n,22)).join('')}</div>
         <div style="display:flex;gap:3px;"><span style="font-size:7px;color:var(--blue);width:34px;flex-shrink:0;align-self:center;">${team.length>8?team.slice(0,8):team}</span>${d.ours.slice(0,5).map(n=>ic(n,22)).join('')}</div>
       </div>`).join('');
+    const moreDraftsBtn = _allDrafts.length>3 ? `<div style="text-align:center;margin-top:10px;"><button class="mu-more" onclick="_muToggleDrafts(this)">View more drafts (${_allDrafts.length-3}) ▾</button></div>` : '';
 
     center = `<div class="mu-center">
       <div style="display:flex;align-items:flex-end;gap:18px;margin-bottom:16px;">
@@ -2566,7 +2577,7 @@ function renderMatchups(){
         ${respRows}
         ${oneoffs?`<div style="font-size:9.5px;color:var(--text4);margin-top:8px;">+ ${oneoffs} one-off pick${oneoffs!==1?'s':''} ignored (pick rate too low for a signal)</div>`:''}
       </div>`:''}
-      ${exDrafts?`<div style="margin-top:18px;"><div style="font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--text2);margin-bottom:8px;">Example Drafts · when they face ${_muHero}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">${exDrafts}</div></div>`:''}
+      ${exDrafts?`<div style="margin-top:18px;"><div style="font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--text2);margin-bottom:8px;">Example Drafts · when they face ${_muHero}</div><div id="muDrafts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">${exDrafts}</div>${moreDraftsBtn}</div>`:''}
     </div>`;
 
     // ── RIGHT: auto insights ──
