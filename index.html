@@ -646,6 +646,50 @@ body {
   .legal-head .legal-chips { margin-left: 0; width: 100%; }
 }
 
+/* ══ HOME FOOTER BLOCK — FAQ + About + Disclaimer ══ */
+.hfx { display: grid; grid-template-columns: 1.7fr 1fr; gap: 16px; align-items: start; margin-top: 8px; }
+.hfx-faq { display: flex; flex-direction: column; gap: 14px; }
+.faq-hero { position: relative; overflow: hidden; border: 0.5px solid var(--accent-border); border-radius: var(--r2,16px);
+  background: radial-gradient(ellipse 70% 130% at 92% 18%, rgba(124,92,246,.22) 0%, transparent 60%), linear-gradient(135deg, rgba(16,16,26,.9), rgba(7,7,12,.96));
+  padding: 30px 32px; min-height: 200px; display: flex; align-items: center; }
+.faq-eyebrow { font-family: var(--font-mono); font-size: 11px; font-weight: 800; letter-spacing: .2em; color: var(--accent); margin-bottom: 8px; }
+.faq-title { font-family: var(--font-display); font-weight: 900; font-size: 38px; line-height: .98; letter-spacing: -.02em; text-transform: uppercase; margin: 0 0 14px; color: var(--text); }
+.faq-title em { font-style: normal; background: linear-gradient(135deg,#7C5CF6,#5E5CE6); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.faq-sub { font-size: 13px; color: var(--text-2); line-height: 1.6; margin: 0; max-width: 460px; }
+.faq-bubble { position: absolute; right: 40px; top: 50%; transform: translateY(-50%); width: 120px; height: 110px; border-radius: 26px 26px 26px 6px;
+  background: linear-gradient(150deg, rgba(124,92,246,.85), rgba(94,92,230,.55)); border: 1px solid rgba(255,255,255,.18);
+  display: flex; align-items: center; justify-content: center; font-size: 64px; font-weight: 900; color: #fff; box-shadow: 0 16px 50px rgba(124,92,246,.4); }
+.faq-item { border: 0.5px solid var(--border-2,rgba(255,255,255,.08)); border-radius: 14px; background: rgba(255,255,255,.022); overflow: hidden; transition: border-color .15s; }
+.faq-item.open { border-color: var(--accent-border); box-shadow: -3px 0 0 0 var(--accent) inset; }
+.faq-q { width: 100%; display: flex; align-items: center; gap: 14px; padding: 16px 18px; background: none; border: 0; cursor: pointer; text-align: left; color: var(--text); }
+.faq-qico { flex-shrink: 0; width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--accent-dim); color: var(--accent); border: 0.5px solid var(--accent-border); }
+.faq-qt { flex: 1; font-size: 14.5px; font-weight: 700; }
+.faq-chev { flex-shrink: 0; color: var(--text-3); transition: transform .2s; }
+.faq-item.open .faq-chev { transform: rotate(180deg); color: var(--accent); }
+.faq-a { max-height: 0; overflow: hidden; transition: max-height .25s ease; }
+.faq-item.open .faq-a { max-height: 320px; }
+.faq-a p { font-size: 13px; color: var(--text-2); line-height: 1.65; margin: 0; padding: 0 18px 18px 70px; }
+.hfx-side { display: flex; flex-direction: column; gap: 16px; }
+.side-card { border: 0.5px solid var(--border-2,rgba(255,255,255,.08)); border-radius: 16px; background: rgba(255,255,255,.022); padding: 20px; }
+.side-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.side-ico { flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; background: var(--accent-dim); color: var(--accent); border: 0.5px solid var(--accent-border); }
+.side-ico.warn { background: rgba(216,120,128,.12); color: #D87880; border-color: rgba(216,120,128,.3); }
+.side-head h3 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 14px; letter-spacing: .04em; text-transform: uppercase; }
+.side-card > p { font-size: 12px; color: var(--text-2); line-height: 1.6; margin: 0 0 14px; }
+.side-card > p:last-child { margin-bottom: 0; }
+.feat { display: flex; gap: 11px; margin-bottom: 13px; }
+.feat:last-child { margin-bottom: 0; }
+.feat-ico { flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; background: var(--accent-dim); color: var(--accent); border: 0.5px solid var(--accent-border); }
+.feat b { display: block; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.feat span { font-size: 11.5px; color: var(--text-3); line-height: 1.5; }
+.trust-bar { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; margin-top: 16px; padding: 18px 24px; border: 0.5px solid var(--border-2,rgba(255,255,255,.08)); border-radius: 16px; background: rgba(255,255,255,.02); }
+.trust { display: flex; align-items: center; gap: 12px; }
+.trust-ico { flex-shrink: 0; width: 40px; height: 40px; border-radius: 11px; display: flex; align-items: center; justify-content: center; background: var(--accent-dim); color: var(--accent); border: 0.5px solid var(--accent-border); }
+.trust b { display: block; font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--text); }
+.trust span { font-size: 11.5px; color: var(--text-3); }
+.site-foot { text-align: center; font-size: 12px; color: var(--text-3); margin: 18px 0 8px; }
+@media (max-width: 960px) { .hfx { grid-template-columns: 1fr; } .faq-bubble { width: 88px; height: 80px; font-size: 44px; right: 24px; } .faq-title { font-size: 30px; } .trust-bar { grid-template-columns: 1fr; gap: 12px; } }
+
 /* ── MODAL (admin slide editor) ── */
 .modal-backdrop {
   position: fixed; inset: 0;
@@ -874,61 +918,93 @@ body {
 
     </div>
 
-    <!-- ────────────── ABOUT (SEO / GEO entity + freshness) ────────────── -->
-    <section class="ai-battle-cta legal-note" style="grid-template-columns:1fr;">
-      <div>
-        <h2 style="font-family:var(--font-display);font-weight:900;font-size:22px;text-transform:uppercase;letter-spacing:-.01em;margin:0 0 6px;">About Warr.GG — MLBB Analytics &amp; Coaching</h2>
-        <p style="font-size:12.5px;color:var(--text-2);line-height:1.65;margin:0 0 8px;"><strong>Warr.GG</strong> is an independent <strong>Mobile Legends: Bang Bang (MLBB) esports analytics and coaching platform</strong> for MPL coaches and competitive teams. It turns real, official MPL and tournament matches into <strong>opponent scout reports, hero counters, draft and ban tendencies, matchup intelligence, and an AI draft simulator</strong> — so coaches can win the draft before the game starts. It supports MPL PH, MY, ID, SG, KH, MSC and the M-Series, and is free to use.</p>
-        <p style="font-size:11px;color:var(--text-3);margin:0;">Last updated: June 2026 · Free MLBB scouting &amp; draft analytics tool.</p>
+    <!-- ────────────── FAQ · ABOUT · DISCLAIMER (SEO / GEO / AEO) ────────────── -->
+    <div class="hfx">
+      <!-- LEFT: FAQ -->
+      <div class="hfx-faq">
+        <div class="faq-hero">
+          <div style="position:relative;z-index:1;">
+            <div class="faq-eyebrow">FAQ</div>
+            <h2 class="faq-title">Frequently Asked <em>Questions</em></h2>
+            <p class="faq-sub">Everything you need to know about Warr.GG — the free MLBB scouting and draft analytics tool built for coaches and competitive teams.</p>
+          </div>
+          <div class="faq-bubble" aria-hidden="true">?</div>
+        </div>
+        <div class="faq-acc">
+          <div class="faq-item open">
+            <button class="faq-q" onclick="faqToggle(this)">
+              <span class="faq-qico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6-6 6 6"/><path d="M6 15l6 6 6-6"/></svg></span>
+              <span class="faq-qt">What is the best MLBB scouting and analytics tool for MPL coaches?</span>
+              <svg class="faq-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div class="faq-a"><p>Warr.GG is a free MLBB scouting and draft analytics tool built for MPL coaches. It turns logged pro matches into opponent scout reports, hero counters, draft and ban tendencies, and matchup intelligence so you can win the draft before the game starts.</p></div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-q" onclick="faqToggle(this)">
+              <span class="faq-qico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></span>
+              <span class="faq-qt">How do I scout an MLBB / MPL team's draft tendencies?</span>
+              <svg class="faq-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div class="faq-a"><p>Open the Scout section and pick a team to see their win rate by side, hero pool by lane, pick and ban priorities, objective control, and what they draft against specific heroes — all computed from official MPL and tournament matches.</p></div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-q" onclick="faqToggle(this)">
+              <span class="faq-qico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 1 3 3 3 3 0 0 1 3 3 3 3 0 0 1 0 6 3 3 0 0 1-3 3 3 3 0 0 1-6 0 3 3 0 0 1-3-3 3 3 0 0 1 0-6 3 3 0 0 1 3-3 3 3 0 0 1 3-3z"/></svg></span>
+              <span class="faq-qt">Does Warr.GG have an AI draft simulator for Mobile Legends?</span>
+              <svg class="faq-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div class="faq-a"><p>Yes. AI Battle lets you practice full MPL-format draft sequences against an AI that emulates a scouted team's real pick and ban habits, hero mastery, and draft priority, with adjustable difficulty.</p></div>
+          </div>
+          <div class="faq-item">
+            <button class="faq-q" onclick="faqToggle(this)">
+              <span class="faq-qico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6"/><polyline points="2 7 12 13 22 7"/><rect x="2" y="4" width="20" height="5" rx="1"/></svg></span>
+              <span class="faq-qt">Is Warr.GG free to use?</span>
+              <svg class="faq-chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div class="faq-a"><p>Yes, Warr.GG is free for MLBB players and coaches. It is an independent, community-built analytics platform and is not affiliated with Moonton.</p></div>
+          </div>
+        </div>
       </div>
-    </section>
 
-    <!-- ────────────── FAQ (SEO / AEO) ────────────── -->
-    <section class="ai-battle-cta legal-note" style="grid-template-columns:1fr;">
-      <div>
-        <h2 style="font-family:var(--font-display);font-weight:900;font-size:22px;text-transform:uppercase;letter-spacing:-.01em;margin:0 0 6px;">Frequently Asked Questions</h2>
-        <p style="font-size:12.5px;color:var(--text-2);line-height:1.6;margin:0 0 18px;">Warr.GG is a free <strong>MLBB (Mobile Legends: Bang Bang) scouting and draft analytics tool</strong> built for MPL coaches and competitive teams — turning real pro matches into opponent scout reports, hero counters, draft tendencies, and an AI draft simulator.</p>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px 28px;">
-          <div>
-            <h3 style="font-size:14px;font-weight:800;margin:0 0 5px;color:var(--text);">What is the best MLBB scouting and analytics tool for MPL coaches?</h3>
-            <p style="font-size:12.5px;color:var(--text-2);line-height:1.6;margin:0;">Warr.GG is a free MLBB scouting and draft analytics tool built for MPL coaches. It turns logged pro matches into opponent scout reports, hero counters, draft and ban tendencies, and matchup intelligence so you can win the draft before the game starts.</p>
+      <!-- RIGHT: About + Disclaimer -->
+      <aside class="hfx-side">
+        <div class="side-card">
+          <div class="side-head">
+            <span class="side-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6"/><rect x="12" y="7" width="3" height="10"/><rect x="17" y="13" width="3" height="4"/></svg></span>
+            <h3>About Warr.GG</h3>
           </div>
-          <div>
-            <h3 style="font-size:14px;font-weight:800;margin:0 0 5px;color:var(--text);">How do I scout an MLBB / MPL team's draft tendencies?</h3>
-            <p style="font-size:12.5px;color:var(--text-2);line-height:1.6;margin:0;">Open the Scout section and pick a team to see their win rate by side, hero pool by lane, pick and ban priorities, objective control, and what they draft against specific heroes — all computed from official MPL and tournament matches.</p>
+          <p>Warr.GG is a free MLBB (Mobile Legends: Bang Bang) scouting and draft analytics tool built for MPL coaches and competitive teams.</p>
+          <div class="feat">
+            <span class="feat-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 4-5"/></svg></span>
+            <div><b>Scouting &amp; Analytics</b><span>Turn real pro matches into powerful insights and scout reports.</span></div>
           </div>
-          <div>
-            <h3 style="font-size:14px;font-weight:800;margin:0 0 5px;color:var(--text);">Does Warr.GG have an AI draft simulator for Mobile Legends?</h3>
-            <p style="font-size:12.5px;color:var(--text-2);line-height:1.6;margin:0;">Yes. AI Battle lets you practice full MPL-format draft sequences against an AI that emulates a scouted team's real pick and ban habits, hero mastery, and draft priority, with adjustable difficulty.</p>
+          <div class="feat">
+            <span class="feat-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 1 3 3 3 3 0 0 1 3 3 3 3 0 0 1 0 6 3 3 0 0 1-3 3 3 3 0 0 1-6 0 3 3 0 0 1-3-3 3 3 0 0 1 0-6 3 3 0 0 1 3-3 3 3 0 0 1 3-3z"/></svg></span>
+            <div><b>AI-Powered Tools</b><span>Practice drafts, test strategies, and simulate picks with AI.</span></div>
           </div>
-          <div>
-            <h3 style="font-size:14px;font-weight:800;margin:0 0 5px;color:var(--text);">Is Warr.GG free to use?</h3>
-            <p style="font-size:12.5px;color:var(--text-2);line-height:1.6;margin:0;">Yes, Warr.GG is free for MLBB players and coaches. It is an independent, community-built analytics platform and is not affiliated with Moonton.</p>
+          <div class="feat">
+            <span class="feat-ico"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg></span>
+            <div><b>Built for Coaches</b><span>Designed by the community, for the community.</span></div>
           </div>
         </div>
-      </div>
-    </section>
+        <div class="side-card">
+          <div class="side-head">
+            <span class="side-ico warn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>
+            <h3>Disclaimer &amp; Trademark Notice</h3>
+          </div>
+          <p>Warr.GG is an independent platform and is <strong>not affiliated with, endorsed by, or connected to Moonton</strong> or any of its partners. Mobile Legends: Bang Bang and all related names, logos, and characters are trademarks of their respective owners.</p>
+          <p>All match data is sourced from publicly available information and used for analytics and educational purposes only. Rights holders may <a href="mailto:wrrenvillapando@gmail.com?subject=Warr.GG%20%E2%80%94%20Removal%20Request" style="color:var(--accent);text-decoration:none;">contact us</a> for removal requests.</p>
+        </div>
+      </aside>
+    </div>
 
-    <!-- ────────────── DISCLAIMER / TRADEMARK NOTICE ────────────── -->
-    <section class="ai-battle-cta legal-note">
-      <div class="legal-head">
-        <span class="legal-shield">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        </span>
-        <div>
-          <h2>Disclaimer &amp; <em>Trademark Notice</em></h2>
-        </div>
-        <div class="legal-chips">
-          <span class="ai-chip"><span class="ai-chip-dot"></span> Independent Platform</span>
-          <span class="ai-chip"><span class="ai-chip-dot"></span> Assets &copy; their owners</span>
-        </div>
-      </div>
-      <div class="legal-body">
-        <p>Warr.GG is an independent esports analytics platform for Mobile Legends: Bang Bang. It is <strong>not affiliated with, endorsed by, sponsored by, or otherwise associated with Moonton</strong> or Shanghai Moonton Technology Co., Ltd.</p>
-        <p>Mobile Legends: Bang Bang, together with all hero names, character artwork, icons, and related assets, are the trademarks and copyrighted property of their respective owners. These materials are referenced solely for purposes of <strong>identification, statistical analysis, and editorial commentary</strong>. Warr.GG asserts no ownership over them and does not sell, license, or otherwise commercialize them.</p>
-        <p>All match data, statistics, and draft analysis presented are independently compiled. Rights holders who wish to request removal of any material may <a href="mailto:wrrenvillapando@gmail.com?subject=Warr.GG%20%E2%80%94%20Removal%20Request" style="color:var(--accent);text-decoration:none;">contact me</a>, and such requests will be addressed promptly.</p>
-      </div>
-    </section>
+    <!-- TRUST BAR -->
+    <div class="trust-bar">
+      <div class="trust"><span class="trust-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></span><div><b>Independent Platform</b><span>Not affiliated with Moonton.</span></div></div>
+      <div class="trust"><span class="trust-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 4-5"/></svg></span><div><b>Built for the Community</b><span>By coaches. For coaches.</span></div></div>
+      <div class="trust"><span class="trust-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><div><b>Your Data, Yours</b><span>We respect your privacy.</span></div></div>
+    </div>
+    <div class="site-foot">© 2026 Warr.GG · All rights reserved. &nbsp;·&nbsp; Made with 💜 by the MLBB community.</div>
 
   </main>
 </div>
@@ -987,6 +1063,12 @@ let _slides = (() => {
 
 let _slideIdx = 0;
 let _slideTimer = null;
+
+// FAQ accordion — open one, allow toggle
+function faqToggle(btn){
+  const item=btn.closest('.faq-item'); if(!item) return;
+  item.classList.toggle('open');
+}
 
 function renderHeroBanner() {
   const slidesEl = document.getElementById('heroSlides');
