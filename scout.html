@@ -2431,15 +2431,18 @@ function renderMatchups(){
         <button class="md-nav" onclick="cycleMuTeam(-1)" title="Previous team" aria-label="Previous team">‹</button>
         <div class="md-logo${tlogo?'':' noimg'}" style="--mc:${tmo.color};width:52px;height:52px;border-radius:13px;flex-shrink:0;"><img src="${tlogo}" onerror="this.closest('.md-logo').classList.add('noimg')"><i>${tmo.init}</i></div>
         <div style="min-width:0;">
-          <div style="font-size:21px;font-weight:800;font-family:var(--font-head);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${team}</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:4px;">${teamLeague?teamLeague+' · ':''}${_teamMatches.length} games · ${Object.keys(respMap).length} heroes faced</div>
+          <div style="font-size:21px;font-weight:800;font-family:var(--font-head);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:7px;">${team}<span style="flex-shrink:0;width:15px;height:15px;border-radius:50%;background:var(--accent);color:#fff;font-size:9px;display:inline-flex;align-items:center;justify-content:center;">✓</span></div>
+          <div style="font-size:10px;color:var(--text3);margin-top:4px;">${teamLeague?teamLeague+' · ':''}${_muSeason!=='all'?_muSeason+' · ':''}${_teamMatches.length} games · ${Object.keys(respMap).length} heroes faced</div>
         </div>
         <button class="md-nav" onclick="cycleMuTeam(1)" title="Next team" aria-label="Next team">›</button>
       </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+      <button class="btn btn-ghost btn-sm" onclick="openTeamReport('${team.replace(/'/g,"\\'")}')" title="Open full scout report">▥ Team Report</button>
       ${_seasons.length ? `<select class="form-select" style="font-size:12px;padding:7px 10px;flex-shrink:0;" onchange="selectMuSeason(this.value)" title="Scope to a season">
         <option value="all"${_muSeason==='all'?' selected':''}>All Time</option>
         ${_seasons.map(s=>`<option value="${s.replace(/"/g,'&quot;')}"${s===_muSeason?' selected':''}>${s}</option>`).join('')}
       </select>` : ''}
+      </div>
     </div>`;
   const left = `
     <div class="mu-left">
@@ -2485,6 +2488,15 @@ function renderMatchups(){
         </svg>
       </div>`;
     }
+
+    // Lane the enemy actually plays this hero in (vs this team)
+    const _hlCount={};
+    DB_MODULE.getMatches().forEach(m=>{ if(!(m.blueTeam===team||m.redTeam===team))return; if(!_muInLeague(m))return; if(_muSeason&&_muSeason!=='all'&&(m.season||'').trim()!==_muSeason)return; const ours=m.blueTeam===team; const enemy=(ours?m.redPicks:m.bluePicks)||[]; enemy.forEach(p=>{ if(p&&(p.name||p)===_muHero && p.lane)_hlCount[p.lane]=(_hlCount[p.lane]||0)+1; }); });
+    const heroLane = Object.entries(_hlCount).sort((a,c)=>c[1]-a[1])[0]?.[0] || '';
+    const laneCol = (typeof LANE_COLORS!=='undefined' && LANE_COLORS[heroLane]) || 'var(--accent)';
+    // Go-to answer summary (for header stats)
+    const goPct = top ? Math.round(top[1].c/total*100) : null;
+    const goWR  = top ? (top[1].c?Math.round(top[1].w/top[1].c*100):0) : null;
 
     // Pick timing of the go-to answer (when in the draft they pick it)
     let ptF=0, ptS=0, ptL=0, ptT=0, goHero=top?top[0]:null;
@@ -2535,12 +2547,15 @@ function renderMatchups(){
 
     center = `<div class="mu-center">
       <div style="display:flex;align-items:flex-end;gap:18px;margin-bottom:16px;">
-        <div style="width:90px;height:110px;border-radius:14px;overflow:hidden;flex-shrink:0;background:var(--surface3);"><img src="${heroPortrait}" onerror="this.src='${_heroIcon(_muHero)}'" style="width:100%;height:100%;object-fit:cover;"></div>
+        <div style="width:120px;height:150px;border-radius:14px;overflow:hidden;flex-shrink:0;background:var(--surface3);"><img src="${heroPortrait}" onerror="this.src='${_heroIcon(_muHero)}'" style="width:100%;height:100%;object-fit:cover;"></div>
         <div style="flex:1;min-width:0;">
+          ${heroLane?`<span style="display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:${laneCol};background:${laneCol}1f;border:1px solid ${laneCol}55;border-radius:6px;padding:3px 8px;margin-bottom:8px;">${heroLane} Lane</span>`:''}
           <div style="font-size:34px;font-weight:900;font-family:var(--font-head);line-height:.95;letter-spacing:-.02em;">${_muHero.toUpperCase()}</div>
-          <div style="display:flex;gap:22px;margin-top:8px;">
-            <div><div style="font-size:20px;font-weight:800;font-family:var(--font-head);">${total}</div><div style="font-size:8.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;">Games Faced</div></div>
-            <div><div style="font-size:20px;font-weight:800;font-family:var(--font-head);color:${wcol(teamWR)};">${teamWR}%</div><div style="font-size:8.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;">${team} Win Rate</div></div>
+          <div style="display:flex;gap:20px;margin-top:10px;flex-wrap:wrap;">
+            <div><div style="font-size:19px;font-weight:800;font-family:var(--font-head);">${total}</div><div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;">Games Faced</div></div>
+            <div><div style="font-size:19px;font-weight:800;font-family:var(--font-head);color:${wcol(teamWR)};">${teamWR}%</div><div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;">${team} Win Rate</div></div>
+            ${goPct!=null?`<div><div style="font-size:19px;font-weight:800;font-family:var(--font-head);color:var(--accent);">${goPct}%</div><div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;">Top Answer Rate</div></div>`:''}
+            ${goWR!=null?`<div><div style="font-size:19px;font-weight:800;font-family:var(--font-head);color:${wcol(goWR)};">${goWR}%</div><div style="font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;">Answer Win Rate</div></div>`:''}
           </div>
         </div>
         ${spark}
