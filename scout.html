@@ -981,7 +981,9 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
 .mu-topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border); }
 .mu-crumbs { display:flex; align-items:center; gap:7px; font-size:11px; font-weight:700; letter-spacing:.4px; color:var(--text3); text-transform:uppercase; flex-wrap:wrap; }
 .mu-crumbs .sep { color:var(--text4); }
-.mu-teamnav { display:flex; align-items:center; gap:12px; min-width:0; }
+.mu-teamnav { display:flex; align-items:center; gap:12px; min-width:0; flex:1 1 260px; }
+.mu-teamnav > div { min-width:0; }
+.mu-topbar > div:last-child { flex-wrap:wrap; justify-content:flex-end; }
 .mu-more { background:var(--surface2); border:1px solid var(--border); color:var(--text2); border-radius:9px; padding:7px 16px; font:inherit; font-size:11px; font-weight:600; cursor:pointer; transition:all .12s; }
 .mu-more:hover { border-color:var(--accent-border); color:var(--text); background:var(--accent-dim); }
 .mu-wrap { display: grid; grid-template-columns: 270px 1fr 280px; gap: 16px; align-items: start; }
