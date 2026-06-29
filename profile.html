@@ -498,7 +498,7 @@ body { background: var(--bg); min-height: 100vh; }
           <div class="field-label">Confirm New Password</div>
           <input type="password" id="confirmPwInput" class="field-input" placeholder="Confirm new password">
         </div>
-        <button onclick="changePassword()" style="margin-top:8px;padding:9px 20px;border-radius:10px;background:var(--accent);border:none;color:#fff;font-size:12px;font-weight:600;cursor:pointer;">Update Password</button>
+        <button onclick="changePassword(this)" style="margin-top:8px;padding:9px 20px;border-radius:10px;background:var(--accent);border:none;color:#fff;font-size:12px;font-weight:600;cursor:pointer;">Update Password</button>
       </div>
     </div>
 
@@ -1532,20 +1532,33 @@ function updatePwStrength(pw) {
   segs.forEach((s,i) => { s.style.background = i < score ? colors[score-1] : 'var(--surface3)'; });
   lbl.textContent = pw.length ? labels[score-1]||'' : '';
 }
-async function changePassword() {
+async function changePassword(btn) {
   const np = document.getElementById('newPwInput').value;
   const cp = document.getElementById('confirmPwInput').value;
   if (!np) { toast('Enter a new password','error'); return; }
   if (np.length < 8) { toast('Password must be at least 8 characters','error'); return; }
   if (np !== cp) { toast('Passwords do not match','error'); return; }
+  const sb = (typeof WAuth !== 'undefined' && WAuth._sb) ? WAuth._sb() : _sbClient;
+  if (btn) { btn.disabled = true; btn.textContent = 'Updating…'; }
   try {
-    const { error } = await _sbClient.auth.updateUser({ password: np });
+    // Must have a live session — otherwise updateUser silently no-ops / errors.
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { toast('Your session expired — sign out and sign back in, then try again.','error'); return; }
+    const { error } = await sb.auth.updateUser({ password: np });
     if (error) throw error;
     document.getElementById('newPwInput').value = '';
     document.getElementById('confirmPwInput').value = '';
     updatePwStrength('');
     toast('Password updated ✓','success');
-  } catch(e) { toast(e.message||'Failed to update password','error'); }
+  } catch(e) {
+    console.error('changePassword error:', e);
+    let m = (e && e.message) || 'Failed to update password';
+    if (/reauth|recent|again to change/i.test(m)) m = 'For security, sign out and sign back in, then change your password right away.';
+    if (/same.*password|should be different/i.test(m)) m = 'New password must be different from your current one.';
+    toast(m,'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Update Password'; }
+  }
 }
 
 // ── Reset token counter ──
