@@ -1014,20 +1014,38 @@ WDB.PLANS = {
 };
 
 WDB.getSubscription = function() {
+  let sub;
   try {
     const raw = localStorage.getItem('warr_subscription');
-    if (!raw) return { plan: 'free', tokensUsed: 0, resetDate: null };
-    const sub = JSON.parse(raw);
-    if (sub.resetDate) {
-      const now = new Date();
-      if (now >= new Date(sub.resetDate)) {
-        sub.tokensUsed = 0;
-        sub.resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
-        localStorage.setItem('warr_subscription', JSON.stringify(sub));
-      }
+    sub = raw ? JSON.parse(raw) : { plan: 'free', tokensUsed: 0, resetDate: null };
+  } catch (e) { sub = { plan: 'free', tokensUsed: 0, resetDate: null }; }
+
+  // Monthly token reset
+  if (sub.resetDate) {
+    const now = new Date();
+    if (now >= new Date(sub.resetDate)) {
+      sub.tokensUsed = 0;
+      sub.resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
     }
-    return sub;
-  } catch (e) { return { plan: 'free', tokensUsed: 0, resetDate: null }; }
+  }
+
+  // ── Authoritative plan = the server profile (where admin grants are stored) ──
+  // WAuth loads the full profile on every page, so this keeps the token cap in
+  // sync everywhere — not just on the Profile page. Falls back to local plan if
+  // the profile hasn't loaded yet (e.g. very first paint before auth resolves).
+  try {
+    const prof = (typeof WAuth !== 'undefined' && WAuth.getProfile) ? WAuth.getProfile() : null;
+    if (prof && prof.plan) {
+      let srvPlan = prof.plan;
+      if (srvPlan !== 'free' && prof.plan_expires_at && new Date(prof.plan_expires_at) < new Date()) {
+        srvPlan = 'free'; // grant lapsed → back to free
+      }
+      sub.plan = srvPlan;
+    }
+  } catch (e) { /* keep local plan */ }
+
+  try { localStorage.setItem('warr_subscription', JSON.stringify(sub)); } catch (e) {}
+  return sub;
 };
 
 WDB.saveSubscription = function(sub) {
