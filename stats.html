@@ -997,15 +997,22 @@ function wrColor(wr) {
   return 'var(--red)';
 }
 
+// Canonical portrait src — the .png files were retired in favour of the webp
+// thumb pipeline, so always resolve through WDB.heroPortrait.
+function _hpSrc(name) {
+  try { if (typeof WDB !== 'undefined' && WDB.heroPortrait) return WDB.heroPortrait(name); } catch(_){}
+  return './portraits/t/' + nameToId(name) + '.webp';
+}
+
 function heroImg(name, size=28) {
   const h = name ? (typeof name==='object' ? name : {id:nameToId(name), name}) : null;
-  return h ? `<img src="./portraits/${h.id||h.name}.png" onerror="this.src=''" style="width:${size}px;height:${size}px;border-radius:10px;object-fit:cover;background:var(--surface3);flex-shrink:0;">` : '';
+  return h ? `<img src="${_hpSrc(h.name||name)}" alt="${h.name||''}" loading="lazy" onerror="this.style.visibility='hidden'" style="width:${size}px;height:${size}px;border-radius:10px;object-fit:cover;background:var(--surface3);flex-shrink:0;">` : '';
 }
 
 function heroRowHtml(name, sub1='', sub2='', sub1Color='var(--text2)') {
   const h = typeof name==='string' ? {id:nameToId(name),name} : name;
   return `<div class="hero-row">
-    <img src="./portraits/${h.id}.png" onerror="this.src=''" style="width:28px;height:28px;border-radius:10px;object-fit:cover;background:var(--surface3);">
+    <img src="${_hpSrc(h.name)}" alt="${h.name||''}" loading="lazy" onerror="this.style.visibility='hidden'" style="width:28px;height:28px;border-radius:10px;object-fit:cover;background:var(--surface3);">
     <div class="hero-row-name">${h.name}</div>
     ${sub1?`<span class="hero-row-meta" style="color:${sub1Color};">${sub1}</span>`:''}
     ${sub2?`<span class="hero-row-meta" style="color:var(--text3);font-size:9px;">${sub2}</span>`:''}
@@ -1387,7 +1394,7 @@ function buildPocketPickSection(blueName, redName, blueStats, redStats) {
   const vsRed  = computePocketPicks(redName);
   const vsBlue = computePocketPicks(blueName);
   if (!vsRed.length && !vsBlue.length) return '';
-  const portrait = name => `<img src="./portraits/${nameToId(name)}.png" alt="${name}" loading="lazy" width="24" height="24" onerror="this.style.background='var(--surface3)';this.removeAttribute('src')" style="width:24px;height:24px;border-radius:7px;object-fit:cover;background:var(--surface3);">`;
+  const portrait = name => `<img src="${_hpSrc(name)}" alt="${name}" loading="lazy" width="24" height="24" onerror="this.style.background='var(--surface3)';this.removeAttribute('src')" style="width:24px;height:24px;border-radius:7px;object-fit:cover;background:var(--surface3);">`;
   const renderList = (pockets, oppDisplayName) => {
     if (!pockets.length) return `<div style="color:var(--text3);font-size:11px;padding:8px 4px;">${oppDisplayName} has too few matches to compute pocket picks.</div>`;
     return pockets.map(p => `
@@ -1532,7 +1539,7 @@ function _targetBans(name) {
 
 function _compChips(five) {
   return five.map(h => `<span style="display:inline-flex;flex-direction:column;align-items:center;gap:2px;min-width:52px;">
-      <img src="portraits/${(h.name||'').replace(/[^A-Za-z0-9]/g,'')}.png" onerror="this.style.display='none'" style="width:38px;height:38px;border-radius:8px;object-fit:cover;border:1px solid var(--border);">
+      <img src="${_hpSrc(h.name)}" alt="${h.name||''}" loading="lazy" onerror="this.style.display='none'" style="width:38px;height:38px;border-radius:8px;object-fit:cover;border:1px solid var(--border);">
       <span style="font-size:9px;color:var(--text);max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h.name}</span>
       <span style="font-size:7.5px;color:var(--text3);letter-spacing:.05em;">${h.lane.toUpperCase()}</span>
     </span>`).join('');
@@ -1895,7 +1902,7 @@ function buildDraftPlanSection(blueName, redName, blueStats, redStats) {
   const plan = generateDraftPlan(blueName, redName, blueStats, redStats);
   const portrait = name => {
     if (name === '—') return `<span style="display:inline-block;width:28px;height:28px;border-radius:8px;background:var(--surface3);"></span>`;
-    return `<img src="./portraits/${nameToId(name)}.png" alt="${name}" loading="lazy" width="28" height="28" onerror="this.style.background='var(--surface3)';this.removeAttribute('src')" style="width:28px;height:28px;border-radius:8px;object-fit:cover;background:var(--surface3);">`;
+    return `<img src="${_hpSrc(name)}" alt="${name}" loading="lazy" width="28" height="28" onerror="this.style.background='var(--surface3)';this.removeAttribute('src')" style="width:28px;height:28px;border-radius:8px;object-fit:cover;background:var(--surface3);">`;
   };
   const laneColor = lane => ({
     Gold: '#f4a534', Jungle: '#a78bfa', Mid: '#60a5fa', EXP: '#f87171', Roam: '#34d17a',
