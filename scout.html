@@ -5101,7 +5101,7 @@ function openTeamReport(teamName) {
   const heroRows = (t.topPicks||[]).map(p=>{
     const hk=(t.heroKDA||{})[p.name];
     const kda = hk&&hk.d ? ((hk.k+hk.a)/Math.max(1,hk.d)) : (hk?(hk.k+hk.a):null);
-    return { name:p.name, games:p.count, wr:p.wr, kda, pickRate: gp?Math.round(p.count/gp*100):0 };
+    return { name:p.name, games:p.count, wr:p.wr, kda, pickRate: gp?Math.min(100,Math.round(p.count/gp*100)):0 };
   });
   const _maxPR = Math.max(1, ...heroRows.map(h=>h.pickRate));
   // Draft Intelligence columns: show 5, expand to full list on demand (restores
@@ -5480,7 +5480,8 @@ function openLeagueReport(league, season) {
   const pickC={}, banC={}, fpC={}, laneAgg={}, heroKDA={}, playerKDA={};
   all.forEach(m=>{
     [['blue',m.bluePicks,m.blueBans,m.winner==='blue',m.blueTeam],['red',m.redPicks,m.redBans,m.winner==='red',m.redTeam]].forEach(([side,picks,bans,won,tn])=>{
-      (picks||[]).forEach((p,idx)=>{ const n=p&&(p.name||p); if(!n)return;
+      const _seenP=new Set(), _seenB=new Set();   // count each hero at most once per game (guards against duplicate-entry data)
+      (picks||[]).forEach((p,idx)=>{ const n=p&&(p.name||p); if(!n||_seenP.has(n))return; _seenP.add(n);
         const e=pickC[n]||(pickC[n]={g:0,w:0}); e.g++; if(won)e.w++;
         if(idx===0) fpC[n]=(fpC[n]||0)+1;
         const L=p&&p.lane; if(L&&LANES.includes(L)){ const a=laneAgg[L]||(laneAgg[L]={}); const le=a[n]||(a[n]={c:0,w:0}); le.c++; if(won)le.w++; }
@@ -5489,16 +5490,37 @@ function openLeagueReport(league, season) {
           if(p.player){ const pk=playerKDA[p.player]||(playerKDA[p.player]={g:0,k:0,d:0,a:0,lane:p.lane||'',team:tn||''}); pk.g++; pk.k+=k; pk.d+=d; pk.a+=as; if(p.lane&&!pk.lane)pk.lane=p.lane; }
         }
       });
-      (bans||[]).forEach(bn=>{ const n=bn&&(bn.name||bn); if(!n)return; banC[n]=(banC[n]||0)+1; });
+      (bans||[]).forEach(bn=>{ const n=bn&&(bn.name||bn); if(!n||_seenB.has(n))return; _seenB.add(n); banC[n]=(banC[n]||0)+1; });
     });
   });
   const uniqueHeroes = Object.keys(pickC).length;
-  const pickRows = Object.entries(pickC).map(([n,e])=>({name:n,games:e.g,wr:Math.round(e.w/e.g*100),pickRate:Math.round(e.g/games*100)})).sort((a,b)=>b.games-a.games);
-  const banRows  = Object.entries(banC).map(([n,c])=>({name:n,count:c,banRate:Math.round(c/games*100)})).sort((a,b)=>b.count-a.count);
+  const _pct = x => Math.min(100, Math.round(x*100));
+  const pickRows = Object.entries(pickC).map(([n,e])=>({name:n,games:e.g,wr:Math.round(e.w/e.g*100),pickRate:_pct(e.g/games)})).sort((a,b)=>b.games-a.games);
+  const banRows  = Object.entries(banC).map(([n,c])=>({name:n,count:c,banRate:_pct(c/games)})).sort((a,b)=>b.count-a.count);
   const contested = (()=>{ const mm={}; pickRows.forEach(p=>mm[p.name]=(mm[p.name]||0)+p.games); banRows.forEach(b=>mm[b.name]=(mm[b.name]||0)+b.count);
-    return Object.entries(mm).map(([n,c])=>({name:n,total:c,pct:Math.round(c/games*100)})).sort((a,b)=>b.total-a.total); })();
+    return Object.entries(mm).map(([n,c])=>({name:n,total:c,pct:_pct(c/games)})).sort((a,b)=>b.total-a.total); })();
   const fpRows = Object.entries(fpC).map(([n,c])=>({name:n,count:c})).sort((a,b)=>b.count-a.count);
   const laneTop = LANES.map(L=>{ const es=Object.entries(laneAgg[L]||{}).sort((a,b)=>b[1].c-a[1].c); if(!es.length)return{lane:L,name:null}; const[n,e]=es[0]; return{lane:L,name:n,count:e.c,wr:Math.round(e.w/e.c*100)}; });
+
+  // ── League Response Map: when ANY team faces hero X, what does the league draft
+  //    in answer (grouped by role), and how often does the responder win? ──
+  const lrResp = {};
+  const _addResp = (enemyPicks, myPicks, responderWon) => {
+    const seen = new Set();
+    (enemyPicks||[]).forEach(ep => {
+      const eh = ep && (ep.name||ep); if (!eh || seen.has(eh)) return; seen.add(eh);
+      const b = lrResp[eh] || (lrResp[eh] = { games:0, wins:0, picks:{} });
+      b.games++; if (responderWon) b.wins++;
+      (myPicks||[]).forEach(p => { const n=p&&(p.name||p); if(!n)return;
+        const e=b.picks[n]||(b.picks[n]={c:0,w:0,lane:(p&&p.lane)||''}); e.c++; if(responderWon)e.w++; if(p&&p.lane)e.lane=p.lane; });
+    });
+  };
+  all.forEach(m => {
+    _addResp(m.bluePicks, m.redPicks, m.winner==='red');   // red answers blue's heroes
+    _addResp(m.redPicks,  m.bluePicks, m.winner==='blue');  // blue answers red's heroes
+  });
+  window._lrRespData = lrResp;
+  const _lrRespDefault = Object.entries(lrResp).sort((a,b)=>b[1].games-a[1].games)[0]?.[0] || '';
 
   // ── Objective conversion baselines (league-wide) ──
   let fbG=0,fbW=0, ftG=0,ftW=0, flG=0,flW=0, twG=0,twSum=0;
@@ -5658,6 +5680,16 @@ function openLeagueReport(league, season) {
           </div>
         </div>
 
+        <!-- LEAGUE RESPONSE MAP -->
+        ${Object.keys(lrResp).length ? `
+        <div class="rpt2-panel">
+          <div class="rpt2-title"><span class="bar" style="background:var(--gold);box-shadow:0 0 8px var(--gold);"></span><h3>Response Map</h3>
+            <select class="form-select no-print" style="margin-left:auto;font-size:10px;padding:4px 7px;height:auto;max-width:150px;" onchange="_lrRespRender(this.value)">${Object.entries(lrResp).sort((a,b)=>b[1].games-a[1].games).map(([h])=>`<option value="${h}"${h===_lrRespDefault?' selected':''}>${h}</option>`).join('')}</select>
+          </div>
+          <div style="font-size:9.5px;color:var(--text4);margin:-6px 0 10px;">When a team drafts this hero, here's how the league answers — top responses per role.</div>
+          <div id="_lrRespOut" style="min-height:120px;"></div>
+        </div>` : ''}
+
         <!-- STANDINGS · TEMPO · MAPS -->
         <div style="display:grid;grid-template-columns:1.3fr 1.3fr 1fr;gap:14px;align-items:stretch;">
           <div class="rpt2-panel">
@@ -5767,6 +5799,39 @@ function openLeagueReport(league, season) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  if (_lrRespDefault && typeof _lrRespRender==='function') { try { _lrRespRender(_lrRespDefault); } catch(_){} }
+}
+
+// League Response Map renderer — top 5 answers per role for a chosen enemy hero.
+function _lrRespRender(q) {
+  const out = document.getElementById('_lrRespOut'); if (!out) return;
+  const data = window._lrRespData; q = (q||'').trim();
+  if (!data || !q) { out.innerHTML=''; return; }
+  const key = Object.keys(data).find(k=>k.toLowerCase()===q.toLowerCase()) || Object.keys(data).find(k=>k.toLowerCase().includes(q.toLowerCase()));
+  if (!key) { out.innerHTML = `<div style="font-size:11px;color:var(--text3);">No games where a team picked “${q}”.</div>`; return; }
+  const b = data[key]; const total = b.games; const respWR = total?Math.round(b.wins/total*100):0;
+  const wcol = v => v>=60?'var(--green)':v>=50?'var(--gold)':'var(--red)';
+  const ic = (n,s)=>`<img src="${_heroIcon(n)}" onerror="${_heroIconErr(n)}" style="width:${s}px;height:${s}px;border-radius:${Math.round(s*0.3)}px;object-fit:cover;flex-shrink:0;">`;
+  const LANES=['Gold','Jungle','Mid','EXP','Roam']; const LC={Gold:'#f4a534',Jungle:'#a78bfa',Mid:'#60a5fa',EXP:'#f87171',Roam:'#34d17a',Other:'var(--text3)'};
+  const byLane={}; Object.entries(b.picks).forEach(([n,e])=>{ const L=(e.lane&&LANES.includes(e.lane))?e.lane:'Other'; (byLane[L]||(byLane[L]=[])).push([n,e]); });
+  const col = (L) => {
+    const arr = (byLane[L]||[]).sort((a,c)=>c[1].c-a[1].c).slice(0,5); if(!arr.length) return '';
+    const rows = arr.map(([n,e])=>{ const pr=Math.round(e.c/total*100); const w=e.c?Math.round(e.w/e.c*100):0;
+      return `<div style="display:flex;align-items:center;gap:7px;padding:3px 0;">
+        ${ic(n,20)}<span style="flex:1;min-width:0;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n}</span>
+        <span style="font-size:8.5px;color:var(--text3);font-family:var(--font-mono);">${e.c}/${total}</span>
+        <span style="width:30px;text-align:right;font-size:9.5px;font-weight:700;color:${wcol(w)};font-family:var(--font-mono);">${w}%</span>
+      </div>`; }).join('');
+    return `<div><div style="font-size:8px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:${LC[L]};margin-bottom:4px;">${L}</div>${rows}</div>`;
+  };
+  const cols = [...LANES,'Other'].map(col).filter(Boolean).join('');
+  out.innerHTML = `
+    <div style="display:flex;align-items:center;gap:11px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border);">
+      ${ic(key,32)}
+      <div><div style="font-size:12px;font-weight:800;">vs <span style="color:var(--gold);">${key}</span></div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">picked in ${total} game${total!==1?'s':''} · responders won <b style="color:${wcol(respWR)};">${respWR}%</b></div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;align-items:start;">${cols||'<div style="font-size:10px;color:var(--text4);">No repeated responses.</div>'}</div>`;
 }
 
 // Filter the hero chips by the search box.
