@@ -1942,8 +1942,17 @@ const DB_MODULE = (() => {
     });
 
     Object.keys(_db.teams).forEach(name => {
-      const t = _db.teams[name];
       const games = _db.matches.filter(m => m.blueTeam===name || m.redTeam===name);
+      computeTeamStats(name, games, _db.teams[name]);
+    });
+  }
+
+  // Build the full stat object for a team from ANY set of games.
+  // rebuildTeams() passes all games; the scout report passes a season/
+  // tournament-scoped subset so the WHOLE report reflects the filter.
+  // Mutates & returns `t` (defaults to a fresh object).
+  function computeTeamStats(name, games, t) {
+      t = t || { name };
       // Sort by date ascending for form calc
       const sorted = [...games].sort((a,b) => new Date(a.date)-new Date(b.date));
 
@@ -2123,7 +2132,7 @@ const DB_MODULE = (() => {
       });
       t.topFirstPick = Object.entries(fpC).sort((a,b)=>b[1]-a[1]).slice(0,5)
         .map(([n,c])=>({name:n,count:c}));
-    });
+      return t;
   }
 
   function getSeriesId(m) {
@@ -2133,7 +2142,7 @@ const DB_MODULE = (() => {
 
   function resetMatches(newMatches) { _db.matches = newMatches || []; }
 
-  return { load, save, getMatches, getTeams, upsertMatch, deleteMatch, upsertTeam, deleteTeam, rebuildTeams, resetMatches, getSeriesId, _hashStr, _seriesKey_raw };
+  return { load, save, getMatches, getTeams, upsertMatch, deleteMatch, upsertTeam, deleteTeam, rebuildTeams, computeTeamStats, resetMatches, getSeriesId, _hashStr, _seriesKey_raw };
 })();
 
 // ── SUPABASE INTEGRATION ──────────────────────────────────────
@@ -4417,55 +4426,56 @@ async function generateTeamImage(teamName) {
   if (btn) { btn.textContent = 'Export PDF'; btn.disabled = false; }
 }
 
-// Active map filter for team scout reports. Persists across re-opens of the
-// same modal so changing the dropdown re-renders with the same filter state.
+// Active filters for team scout reports. Persist across re-opens of the same
+// modal so changing a dropdown re-renders with the same filter state.
 let _reportMapFilter = '';
+let _reportLeagueFilter = '';   // '' = all tournaments/leagues
+let _reportSeasonFilter = '';   // '' = all seasons
 
-// Called from the modal's Map dropdown — stash the new value, then rebuild
-// the report by closing + re-opening with the same team name.
-function setReportMapFilter(map) {
-  _reportMapFilter = map || '';
+// Called from the modal's dropdowns — stash the value, then rebuild the report
+// by closing + re-opening with the same team name.
+function _reReport() {
   const teamName = document.getElementById('teamReportModal')?.dataset?.team;
   if (!teamName) return;
   document.getElementById('teamReportModal').remove();
   openTeamReport(teamName);
 }
+function setReportMapFilter(map)      { _reportMapFilter = map || '';       _reReport(); }
+function setReportLeagueFilter(lg)    { _reportLeagueFilter = lg || '';
+  // Season labels aren't shared across leagues, so reset season when tournament changes.
+  _reportSeasonFilter = ''; _reReport(); }
+function setReportSeasonFilter(sn)    { _reportSeasonFilter = sn || '';     _reReport(); }
 
 function openTeamReport(teamName) {
   const tBase = DB_MODULE.getTeams()[teamName];
   if (!tBase) return;
 
   const allMatches = DB_MODULE.getMatches();
+  // Drop any filter carried over from another team that this team never played,
+  // so a persisted scope can't silently empty the report.
+  const _tAll = allMatches.filter(m => m.blueTeam === teamName || m.redTeam === teamName);
+  if (_reportLeagueFilter && !_tAll.some(m => (m.league||'')        === _reportLeagueFilter)) _reportLeagueFilter = '';
+  if (_reportSeasonFilter && !_tAll.some(m => (m.season||'').trim() === _reportSeasonFilter)) _reportSeasonFilter = '';
+  if (_reportMapFilter    && !_tAll.some(m => (m.map||'')           === _reportMapFilter))    _reportMapFilter = '';
   const teamGames = allMatches
     .filter(m => m.blueTeam === teamName || m.redTeam === teamName)
-    .filter(m => !_reportMapFilter || (m.map||'') === _reportMapFilter)
+    .filter(m => !_reportMapFilter    || (m.map||'')            === _reportMapFilter)
+    .filter(m => !_reportLeagueFilter || (m.league||'')         === _reportLeagueFilter)
+    .filter(m => !_reportSeasonFilter || (m.season||'').trim()  === _reportSeasonFilter)
     .sort((a,b) => new Date(b.date) - new Date(a.date));
 
-  // When the map filter is active, recompute hero-meta fields (top picks, top
-  // bans, bans-received, top first pick) from the filtered teamGames so the
-  // report's hero sections reflect the selected map. Overall WR / side / KPI
-  // / strengths fields stay sourced from tBase (they're cross-match aggregates
-  // documented in the title bar). Without filter, t === tBase so nothing changes.
-  const t = _reportMapFilter ? Object.create(tBase) : tBase;
-  if (_reportMapFilter) {
-    const pickC = {}, pickW = {}, banC = {}, banRecC = {}, fpC = {};
-    teamGames.forEach(m => {
-      const ours = m.blueTeam === teamName;
-      const won = (ours && m.winner === 'blue') || (!ours && m.winner === 'red');
-      const picks = ours ? (m.bluePicks||[]) : (m.redPicks||[]);
-      const bans  = ours ? (m.blueBans ||[]) : (m.redBans ||[]);
-      const oppBans = ours ? (m.redBans||[]) : (m.blueBans||[]);
-      picks.forEach(p => { const n = p.name||p; if (n) { pickC[n] = (pickC[n]||0)+1; if (won) pickW[n] = (pickW[n]||0)+1; } });
-      bans.forEach(b => { const n = b.name||b; if (n) banC[n] = (banC[n]||0)+1; });
-      oppBans.forEach(b => { const n = b.name||b; if (n) banRecC[n] = (banRecC[n]||0)+1; });
-      if (picks[0]) { const n = picks[0].name||picks[0]; if (n) fpC[n] = (fpC[n]||0)+1; }
-    });
-    t.topPicks      = Object.entries(pickC).sort((a,b)=>b[1]-a[1])
-                        .map(([n,c]) => ({ name:n, count:c, wr: pickW[n] ? Math.round(pickW[n]/c*100) : 0 }));
-    t.topBans       = Object.entries(banC).sort((a,b)=>b[1]-a[1]).map(([n,c]) => ({ name:n, count:c }));
-    t.bansReceived  = Object.entries(banRecC).sort((a,b)=>b[1]-a[1]).map(([n,c]) => ({ name:n, count:c }));
-    t.topFirstPick  = Object.entries(fpC).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([n,c]) => ({ name:n, count:c }));
-  }
+  // When ANY filter (map / tournament / season) is active, recompute the WHOLE
+  // stat object from the filtered games so every number in the report — WR,
+  // KPIs, side splits, objective rates, hero pools, bans — reflects the filter.
+  // Manual/admin fields (win condition, notes, placement…) are carried over.
+  const _anyFilter = _reportMapFilter || _reportLeagueFilter || _reportSeasonFilter;
+  const t = _anyFilter
+    ? DB_MODULE.computeTeamStats(teamName, teamGames, {
+        name: teamName,
+        winCondition: tBase.winCondition||'', coachNotes: tBase.coachNotes||'',
+        rsRank: tBase.rsRank||'', placement: tBase.placement||'', link: tBase.link||''
+      })
+    : tBase;
 
   // Group into series
   const seriesMap = {};
@@ -4964,24 +4974,40 @@ function openTeamReport(teamName) {
   overlay.className = 'modal-overlay';
   overlay.id = 'teamReportModal';
   overlay.dataset.team = teamName;
-  // Maps actually played by this team (so the dropdown only shows useful options)
-  const playedMaps = [...new Set(allMatches
-    .filter(m => m.blueTeam === teamName || m.redTeam === teamName)
-    .map(m => m.map).filter(Boolean))];
+  // Options built from what this team has ACTUALLY played, so dropdowns never
+  // show empty tournaments/seasons.
+  const _teamAll = allMatches.filter(m => m.blueTeam === teamName || m.redTeam === teamName);
+  const playedMaps = [...new Set(_teamAll.map(m => m.map).filter(Boolean))];
   const mapOpts = `<option value="">All maps</option>` + playedMaps.map(mp =>
     `<option value="${mp}"${_reportMapFilter===mp?' selected':''}>${mp}</option>`
   ).join('');
+  // Tournaments (leagues) this team has played
+  const playedLeagues = [...new Set(_teamAll.map(m => m.league).filter(Boolean))].sort();
+  const leagueOpts = `<option value="">All tournaments</option>` + playedLeagues.map(lg =>
+    `<option value="${lg}"${_reportLeagueFilter===lg?' selected':''}>${lg}</option>`
+  ).join('');
+  // Seasons — scoped to the selected tournament when one is chosen (season
+  // labels aren't unique across leagues).
+  const _seasonPool = _reportLeagueFilter ? _teamAll.filter(m => (m.league||'')===_reportLeagueFilter) : _teamAll;
+  const playedSeasons = [...new Set(_seasonPool.map(m => (m.season||'').trim()).filter(Boolean))]
+    .sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+  const seasonOpts = `<option value="">All seasons</option>` + playedSeasons.map(sn =>
+    `<option value="${sn}"${_reportSeasonFilter===sn?' selected':''}>${sn}</option>`
+  ).join('');
+  const _scopeLabel = [_reportLeagueFilter, _reportSeasonFilter, _reportMapFilter].filter(Boolean).join(' · ');
   overlay.innerHTML = `
     <div class="modal" style="max-width:1400px;width:96vw;" id="teamReportContent">
       <div class="modal-header no-print" style="gap:8px;">
-        <div class="modal-title">Scout Report — ${teamName}${_reportMapFilter ? ` <span style="font-size:11px;color:var(--accent);font-weight:500;margin-left:6px;">on ${_reportMapFilter}</span>` : ''}</div>
-        <div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0;align-items:center;">
+        <div class="modal-title">Scout Report — ${teamName}${_scopeLabel ? ` <span style="font-size:11px;color:var(--accent);font-weight:500;margin-left:6px;">${_scopeLabel}</span>` : ''}</div>
+        <div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+          ${playedLeagues.length > 1 ? `<select class="form-select" style="font-size:11px;padding:5px 8px;height:auto;" onchange="setReportLeagueFilter(this.value)" title="Scope the whole report to one tournament">${leagueOpts}</select>` : ''}
+          ${playedSeasons.length > 1 ? `<select class="form-select" style="font-size:11px;padding:5px 8px;height:auto;" onchange="setReportSeasonFilter(this.value)" title="Scope the whole report to one season">${seasonOpts}</select>` : ''}
           ${playedMaps.length > 1 ? `<select class="form-select" style="font-size:11px;padding:5px 8px;height:auto;" onchange="setReportMapFilter(this.value)" title="Filter the entire report to a single map">${mapOpts}</select>` : ''}
           ${(typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin())?`<button class="btn btn-ghost btn-sm" onclick="openTeamEditor('${teamName}');document.getElementById('teamReportModal').remove();">Edit</button>`:''}
           <button class="btn btn-ghost btn-sm" onclick="openH2H('${teamName}')">H2H</button>
           <button class="btn btn-accent btn-sm" onclick="window.print()" title="Print or Save as PDF — landscape, pages continue cleanly with no cut-offs">🖨 Print</button>
           <button class="btn btn-ghost btn-sm" id="pdfBtn" onclick="generateTeamImage('${teamName}')">Export Image</button>
-          <button class="btn btn-ghost btn-sm" onclick="_reportMapFilter='';document.getElementById('teamReportModal').remove();">✕</button>
+          <button class="btn btn-ghost btn-sm" onclick="_reportMapFilter='';_reportLeagueFilter='';_reportSeasonFilter='';document.getElementById('teamReportModal').remove();">✕</button>
         </div>
       </div>
       <div class="modal-body" id="reportBody" style="padding:20px 24px;">
