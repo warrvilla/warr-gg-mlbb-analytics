@@ -1420,12 +1420,12 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
   /* Remove decorative body overlays */
   body::after, body::before { display: none !important; }
   /* Hide everything except the report */
-  body > *:not(#teamReportModal) { display: none !important; }
+  body > *:not(#teamReportModal):not(#leagueReportModal) { display: none !important; }
   body { background: #ffffff !important; margin: 0 !important; padding: 0 !important; }
   /* CLEAN LIGHT DOCUMENT THEME for paper. The report's inline styles all read CSS
      variables, so recoloring the variables flips the whole thing to a crisp,
      ink-friendly light layout — no heavy dark ink blocks, real visible borders. */
-  #teamReportModal, #teamReportModal * {
+  #teamReportModal, #teamReportModal *, #leagueReportModal, #leagueReportModal * {
     --bg:#ffffff; --text:#15151b; --text1:#15151b; --text2:#33333b; --text3:#5b5b66; --text4:#8a8a93;
     --surface:#ffffff; --surface2:#f5f5f8; --surface3:#ececf1;
     --border:rgba(0,0,0,.16); --border2:rgba(0,0,0,.10); --border3:rgba(0,0,0,.24);
@@ -1438,7 +1438,7 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
   #teamReportContent { background:#ffffff !important; border:none !important; }
   #reportBody { color:#15151b; }
   /* Modal overlay: static so content flows across pages */
-  #teamReportModal {
+  #teamReportModal, #leagueReportModal {
     position: static !important;
     background: transparent !important;
     display: block !important;
@@ -1694,6 +1694,12 @@ table.kda td.r { text-align:right; }
     </button>
     <button class="sidebar-btn desktop-only" id="sb-AI Battle" onclick="setLeagueFilter('AI Battle')">
       <div class="league-dot" style="background:#7C5CF6;box-shadow:0 0 5px #7C5CF666;"></div> AI Battle
+    </button>
+
+    <button class="sidebar-btn" id="sb-leaguereport" onclick="openLeagueReportFromSidebar()"
+      style="margin-top:10px;justify-content:center;gap:7px;background:var(--accent-dim,rgba(124,92,246,.12));border:1px solid var(--purple-border,rgba(124,92,246,.35));color:var(--purple,#a78bfa);font-weight:700;"
+      title="Full league report for the selected tournament (defaults to its current season)">
+      ⚑ <span>League Report</span>
     </button>
   </div>
 
@@ -5412,6 +5418,355 @@ function openTeamReport(teamName) {
   document.body.appendChild(overlay);
   // Populate the Response Map panel with the most-faced enemy hero by default.
   if (_respDefault && typeof _heroRespRender === 'function') { try { _heroRespRender(_respDefault); } catch(_){} }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LEAGUE-WIDE REPORT — same panel layout as the team report, but
+// aggregated across every team in a league/tournament. Opened from the
+// Scout sidebar "League Report" button (uses the current league filter).
+// ═══════════════════════════════════════════════════════════════
+let _lrLeague = null, _lrSeason = '', _lrMap = '', _lrFrom = '', _lrTo = '';
+function _reLeagueReport() { document.getElementById('leagueReportModal')?.remove(); openLeagueReport(_lrLeague, _lrSeason); }
+function setLeagueReportSeason(s) { _lrSeason = s || ''; _reLeagueReport(); }
+function setLeagueReportMap(m)    { _lrMap = m || '';    _reLeagueReport(); }
+function setLeagueReportFrom(d)   { _lrFrom = d || '';   _reLeagueReport(); }
+function setLeagueReportTo(d)     { _lrTo = d || '';     _reLeagueReport(); }
+function clearLeagueReportDates() { _lrFrom = ''; _lrTo = ''; _reLeagueReport(); }
+// Sidebar entry: open a league report for the currently-selected league,
+// defaulting to that league's current season (MPL PH S18, etc.).
+function openLeagueReportFromSidebar() {
+  if (typeof leagueFilter === 'undefined' || !leagueFilter || leagueFilter === 'all') {
+    if (typeof toast==='function') toast('Pick a league/tournament in the sidebar first','error'); return;
+  }
+  const s = (typeof LEAGUE_CURRENT_SEASON!=='undefined' && LEAGUE_CURRENT_SEASON[leagueFilter])
+    ? LEAGUE_CURRENT_SEASON[leagueFilter]
+    : (typeof seasonFilter!=='undefined' && seasonFilter!=='all' ? seasonFilter : '');
+  _lrLeague = null;                 // force fresh seed
+  openLeagueReport(leagueFilter, s);
+}
+
+function openLeagueReport(league, season) {
+  const fresh = (league !== _lrLeague);
+  if (fresh) { _lrLeague = league || 'all'; _lrSeason = season || ''; _lrMap = ''; _lrFrom = ''; _lrTo = ''; }
+  const LEAGUE = _lrLeague;
+
+  const _md = m => (m.date||'').slice(0,10);
+  const all = DB_MODULE.getMatches().filter(m =>
+    (LEAGUE==='all' || (m.league||'')===LEAGUE) &&
+    (!_lrSeason || (m.season||'').trim()===_lrSeason) &&
+    (!_lrMap    || (m.map||'')===_lrMap) &&
+    (!_lrFrom   || _md(m) >= _lrFrom) &&
+    (!_lrTo     || _md(m) <= _lrTo)
+  );
+  if (!all.length) { if (typeof toast==='function') toast('No matches for this league/season yet','error'); return; }
+
+  const wrc = v => v==null?'var(--text3)':v>=60?'var(--green)':v>=50?'var(--gold)':'var(--red)';
+  const img = (name,size=26)=>{ if(!name)return''; const r=Math.round(size*0.35);
+    return `<img style="width:${size}px;height:${size}px;border-radius:${r}px;object-fit:cover;background:var(--surface3);flex-shrink:0;" src="${_heroIcon(name)}" onerror="${_heroIconErr(name)}" title="${name}">`; };
+  const _fmtD = s => { const d=new Date(s); return isNaN(d.getTime())?s:`${d.toLocaleString('default',{month:'short'})} ${d.getDate()}, ${d.getFullYear()}`; };
+  const LANES=['Gold','Jungle','Mid','EXP','Roam'];
+  const LC={Gold:'#f4a534',Jungle:'#a78bfa',Mid:'#60a5fa',EXP:'#f87171',Roam:'#34d17a'};
+
+  const games = all.length;
+  const teamsSet = new Set(); all.forEach(m=>{ if(m.blueTeam)teamsSet.add(m.blueTeam); if(m.redTeam)teamsSet.add(m.redTeam); });
+  const seriesSet = new Set(all.map(m=>DB_MODULE.getSeriesId(m)));
+  const dates = all.map(m=>m.date).filter(Boolean).sort();
+  const dRange = dates.length ? `${_fmtD(dates[0])} – ${_fmtD(dates[dates.length-1])}` : '';
+  const blueWins = all.filter(m=>m.winner==='blue').length;
+  const blueWR = games ? Math.round(blueWins/games*100) : null;
+  const redWR  = games ? 100-blueWR : null;
+
+  // ── Hero pick / ban / lane / KDA aggregation ──
+  const pickC={}, banC={}, fpC={}, laneAgg={}, heroKDA={}, playerKDA={};
+  all.forEach(m=>{
+    [['blue',m.bluePicks,m.blueBans,m.winner==='blue',m.blueTeam],['red',m.redPicks,m.redBans,m.winner==='red',m.redTeam]].forEach(([side,picks,bans,won,tn])=>{
+      (picks||[]).forEach((p,idx)=>{ const n=p&&(p.name||p); if(!n)return;
+        const e=pickC[n]||(pickC[n]={g:0,w:0}); e.g++; if(won)e.w++;
+        if(idx===0) fpC[n]=(fpC[n]||0)+1;
+        const L=p&&p.lane; if(L&&LANES.includes(L)){ const a=laneAgg[L]||(laneAgg[L]={}); const le=a[n]||(a[n]={c:0,w:0}); le.c++; if(won)le.w++; }
+        if(p&&p.kda){ const k=+p.kda.k||0,d=+p.kda.d||0,as=+p.kda.a||0;
+          const hk=heroKDA[n]||(heroKDA[n]={g:0,k:0,d:0,a:0,w:0}); hk.g++; hk.k+=k; hk.d+=d; hk.a+=as; if(won)hk.w++;
+          if(p.player){ const pk=playerKDA[p.player]||(playerKDA[p.player]={g:0,k:0,d:0,a:0,lane:p.lane||'',team:tn||''}); pk.g++; pk.k+=k; pk.d+=d; pk.a+=as; if(p.lane&&!pk.lane)pk.lane=p.lane; }
+        }
+      });
+      (bans||[]).forEach(bn=>{ const n=bn&&(bn.name||bn); if(!n)return; banC[n]=(banC[n]||0)+1; });
+    });
+  });
+  const uniqueHeroes = Object.keys(pickC).length;
+  const pickRows = Object.entries(pickC).map(([n,e])=>({name:n,games:e.g,wr:Math.round(e.w/e.g*100),pickRate:Math.round(e.g/games*100)})).sort((a,b)=>b.games-a.games);
+  const banRows  = Object.entries(banC).map(([n,c])=>({name:n,count:c,banRate:Math.round(c/games*100)})).sort((a,b)=>b.count-a.count);
+  const contested = (()=>{ const mm={}; pickRows.forEach(p=>mm[p.name]=(mm[p.name]||0)+p.games); banRows.forEach(b=>mm[b.name]=(mm[b.name]||0)+b.count);
+    return Object.entries(mm).map(([n,c])=>({name:n,total:c,pct:Math.round(c/games*100)})).sort((a,b)=>b.total-a.total); })();
+  const fpRows = Object.entries(fpC).map(([n,c])=>({name:n,count:c})).sort((a,b)=>b.count-a.count);
+  const laneTop = LANES.map(L=>{ const es=Object.entries(laneAgg[L]||{}).sort((a,b)=>b[1].c-a[1].c); if(!es.length)return{lane:L,name:null}; const[n,e]=es[0]; return{lane:L,name:n,count:e.c,wr:Math.round(e.w/e.c*100)}; });
+
+  // ── Objective conversion baselines (league-wide) ──
+  let fbG=0,fbW=0, ftG=0,ftW=0, flG=0,flW=0, twG=0,twSum=0;
+  all.forEach(m=>{ const obj=m.objectives||{};
+    const tArr=obj.turtle||[obj.t1,obj.t2,obj.t3].filter(Boolean); const lArr=obj.lord||[obj.l1,obj.l2,obj.l3].filter(Boolean);
+    if(m.firstBlood==='blue'||m.firstBlood==='red'){ fbG++; if(m.winner===m.firstBlood)fbW++; }
+    const ft=(tArr||[]).find(v=>v==='blue'||v==='red'); if(ft){ ftG++; if(m.winner===ft)ftW++; }
+    const fl=(lArr||[]).find(v=>v==='blue'||v==='red'); if(fl){ flG++; if(m.winner===fl)flW++; }
+    if(m.towers&&(m.towers.blue!=null||m.towers.red!=null)){ twG+=2; twSum+=(+m.towers.blue||0)+(+m.towers.red||0); }
+  });
+  const fbWin=fbG?Math.round(fbW/fbG*100):null, ftWin=ftG?Math.round(ftW/ftG*100):null, flWin=flG?Math.round(flW/flG*100):null;
+  const avgTowers=twG?+(twSum/twG).toFixed(1):null;
+
+  // ── Map stats (blue-side WR) ──
+  const mapAgg={}; all.forEach(m=>{ if(!m.map)return; const a=mapAgg[m.map]||(mapAgg[m.map]={g:0,b:0}); a.g++; if(m.winner==='blue')a.b++; });
+  const mapRows=Object.entries(mapAgg).map(([mp,a])=>({map:mp,games:a.g,blueWR:Math.round(a.b/a.g*100)})).sort((a,b)=>b.games-a.games);
+
+  // ── Standings ──
+  const standC={}; all.forEach(m=>{ [['blue',m.blueTeam],['red',m.redTeam]].forEach(([side,tn])=>{ if(!tn)return; const s=standC[tn]||(standC[tn]={g:0,w:0}); s.g++; if(m.winner===side)s.w++; }); });
+  const standings=Object.entries(standC).map(([tn,s])=>({team:tn,games:s.g,wins:s.w,losses:s.g-s.w,wr:Math.round(s.w/s.g*100)})).sort((a,b)=>b.wr-a.wr||b.wins-a.wins);
+
+  // ── Hero performance + top players ──
+  const heroPerf = pickRows.map(p=>{ const hk=heroKDA[p.name]; const kda=hk&&hk.d?((hk.k+hk.a)/Math.max(1,hk.d)):(hk?(hk.k+hk.a):null);
+    return {...p, kda, banRate:Math.round((banC[p.name]||0)/games*100)}; });
+  const playerRows=Object.entries(playerKDA).filter(([,pk])=>pk.g>=3).map(([n,pk])=>({name:n,team:pk.team,lane:pk.lane,games:pk.g,kda:pk.d?((pk.k+pk.a)/Math.max(1,pk.d)):(pk.k+pk.a)})).sort((a,b)=>b.kda-a.kda).slice(0,8);
+
+  // ── Meta summary + insights ──
+  const topHero=pickRows[0];
+  const brokenHero=pickRows.filter(p=>p.games>=Math.max(3,Math.round(games*0.1))&&p.wr>=60).sort((a,b)=>b.wr-a.wr)[0];
+  const contestedTop=contested[0];
+  let sum=`This ${_lrSeason?_lrSeason+' ':''}${LEAGUE==='all'?'cross-league':LEAGUE} sample covers ${games} games across ${teamsSet.size} teams. `;
+  if(blueWR!=null) sum += (Math.abs(blueWR-50)>=5 ? `Blue side is favored at ${blueWR}%. ` : `Sides are balanced (${blueWR}% blue). `);
+  if(topHero) sum += `${topHero.name} is the most-picked hero (${topHero.pickRate}% pick rate, ${topHero.wr}% WR)`;
+  if(brokenHero && (!topHero||brokenHero.name!==topHero.name)) sum += `, while ${brokenHero.name} is the strongest at ${brokenHero.wr}% WR`;
+  sum += '.';
+  const confidence=Math.max(35,Math.min(97,Math.round(35+games*0.6)));
+  const insights=[];
+  if(brokenHero) insights.push(`${brokenHero.name} is over-performing — ${brokenHero.wr}% WR over ${brokenHero.games} games. Priority ban target.`);
+  if(contestedTop) insights.push(`${contestedTop.name} is the most contested at ${contestedTop.pct}% pick+ban presence.`);
+  if(blueWR!=null&&Math.abs(blueWR-50)>=5) insights.push(`${blueWR>50?'Blue':'Red'} side is favored league-wide (${blueWR>50?blueWR:redWR}%).`);
+  if(ftWin!=null&&ftWin>=60) insights.push(`First Turtle converts to a win ${ftWin}% of the time — early tempo is decisive.`);
+  if(flWin!=null&&flWin>=70) insights.push(`First Lord is a strong swing: ${flWin}% win conversion.`);
+  insights.push(`${uniqueHeroes} distinct heroes picked — ${uniqueHeroes>=45?'a diverse':'a narrow'} meta.`);
+
+  // ── Row-array helpers with expand ──
+  const _expand = (arr) => {
+    if (!arr.length) return '<div style="font-size:10px;color:var(--text4);">No data</div>';
+    const head = arr.slice(0,5).join(''); const extra = arr.slice(5).join('');
+    if (!extra) return head;
+    return head + `<div class="rpt2-more" style="display:none;">${extra}</div>`
+      + `<button class="rpt2-vall" onclick="const d=this.previousElementSibling;const o=(d.style.display==='none');d.style.display=o?'block':'none';this.textContent=o?'Show less ▴':'View all ${arr.length} ▾';">View all ${arr.length} ▾</button>`;
+  };
+  const pickArr = heroPerf.map(p=>`<div class="rpt2-hl">${img(p.name,26)}<span class="nm">${p.name}</span><span class="ct">${p.pickRate}%</span><span class="wr" style="color:${wrc(p.wr)};">${p.wr}%</span></div>`);
+  const banArr  = banRows.map(b=>`<div class="rpt2-hl">${img(b.name,26)}<span class="nm">${b.name}</span><span class="wr" style="color:var(--red);">${b.banRate}%</span></div>`);
+  const contArr = contested.map(c=>`<div class="rpt2-hl">${img(c.name,26)}<span class="nm">${c.name}</span><span class="wr" style="color:var(--gold);">${c.pct}%</span></div>`);
+  const fpArr   = fpRows.map(b=>`<div class="rpt2-hl">${img(b.name,26)}<span class="nm">${b.name}</span><span class="wr" style="color:#60a5fa;">×${b.count}</span></div>`);
+
+  // ── Recent results (series) ──
+  const seriesMap={};
+  all.forEach(m=>{ const sid=DB_MODULE.getSeriesId(m); const s=seriesMap[sid]||(seriesMap[sid]={sid,date:m.date,blueTeam:m.blueTeam,redTeam:m.redTeam,stage:m.stage||'',games:[]}); s.games.push(m); });
+  const seriesList=Object.values(seriesMap).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,12).map(s=>{
+    const aWins=s.games.filter(g=>g.winner==='blue'?g.blueTeam===s.blueTeam:g.redTeam===s.blueTeam).length;
+    const bWins=s.games.length-aWins; const aWon=aWins>bWins;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:9px;color:var(--text3);width:78px;flex-shrink:0;">${_fmtD(s.date)}</span>
+      <span style="flex:1;text-align:right;font-size:11px;font-weight:${aWon?'700':'400'};color:${aWon?'var(--text)':'var(--text3)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.blueTeam||'—'}</span>
+      <span style="font-family:var(--font-mono);font-size:11px;font-weight:800;flex-shrink:0;">${aWins}<span style="color:var(--text4);">–</span>${bWins}</span>
+      <span style="flex:1;font-size:11px;font-weight:${!aWon?'700':'400'};color:${!aWon?'var(--text)':'var(--text3)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.redTeam||'—'}</span>
+    </div>`;
+  }).join('');
+
+  // ── Filter options ──
+  const _lAll = DB_MODULE.getMatches().filter(m => LEAGUE==='all' || (m.league||'')===LEAGUE);
+  const seasonsInLeague=[...new Set(_lAll.map(m=>(m.season||'').trim()).filter(Boolean))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+  const mapsInLeague=[...new Set(_lAll.map(m=>m.map).filter(Boolean))];
+  const seasonOpts=`<option value="">All seasons</option>`+seasonsInLeague.map(s=>`<option value="${s}"${_lrSeason===s?' selected':''}>${s}</option>`).join('');
+  const mapOpts=`<option value="">All maps</option>`+mapsInLeague.map(mp=>`<option value="${mp}"${_lrMap===mp?' selected':''}>${mp}</option>`).join('');
+
+  const _mo = (typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(LEAGUE==='all'?'All Leagues':LEAGUE):{init:'L',color:'#7C5CF6'};
+  const hstat=(v,l,c='var(--text)')=>`<div class="rpt2-stat"><div class="v" style="color:${c};">${v}</div><div class="l">${l}</div></div>`;
+
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay'; overlay.id='leagueReportModal';
+  overlay.innerHTML=`
+    <div class="modal" style="max-width:1400px;width:96vw;" id="teamReportContent">
+      <div class="modal-header no-print" style="gap:14px;flex-wrap:wrap;align-items:flex-end;">
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <div class="modal-title" style="margin:0;">League Report — ${LEAGUE==='all'?'All Leagues':LEAGUE}</div>
+          <div style="font-size:9px;color:var(--text4);">${dRange||'—'} · generated ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+        </div>
+        <div class="rpt2-filters" style="margin-left:auto;">
+          <label class="rpt2-filter"><span class="lbl">Season</span><select onchange="setLeagueReportSeason(this.value)">${seasonOpts}</select></label>
+          <label class="rpt2-filter"><span class="lbl">Map</span><select onchange="setLeagueReportMap(this.value)">${mapOpts}</select></label>
+          <div class="rpt2-filter"><span class="lbl">Date Range</span>
+            <div class="rpt2-datewrap">
+              <input type="date" value="${_lrFrom}" onchange="setLeagueReportFrom(this.value)"><span style="color:var(--text4);">→</span>
+              <input type="date" value="${_lrTo}" onchange="setLeagueReportTo(this.value)">
+              ${(_lrFrom||_lrTo)?`<span class="x" onclick="clearLeagueReportDates()">✕</span>`:''}
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="btn btn-accent btn-sm" onclick="window.print()" title="Print or Save as PDF">⤓ Export PDF</button>
+          <button class="btn btn-ghost btn-sm" onclick="_lrLeague=null;document.getElementById('leagueReportModal').remove();">✕</button>
+        </div>
+      </div>
+      <div class="modal-body" id="reportBody" style="padding:20px 24px;">
+        <div class="print-only" style="display:none;margin-bottom:16px;border-bottom:2px solid #333;padding-bottom:10px;">
+          <div style="font-size:22px;font-weight:800;">${LEAGUE==='all'?'All Leagues':LEAGUE} — League Report</div>
+          <div style="font-size:11px;color:#666;margin-top:2px;">${dRange}</div>
+        </div>
+        <div class="rpt2">
+
+        <!-- LEAGUE HEADER -->
+        <div class="rpt2-panel" style="background:linear-gradient(135deg,rgba(124,92,246,.12),rgba(255,255,255,.01) 55%);">
+          <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
+            <div style="width:88px;height:88px;border-radius:20px;flex-shrink:0;background:linear-gradient(135deg,${_mo.color},${_mo.color}cc);display:flex;align-items:center;justify-content:center;">
+              <span style="font-size:32px;font-weight:800;color:#fff;font-family:var(--font-head);">${_mo.init}</span>
+            </div>
+            <div style="flex:1;min-width:200px;">
+              <div style="font-size:24px;font-weight:800;font-family:var(--font-head);text-transform:uppercase;line-height:1;margin-bottom:6px;">${LEAGUE==='all'?'All Leagues':LEAGUE}</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                ${_lrSeason?`<span style="font-size:10px;font-weight:700;color:var(--accent);border:1px solid var(--purple-border);border-radius:20px;padding:2px 10px;">${_lrSeason}</span>`:''}
+                <span style="font-size:10px;color:var(--text3);">${dRange}</span>
+              </div>
+              ${topHero?`<div style="display:flex;align-items:center;gap:8px;margin-top:10px;">${img(topHero.name,26)}<div><div style="font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text4);">Meta King</div><div style="font-size:11px;font-weight:700;">${topHero.name} · ${topHero.pickRate}% pick · ${topHero.wr}% WR</div></div></div>`:''}
+            </div>
+            <div class="rpt2-sep no-print" style="height:74px;"></div>
+            <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+              ${hstat(teamsSet.size,'Teams')}
+              ${hstat(seriesSet.size,'Series')}
+              ${hstat(games,'Games')}
+              ${hstat(uniqueHeroes,'Heroes','var(--accent)')}
+            </div>
+            <div class="rpt2-sep no-print" style="height:74px;"></div>
+            <div style="display:flex;gap:16px;align-items:center;">
+              ${hstat(blueWR!=null?blueWR+'%':'—','Blue Side',blueWR!=null?'#60a5fa':'var(--text3)')}
+              ${hstat(redWR!=null?redWR+'%':'—','Red Side',redWR!=null?'#f87171':'var(--text3)')}
+            </div>
+          </div>
+        </div>
+
+        <!-- META INTELLIGENCE -->
+        <div class="rpt2-panel">
+          <div class="rpt2-title"><span class="bar"></span><h3>Meta Intelligence</h3></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1.5fr;gap:16px;align-items:start;">
+            <div><div class="rpt2-colhead">Most Picked <span class="sub">Pick% · WR</span></div>${_expand(pickArr)}</div>
+            <div><div class="rpt2-colhead">Most Banned <span class="sub">Ban Rate</span></div>${_expand(banArr)}</div>
+            <div><div class="rpt2-colhead">Most Contested <span class="sub">Pick+Ban</span></div>${_expand(contArr)}</div>
+            <div><div class="rpt2-colhead">Top First Picks <span class="sub">Opened With</span></div>${_expand(fpArr)}</div>
+            <div>
+              <div class="rpt2-colhead">Best Hero By Lane</div>
+              <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">
+                ${laneTop.map(l=>`<div class="rpt2-lane"><div class="ln" style="color:${LC[l.lane]};">${l.lane}</div>${l.name?`${img(l.name,40)}<div style="font-size:9.5px;color:var(--text3);font-family:var(--font-mono);margin-top:4px;">${l.count}g</div><div style="font-size:10px;font-weight:800;font-family:var(--font-mono);color:${wrc(l.wr)};">${l.wr}%</div>`:`<div style="width:40px;height:40px;border-radius:12px;background:var(--surface3);margin:0 auto;"></div><div style="font-size:9px;color:var(--text4);margin-top:5px;">—</div>`}</div>`).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STANDINGS · TEMPO · MAPS -->
+        <div style="display:grid;grid-template-columns:1.3fr 1.3fr 1fr;gap:14px;align-items:stretch;">
+          <div class="rpt2-panel">
+            <div class="rpt2-title"><span class="bar"></span><h3>Standings</h3><span class="meta">${standings.length} teams</span></div>
+            <div style="max-height:320px;overflow-y:auto;">
+              ${standings.map((s,i)=>`<div style="display:flex;align-items:center;gap:9px;padding:5px 0;border-bottom:1px solid var(--border);">
+                <span style="width:20px;text-align:center;font-size:11px;font-weight:800;font-family:var(--font-head);color:${i<3?'var(--gold)':'var(--text3)'};">${i+1}</span>
+                ${(typeof WDB!=='undefined'&&WDB.teamLogo)?`<span style="width:22px;height:22px;border-radius:6px;overflow:hidden;flex-shrink:0;background:var(--surface3);display:inline-flex;"><img src="${WDB.teamLogo(s.team)}" style="width:100%;height:100%;object-fit:contain;" onerror="this.style.display='none'"></span>`:''}
+                <span style="flex:1;min-width:0;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.team}</span>
+                <span style="font-size:10px;font-family:var(--font-mono);color:var(--text3);">${s.wins}-${s.losses}</span>
+                <span style="width:64px;height:5px;border-radius:3px;background:var(--surface3);overflow:hidden;flex-shrink:0;"><span style="display:block;height:100%;width:${s.wr}%;background:${wrc(s.wr)};"></span></span>
+                <span style="width:34px;text-align:right;font-size:10.5px;font-weight:800;font-family:var(--font-mono);color:${wrc(s.wr)};">${s.wr}%</span>
+              </div>`).join('')}
+            </div>
+          </div>
+          <div class="rpt2-panel">
+            <div class="rpt2-title"><span class="bar" style="background:#5EA0D8;box-shadow:0 0 8px #5EA0D8;"></span><h3>League Tempo Baselines</h3></div>
+            ${(()=>{
+              const ring=(pct,label,sub,color)=>{ const r=26,c=2*Math.PI*r,off=c*(1-(pct||0)/100);
+                return `<div style="text-align:center;">
+                  <div style="position:relative;width:72px;height:72px;margin:0 auto;">
+                    <svg width="72" height="72" viewBox="0 0 72 72" style="transform:rotate(-90deg);"><circle cx="36" cy="36" r="${r}" fill="none" stroke="rgba(255,255,255,.09)" stroke-width="6"/>${pct!=null?`<circle cx="36" cy="36" r="${r}" fill="none" stroke="${color}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/>`:''}</svg>
+                    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;font-family:var(--font-head);color:${pct!=null?color:'var(--text3)'};">${pct!=null?pct+'%':'—'}</div>
+                  </div>
+                  <div style="font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--text2);margin-top:6px;">${label}</div>
+                  ${sub?`<div style="font-size:8px;color:var(--text3);margin-top:2px;">${sub}</div>`:''}
+                </div>`; };
+              return `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+                ${ring(fbWin,'First Blood → Win',fbG?`${fbG} games`:'','var(--gold)')}
+                ${ring(ftWin,'First Turtle → Win',ftG?`${ftG} games`:'','#4CB87A')}
+                ${ring(flWin,'First Lord → Win',flG?`${flG} games`:'','var(--accent)')}
+              </div>
+              <div style="display:flex;gap:8px;justify-content:space-around;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);text-align:center;">
+                <div><div style="font-size:15px;font-weight:800;font-family:var(--font-head);color:var(--accent);">${avgTowers!=null?avgTowers:'—'}</div><div style="font-size:7.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--text3);margin-top:3px;">Avg Towers / Team</div></div>
+                <div><div style="font-size:15px;font-weight:800;font-family:var(--font-head);color:#60a5fa;">${blueWR!=null?blueWR+'%':'—'}</div><div style="font-size:7.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--text3);margin-top:3px;">Blue Win Rate</div></div>
+                <div><div style="font-size:15px;font-weight:800;font-family:var(--font-head);color:var(--text2);">${games}</div><div style="font-size:7.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--text3);margin-top:3px;">Sample</div></div>
+              </div>`;
+            })()}
+          </div>
+          <div class="rpt2-panel">
+            <div class="rpt2-title"><span class="bar"></span><h3>Map Performance</h3></div>
+            ${mapRows.length?mapRows.map(mp=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;">
+              <span style="font-size:10.5px;width:128px;flex-shrink:0;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${mp.map}</span>
+              <div style="flex:1;height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;position:relative;"><div style="width:${mp.blueWR}%;height:100%;background:#60a5fa;border-radius:3px;"></div></div>
+              <span style="font-size:10.5px;font-weight:700;color:#60a5fa;font-family:var(--font-mono);width:34px;text-align:right;">${mp.blueWR}%</span>
+              <span style="font-size:9px;color:var(--text3);">${mp.games}g</span>
+            </div>`).join('')+'<div style="font-size:8px;color:var(--text4);margin-top:6px;">% = blue-side win rate on that map</div>':'<div style="font-size:10.5px;color:var(--text4);">No map data.</div>'}
+          </div>
+        </div>
+
+        <!-- META SUMMARY · INSIGHTS -->
+        <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:14px;align-items:stretch;">
+          <div class="rpt2-panel">
+            <div class="rpt2-title"><span class="bar"></span><h3>Meta Summary</h3><span class="meta">Generated by Warr.GG AI</span></div>
+            <div style="font-size:11.5px;line-height:1.65;color:var(--text2);">${sum}</div>
+            <div style="margin-top:14px;">
+              <div style="display:flex;justify-content:space-between;font-size:8.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:5px;"><span>Confidence</span><span style="color:var(--accent);">${confidence}%</span></div>
+              <div style="height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;"><div style="width:${confidence}%;height:100%;background:linear-gradient(90deg,var(--accent),#5E5CE6);border-radius:3px;"></div></div>
+              <div style="font-size:8px;color:var(--text4);margin-top:5px;">Based on ${games} recorded games.</div>
+            </div>
+          </div>
+          <div class="rpt2-panel">
+            <div class="rpt2-title"><span class="bar" style="background:var(--gold);box-shadow:0 0 8px var(--gold);"></span><h3 style="color:var(--gold);">Meta Insights</h3></div>
+            ${insights.map(s=>`<div style="display:flex;gap:7px;font-size:10.5px;color:var(--text2);margin-bottom:8px;line-height:1.4;"><span style="color:var(--gold);flex-shrink:0;">◆</span><span>${s}</span></div>`).join('')}
+          </div>
+        </div>
+
+        <!-- TOP PLAYERS · HERO PERFORMANCE -->
+        <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:14px;align-items:start;">
+          <div class="rpt2-panel">
+            <div class="rpt2-title"><span class="bar"></span><h3>Top Players</h3><span class="meta">by KDA · min 3g</span></div>
+            ${playerRows.length?`
+              <div style="display:grid;grid-template-columns:1.2fr 1.1fr .6fr .5fr .5fr;gap:8px;font-size:8px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text4);padding-bottom:7px;border-bottom:1px solid var(--border);margin-bottom:4px;">
+                <span>Player</span><span>Team</span><span>Role</span><span style="text-align:center;">G</span><span style="text-align:center;">KDA</span>
+              </div>
+              ${playerRows.map(p=>`<div style="display:grid;grid-template-columns:1.2fr 1.1fr .6fr .5fr .5fr;gap:8px;align-items:center;padding:5px 0;font-size:10.5px;">
+                <span style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</span>
+                <span style="color:var(--text3);font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.team||'—'}</span>
+                <span style="color:${LC[p.lane]||'var(--text3)'};font-size:9px;">${p.lane||'—'}</span>
+                <span style="text-align:center;font-family:var(--font-mono);color:var(--text3);">${p.games}</span>
+                <span style="text-align:center;font-family:var(--font-mono);font-weight:800;color:var(--text);">${p.kda?p.kda.toFixed(1):'—'}</span>
+              </div>`).join('')}
+            `:'<div style="font-size:10px;color:var(--text4);">No player data — add player IGNs to picks to populate this.</div>'}
+          </div>
+          <div class="rpt2-panel">
+            <div class="rpt2-title"><span class="bar"></span><h3>Hero Performance</h3><span class="meta">League-wide</span></div>
+            <div style="display:grid;grid-template-columns:1.4fr .5fr .5fr .5fr .55fr;gap:8px;font-size:8px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text4);padding-bottom:7px;border-bottom:1px solid var(--border);margin-bottom:4px;">
+              <span>Hero</span><span style="text-align:center;">Pick%</span><span style="text-align:center;">Ban%</span><span style="text-align:center;">KDA</span><span style="text-align:center;">Win</span>
+            </div>
+            ${heroPerf.slice(0,8).map(h=>`<div style="display:grid;grid-template-columns:1.4fr .5fr .5fr .5fr .55fr;gap:8px;align-items:center;padding:5px 0;font-size:10.5px;">
+              <span style="display:flex;align-items:center;gap:7px;min-width:0;">${img(h.name,22)}<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h.name}</span></span>
+              <span style="text-align:center;font-family:var(--font-mono);color:var(--text2);">${h.pickRate}%</span>
+              <span style="text-align:center;font-family:var(--font-mono);color:var(--text3);">${h.banRate}%</span>
+              <span style="text-align:center;font-family:var(--font-mono);color:var(--text2);">${h.kda?h.kda.toFixed(1):'—'}</span>
+              <span style="text-align:center;font-family:var(--font-mono);font-weight:800;color:${wrc(h.wr)};">${h.wr}%</span>
+            </div>`).join('')}
+          </div>
+        </div>
+
+        <!-- RECENT RESULTS -->
+        <div class="rpt2-panel">
+          <div class="rpt2-title"><span class="bar"></span><h3>Recent Results</h3><span class="meta">${seriesSet.size} series total</span></div>
+          ${seriesList||'<div style="font-size:10.5px;color:var(--text4);">No series recorded.</div>'}
+        </div>
+
+        </div><!-- /rpt2 -->
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
 }
 
 // Filter the hero chips by the search box.
