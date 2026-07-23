@@ -771,6 +771,20 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
   .rpt2-panel { background:#fff !important; border:1px solid #ddd !important; box-shadow:none !important; }
   .rpt2-vall { display:none !important; }
 }
+/* Report filter bar */
+.rpt2-filters { display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; }
+.rpt2-filter { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.rpt2-filter > span.lbl { font-size:7.5px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; color:var(--text4); padding-left:3px; }
+.rpt2-filter select, .rpt2-filter .rpt2-datewrap {
+  font-size:11px; padding:6px 9px; border-radius:9px; height:32px; box-sizing:border-box;
+  background:var(--surface2); border:1px solid var(--border); color:var(--text); cursor:pointer;
+}
+.rpt2-filter select:hover, .rpt2-filter .rpt2-datewrap:hover { border-color:var(--border3); }
+.rpt2-filter .rpt2-datewrap { display:flex; align-items:center; gap:5px; }
+.rpt2-filter .rpt2-datewrap input { background:transparent; border:none; color:var(--text); font-size:10.5px; width:104px; padding:0; }
+.rpt2-filter .rpt2-datewrap input::-webkit-calendar-picker-indicator { filter:invert(.6); cursor:pointer; }
+.rpt2-filter .rpt2-datewrap .x { cursor:pointer; color:var(--text4); font-size:11px; }
+.rpt2-filter .rpt2-datewrap .x:hover { color:var(--red); }
 
 /* ── LANE POOL list rows (used in scout report) ── */
 .lp-section {
@@ -4465,6 +4479,7 @@ let _reportLeagueFilter = '';   // '' = all tournaments/leagues
 let _reportSeasonFilter = '';   // '' = all seasons
 let _reportFrom = '';           // '' = no lower bound (YYYY-MM-DD)
 let _reportTo   = '';           // '' = no upper bound (YYYY-MM-DD)
+let _reportActiveTeam = null;   // which team the current filter state belongs to (for fresh-open seeding)
 
 // Called from the modal's dropdowns — stash the value, then rebuild the report
 // by closing + re-opening with the same team name.
@@ -4476,8 +4491,10 @@ function _reReport() {
 }
 function setReportMapFilter(map)      { _reportMapFilter = map || '';       _reReport(); }
 function setReportLeagueFilter(lg)    { _reportLeagueFilter = lg || '';
-  // Season labels aren't shared across leagues, so reset season when tournament changes.
-  _reportSeasonFilter = ''; _reReport(); }
+  // Season labels aren't shared across leagues. Default to the new tournament's
+  // current season (the openTeamReport guard clears it if this team has no games there).
+  _reportSeasonFilter = (lg && typeof LEAGUE_CURRENT_SEASON!=='undefined' && LEAGUE_CURRENT_SEASON[lg]) ? LEAGUE_CURRENT_SEASON[lg] : '';
+  _reReport(); }
 function setReportSeasonFilter(sn)    { _reportSeasonFilter = sn || '';     _reReport(); }
 function setReportDateFrom(d)         { _reportFrom = d || '';              _reReport(); }
 function setReportDateTo(d)           { _reportTo   = d || '';              _reReport(); }
@@ -4488,9 +4505,25 @@ function openTeamReport(teamName) {
   if (!tBase) return;
 
   const allMatches = DB_MODULE.getMatches();
-  // Drop any filter carried over from another team that this team never played,
-  // so a persisted scope can't silently empty the report.
   const _tAll = allMatches.filter(m => m.blueTeam === teamName || m.redTeam === teamName);
+
+  // FRESH OPEN (a different team than the current filter state) → seed sensible
+  // defaults: Tournament follows the sidebar league you clicked in from, and
+  // Season defaults to that league's current season. Re-renders from a filter
+  // change keep _reportActiveTeam === teamName, so they don't reseed.
+  if (_reportActiveTeam !== teamName) {
+    _reportActiveTeam = teamName;
+    _reportMapFilter = ''; _reportFrom = ''; _reportTo = '';
+    // Tournament ← sidebar leagueFilter, if this team actually played it.
+    _reportLeagueFilter = (typeof leagueFilter !== 'undefined' && leagueFilter && leagueFilter !== 'all'
+        && _tAll.some(m => (m.league||'') === leagueFilter)) ? leagueFilter : '';
+    // Season ← that league's admin-marked current season, if the team has games in it.
+    const _cs = (_reportLeagueFilter && typeof LEAGUE_CURRENT_SEASON !== 'undefined') ? LEAGUE_CURRENT_SEASON[_reportLeagueFilter] : '';
+    _reportSeasonFilter = (_cs && _tAll.some(m => (m.league||'')===_reportLeagueFilter && (m.season||'').trim()===_cs)) ? _cs : '';
+  }
+
+  // Drop any filter carried over that this team never played, so a persisted
+  // scope can't silently empty the report.
   if (_reportLeagueFilter && !_tAll.some(m => (m.league||'')        === _reportLeagueFilter)) _reportLeagueFilter = '';
   if (_reportSeasonFilter && !_tAll.some(m => (m.season||'').trim() === _reportSeasonFilter)) _reportSeasonFilter = '';
   if (_reportMapFilter    && !_tAll.some(m => (m.map||'')           === _reportMapFilter))    _reportMapFilter = '';
@@ -5065,6 +5098,20 @@ function openTeamReport(teamName) {
     return { name:p.name, games:p.count, wr:p.wr, kda, pickRate: gp?Math.round(p.count/gp*100):0 };
   });
   const _maxPR = Math.max(1, ...heroRows.map(h=>h.pickRate));
+  // Draft Intelligence columns: show 5, expand to full list on demand (restores
+  // the "all heroes" list the flat redesign dropped).
+  const _pickArr = heroRows.map(p=>`<div class="rpt2-hl">${img(p.name,26)}<span class="nm">${p.name}</span><span class="ct">${p.games}g</span><span class="wr" style="color:${wrc(p.wr)};">${p.wr}%</span></div>`);
+  const _banArr  = (t.topBans||[]).map(b=>`<div class="rpt2-hl">${img(b.name,26)}<span class="nm">${b.name}</span><span class="wr" style="color:var(--red);">×${b.count}</span></div>`);
+  const _recvArr = (t.bansReceived||[]).map(b=>`<div class="rpt2-hl">${img(b.name,26)}<span class="nm">${b.name}</span><span class="wr" style="color:var(--gold);">×${b.count}</span></div>`);
+  const _fpArr   = (t.topFirstPick||[]).map(b=>`<div class="rpt2-hl">${img(b.name,26)}<span class="nm">${b.name}</span><span class="wr" style="color:#60a5fa;">×${b.count}</span></div>`);
+  const _expand = (arr) => {
+    if (!arr.length) return '<div style="font-size:10px;color:var(--text4);">No data</div>';
+    const head = arr.slice(0,5).join('');
+    const extra = arr.slice(5).join('');
+    if (!extra) return head;
+    return head + `<div class="rpt2-more" style="display:none;">${extra}</div>`
+      + `<button class="rpt2-vall" onclick="const d=this.previousElementSibling;const o=(d.style.display==='none');d.style.display=o?'block':'none';this.textContent=o?'Show less ▴':'View all ${arr.length} ▾';">View all ${arr.length} ▾</button>`;
+  };
   // AI-style summary + confidence (heuristic, from real signals — not fabricated)
   const _comfort = (t.topPicks||[]).filter(p=>p.count>=3&&p.wr>=60).slice(0,3).map(p=>p.name);
   let _s1 = `${teamName} `;
@@ -5095,22 +5142,40 @@ function openTeamReport(teamName) {
 
   overlay.innerHTML = `
     <div class="modal" style="max-width:1400px;width:96vw;" id="teamReportContent">
-      <div class="modal-header no-print" style="gap:8px;">
-        <div class="modal-title">Scout Report — ${teamName}${_scopeLabel ? ` <span style="font-size:11px;color:var(--accent);font-weight:500;margin-left:6px;">${_scopeLabel}</span>` : ''}</div>
-        <div style="display:flex;gap:6px;margin-left:auto;flex-shrink:0;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
-          ${playedLeagues.length > 1 ? `<select class="form-select" style="font-size:11px;padding:5px 8px;height:auto;" onchange="setReportLeagueFilter(this.value)" title="Scope the whole report to one tournament">${leagueOpts}</select>` : ''}
-          ${playedSeasons.length > 1 ? `<select class="form-select" style="font-size:11px;padding:5px 8px;height:auto;" onchange="setReportSeasonFilter(this.value)" title="Scope the whole report to one season">${seasonOpts}</select>` : ''}
-          ${playedMaps.length > 1 ? `<select class="form-select" style="font-size:11px;padding:5px 8px;height:auto;" onchange="setReportMapFilter(this.value)" title="Filter the entire report to a single map">${mapOpts}</select>` : ''}
-          <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--text3);" title="Cut the report to a date range — useful when a roster changed mid-season/tournament">
-            <input type="date" class="form-input" style="font-size:10px;padding:4px 6px;height:auto;width:auto;" value="${_reportFrom}" onchange="setReportDateFrom(this.value)">→
-            <input type="date" class="form-input" style="font-size:10px;padding:4px 6px;height:auto;width:auto;" value="${_reportTo}" onchange="setReportDateTo(this.value)">
-            ${(_reportFrom||_reportTo)?`<button class="btn btn-ghost btn-sm" style="padding:3px 6px;" onclick="clearReportDates()" title="Clear date range">✕</button>`:''}
-          </span>
+      <div class="modal-header no-print" style="gap:14px;flex-wrap:wrap;align-items:flex-end;">
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <div class="modal-title" style="margin:0;">Scout Report — ${teamName}</div>
+          <div style="font-size:9px;color:var(--text4);">Last updated ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})}</div>
+        </div>
+        <div class="rpt2-filters" style="margin-left:auto;">
+          <label class="rpt2-filter">
+            <span class="lbl">Tournament</span>
+            <select onchange="setReportLeagueFilter(this.value)" title="Scope the whole report to one tournament">${leagueOpts}</select>
+          </label>
+          <label class="rpt2-filter">
+            <span class="lbl">Season</span>
+            <select onchange="setReportSeasonFilter(this.value)" title="Scope the whole report to one season">${seasonOpts}</select>
+          </label>
+          <label class="rpt2-filter">
+            <span class="lbl">Map</span>
+            <select onchange="setReportMapFilter(this.value)" title="Filter the entire report to a single map">${mapOpts}</select>
+          </label>
+          <div class="rpt2-filter">
+            <span class="lbl">Date Range</span>
+            <div class="rpt2-datewrap" title="Cut the report to a date range — useful when a roster changed mid-season">
+              <input type="date" value="${_reportFrom}" onchange="setReportDateFrom(this.value)">
+              <span style="color:var(--text4);">→</span>
+              <input type="date" value="${_reportTo}" onchange="setReportDateTo(this.value)">
+              ${(_reportFrom||_reportTo)?`<span class="x" onclick="clearReportDates()" title="Clear date range">✕</span>`:''}
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
           ${(typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin())?`<button class="btn btn-ghost btn-sm" onclick="openTeamEditor('${teamName}');document.getElementById('teamReportModal').remove();">Edit</button>`:''}
           <button class="btn btn-ghost btn-sm" onclick="openH2H('${teamName}')">H2H</button>
-          <button class="btn btn-accent btn-sm" onclick="window.print()" title="Print or Save as PDF — landscape, pages continue cleanly with no cut-offs">🖨 Print</button>
-          <button class="btn btn-ghost btn-sm" id="pdfBtn" onclick="generateTeamImage('${teamName}')">Export Image</button>
-          <button class="btn btn-ghost btn-sm" onclick="_reportMapFilter='';_reportLeagueFilter='';_reportSeasonFilter='';_reportFrom='';_reportTo='';document.getElementById('teamReportModal').remove();">✕</button>
+          <button class="btn btn-ghost btn-sm" id="pdfBtn" onclick="generateTeamImage('${teamName}')">Image</button>
+          <button class="btn btn-accent btn-sm" onclick="window.print()" title="Print or Save as PDF — landscape, no cut-offs">⤓ Export PDF</button>
+          <button class="btn btn-ghost btn-sm" onclick="_reportActiveTeam=null;_reportMapFilter='';_reportLeagueFilter='';_reportSeasonFilter='';_reportFrom='';_reportTo='';document.getElementById('teamReportModal').remove();">✕</button>
         </div>
       </div>
       <div class="modal-body" id="reportBody" style="padding:20px 24px;">
@@ -5199,19 +5264,19 @@ function openTeamReport(teamName) {
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1.5fr;gap:16px;align-items:start;">
             <div>
               <div class="rpt2-colhead">Top Picks <span class="sub">By Frequency</span></div>
-              ${heroRows.slice(0,5).map(p=>`<div class="rpt2-hl">${img(p.name,26)}<span class="nm">${p.name}</span><span class="ct">${p.games}</span><span class="wr" style="color:${wrc(p.wr)};">${p.wr}%</span></div>`).join('') || '<div style="font-size:10px;color:var(--text4);">No data</div>'}
+              ${_expand(_pickArr)}
             </div>
             <div>
               <div class="rpt2-colhead">Top Bans <span class="sub">By Team</span></div>
-              ${(t.topBans||[]).slice(0,5).map(b=>`<div class="rpt2-hl">${img(b.name,26)}<span class="nm">${b.name}</span><span class="wr" style="color:var(--red);">${b.count}</span></div>`).join('') || '<div style="font-size:10px;color:var(--text4);">No data</div>'}
+              ${_expand(_banArr)}
             </div>
             <div>
               <div class="rpt2-colhead">Bans Received <span class="sub">Against Them</span></div>
-              ${(t.bansReceived||[]).slice(0,5).map(b=>`<div class="rpt2-hl">${img(b.name,26)}<span class="nm">${b.name}</span><span class="wr" style="color:var(--gold);">${b.count}</span></div>`).join('') || '<div style="font-size:10px;color:var(--text4);">No data</div>'}
+              ${_expand(_recvArr)}
             </div>
             <div>
               <div class="rpt2-colhead">Top First Pick <span class="sub">Most First Picks</span></div>
-              ${(t.topFirstPick||[]).slice(0,5).map(b=>`<div class="rpt2-hl">${img(b.name,26)}<span class="nm">${b.name}</span><span class="wr" style="color:#60a5fa;">${b.count}</span></div>`).join('') || '<div style="font-size:10px;color:var(--text4);">No data</div>'}
+              ${_expand(_fpArr)}
             </div>
             <div>
               <div class="rpt2-colhead">Top Picks By Lane</div>
@@ -5407,18 +5472,33 @@ function _heroRespRender(q) {
     </div>`;
   }
 
-  // Other repeat answers (≥2 games), excluding the top one already shown.
-  const rest = usable.slice(1,5).map(([n,e]) => {
-    const pr = Math.round(e.c/total*100); const w = e.c?Math.round(e.w/e.c*100):0; const s = sig(e.c);
-    return `<div style="display:flex;align-items:center;gap:9px;padding:5px 0;">
-      ${ic(n,20)}
-      <span style="width:86px;flex-shrink:0;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n}</span>
-      <span style="font-size:7.5px;font-weight:800;letter-spacing:.5px;color:${s.c};width:58px;flex-shrink:0;">${s.t}</span>
-      <span style="flex:1;min-width:24px;height:6px;border-radius:4px;background:rgba(255,255,255,.05);overflow:hidden;"><span style="display:block;height:100%;width:${pr}%;background:${s.c};"></span></span>
-      <span style="width:48px;text-align:right;font-size:9px;color:var(--text3);font-family:var(--font-mono);">${e.c}/${total}g</span>
-      <span style="width:34px;text-align:right;font-size:10px;font-weight:700;color:${wcol(w)};font-family:var(--font-mono);">${w}%</span>
+  // Responses grouped by ROLE — top 5 counter-picks in each lane.
+  const RLANES = ['Gold','Jungle','Mid','EXP','Roam'];
+  const RLC = { Gold:'#f4a534', Jungle:'#a78bfa', Mid:'#60a5fa', EXP:'#f87171', Roam:'#34d17a', Other:'var(--text3)' };
+  const byLane = {};
+  Object.entries(b.picks).forEach(([n,e]) => {
+    const L = (e.lane && RLANES.includes(e.lane)) ? e.lane : 'Other';
+    (byLane[L] || (byLane[L]=[])).push([n,e]);
+  });
+  const laneBlock = (L) => {
+    const arr = (byLane[L]||[]).sort((a,c)=>c[1].c-a[1].c).slice(0,5);
+    if (!arr.length) return '';
+    const rows = arr.map(([n,e]) => {
+      const pr = Math.round(e.c/total*100); const w = e.c?Math.round(e.w/e.c*100):0; const s = sig(e.c);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;">
+        ${ic(n,20)}
+        <span style="flex:1;min-width:0;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n}</span>
+        <span style="flex:0 0 44px;height:5px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden;"><span style="display:block;height:100%;width:${pr}%;background:${s.c};"></span></span>
+        <span style="width:40px;text-align:right;font-size:8.5px;color:var(--text3);font-family:var(--font-mono);">${e.c}/${total}</span>
+        <span style="width:32px;text-align:right;font-size:9.5px;font-weight:700;color:${wcol(w)};font-family:var(--font-mono);">${w}%</span>
+      </div>`;
+    }).join('');
+    return `<div style="margin-top:11px;">
+      <div style="font-size:8px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:${RLC[L]};margin-bottom:3px;">${L} <span style="color:var(--text4);">· top ${arr.length}</span></div>
+      ${rows}
     </div>`;
-  }).join('');
+  };
+  const laneGroups = [...RLANES,'Other'].map(laneBlock).join('');
 
   out.innerHTML = `
     <div style="background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.008));border:1px solid var(--border);border-radius:12px;padding:14px 16px;">
@@ -5430,8 +5510,8 @@ function _heroRespRender(q) {
         </div>
       </div>
       ${verdict}
-      ${rest ? `<div style="font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text4);margin:13px 0 4px;">Other repeat answers</div>${rest}` : ''}
-      ${oneoffs ? `<div style="font-size:9.5px;color:var(--text4);margin-top:10px;">+ ${oneoffs} one-off pick${oneoffs!==1?'s':''} ignored (no signal)</div>` : ''}
+      ${laneGroups || (oneoffs?'':'<div style="font-size:10px;color:var(--text4);margin-top:10px;">No repeated responses yet.</div>')}
+      ${oneoffs ? `<div style="font-size:9.5px;color:var(--text4);margin-top:10px;">+ ${oneoffs} one-off pick${oneoffs!==1?'s':''} not shown</div>` : ''}
     </div>`;
 }
 
