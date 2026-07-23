@@ -5994,33 +5994,18 @@ function _heroRespRender(q) {
     </div>`;
   }
 
-  // Responses grouped by ROLE — top 5 counter-picks in each lane.
-  const RLANES = ['Gold','Jungle','Mid','EXP','Roam'];
-  const RLC = { Gold:'#f4a534', Jungle:'#a78bfa', Mid:'#60a5fa', EXP:'#f87171', Roam:'#34d17a', Other:'var(--text3)' };
-  const byLane = {};
-  Object.entries(b.picks).forEach(([n,e]) => {
-    const L = (e.lane && RLANES.includes(e.lane)) ? e.lane : 'Other';
-    (byLane[L] || (byLane[L]=[])).push([n,e]);
-  });
-  const laneBlock = (L) => {
-    const arr = (byLane[L]||[]).sort((a,c)=>c[1].c-a[1].c).slice(0,5);
-    if (!arr.length) return '';
-    const rows = arr.map(([n,e]) => {
-      const pr = Math.round(e.c/total*100); const w = e.c?Math.round(e.w/e.c*100):0; const s = sig(e.c);
-      return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;">
-        ${ic(n,20)}
-        <span style="flex:1;min-width:0;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n}</span>
-        <span style="flex:0 0 44px;height:5px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden;"><span style="display:block;height:100%;width:${pr}%;background:${s.c};"></span></span>
-        <span style="width:40px;text-align:right;font-size:8.5px;color:var(--text3);font-family:var(--font-mono);">${e.c}/${total}</span>
-        <span style="width:32px;text-align:right;font-size:9.5px;font-weight:700;color:${wcol(w)};font-family:var(--font-mono);">${w}%</span>
-      </div>`;
-    }).join('');
-    return `<div style="margin-top:11px;">
-      <div style="font-size:8px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;color:${RLC[L]};margin-bottom:3px;">${L} <span style="color:var(--text4);">· top ${arr.length}</span></div>
-      ${rows}
+  // Other repeat answers (≥2 games), excluding the top one already shown in the verdict.
+  const rest = usable.slice(1,6).map(([n,e]) => {
+    const pr = Math.round(e.c/total*100); const w = e.c?Math.round(e.w/e.c*100):0; const s = sig(e.c);
+    return `<div style="display:flex;align-items:center;gap:9px;padding:5px 0;">
+      ${ic(n,20)}
+      <span style="width:86px;flex-shrink:0;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n}</span>
+      <span style="font-size:7.5px;font-weight:800;letter-spacing:.5px;color:${s.c};width:58px;flex-shrink:0;">${s.t}</span>
+      <span style="flex:1;min-width:24px;height:6px;border-radius:4px;background:rgba(255,255,255,.05);overflow:hidden;"><span style="display:block;height:100%;width:${pr}%;background:${s.c};"></span></span>
+      <span style="width:48px;text-align:right;font-size:9px;color:var(--text3);font-family:var(--font-mono);">${e.c}/${total}g</span>
+      <span style="width:34px;text-align:right;font-size:10px;font-weight:700;color:${wcol(w)};font-family:var(--font-mono);">${w}%</span>
     </div>`;
-  };
-  const laneGroups = [...RLANES,'Other'].map(laneBlock).join('');
+  }).join('');
 
   out.innerHTML = `
     <div style="background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.008));border:1px solid var(--border);border-radius:12px;padding:14px 16px;">
@@ -6032,8 +6017,8 @@ function _heroRespRender(q) {
         </div>
       </div>
       ${verdict}
-      ${laneGroups || (oneoffs?'':'<div style="font-size:10px;color:var(--text4);margin-top:10px;">No repeated responses yet.</div>')}
-      ${oneoffs ? `<div style="font-size:9.5px;color:var(--text4);margin-top:10px;">+ ${oneoffs} one-off pick${oneoffs!==1?'s':''} not shown</div>` : ''}
+      ${rest ? `<div style="font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text4);margin:13px 0 4px;">Other repeat answers</div>${rest}` : ''}
+      ${oneoffs ? `<div style="font-size:9.5px;color:var(--text4);margin-top:10px;">+ ${oneoffs} one-off pick${oneoffs!==1?'s':''} ignored (no signal)</div>` : ''}
     </div>`;
 }
 
