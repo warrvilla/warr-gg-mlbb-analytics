@@ -1891,6 +1891,19 @@ function heroByName(name) {
   return HERO_BY_NORM[_normKey(name)] || null;
 }
 
+// Per-competition team profile lookup. Placement / rank / win condition / coach
+// notes belong to a specific league+season (only the logo is global), so we read
+// them from team.leagueMeta keyed by "<league>::<season>". Exact season wins;
+// falls back to a league-only entry ("<league>::"); returns blanks otherwise so
+// nothing bleeds across leagues.
+const _teamMetaKey = (league, season) => `${league||''}::${(season||'').trim()}`;
+function teamStanding(t, league, season) {
+  const empty = { placement:'', rsRank:'', winCondition:'', coachNotes:'' };
+  if (!t || !league || league === 'all') return empty;
+  const lm = t.leagueMeta || {};
+  return lm[_teamMetaKey(league, season)] || lm[_teamMetaKey(league, '')] || empty;
+}
+
 // ══════════════════════════════════════════════════════════════
 // DATABASE MODULE
 // ══════════════════════════════════════════════════════════════
@@ -1982,7 +1995,7 @@ const DB_MODULE = (() => {
   function rebuildTeams() {
     const preserved = {};
     Object.values(_db.teams).forEach(t => {
-      preserved[t.name] = { winCondition: t.winCondition||'', coachNotes: t.coachNotes||'', rsRank: t.rsRank||'', placement: t.placement||'', link: t.link||'' };
+      preserved[t.name] = { winCondition: t.winCondition||'', coachNotes: t.coachNotes||'', rsRank: t.rsRank||'', placement: t.placement||'', link: t.link||'', leagueMeta: t.leagueMeta||{} };
     });
     _db.teams = {};
 
@@ -4062,7 +4075,7 @@ function _renderTeamsGrid() {
     if (teamSearch && !t.name.toLowerCase().includes(teamSearch.toLowerCase())) return false;
     return true;
   }).sort((a,b) => {
-    if (teamSort==='standing'){ const ar=a.rsRank?+a.rsRank:9999, br=b.rsRank?+b.rsRank:9999; if(ar!==br) return ar-br; return (b.winRate||0)-(a.winRate||0); }
+    if (teamSort==='standing'){ const _ss=(typeof seasonFilter!=='undefined'&&seasonFilter&&seasonFilter!=='all')?seasonFilter:((typeof LEAGUE_CURRENT_SEASON!=='undefined'&&LEAGUE_CURRENT_SEASON[leagueFilter])||''); const ar=(+teamStanding(a,leagueFilter,_ss).rsRank)||9999, br=(+teamStanding(b,leagueFilter,_ss).rsRank)||9999; if(ar!==br) return ar-br; return (b.winRate||0)-(a.winRate||0); }
     if (teamSort==='games')   return (b.gamesPlayed||0)-(a.gamesPlayed||0);
     if (teamSort==='winrate') return (b.winRate||0)-(a.winRate||0);
     if (teamSort==='wins')    return (b.wins||0)-(a.wins||0);
@@ -4097,12 +4110,14 @@ function _renderTeamsGrid() {
     const cell=(name,l1,l1c,l2)=>`<div class="tc-hero"><img src="${_heroIcon(name)}" onerror="${_heroIconErr(name)}"><div class="tc-hero-nm">${name}</div><div class="tc-hero-l1" style="color:${l1c}">${l1}</div>${l2?`<div class="tc-hero-l2">${l2}</div>`:''}</div>`;
     const tpc=(t.topPicks||[]).slice(0,5).map(p=>cell(p.name,(p.wr||0)+'%',_C(p.wr||0),'x'+p.count)).join('')||'<span class="tc-none">No data</span>';
     const tbc=(t.topBans||[]).slice(0,5).map(b=>cell(b.name,'x'+b.count,'var(--red)','')).join('')||'<span class="tc-none">No data</span>';
-    const rankBadge = t.rsRank ? ('#'+t.rsRank) : String(rank);
+    // Standing shown on the card is scoped to the sidebar league + its current season.
+    const _cardStd = teamStanding(t, leagueFilter, (typeof seasonFilter!=='undefined'&&seasonFilter&&seasonFilter!=='all') ? seasonFilter : ((typeof LEAGUE_CURRENT_SEASON!=='undefined'&&LEAGUE_CURRENT_SEASON[leagueFilter])||''));
+    const rankBadge = _cardStd.rsRank ? ('#'+_cardStd.rsRank) : String(rank);
     const esc=(t.name||'').replace(/'/g,"\\'");
     return `<div class="tc" style="--mc:${mo.color};--bg:url('${logo}')" onclick="openTeamReport('${esc}')">
       <div class="tc-head">
         <span class="tc-rank">${rankBadge}</span>
-        <div class="tc-htext"><div class="tc-name"><span class="tc-name-t">${t.name}</span><span class="tc-verif">✔</span></div><div class="tc-league">${lg}${t.placement?` · <span class="tc-place${t.placement==='Champion'?' champ':''}">${t.placement}</span>`:''}</div></div>
+        <div class="tc-htext"><div class="tc-name"><span class="tc-name-t">${t.name}</span><span class="tc-verif">✔</span></div><div class="tc-league">${lg}${_cardStd.placement?` · <span class="tc-place${_cardStd.placement==='Champion'?' champ':''}">${_cardStd.placement}</span>`:''}</div></div>
       </div>
       <div class="tc-top">
         <div class="tc-logo-lg${logo?'':' noimg'}"><img src="${logo}" onerror="this.closest('.tc-logo-lg').classList.add('noimg')"><i>${mo.init}</i></div>
@@ -4145,12 +4160,12 @@ async function syncAllTeamMeta() {
   if (!(typeof WDB!=='undefined' && WDB.saveTeamMeta)) { toast('Sync unavailable','error'); return; }
   const teams = DB_MODULE.getTeams();
   const targets = Object.entries(teams).filter(([,t]) =>
-    t && ((t.rsRank!=='' && t.rsRank!=null) || t.placement || t.link || t.winCondition || t.coachNotes));
+    t && (t.link || (t.leagueMeta && Object.keys(t.leagueMeta).length) || (t.rsRank!=='' && t.rsRank!=null) || t.placement || t.winCondition || t.coachNotes));
   if (!targets.length) { toast('No team profile info found to sync'); return; }
   let ok = 0, fail = 0, firstErr = '';
   for (const [name, t] of targets) {
     try {
-      await WDB.saveTeamMeta(name, { rsRank: t.rsRank, placement: t.placement, link: t.link, winCondition: t.winCondition, coachNotes: t.coachNotes });
+      await WDB.saveTeamMeta(name, { link: t.link, leagueMeta: t.leagueMeta || {} });
       ok++;
     } catch(e) { fail++; if(!firstErr) firstErr = (e && e.message) || 'unknown'; }
   }
@@ -4158,15 +4173,55 @@ async function syncAllTeamMeta() {
   else toast(`✓ Synced ${ok} team profile${ok>1?'s':''} to cloud — other accounts will see them on refresh`);
 }
 
-function openTeamEditor(teamName) {
-  // Team profiles (rank, link, win condition, notes) are admin-curated — only
-  // the admin may edit. Non-admins can't open the editor at all.
+// Working copy of the team's per-league standing/notes while the editor is open.
+let _teMeta = {}, _tePrevKey = null;
+const _tePlacements = ['','Champion','Runner-up','3rd Place','4th Place','Top 6','Top 8','Did not qualify'];
+function _teKeyNow() {
+  const l = document.getElementById('tf-stl')?.value || '';
+  const s = (document.getElementById('tf-sts')?.value || '').trim();
+  return _teamMetaKey(l, s);
+}
+// Pull the currently-shown scope's fields into the working copy.
+function _teStash() {
+  if (_tePrevKey == null) return;
+  const v = {
+    rsRank:       document.getElementById('tf-rs')?.value || '',
+    placement:    document.getElementById('tf-po')?.value || '',
+    winCondition: document.getElementById('tf-wc')?.value || '',
+    coachNotes:   document.getElementById('tf-notes')?.value || '',
+  };
+  if (v.rsRank || v.placement || v.winCondition || v.coachNotes) _teMeta[_tePrevKey] = v;
+  else delete _teMeta[_tePrevKey];
+}
+// Load the selected scope's fields into the inputs.
+function _teLoad() {
+  const k = _teKeyNow(); const v = _teMeta[k] || {};
+  const set = (id,val)=>{ const el=document.getElementById(id); if(el) el.value = val||''; };
+  set('tf-rs', v.rsRank); set('tf-po', v.placement); set('tf-wc', v.winCondition); set('tf-notes', v.coachNotes);
+  _tePrevKey = k;
+}
+function _teOnScopeChange() { _teStash(); _teLoad(); }
+
+function openTeamEditor(teamName, ctxLeague, ctxSeason) {
+  // Team profiles (standing, notes) are admin-curated — only the admin may edit.
   if (!(typeof WAdmin!=='undefined' && WAdmin.isAdmin && WAdmin.isAdmin())) {
     if (typeof toast==='function') toast('Only the admin can edit team info','error');
     return;
   }
-  const t = teamName ? DB_MODULE.getTeams()[teamName] : {name:'',winCondition:'',coachNotes:''};
+  const t = teamName ? DB_MODULE.getTeams()[teamName] : {name:'',winCondition:'',coachNotes:'',leagueMeta:{}};
   if (!t) return;
+  // Scope context: which tournament + season this profile edit is for.
+  const _LG = (typeof LEAGUES!=='undefined' ? LEAGUES : ['MPL PH']);
+  let _ctxL = ctxLeague || (typeof leagueFilter!=='undefined' && leagueFilter && leagueFilter!=='all' ? leagueFilter : (_LG[0]||'MPL PH'));
+  let _ctxS = ctxSeason || ((typeof LEAGUE_CURRENT_SEASON!=='undefined' && LEAGUE_CURRENT_SEASON[_ctxL]) ? LEAGUE_CURRENT_SEASON[_ctxL] : '');
+  // Seed the working copy from the team's saved per-league standing.
+  _teMeta = JSON.parse(JSON.stringify(t.leagueMeta || {}));
+  _tePrevKey = null;
+  // One-time migration convenience: if the team has ONLY legacy flat fields and no
+  // per-league entry yet, pre-fill the current context scope so nothing is lost.
+  if (!Object.keys(_teMeta).length && (t.placement||t.rsRank||t.winCondition||t.coachNotes)) {
+    _teMeta[_teamMetaKey(_ctxL,_ctxS)] = { placement:t.placement||'', rsRank:t.rsRank||'', winCondition:t.winCondition||'', coachNotes:t.coachNotes||'' };
+  }
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'teamModal';
@@ -4181,29 +4236,47 @@ function openTeamEditor(teamName) {
           <label class="form-label">Team Name${teamName ? ` <span style="color:var(--text4);font-size:11px;font-weight:400;">(renaming updates every match + page)</span>` : ''}</label>
           <input class="form-input" id="tf-name" placeholder="e.g. RSG PH" value="${(t.name||teamName||'').replace(/"/g,'&quot;')}">
         </div>
-        <div style="display:flex;gap:12px;margin-bottom:12px;">
-          <div class="form-group" style="flex:1;">
-            <label class="form-label">Regular Season Rank</label>
-            <input class="form-input" id="tf-rs" type="number" min="1" placeholder="e.g. 1" value="${t.rsRank||''}">
-          </div>
-          <div class="form-group" style="flex:1;">
-            <label class="form-label">Playoff Placement</label>
-            <select class="form-select" id="tf-po">
-              ${['','Champion','Runner-up','3rd Place','4th Place','Top 6','Top 8','Did not qualify'].map(o=>`<option value="${o}"${(t.placement||'')===o?' selected':''}>${o||'— none —'}</option>`).join('')}
-            </select>
-          </div>
-        </div>
         <div class="form-group" style="margin-bottom:12px;">
-          <label class="form-label">Team Link <span style="color:var(--text4);font-size:11px;font-weight:400;">(Follow Team button opens this — FB/IG/YouTube/page)</span></label>
+          <label class="form-label">Team Link <span style="color:var(--text4);font-size:11px;font-weight:400;">(global — Follow Team button opens this; FB/IG/YouTube)</span></label>
           <input class="form-input" id="tf-link" placeholder="https://facebook.com/teamname" value="${(t.link||'').replace(/"/g,'&quot;')}">
         </div>
-        <div class="form-group" style="margin-bottom:12px;">
-          <label class="form-label">Win Condition</label>
-          <input class="form-input" id="tf-wc" placeholder="e.g. Hypercarry protect composition" value="${t.winCondition||''}">
-        </div>
-        <div class="form-group" style="margin-bottom:12px;">
-          <label class="form-label">Coach Notes</label>
-          <textarea class="form-textarea" id="tf-notes" style="min-height:100px;" placeholder="Playstyle, tendencies, weaknesses, key players…">${t.coachNotes||''}</textarea>
+
+        <!-- PER-TOURNAMENT PROFILE (standing + notes are saved per league+season) -->
+        <div class="card" style="margin-bottom:12px;padding:13px 14px;border:1px solid var(--purple-border,rgba(124,92,246,.3));background:var(--accent-dim,rgba(124,92,246,.06));">
+          <div class="card-title" style="margin-bottom:2px;">Tournament Profile</div>
+          <div style="font-size:10.5px;color:var(--text3);margin-bottom:11px;">Standing, win condition &amp; notes below are saved <b>only for the selected tournament + season</b> — they won't carry to other leagues. (Only the logo &amp; link are shared.)</div>
+          <div style="display:flex;gap:10px;margin-bottom:11px;">
+            <div class="form-group" style="flex:1;">
+              <label class="form-label">Tournament</label>
+              <select class="form-select" id="tf-stl" onchange="_teOnScopeChange()">
+                ${_LG.map(l=>`<option value="${l}"${l===_ctxL?' selected':''}>${l}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label class="form-label">Season</label>
+              <input class="form-input" id="tf-sts" placeholder="e.g. Season 18" value="${(_ctxS||'').replace(/"/g,'&quot;')}" onchange="_teOnScopeChange()">
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;margin-bottom:11px;">
+            <div class="form-group" style="flex:1;">
+              <label class="form-label">Regular Season Rank</label>
+              <input class="form-input" id="tf-rs" type="number" min="1" placeholder="e.g. 1">
+            </div>
+            <div class="form-group" style="flex:1;">
+              <label class="form-label">Playoff Placement</label>
+              <select class="form-select" id="tf-po">
+                ${_tePlacements.map(o=>`<option value="${o}">${o||'— none —'}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:11px;">
+            <label class="form-label">Win Condition</label>
+            <input class="form-input" id="tf-wc" placeholder="e.g. Hypercarry protect composition">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Coach Notes</label>
+            <textarea class="form-textarea" id="tf-notes" style="min-height:90px;" placeholder="Playstyle, tendencies, weaknesses, key players…"></textarea>
+          </div>
         </div>
         ${teamName && t.gamesPlayed > 0 ? `
           <div class="card" style="margin-top:4px;">
@@ -4310,6 +4383,7 @@ function openTeamEditor(teamName) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  _teLoad();   // populate standing/notes for the initial tournament+season scope
 }
 
 function saveTeam(existing) {
@@ -4320,23 +4394,24 @@ function saveTeam(existing) {
     if (DB_MODULE.getTeams()[name] && !confirm(`"${name}" already exists — merge "${existing}" into it?`)) return;
     renamed = _renameTeamLocal(existing, name);   // rewrites all matches + moves profile (local)
   }
+  _teStash();   // capture the currently-shown tournament scope into the working copy
+  const leagueMeta = JSON.parse(JSON.stringify(_teMeta || {}));
+  // Global identity fields only. Standing/notes now live per league+season in leagueMeta.
   const meta = {
-    winCondition: document.getElementById('tf-wc')?.value||'',
-    coachNotes:   document.getElementById('tf-notes')?.value||'',
-    rsRank:       document.getElementById('tf-rs')?.value||'',
-    placement:    document.getElementById('tf-po')?.value||'',
     link:         document.getElementById('tf-link')?.value?.trim()||'',
+    leagueMeta,
+    // Keep the team object usable for legacy readers by mirroring the *current*
+    // scope's fields onto the flat props (display code prefers leagueMeta anyway).
+    winCondition: '', coachNotes: '', rsRank: '', placement: '',
   };
   DB_MODULE.upsertTeam(name, meta);
   DB_MODULE.save();
-  // Cloud-sync the profile so it shows on every device (requires migration 014).
-  // Surface failures instead of swallowing them — a silent fail here is exactly
-  // why "I edited it but other accounts don't see it" happens.
+  // Cloud-sync the profile so it shows on every device (requires migrations 014 + 016).
   try {
     if (typeof WDB!=='undefined' && WDB.saveTeamMeta) {
-      WDB.saveTeamMeta(name, meta)
-        .then(()=>{ if(typeof toast==='function') toast('Team info synced to all devices'); })
-        .catch(e=>{ if(typeof toast==='function') toast('Saved locally only — cloud sync failed: '+(e&&e.message||'run migration 014'),'error'); });
+      WDB.saveTeamMeta(name, { link: meta.link, leagueMeta })
+        .then(()=>{ if(typeof toast==='function') toast('Team profile synced to all devices'); })
+        .catch(e=>{ if(typeof toast==='function') toast('Saved locally only — cloud sync failed: '+(e&&e.message||'run migration 016'),'error'); });
     }
   } catch(e){ if(typeof toast==='function') toast('Cloud sync error: '+(e&&e.message||''),'error'); }
   document.getElementById('teamModal')?.remove();
@@ -4555,6 +4630,9 @@ function openTeamReport(teamName) {
         rsRank: tBase.rsRank||'', placement: tBase.placement||'', link: tBase.link||''
       })
     : tBase;
+  // Standing/notes are per league+season — resolve for the report's current scope
+  // (never mutate tBase). Used by the header + Coach Notes panel.
+  const _std = teamStanding(tBase, _reportLeagueFilter, _reportSeasonFilter);
 
   // Group into series
   const seriesMap = {};
@@ -5177,7 +5255,7 @@ function openTeamReport(teamName) {
           </div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
-          ${(typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin())?`<button class="btn btn-ghost btn-sm" onclick="openTeamEditor('${teamName}');document.getElementById('teamReportModal').remove();">Edit</button>`:''}
+          ${(typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin())?`<button class="btn btn-ghost btn-sm" onclick="openTeamEditor('${teamName}', _reportLeagueFilter, _reportSeasonFilter);document.getElementById('teamReportModal').remove();">Edit</button>`:''}
           <button class="btn btn-ghost btn-sm" onclick="openH2H('${teamName}')">H2H</button>
           <button class="btn btn-ghost btn-sm" id="pdfBtn" onclick="generateTeamImage('${teamName}')">Image</button>
           <button class="btn btn-accent btn-sm" onclick="window.print()" title="Print or Save as PDF — landscape, no cut-offs">⤓ Export PDF</button>
@@ -5229,8 +5307,8 @@ function openTeamReport(teamName) {
                   ${lb || '<span style="color:var(--text3);font-size:11px;">No league data</span>'}
                 </div>
                 <div style="display:flex;gap:14px;font-size:10px;color:var(--text3);flex-wrap:wrap;">
-                  ${t.placement?`<span>Placement · <b style="color:var(--gold);">${t.placement}</b></span>`:''}
-                  ${t.rsRank?`<span>RS Rank · <b style="color:var(--text2);">${t.rsRank}</b></span>`:''}
+                  ${_std.placement?`<span>Placement · <b style="color:var(--gold);">${_std.placement}</b></span>`:''}
+                  ${_std.rsRank?`<span>RS Rank · <b style="color:var(--text2);">${_std.rsRank}</b></span>`:''}
                 </div>
               </div>
               <div class="rpt2-sep no-print" style="height:74px;"></div>
@@ -5362,11 +5440,11 @@ function openTeamReport(teamName) {
             ${weaknesses.length?weaknesses.map(s=>`<div style="display:flex;gap:7px;font-size:10.5px;color:var(--text2);margin-bottom:8px;line-height:1.4;"><span style="color:var(--red);flex-shrink:0;">▼</span><span>${s}</span></div>`).join(''):'<div style="font-size:10px;color:var(--text4);">No glaring weaknesses from this sample.</div>'}
           </div>
           <div class="rpt2-panel">
-            <div class="rpt2-title"><span class="bar"></span><h3>Coach Notes</h3></div>
-            ${t.winCondition?`<div style="margin-bottom:12px;"><div style="font-size:8.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin-bottom:4px;">Win Condition</div><div style="font-size:11px;color:var(--text);line-height:1.55;">${t.winCondition}</div></div>`:''}
-            ${t.coachNotes?`<div><div style="font-size:8.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:4px;">Notes</div><div style="font-size:11px;color:var(--text2);line-height:1.55;white-space:pre-wrap;">${t.coachNotes}</div></div>`:''}
-            ${(!t.winCondition&&!t.coachNotes)?'<div style="font-size:10px;color:var(--text4);">No coach notes yet.</div>':''}
-            ${(typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin())?`<button class="rpt2-vall" onclick="openTeamEditor('${teamName}');document.getElementById('teamReportModal').remove();">✎ Edit Notes</button>`:''}
+            <div class="rpt2-title"><span class="bar"></span><h3>Coach Notes</h3>${_reportLeagueFilter?`<span class="meta">${_reportLeagueFilter}${_reportSeasonFilter?' · '+_reportSeasonFilter:''}</span>`:''}</div>
+            ${_std.winCondition?`<div style="margin-bottom:12px;"><div style="font-size:8.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin-bottom:4px;">Win Condition</div><div style="font-size:11px;color:var(--text);line-height:1.55;">${_std.winCondition}</div></div>`:''}
+            ${_std.coachNotes?`<div><div style="font-size:8.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin-bottom:4px;">Notes</div><div style="font-size:11px;color:var(--text2);line-height:1.55;white-space:pre-wrap;">${_std.coachNotes}</div></div>`:''}
+            ${(!_std.winCondition&&!_std.coachNotes)?`<div style="font-size:10px;color:var(--text4);">No notes for ${_reportLeagueFilter||'this scope'}${_reportSeasonFilter?' '+_reportSeasonFilter:''} yet.</div>`:''}
+            ${(typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin())?`<button class="rpt2-vall" onclick="openTeamEditor('${teamName}', _reportLeagueFilter, _reportSeasonFilter);document.getElementById('teamReportModal').remove();">✎ Edit Notes</button>`:''}
           </div>
         </div>
 

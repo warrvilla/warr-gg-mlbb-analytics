@@ -973,13 +973,16 @@ WDB.loadTeamMeta = async function() {
   try {
     const { data, error } = await _sbClient
       .from('team_meta')
-      .select('team_name, rs_rank, placement, link, win_condition, coach_notes');
+      .select('team_name, rs_rank, placement, link, win_condition, coach_notes, league_meta');
     if (error) throw error;
     const out = {};
     (data || []).forEach(r => {
+      let lm = {};
+      try { lm = (typeof r.league_meta === 'string') ? JSON.parse(r.league_meta) : (r.league_meta || {}); } catch(_) { lm = {}; }
       out[r.team_name] = {
         rsRank: r.rs_rank || '', placement: r.placement || '', link: r.link || '',
         winCondition: r.win_condition || '', coachNotes: r.coach_notes || '',
+        leagueMeta: lm || {},   // { "<league>::<season>": {placement, rsRank} } — per-competition standing
       };
     });
     return out;
@@ -989,16 +992,16 @@ WDB.saveTeamMeta = async function(name, d) {
   if (typeof _sbClient === 'undefined') throw new Error('Supabase not ready');
   if (!name) return;
   const user = (typeof WAuth !== 'undefined' && WAuth.getUser) ? WAuth.getUser() : null;
-  const row = {
-    team_name: name,
-    rs_rank: (d.rsRank===''||d.rsRank==null) ? null : Number(d.rsRank),
-    placement: d.placement || null,
-    link: d.link || null,
-    win_condition: d.winCondition || null,
-    coach_notes: d.coachNotes || null,
-    updated_by: user?.id || null,
-    updated_at: new Date().toISOString(),
-  };
+  // Only include the columns the caller actually provides, so an update never
+  // wipes a field it didn't touch (e.g. saving `league_meta` mustn't clobber the
+  // global link, and vice-versa). Omitted columns keep their existing value.
+  const row = { team_name: name, updated_by: user?.id || null, updated_at: new Date().toISOString() };
+  if ('link'         in d) row.link          = d.link || null;
+  if ('winCondition' in d) row.win_condition = d.winCondition || null;   // legacy/global fallback
+  if ('coachNotes'   in d) row.coach_notes   = d.coachNotes || null;     // legacy/global fallback
+  if ('rsRank'       in d) row.rs_rank       = (d.rsRank===''||d.rsRank==null) ? null : Number(d.rsRank);
+  if ('placement'    in d) row.placement     = d.placement || null;
+  if (d.leagueMeta && typeof d.leagueMeta === 'object') row.league_meta = d.leagueMeta;  // per league+season standing/notes
   const { error } = await _sbClient.from('team_meta').upsert(row, { onConflict: 'team_name' });
   if (error) throw error;
 };
