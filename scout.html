@@ -5385,14 +5385,61 @@ function openTeamReport(teamName) {
           <button class="rpt2-vall" onclick="document.getElementById('teamReportModal').remove();_muTeam='${teamName.replace(/'/g,"\\'")}';_muHero=null;showView('matchups');">View Full Draft Detail →</button>
         </div>
 
-        <!-- MIDDLE ROW: RESPONSE · OBJECTIVES · MAPS -->
-        <div style="display:grid;grid-template-columns:1.15fr 1.5fr 1fr;gap:14px;align-items:stretch;">
-          <div class="rpt2-panel">
-            <div class="rpt2-title"><span class="bar"></span><h3>Response Map</h3>
-              ${Object.keys(respMap).length?`<select class="form-select no-print" style="margin-left:auto;font-size:10px;padding:4px 7px;height:auto;max-width:130px;" onchange="_heroRespRender(this.value)">${Object.entries(respMap).sort((a,b)=>b[1].games-a[1].games).map(([h])=>`<option value="${h}"${h===_respDefault?' selected':''}>${h}</option>`).join('')}</select>`:''}
+        <!-- RESPONSE MAP (full-width, coach-actionable) -->
+        ${Object.keys(respMap).length ? `
+        <div class="rpt2-panel">
+          <div class="rpt2-title"><span class="bar" style="background:var(--gold);box-shadow:0 0 8px var(--gold);"></span><h3>Response Map</h3><span class="meta">how ${teamName} answers enemy picks</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;">
+            <!-- LEFT: auto draft-planning summary -->
+            <div>
+              ${(() => {
+                const rows = Object.entries(respMap).map(([hero,b])=>{
+                  const total=b.games, defWR=total?Math.round(b.wins/total*100):0;
+                  const ans=Object.entries(b.picks).map(([n,e])=>({name:n,c:e.c,w:e.w,share:total?e.c/total:0,wr:e.c?Math.round(e.w/e.c*100):0})).sort((a,b)=>b.c-a.c);
+                  const top=ans[0]; const reliable=!!(top&&top.c>=3&&top.share>=0.5);
+                  return {hero,total,defWR,top,reliable,pred:top?Math.round(top.share*100):0};
+                });
+                const weak = rows.filter(r=>r.total>=3 && r.defWR<=45).sort((a,b)=>a.defWR-b.defWR||b.total-a.total).slice(0,6);
+                const pred = rows.filter(r=>r.reliable).sort((a,b)=>b.pred-a.pred).slice(0,6);
+                const ic = (n,s=22)=>`<img src="${_heroIcon(n)}" onerror="${_heroIconErr(n)}" style="width:${s}px;height:${s}px;border-radius:${Math.round(s*0.32)}px;object-fit:cover;flex-shrink:0;">`;
+                const weakHTML = weak.length ? weak.map(r=>`<div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
+                  ${ic(r.hero)}<span style="flex:1;min-width:0;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.hero}</span>
+                  <span style="font-size:9px;color:var(--text4);font-family:var(--font-mono);">${r.total}g</span>
+                  <span style="font-size:8px;font-weight:800;color:${r.reliable?'var(--text4)':'var(--gold)'};letter-spacing:.3px;">${r.reliable?'':'NO ANSWER'}</span>
+                  <span style="width:38px;text-align:right;font-size:11px;font-weight:800;color:var(--red);font-family:var(--font-mono);">${r.defWR}%</span>
+                </div>`).join('') : '<div style="font-size:10px;color:var(--text4);padding:4px 0;">No clear weak spots — they defend a wide pool.</div>';
+                const predHTML = pred.length ? pred.map(r=>`<div style="display:flex;align-items:center;gap:7px;padding:4px 0;">
+                  ${ic(r.hero,20)}<span style="font-size:10.5px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:78px;">${r.hero}</span>
+                  <span style="color:var(--text4);font-size:11px;">→</span>
+                  ${ic(r.top.name,20)}<span style="flex:1;min-width:0;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.top.name}</span>
+                  <span style="width:34px;text-align:right;font-size:10px;font-weight:800;color:var(--gold);font-family:var(--font-mono);">${r.pred}%</span>
+                </div>`).join('') : '<div style="font-size:10px;color:var(--text4);padding:4px 0;">No single reliable answer stands out.</div>';
+                return `
+                  <div style="margin-bottom:14px;">
+                    <div style="font-size:9px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--green);margin-bottom:2px;">◎ Draft these against them</div>
+                    <div style="font-size:8.5px;color:var(--text4);margin-bottom:6px;">Heroes they defend worst (low win rate vs it), or have no repeatable answer to.</div>
+                    ${weakHTML}
+                  </div>
+                  <div>
+                    <div style="font-size:9px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--gold);margin-bottom:2px;">⚑ Their predictable answers</div>
+                    <div style="font-size:8.5px;color:var(--text4);margin-bottom:6px;">They reliably respond with the same hero — ban it, or plan around it.</div>
+                    ${predHTML}
+                  </div>`;
+              })()}
             </div>
-            <div id="_heroRespOut" style="min-height:120px;">${Object.keys(respMap).length?'':'<div style="font-size:10.5px;color:var(--text4);">No enemy-draft data yet.</div>'}</div>
+            <!-- RIGHT: per-hero drilldown -->
+            <div style="border-left:1px solid var(--border);padding-left:18px;">
+              <div class="rpt2-colhead no-print" style="justify-content:flex-start;gap:8px;">
+                <span>Look up a hero</span>
+                <select class="form-select" style="font-size:10px;padding:4px 7px;height:auto;max-width:150px;margin-left:auto;" onchange="_heroRespRender(this.value)">${Object.entries(respMap).sort((a,b)=>b[1].games-a[1].games).map(([h])=>`<option value="${h}"${h===_respDefault?' selected':''}>${h}</option>`).join('')}</select>
+              </div>
+              <div id="_heroRespOut" style="min-height:120px;"></div>
+            </div>
           </div>
+        </div>` : ''}
+
+        <!-- OBJECTIVES · MAPS -->
+        <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:14px;align-items:stretch;">
           <div class="rpt2-panel">
             <div class="rpt2-title"><span class="bar" style="background:#5EA0D8;box-shadow:0 0 8px #5EA0D8;"></span><h3>Objective Control</h3></div>
             ${(()=>{
@@ -6007,18 +6054,44 @@ function _heroRespRender(q) {
     </div>`;
   }).join('');
 
+  // Predictability = how concentrated their response is (share of the top answer).
+  const topShare = usable.length ? Math.round(usable[0][1].c/total*100) : 0;
+  const predLabel = topShare>=65?'Very predictable':topShare>=50?'Predictable':topShare>=33?'Mixed':'Scattered';
+  const predColor = topShare>=50?'#34d17a':topShare>=33?'var(--gold)':'var(--text3)';
+  const predMeter = total>=2 ? `<div style="margin:11px 0 4px;">
+      <div style="display:flex;justify-content:space-between;font-size:8px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--text4);margin-bottom:4px;"><span>Response predictability</span><span style="color:${predColor};">${predLabel}${usable.length?` · ${topShare}%`:''}</span></div>
+      <div style="height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;"><div style="width:${usable.length?topShare:0}%;height:100%;background:${predColor};border-radius:3px;"></div></div>
+    </div>` : '';
+
+  // Data-driven recommendation.
+  let rec = '';
+  if (total >= 2) {
+    if (usable.length) {
+      const [bn,be] = usable[0]; const bw = be.c?Math.round(be.w/be.c*100):0; const sh = Math.round(be.c/total*100);
+      if (sh>=50 && bw>=55)      rec = `They reliably answer with <b>${bn}</b> (${sh}% of games) and it works (${bw}% WR). <b>Ban ${bn}</b>, or avoid drafting ${key} into them.`;
+      else if (sh>=50 && bw<50)  rec = `They reliably pick <b>${bn}</b> vs ${key} but only win ${bw}% — bait it out, then punish ${bn}.`;
+      else                        rec = `No dominant answer (top: ${bn}, ${sh}%).${wr<45?` They also lose <b>${wr}%</b> when facing ${key} — a strong pick into them.`:''}`;
+    } else {
+      rec = wr<45 ? `No repeatable answer and they lose <b>${wr}%</b> vs ${key} — strong blind-pick into this team.`
+                  : `They improvise vs ${key} but still win ${wr}% — no clear exploit.`;
+    }
+  }
+  const recHTML = rec ? `<div style="margin-top:12px;padding:9px 11px;border-radius:9px;background:rgba(124,92,246,.08);border:1px solid var(--purple-border,rgba(124,92,246,.3));font-size:10.5px;line-height:1.5;color:var(--text2);"><b style="color:var(--accent);">Read:</b> ${rec}</div>` : '';
+
   out.innerHTML = `
     <div style="background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.008));border:1px solid var(--border);border-radius:12px;padding:14px 16px;">
-      <div style="display:flex;align-items:center;gap:11px;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:11px;margin-bottom:2px;">
         ${ic(key,30)}
         <div style="flex:1;min-width:0;">
           <div style="font-size:12px;font-weight:800;">Enemy picks <span style="color:var(--gold);">${key}</span></div>
           <div style="font-size:10px;color:var(--text3);margin-top:2px;">${total} game${total!==1?'s':''} faced · ${team} won <span style="color:${wcol(wr)};font-weight:700;">${wr}%</span></div>
         </div>
       </div>
+      ${predMeter}
       ${verdict}
       ${rest ? `<div style="font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text4);margin:13px 0 4px;">Other repeat answers</div>${rest}` : ''}
       ${oneoffs ? `<div style="font-size:9.5px;color:var(--text4);margin-top:10px;">+ ${oneoffs} one-off pick${oneoffs!==1?'s':''} ignored (no signal)</div>` : ''}
+      ${recHTML}
     </div>`;
 }
 
