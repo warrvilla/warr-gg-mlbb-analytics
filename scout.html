@@ -3186,6 +3186,9 @@ function _onLeagueChangedInModal(newLeague) {
   const cur = (sInput.value || '').trim();
   const isAutoFilled = cur === '' || Object.values(LEAGUE_CURRENT_SEASON).includes(cur);
   if (isAutoFilled) sInput.value = LEAGUE_CURRENT_SEASON[newLeague] || '';
+  // Rescope the team suggestions to the newly selected league.
+  const dl = document.getElementById('teamList');
+  if (dl) dl.innerHTML = _teamOptsHtml(newLeague);
 }
 
 function openEditMatch(id) {
@@ -3231,9 +3234,26 @@ function openEditMatch(id) {
   _openMatchModal(m);
 }
 
+// Teams that have actually played in a given league (for the entry datalist).
+// Falls back to every known team when no league is set yet.
+function _teamsInLeague(league) {
+  const L = (league || '').trim().toLowerCase();
+  if (!L) return Object.keys(DB_MODULE.getTeams()).sort();
+  const set = new Set();
+  DB_MODULE.getMatches().forEach(mm => {
+    if (((mm.league || '').trim().toLowerCase()) === L) {
+      if (mm.blueTeam) set.add(mm.blueTeam);
+      if (mm.redTeam)  set.add(mm.redTeam);
+    }
+  });
+  return [...set].sort();
+}
+function _teamOptsHtml(league) {
+  return _teamsInLeague(league).map(t => `<option value="${t}"></option>`).join('');
+}
+
 function _openMatchModal(m) {
-  const existingTeams = Object.keys(DB_MODULE.getTeams());
-  const teamOpts = existingTeams.map(t => `<option value="${t}">${t}</option>`).join('');
+  const teamOpts = _teamOptsHtml(m.league);
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
