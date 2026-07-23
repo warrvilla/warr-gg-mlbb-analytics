@@ -74,9 +74,14 @@
   padding: 7px 12px; font-size: 12px;
   background: rgba(118,118,128,0.14);
   border: 0.5px solid rgba(255,255,255,0.10);
-  border-radius: var(--pill); color: var(--text2);
+  border-radius: var(--pill); color: var(--text);
   outline: none; cursor: pointer; font-family: var(--font-body);
   letter-spacing: -0.01em; transition: all 0.18s;
+}
+/* Native dropdown popup: force a solid dark background + light text so the
+   options are readable (translucent bg made them light-on-white before). */
+.ctrl-select option, .ctrl-select optgroup {
+  background: #15151f; color: #ececf3;
 }
 .ctrl-select:focus, .ctrl-input:focus {
   border-color: var(--accent-border);
