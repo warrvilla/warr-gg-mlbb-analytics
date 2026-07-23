@@ -5538,9 +5538,20 @@ function openLeagueReport(league, season) {
   const mapAgg={}; all.forEach(m=>{ if(!m.map)return; const a=mapAgg[m.map]||(mapAgg[m.map]={g:0,b:0}); a.g++; if(m.winner==='blue')a.b++; });
   const mapRows=Object.entries(mapAgg).map(([mp,a])=>({map:mp,games:a.g,blueWR:Math.round(a.b/a.g*100)})).sort((a,b)=>b.games-a.games);
 
-  // ── Standings ──
-  const standC={}; all.forEach(m=>{ [['blue',m.blueTeam],['red',m.redTeam]].forEach(([side,tn])=>{ if(!tn)return; const s=standC[tn]||(standC[tn]={g:0,w:0}); s.g++; if(m.winner===side)s.w++; }); });
-  const standings=Object.entries(standC).map(([tn,s])=>({team:tn,games:s.g,wins:s.w,losses:s.g-s.w,wr:Math.round(s.w/s.g*100)})).sort((a,b)=>b.wr-a.wr||b.wins-a.wins);
+  // ── Standings (SERIES-based, like official MPL tables) ──
+  // Group games into series, decide each series by game-wins, credit 1 W/L per team.
+  const _serC={}; all.forEach(m=>{ const sid=DB_MODULE.getSeriesId(m); const s=_serC[sid]||(_serC[sid]={a:m.blueTeam,b:m.redTeam,games:[]}); s.games.push(m); });
+  const standC={};
+  Object.values(_serC).forEach(s=>{
+    const teamA=s.a, teamB=s.b; if(!teamA||!teamB) return;
+    let aw=0, bw=0;
+    s.games.forEach(g=>{ const winner = g.winner==='blue'?g.blueTeam : (g.winner==='red'?g.redTeam : null); if(winner===teamA)aw++; else if(winner===teamB)bw++; });
+    if(aw===0 && bw===0) return;                 // undecided/unfinished series
+    const sa=standC[teamA]||(standC[teamA]={s:0,w:0}); const sb=standC[teamB]||(standC[teamB]={s:0,w:0});
+    sa.s++; sb.s++;
+    if(aw>bw) sa.w++; else if(bw>aw) sb.w++;      // majority of games wins the series
+  });
+  const standings=Object.entries(standC).map(([tn,s])=>({team:tn,games:s.s,wins:s.w,losses:s.s-s.w,wr:s.s?Math.round(s.w/s.s*100):0})).sort((a,b)=>b.wr-a.wr||b.wins-a.wins);
 
   // ── Hero performance + top players ──
   const heroPerf = pickRows.map(p=>{ const hk=heroKDA[p.name]; const kda=hk&&hk.d?((hk.k+hk.a)/Math.max(1,hk.d)):(hk?(hk.k+hk.a):null);
@@ -5693,7 +5704,7 @@ function openLeagueReport(league, season) {
         <!-- STANDINGS · TEMPO · MAPS -->
         <div style="display:grid;grid-template-columns:1.3fr 1.3fr 1fr;gap:14px;align-items:stretch;">
           <div class="rpt2-panel">
-            <div class="rpt2-title"><span class="bar"></span><h3>Standings</h3><span class="meta">${standings.length} teams</span></div>
+            <div class="rpt2-title"><span class="bar"></span><h3>Standings</h3><span class="meta">${standings.length} teams · series record</span></div>
             <div style="max-height:320px;overflow-y:auto;">
               ${standings.map((s,i)=>`<div style="display:flex;align-items:center;gap:9px;padding:5px 0;border-bottom:1px solid var(--border);">
                 <span style="width:20px;text-align:center;font-size:11px;font-weight:800;font-family:var(--font-head);color:${i<3?'var(--gold)':'var(--text3)'};">${i+1}</span>
