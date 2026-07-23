@@ -2327,8 +2327,14 @@ DB_MODULE.save();
       v = localStorage.getItem('warr_scout_view') || 'matches';
     }
   } catch(_) { v = 'matches'; }
-  if (!['matches','teams','meta','report'].includes(v)) v = 'matches';
-  showView(v);
+  if (!['matches','teams','meta','report','matchups'].includes(v)) v = 'matches';
+  // Restore the last league filter so a refresh keeps you where you were.
+  // setLeagueFilter() re-applies the season + active button state, then renders currentView.
+  let savedLeague = null;
+  try { savedLeague = localStorage.getItem('warr_scout_league'); } catch(_){}
+  currentView = v;
+  if (savedLeague) setLeagueFilter(savedLeague);
+  else showView(v);
 })();
 document.getElementById('sb-all').classList.add('active');
 
@@ -2637,6 +2643,7 @@ function renderMatchups(){
 
 function setLeagueFilter(lf) {
   leagueFilter = lf;
+  try { localStorage.setItem('warr_scout_league', lf); } catch(_){}   // remember league across reloads
   _muSeason = null; _muHero = null; // matchups re-derives this league's current season + a valid hero
   _matchPage = 1; _teamPage = 1; weekFilter = 'all'; _weekAutoPicked = false;
   // Reset season sub-filter, then auto-apply this league's admin-marked current season if one is set.
