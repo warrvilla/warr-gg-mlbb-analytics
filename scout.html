@@ -4070,11 +4070,24 @@ function renderTeams() {
 }
 
 function _renderTeamsGrid() {
+  // When a specific league is selected, every stat on the card must reflect ONLY
+  // that league (+ season if filtered) — not the team's all-leagues totals.
+  const _ss = (typeof seasonFilter!=='undefined' && seasonFilter && seasonFilter!=='all') ? seasonFilter : '';
+  const _scoped = leagueFilter !== 'all';
+  const _allM = DB_MODULE.getMatches();
+  const _statFor = (name, base) => {
+    if (!_scoped) return base;   // All-Leagues view keeps combined totals
+    const games = _allM.filter(m => (m.blueTeam===name||m.redTeam===name) && (m.league||'')===leagueFilter && (!_ss || (m.season||'').trim()===_ss));
+    // Fresh seed (never mutate the global team) but carry logo/link/leagueMeta.
+    return DB_MODULE.computeTeamStats(name, games, { name, link: base?.link||'', leagueMeta: base?.leagueMeta||{} });
+  };
   const teams = Object.values(DB_MODULE.getTeams()).filter(t => {
     if (leagueFilter !== 'all' && !t.leagues?.includes(leagueFilter)) return false;
     if (teamSearch && !t.name.toLowerCase().includes(teamSearch.toLowerCase())) return false;
     return true;
-  }).sort((a,b) => {
+  }).map(t => _statFor(t.name, t))
+    .filter(t => !_scoped || (t.gamesPlayed||0) > 0)   // hide teams with no games in this league/season
+    .sort((a,b) => {
     if (teamSort==='standing'){ const _ss=(typeof seasonFilter!=='undefined'&&seasonFilter&&seasonFilter!=='all')?seasonFilter:((typeof LEAGUE_CURRENT_SEASON!=='undefined'&&LEAGUE_CURRENT_SEASON[leagueFilter])||''); const ar=(+teamStanding(a,leagueFilter,_ss).rsRank)||9999, br=(+teamStanding(b,leagueFilter,_ss).rsRank)||9999; if(ar!==br) return ar-br; return (b.winRate||0)-(a.winRate||0); }
     if (teamSort==='games')   return (b.gamesPlayed||0)-(a.gamesPlayed||0);
     if (teamSort==='winrate') return (b.winRate||0)-(a.winRate||0);
