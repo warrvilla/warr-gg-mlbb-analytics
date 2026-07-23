@@ -4431,6 +4431,8 @@ async function generateTeamImage(teamName) {
 let _reportMapFilter = '';
 let _reportLeagueFilter = '';   // '' = all tournaments/leagues
 let _reportSeasonFilter = '';   // '' = all seasons
+let _reportFrom = '';           // '' = no lower bound (YYYY-MM-DD)
+let _reportTo   = '';           // '' = no upper bound (YYYY-MM-DD)
 
 // Called from the modal's dropdowns — stash the value, then rebuild the report
 // by closing + re-opening with the same team name.
@@ -4445,6 +4447,9 @@ function setReportLeagueFilter(lg)    { _reportLeagueFilter = lg || '';
   // Season labels aren't shared across leagues, so reset season when tournament changes.
   _reportSeasonFilter = ''; _reReport(); }
 function setReportSeasonFilter(sn)    { _reportSeasonFilter = sn || '';     _reReport(); }
+function setReportDateFrom(d)         { _reportFrom = d || '';              _reReport(); }
+function setReportDateTo(d)           { _reportTo   = d || '';              _reReport(); }
+function clearReportDates()           { _reportFrom = ''; _reportTo = '';   _reReport(); }
 
 function openTeamReport(teamName) {
   const tBase = DB_MODULE.getTeams()[teamName];
@@ -4457,18 +4462,21 @@ function openTeamReport(teamName) {
   if (_reportLeagueFilter && !_tAll.some(m => (m.league||'')        === _reportLeagueFilter)) _reportLeagueFilter = '';
   if (_reportSeasonFilter && !_tAll.some(m => (m.season||'').trim() === _reportSeasonFilter)) _reportSeasonFilter = '';
   if (_reportMapFilter    && !_tAll.some(m => (m.map||'')           === _reportMapFilter))    _reportMapFilter = '';
+  const _md = m => (m.date||'').slice(0,10);   // normalise to YYYY-MM-DD for range compare
   const teamGames = allMatches
     .filter(m => m.blueTeam === teamName || m.redTeam === teamName)
     .filter(m => !_reportMapFilter    || (m.map||'')            === _reportMapFilter)
     .filter(m => !_reportLeagueFilter || (m.league||'')         === _reportLeagueFilter)
     .filter(m => !_reportSeasonFilter || (m.season||'').trim()  === _reportSeasonFilter)
+    .filter(m => !_reportFrom || _md(m) >= _reportFrom)
+    .filter(m => !_reportTo   || _md(m) <= _reportTo)
     .sort((a,b) => new Date(b.date) - new Date(a.date));
 
   // When ANY filter (map / tournament / season) is active, recompute the WHOLE
   // stat object from the filtered games so every number in the report — WR,
   // KPIs, side splits, objective rates, hero pools, bans — reflects the filter.
   // Manual/admin fields (win condition, notes, placement…) are carried over.
-  const _anyFilter = _reportMapFilter || _reportLeagueFilter || _reportSeasonFilter;
+  const _anyFilter = _reportMapFilter || _reportLeagueFilter || _reportSeasonFilter || _reportFrom || _reportTo;
   const t = _anyFilter
     ? DB_MODULE.computeTeamStats(teamName, teamGames, {
         name: teamName,
@@ -4994,7 +5002,8 @@ function openTeamReport(teamName) {
   const seasonOpts = `<option value="">All seasons</option>` + playedSeasons.map(sn =>
     `<option value="${sn}"${_reportSeasonFilter===sn?' selected':''}>${sn}</option>`
   ).join('');
-  const _scopeLabel = [_reportLeagueFilter, _reportSeasonFilter, _reportMapFilter].filter(Boolean).join(' · ');
+  const _dateLabel = (_reportFrom || _reportTo) ? `${_reportFrom||'start'} → ${_reportTo||'now'}` : '';
+  const _scopeLabel = [_reportLeagueFilter, _reportSeasonFilter, _reportMapFilter, _dateLabel].filter(Boolean).join(' · ');
   overlay.innerHTML = `
     <div class="modal" style="max-width:1400px;width:96vw;" id="teamReportContent">
       <div class="modal-header no-print" style="gap:8px;">
@@ -5003,11 +5012,16 @@ function openTeamReport(teamName) {
           ${playedLeagues.length > 1 ? `<select class="form-select" style="font-size:11px;padding:5px 8px;height:auto;" onchange="setReportLeagueFilter(this.value)" title="Scope the whole report to one tournament">${leagueOpts}</select>` : ''}
           ${playedSeasons.length > 1 ? `<select class="form-select" style="font-size:11px;padding:5px 8px;height:auto;" onchange="setReportSeasonFilter(this.value)" title="Scope the whole report to one season">${seasonOpts}</select>` : ''}
           ${playedMaps.length > 1 ? `<select class="form-select" style="font-size:11px;padding:5px 8px;height:auto;" onchange="setReportMapFilter(this.value)" title="Filter the entire report to a single map">${mapOpts}</select>` : ''}
+          <span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--text3);" title="Cut the report to a date range — useful when a roster changed mid-season/tournament">
+            <input type="date" class="form-input" style="font-size:10px;padding:4px 6px;height:auto;width:auto;" value="${_reportFrom}" onchange="setReportDateFrom(this.value)">→
+            <input type="date" class="form-input" style="font-size:10px;padding:4px 6px;height:auto;width:auto;" value="${_reportTo}" onchange="setReportDateTo(this.value)">
+            ${(_reportFrom||_reportTo)?`<button class="btn btn-ghost btn-sm" style="padding:3px 6px;" onclick="clearReportDates()" title="Clear date range">✕</button>`:''}
+          </span>
           ${(typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin())?`<button class="btn btn-ghost btn-sm" onclick="openTeamEditor('${teamName}');document.getElementById('teamReportModal').remove();">Edit</button>`:''}
           <button class="btn btn-ghost btn-sm" onclick="openH2H('${teamName}')">H2H</button>
           <button class="btn btn-accent btn-sm" onclick="window.print()" title="Print or Save as PDF — landscape, pages continue cleanly with no cut-offs">🖨 Print</button>
           <button class="btn btn-ghost btn-sm" id="pdfBtn" onclick="generateTeamImage('${teamName}')">Export Image</button>
-          <button class="btn btn-ghost btn-sm" onclick="_reportMapFilter='';_reportLeagueFilter='';_reportSeasonFilter='';document.getElementById('teamReportModal').remove();">✕</button>
+          <button class="btn btn-ghost btn-sm" onclick="_reportMapFilter='';_reportLeagueFilter='';_reportSeasonFilter='';_reportFrom='';_reportTo='';document.getElementById('teamReportModal').remove();">✕</button>
         </div>
       </div>
       <div class="modal-body" id="reportBody" style="padding:20px 24px;">
