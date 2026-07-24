@@ -685,7 +685,12 @@ function buildCard(lane) {
     const pres      = stats?.presence;
     const pickRate  = (stats && scoutMatchCount > 0) ? Math.round(stats.picks / scoutMatchCount * 100) : undefined;
     const banRate   = (stats && scoutMatchCount > 0) ? Math.round(stats.bans  / scoutMatchCount * 100) : undefined;
-    const isMustban = h.mp === 'mustban';
+    // "Must Ban" is data-driven from the SELECTED LEAGUE's ban rate (banned in
+    // ≥50% of that league's games). Falls back to the static meta tag only when
+    // there's no scout data for the filter.
+    const isMustban = (scoutMatchCount > 0)
+      ? (banRate !== undefined && banRate >= 50)
+      : (h.mp === 'mustban');
     const nameColor = isMustban ? '#E07878' : 'rgba(240,240,248,.95)';
     const roleName  = fullRoleName(h.role);
     const rowBg     = i % 2 === 0 ? 'rgba(255,255,255,.018)' : 'transparent';
