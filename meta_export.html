@@ -496,11 +496,19 @@ function loadMetaFromStorage() {
 
 function loadScoutStats() {
   try {
-    const raw = localStorage.getItem('warr_scout_data');
-    const db  = raw ? JSON.parse(raw) : null;
-    const raw2 = localStorage.getItem('warr_scout_db');
-    const db2  = raw2 ? JSON.parse(raw2) : null;
-    const source = db || db2;
+    // Prefer the authoritative cloud matches (same source Scout uses) so the
+    // cards match Scout exactly. Fall back to the local snapshot only if the
+    // cloud hasn't loaded yet.
+    let source = null;
+    if (window._scoutMatchesCloud && window._scoutMatchesCloud.length) {
+      source = { matches: window._scoutMatchesCloud };
+    } else {
+      const raw = localStorage.getItem('warr_scout_data');
+      const db  = raw ? JSON.parse(raw) : null;
+      const raw2 = localStorage.getItem('warr_scout_db');
+      const db2  = raw2 ? JSON.parse(raw2) : null;
+      source = db || db2;
+    }
     if (!source || !source.matches) return;
     const matches = currentFilter === 'all'
       ? source.matches
@@ -841,6 +849,9 @@ function setFilter(f, el) {
   currentFilter = f;
   document.querySelectorAll('.filter-badge').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
+  // Re-read + re-render for the newly selected league (this was missing — the
+  // cards used to keep showing the previous league's data until you hit Generate).
+  if (document.getElementById('cardsGrid')?.children.length) generateAll();
 }
 
 // ── Drag-scroll ──────────────────────────────────────────────────────────────
@@ -881,6 +892,21 @@ init();
   }
   window.addEventListener('warr-leagues-ready',inject);
   if(WDB&&WDB.initLeagues)WDB.initLeagues().then(inject).catch(()=>{});
+})();
+
+// Load the live cloud matches (same source as Scout) so meta cards are accurate
+// and current — not a stale localStorage snapshot.
+(async function loadCloudMatches(){
+  try {
+    if (typeof WDB!=='undefined' && WDB.loadMatches) {
+      const ms = await WDB.loadMatches();
+      if (Array.isArray(ms) && ms.length) {
+        window._scoutMatchesCloud = ms;
+        // If cards are already on screen, refresh them with the authoritative data.
+        if (document.getElementById('cardsGrid')?.children.length && typeof generateAll==='function') generateAll();
+      }
+    }
+  } catch(e){ console.warn('meta_export: cloud match load failed', e); }
 })();
 </script>
 <script src="warr-nav.js"></script>
