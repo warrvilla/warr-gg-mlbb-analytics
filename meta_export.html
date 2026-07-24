@@ -685,12 +685,15 @@ function buildCard(lane) {
     const pres      = stats?.presence;
     const pickRate  = (stats && scoutMatchCount > 0) ? Math.round(stats.picks / scoutMatchCount * 100) : undefined;
     const banRate   = (stats && scoutMatchCount > 0) ? Math.round(stats.bans  / scoutMatchCount * 100) : undefined;
-    // "Must Ban" is data-driven from the SELECTED LEAGUE's ban rate (banned in
-    // ≥50% of that league's games). Falls back to the static meta tag only when
-    // there's no scout data for the filter.
-    const isMustban = (scoutMatchCount > 0)
-      ? (banRate !== undefined && banRate >= 50)
-      : (h.mp === 'mustban');
+    // "Must Ban" is data-driven from the SELECTED LEAGUE. A hero earns it when
+    // teams clearly refuse to let it through: banned in a strong majority of
+    // games (≥60%), OR banned very often (≥45%) AND still winning when it slips
+    // through (≥55% WR on 3+ picks) — i.e. genuinely oppressive, not just popular.
+    // Needs a real sample (≥5 games); otherwise fall back to the static meta tag.
+    const _MB_MIN_GAMES = 5;
+    const isMustban = (scoutMatchCount >= _MB_MIN_GAMES && banRate !== undefined)
+      ? ( banRate >= 60 || (banRate >= 45 && wr !== undefined && wr >= 55 && (stats?.picks||0) >= 3) )
+      : (scoutMatchCount === 0 && h.mp === 'mustban');
     const nameColor = isMustban ? '#E07878' : 'rgba(240,240,248,.95)';
     const roleName  = fullRoleName(h.role);
     const rowBg     = i % 2 === 0 ? 'rgba(255,255,255,.018)' : 'transparent';
