@@ -3388,7 +3388,7 @@ function _openMatchModal(m) {
             <div class="form-group">
               <label class="form-label">Series Format</label>
               <select class="form-select" id="mf-format" onchange="updateGameNumOptions()">
-                ${['Single Game','BO3','BO5','BO7'].map(f=>`<option ${(m.seriesFormat||'BO3')===f?'selected':''}>${f}</option>`).join('')}
+                ${['Single Game','BO2','BO3','BO4','BO5','BO7'].map(f=>`<option ${(m.seriesFormat||'BO3')===f?'selected':''}>${f}</option>`).join('')}
               </select>
             </div>
             <div class="form-group">
@@ -3469,6 +3469,29 @@ function _openMatchModal(m) {
                 <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" class="glass-input" id="mf-towers-red" value="${m.towers?.red ?? ''}" placeholder="—">
               </div>
             </div>
+            <div style="flex-shrink:0;">
+              <div class="entry-section-title">Game Duration <span class="hint">mm:ss</span></div>
+              <input type="text" inputmode="numeric" class="glass-input" id="mf-duration" value="${m.duration||''}" placeholder="14:32" style="width:88px;">
+            </div>
+          </div>
+          <div class="form-row" style="margin-top:14px;">
+            <div style="flex:1;">
+              <div class="entry-section-title">Phase Control <span class="hint">who was ahead — Early (0–8m) · Mid (8–15m) · Late (15m+)</span></div>
+              <div style="display:flex;gap:18px;flex-wrap:wrap;">
+                ${['early','mid','late'].map(ph=>{
+                  const cur=(m.phaseWinners&&m.phaseWinners[ph])||'';
+                  const lbl=ph.charAt(0).toUpperCase()+ph.slice(1);
+                  return `<div style="display:flex;align-items:center;gap:7px;">
+                    <span style="font-size:11px;font-weight:700;color:var(--text2);width:38px;">${lbl}</span>
+                    <select class="form-select" id="mf-phase-${ph}" style="font-size:11px;padding:5px 8px;height:auto;">
+                      <option value="" ${cur===''?'selected':''}>—</option>
+                      <option value="blue" ${cur==='blue'?'selected':''}>Blue</option>
+                      <option value="red" ${cur==='red'?'selected':''}>Red</option>
+                    </select>
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -3508,7 +3531,7 @@ function _openMatchModal(m) {
 function closeMatchModal() { document.getElementById('matchModal')?.remove(); }
 
 function gameNumOptions(format, selected) {
-  const max = format==='Single Game'?1:format==='BO3'?3:format==='BO5'?5:7;
+  const max = format==='Single Game'?1:format==='BO2'?2:format==='BO3'?3:format==='BO4'?4:format==='BO5'?5:7;
   return Array.from({length:max},(_,i)=>i+1).map(n=>`<option value="${n}" ${selected==n?'selected':''}>Game ${n}</option>`).join('');
 }
 function updateGameNumOptions() {
@@ -3920,6 +3943,14 @@ function saveMatch() {
     blue: _tb !== '' ? Math.max(0, Number(_tb)|0) : null,
     red:  _tr !== '' ? Math.max(0, Number(_tr)|0) : null,
   } : null;
+  // Game duration + phase control (early/mid/late winner) — optional.
+  const duration = (document.getElementById('mf-duration')?.value||'').trim();
+  const _pw = {
+    early: document.getElementById('mf-phase-early')?.value || '',
+    mid:   document.getElementById('mf-phase-mid')?.value   || '',
+    late:  document.getElementById('mf-phase-late')?.value  || '',
+  };
+  const phaseWinners = (_pw.early || _pw.mid || _pw.late) ? _pw : null;
 
   // Tag the match with _createdBy at save time. loadFromSupabase uses this
   // to identify which local matches belong to the current user and should
@@ -3950,6 +3981,8 @@ function saveMatch() {
     // Phase-2 optional fields. Saved only when entered; report sections check before rendering.
     ...(firstBlood ? { firstBlood } : {}),
     ...(towers     ? { towers }     : {}),
+    ...(duration   ? { duration }   : {}),
+    ...(phaseWinners ? { phaseWinners } : {}),
     _createdBy,
     savedAt: Date.now(),
   };
