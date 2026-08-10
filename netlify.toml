@@ -121,4 +121,7 @@
 [[headers]]
   for = "*.js"
   [headers.values]
-    Cache-Control = "public, max-age=86400, must-revalidate"
+    # Always revalidate app JS so a deploy takes effect immediately (no stale
+    # warr-lib.js vs new HTML mismatches). Netlify returns 304 when unchanged,
+    # so the perf cost is a tiny conditional request, not a full re-download.
+    Cache-Control = "public, max-age=0, must-revalidate"
