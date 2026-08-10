@@ -3203,7 +3203,7 @@ function renderMatchListBody() {
         <div class="ml-team ml-teamB${seriesWinner===s.redTeam?' win':''}"><span class="ml-logo" style="--mc:${_rm.color}"><img src="${_tlogo(s.redTeam)}" loading="lazy" onerror="this.closest('.ml-logo').classList.add('noimg')"><i>${_rm.init}</i></span><span class="nm">${s.redTeam}</span></div>
         <button class="ml-view" onclick="event.stopPropagation();mlToggle(this.closest('.ml-row'))">View Details ▸</button>
       </div>
-      <div class="ml-detail">${s.games.length>1?`<div class="game-tabs">${gameTabs}</div>`:''}${gamePanels}</div>
+      <div class="ml-detail">${s.games.length>1?`<div class="game-tabs">${gameTabs}</div>`:''}${gamePanels}${_canMod?`<div style="padding:9px 12px;border-top:1px solid var(--border);text-align:right;"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openAddGame('${(s.games[0]&&s.games[0].seriesId)||s.seriesId||''}')" title="Add the next game to this series (keeps league/season/teams, swaps sides)">✚ Add Game to this series</button></div>`:''}</div>
     </div>`;
   }).join('') + _renderPager(series.length, MATCH_PAGE_SIZE, _matchPage, 'goMatchPage');
 }
@@ -3277,6 +3277,28 @@ function openNewMatch() {
     id:'', league:seedLeague, season:seedSeason, stage:'Regular Season', week:'',
     seriesFormat:'BO3', gameNum:1, blueTeam:'', redTeam:'', winner:'blue',
     date: new Date().toISOString().split('T')[0], vodLink:'', notes:'',
+    blueBans:[], redBans:[], bluePicks:[], redPicks:[]
+  });
+}
+
+// Append the next game to an existing series (from the match log). Carries the
+// series info, auto-swaps sides from the last game, and starts a clean draft.
+function openAddGame(seriesId) {
+  const games = DB_MODULE.getMatches()
+    .filter(mm => DB_MODULE.getSeriesId(mm) === seriesId)
+    .sort((a,b)=>(Number(a.gameNum)||1)-(Number(b.gameNum)||1));
+  if (!games.length) { toast('Series not found','error'); return; }
+  const last = games[games.length-1];
+  const nextNum = Math.max(...games.map(g=>Number(g.gameNum)||1)) + 1;
+  editingMatchId = null;
+  draftStepIndex = 0; draftSlots = Array(DRAFT_STEPS.length).fill(null);
+  draftLaneFilter = 'All'; draftHeroSearch = ''; draftFilterMode = 'lane';
+  _openMatchModal({
+    id:'', league:last.league, season:last.season, patch:last.patch,
+    stage:last.stage, week:last.week, seriesFormat:last.seriesFormat,
+    gameNum: nextNum,
+    blueTeam: last.redTeam, redTeam: last.blueTeam,   // sides swap between games
+    winner:'blue', date:last.date, vodLink:'', notes:'',
     blueBans:[], redBans:[], bluePicks:[], redPicks:[]
   });
 }
@@ -3360,13 +3382,29 @@ function _teamOptsHtml(league) {
 function _openMatchModal(m) {
   const teamOpts = _teamOptsHtml(m.league);
 
+  // Series context banner — shows "Game N of BOx · Team A a–b Team B" when this
+  // game belongs to an in-progress series (so you always see the running score).
+  let _seriesBanner = '';
+  if (m.blueTeam && m.redTeam && (Number(m.gameNum)||1) > 1) {
+    const key = [m.blueTeam, m.redTeam].sort().join('|');
+    const sib = DB_MODULE.getMatches().filter(mm =>
+      mm.id !== editingMatchId &&
+      [mm.blueTeam, mm.redTeam].sort().join('|') === key &&
+      (mm.league||'') === (m.league||'') &&
+      (mm.seriesFormat||'BO3') === (m.seriesFormat||'BO3') &&
+      ((m.week && mm.week===m.week) || (mm.date||'') === (m.date||'')));
+    let aw=0, bw=0;
+    sib.forEach(g=>{ const w = g.winner==='blue'?g.blueTeam:g.redTeam; if(w===m.blueTeam)aw++; else if(w===m.redTeam)bw++; });
+    _seriesBanner = `<span style="margin-left:10px;font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-dim,rgba(124,92,246,.12));border:1px solid var(--purple-border,rgba(124,92,246,.3));border-radius:20px;padding:2px 10px;">Game ${m.gameNum} of ${m.seriesFormat||'series'} · ${m.blueTeam} ${aw}–${bw} ${m.redTeam}</span>`;
+  }
+
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'matchModal';
   overlay.innerHTML = `
     <div class="modal" style="max-width:920px;">
       <div class="modal-header">
-        <div class="modal-title">${editingMatchId ? 'Edit Match' : '+ New Match'}</div>
+        <div class="modal-title">${editingMatchId ? 'Edit Match' : '+ New Match'}${_seriesBanner}</div>
         <div style="font-size:10px;color:var(--text3);margin-left:4px;">
           ${editingMatchId ? `ID: <span style="font-family:var(--font-mono);">${editingMatchId}</span>` : ''}
         </div>
@@ -3428,11 +3466,12 @@ function _openMatchModal(m) {
               <input class="form-input" id="mf-patch" placeholder="1.9.28" value="${m.patch||''}">
             </div>
           </div>
-          <div class="form-row">
+          <div class="form-row" style="align-items:flex-end;">
             <div class="form-group wide">
               <label class="form-label">Blue Side Team</label>
               <input class="form-input" id="mf-blue" placeholder="Team name" value="${m.blueTeam||''}" list="teamList" oninput="renderDraftBoard();loadScoutPlayers()">
             </div>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="swapMatchSides()" title="Swap Blue/Red sides (flips teams + all side data + draft)" style="flex-shrink:0;margin-bottom:2px;padding:8px 10px;">⇄</button>
             <div class="form-group wide">
               <label class="form-label">Red Side Team</label>
               <input class="form-input" id="mf-red" placeholder="Team name" value="${m.redTeam||''}" list="teamList" oninput="renderDraftBoard();loadScoutPlayers()">
@@ -3546,7 +3585,8 @@ function _openMatchModal(m) {
       </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="closeMatchModal()">Cancel</button>
-        <button class="btn btn-accent" onclick="saveMatch()">Save Match</button>
+        <button class="btn btn-ghost" onclick="saveMatch(true)" title="Save this game and start the next game — keeps league/season/teams, swaps sides, resets the draft">✚ Save &amp; Add Next Game</button>
+        <button class="btn btn-accent" onclick="saveMatch(false)">Save Match</button>
       </div>
     </div>
     <datalist id="teamList">${teamOpts}</datalist>`;
@@ -3901,10 +3941,32 @@ function setKda(idx, key, raw) {
   if (k && k.k == null && k.d == null && k.a == null) draftSlots[idx].kda = null;
 }
 
+// Swap Blue/Red sides in the entry form — flips team names AND all side-bound
+// data (winner, towers, first blood, phase winners, objectives, and the draft),
+// so a wrong side assignment is one click to fix.
+function swapMatchSides() {
+  const swapVal = (a,b)=>{ if(a&&b){ const t=a.value; a.value=b.value; b.value=t; } };
+  swapVal(document.getElementById('mf-blue'),        document.getElementById('mf-red'));
+  swapVal(document.getElementById('mf-towers-blue'), document.getElementById('mf-towers-red'));
+  const w=document.getElementById('mf-winner'); if(w) w.value = w.value==='blue'?'red':w.value==='red'?'blue':w.value;
+  ['early','mid','late'].forEach(ph=>{ const s=document.getElementById('mf-phase-'+ph); if(s) s.value = s.value==='blue'?'red':s.value==='red'?'blue':''; });
+  const fb=document.getElementById('fb-row'); if(fb){ let v=fb.dataset.value||''; v=v==='blue'?'red':v==='red'?'blue':v; setFirstBlood(v); }
+  ['turtle','lord'].forEach(kind=>{ const row=document.getElementById('obj-'+kind+'-row'); if(row){ const vals=[...row.querySelectorAll('[data-type="'+kind+'"]')].map(x=>x.dataset.val||'').map(v=>v==='blue'?'red':v==='red'?'blue':v); row.innerHTML=_buildObjRowHTML(kind, vals); } });
+  // Draft: move blue picks/bans to red steps and vice-versa (order preserved).
+  const bP=[],rP=[],bB=[],rB=[];
+  DRAFT_STEPS.forEach((step,i)=>{ const sl=draftSlots[i]; if(!sl)return; if(step.type==='ban'){(step.team==='blue'?bB:rB).push(sl);} else {(step.team==='blue'?bP:rP).push(sl);} });
+  draftSlots = Array(DRAFT_STEPS.length).fill(null);
+  let bi=0,ri=0,bb=0,rb=0;
+  DRAFT_STEPS.forEach((step,i)=>{ if(step.type==='ban'){ draftSlots[i]= step.team==='blue' ? (rB[bb++]||null) : (bB[rb++]||null); } else { draftSlots[i]= step.team==='blue' ? (rP[bi++]||null) : (bP[ri++]||null); } });
+  renderDraftBoard();
+  if (typeof loadScoutPlayers==='function') loadScoutPlayers();
+  toast('⇄ Sides swapped');
+}
+
 // ══════════════════════════════════════════════════════════════
 // SAVE MATCH
 // ══════════════════════════════════════════════════════════════
-function saveMatch() {
+function saveMatch(next) {
   const league    = document.getElementById('mf-league')?.value||'';
   const blueTeam  = document.getElementById('mf-blue')?.value?.trim()||'';
   const redTeam   = document.getElementById('mf-red')?.value?.trim()||'';
@@ -4020,6 +4082,29 @@ function saveMatch() {
   DB_MODULE.upsertMatch(match);
   DB_MODULE.rebuildTeams();
   DB_MODULE.save();
+
+  // ── SAVE & ADD NEXT GAME ──
+  // Keep all Series Info, auto-swap sides (teams alternate Blue/Red), bump the
+  // game number, and reset everything game-specific so game 2 starts clean.
+  if (next) {
+    _cloudSaveMatch(match);
+    editingMatchId = null;   // the next game is a NEW record, not an edit
+    const seed = {
+      league: match.league, season: match.season, patch: match.patch,
+      stage: match.stage, week: match.week, seriesFormat: match.seriesFormat,
+      gameNum: (Number(match.gameNum)||1) + 1,
+      blueTeam: match.redTeam, redTeam: match.blueTeam,   // auto-swap sides
+      date: match.date, winner: 'blue', map: '',
+      // per-game fields intentionally omitted → draft, objectives, towers,
+      // firstBlood, duration, time, phase winners, VOD, notes all reset.
+    };
+    draftStepIndex = 0; draftSlots = Array(DRAFT_STEPS.length).fill(null);
+    draftLaneFilter = 'All'; draftHeroSearch = ''; draftFilterMode = 'lane';
+    closeMatchModal();
+    _openMatchModal(seed);
+    toast(`✓ Game ${match.gameNum} saved · now entering Game ${seed.gameNum} (sides swapped)`);
+    return;
+  }
 
   // ── DEFENSIVE FORCED REFRESH ──
   // User-reported bug: toast says saved but the match log doesn't update.
