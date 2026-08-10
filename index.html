@@ -1145,27 +1145,54 @@ let _metaRegion = 'all';
 let _metaLane = 'EXP';
 let _metaSeason = '';
 let _metaMatchesCache = null;
+let _metaDefaulted = false;   // only auto-pick the newest tournament once (don't override user clicks)
 function setMetaSeason(v){ _metaSeason = v; renderMetaHierarchies(); }
+
+// Public/competitive matches only (exclude Scrims / Other / AI Battle practice).
+function _isPublicMatch(m){
+  return (typeof WDB !== 'undefined' && WDB.PUBLIC_LEAGUES)
+    ? WDB.PUBLIC_LEAGUES.includes(m.league || '')
+    : !['Scrims','Other','AI Battle',''].includes(m.league || '');
+}
+// Leagues that actually have public match data, ordered by most-recent match first.
+// This is what makes the tabs dynamic: a deleted/empty league simply won't appear.
+function _metaLeaguesByRecency(){
+  const last = {};
+  (_metaMatchesCache||[]).forEach(m => {
+    if (!_isPublicMatch(m)) return;
+    const l = (m.league||'').trim(); if (!l) return;
+    const d = m.date || '';
+    if (!last[l] || d > last[l]) last[l] = d;
+  });
+  return Object.entries(last).sort((a,b)=>String(b[1]).localeCompare(String(a[1]))).map(([l])=>l);
+}
+
 function populateMetaSeasons(){
   const sel = document.getElementById('metaSeasonSel'); if(!sel) return;
-  const pool = (_metaMatchesCache||[]).filter(m => _metaRegion==='all' || m.league===_metaRegion);
+  const pool = (_metaMatchesCache||[]).filter(m => _isPublicMatch(m) && (_metaRegion==='all' || m.league===_metaRegion));
   const seasons = [...new Set(pool.map(m=>(m.season||'').trim()).filter(Boolean))]
-    .sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+    .sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));   // newest first
+  // Active season = admin-marked current season if set, else the most recent in the data.
   const dm = (typeof WDB!=='undefined'&&WDB.defaultMeta)?WDB.defaultMeta():{league:'all',season:''};
   const adminSeason = (dm.league===_metaRegion && dm.season && seasons.includes(dm.season)) ? dm.season : '';
-  if (_metaSeason && !seasons.includes(_metaSeason)) _metaSeason='';
-  if (!_metaSeason && adminSeason) _metaSeason = adminSeason;
+  const activeSeason = adminSeason || seasons[0] || '';
+  if (_metaSeason && !seasons.includes(_metaSeason)) _metaSeason=''; // drop a stale/deleted season
+  if (!_metaSeason && activeSeason) _metaSeason = activeSeason;      // default to the active/most-recent season
   sel.innerHTML = `<option value="">All seasons</option>`
-    + seasons.map(x=>`<option value="${x}"${x===_metaSeason?' selected':''}>${x}${x===adminSeason?' (current)':''}</option>`).join('');
+    + seasons.map(x=>`<option value="${x}"${x===_metaSeason?' selected':''}>${x}${x===activeSeason?' (current)':''}</option>`).join('');
 }
 
 function renderMetaRegionTabs() {
   const wrap = document.getElementById('metaRegionTabs');
-  if (!wrap || typeof WDB === 'undefined' || !WDB.officialLeagues) return;
+  if (!wrap) return;
   const short = n => n.startsWith('MPL ') ? n.slice(4) : n;
+  // Prefer leagues that actually have data (recency order). Fall back to the
+  // official config only before matches have loaded.
+  let leagues = _metaLeaguesByRecency();
+  if (!leagues.length && typeof WDB!=='undefined' && WDB.officialLeagues) leagues = WDB.officialLeagues();
   wrap.innerHTML = [
     `<button class="region-tab${_metaRegion === 'all' ? ' active' : ''}" data-region="all">Global</button>`,
-    ...WDB.officialLeagues().map(n =>
+    ...leagues.map(n =>
       `<button class="region-tab${_metaRegion === n ? ' active' : ''}" data-region="${n.replace(/"/g, '&quot;')}">${short(n)}</button>`),
   ].join('');
 }
@@ -1175,7 +1202,13 @@ async function loadMetaData() {
   try {
     if (typeof WDB === 'undefined' || !WDB.loadMatches) return;
     _metaMatchesCache = await WDB.loadMatches(); // awaits initLeagues internally
-    try { const dm = WDB.defaultMeta && WDB.defaultMeta(); if (dm && dm.league && dm.league!=='all') _metaRegion = dm.league; } catch(_){}
+    // Default to the MOST RECENT tournament that has data (e.g. EWC or MPL S18),
+    // so the landing meta auto-follows the current event. Only on first load.
+    if (!_metaDefaulted) {
+      const recent = _metaLeaguesByRecency();
+      if (recent.length) { _metaRegion = recent[0]; _metaSeason = ''; }
+      _metaDefaulted = true;
+    }
     renderMetaRegionTabs();
     renderMetaHierarchies();
   } catch(e) {
