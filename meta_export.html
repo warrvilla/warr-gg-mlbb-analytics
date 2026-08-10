@@ -661,7 +661,7 @@ function buildCard(lane) {
   const cfg         = LANE_CONFIG[lane];
   const heroes      = getTopForLane(lane).slice(0, 10);
   const filterLabel = currentFilter === 'all' ? 'All Leagues' : currentFilter;
-  const patchLabel  = patchVersion ? `Patch ${patchVersion}` : 'Meta 2025';
+  const patchLabel  = patchVersion ? `Patch ${patchVersion}` : `Meta ${new Date().getFullYear()}`;
   const scoutLabel  = scoutMatchCount > 0
     ? `Based on ${scoutMatchCount} matches`
     : 'Sorted by tier score';
