@@ -2715,16 +2715,25 @@ function renderMatchups(){
   area.innerHTML = `${topbar}<div class="mu-wrap">${left}${center}${right}</div>`;
 }
 
+// Most recent season present in the data for a league (newest first).
+function _mostRecentSeason(league){
+  const ss = [...new Set(DB_MODULE.getMatches()
+    .filter(m => (m.league||'') === league)
+    .map(m => (m.season||'').trim()).filter(Boolean))]
+    .sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+  return ss[0] || '';
+}
 function setLeagueFilter(lf) {
   leagueFilter = lf;
   try { localStorage.setItem('warr_scout_league', lf); } catch(_){}   // remember league across reloads
   _muSeason = null; _muHero = null; // matchups re-derives this league's current season + a valid hero
   _matchPage = 1; _teamPage = 1; weekFilter = 'all'; _weekAutoPicked = false;
-  // Reset season sub-filter, then auto-apply this league's admin-marked current season if one is set.
-  // (Cached in LEAGUE_CURRENT_SEASON by loadCustomLeagues at startup.)
+  // Default to this league's ACTIVE season: the admin-marked current season if
+  // set, otherwise the most recent season present in the data. Only "All Leagues"
+  // stays on all seasons. This keeps Scout focused on the current tournament.
   seasonFilter = 'all';
-  if (lf !== 'all' && LEAGUE_CURRENT_SEASON[lf]) {
-    seasonFilter = LEAGUE_CURRENT_SEASON[lf];
+  if (lf !== 'all') {
+    seasonFilter = LEAGUE_CURRENT_SEASON[lf] || _mostRecentSeason(lf) || 'all';
   }
   // Sync mobile dropdown
   const sel = document.getElementById('mobileLeagueSelect');
@@ -5574,6 +5583,50 @@ function openTeamReport(teamName) {
             `:'<div style="font-size:10px;color:var(--text4);">No hero data.</div>'}
           </div>
         </div>
+
+        <!-- HERO POOL BY ROLE (KDA · WR · early/mid/late win) -->
+        ${(() => {
+          const pool = {};
+          teamGames.forEach(m => {
+            const ours = m.blueTeam===teamName; const side = ours?'blue':'red';
+            const won = (ours&&m.winner==='blue')||(!ours&&m.winner==='red');
+            const picks = ours?(m.bluePicks||[]):(m.redPicks||[]);
+            const pw = m.phaseWinners||{};
+            picks.forEach(p => { const n=p&&(p.name||p), L=p&&p.lane; if(!n||!LANES5.includes(L)) return;
+              const a=pool[L]||(pool[L]={}); const e=a[n]||(a[n]={g:0,w:0,k:0,d:0,a:0,kg:0,eG:0,eW:0,mG:0,mW:0,lG:0,lW:0});
+              e.g++; if(won)e.w++;
+              if(p.kda){ e.k+=+p.kda.k||0; e.d+=+p.kda.d||0; e.a+=+p.kda.a||0; e.kg++; }
+              if(pw.early){ e.eG++; if(pw.early===side)e.eW++; }
+              if(pw.mid){ e.mG++; if(pw.mid===side)e.mW++; }
+              if(pw.late){ e.lG++; if(pw.late===side)e.lW++; }
+            });
+          });
+          if (!LANES5.some(L=>pool[L] && Object.keys(pool[L]).length)) return '';
+          const ph = (w,g)=> g ? `<span style="color:${wrc(Math.round(w/g*100))};">${Math.round(w/g*100)}%</span>` : '<span style="color:var(--text4);">—</span>';
+          const cols = LANES5.map(L => {
+            const heroes = Object.entries(pool[L]||{}).sort((a,b)=>b[1].g-a[1].g);
+            if (!heroes.length) return `<div><div style="font-size:9px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:${LANE_CLR[L]};margin-bottom:6px;">${L}</div><div style="font-size:10px;color:var(--text4);">No data</div></div>`;
+            const rows = heroes.map(([n,e])=>{
+              const wr=Math.round(e.w/e.g*100); const kda=e.kg?((e.k+e.a)/Math.max(1,e.d)).toFixed(1):'—';
+              return `<div style="display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid var(--border);">
+                ${img(n,24)}
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:10.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n}</div>
+                  <div style="font-size:8px;color:var(--text3);font-family:var(--font-mono);margin-top:1px;">E ${ph(e.eW,e.eG)} · M ${ph(e.mW,e.mG)} · L ${ph(e.lW,e.lG)}</div>
+                </div>
+                <div style="text-align:right;flex-shrink:0;">
+                  <div style="font-size:10.5px;font-weight:800;font-family:var(--font-mono);color:${wrc(wr)};">${wr}%</div>
+                  <div style="font-size:8px;color:var(--text3);font-family:var(--font-mono);margin-top:1px;">${e.g}g · ${kda}</div>
+                </div>
+              </div>`;
+            }).join('');
+            return `<div><div style="font-size:9px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:${LANE_CLR[L]};margin-bottom:6px;">${L} <span style="color:var(--text4);">· ${heroes.length}</span></div>${rows}</div>`;
+          }).join('');
+          return `<div class="rpt2-panel">
+            <div class="rpt2-title"><span class="bar"></span><h3>Hero Pool by Role</h3><span class="meta">KDA · win rate · early/mid/late (E·M·L) phase win</span></div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;align-items:start;">${cols}</div>
+          </div>`;
+        })()}
 
         <!-- MATCH HISTORY -->
         <div class="rpt2-panel">
