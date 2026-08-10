@@ -2716,6 +2716,21 @@ function renderMatchups(){
 }
 
 // Most recent season present in the data for a league (newest first).
+// A team's region, inferred from the official league they play most (used to
+// bucket scrim opponents: "vs PH / ID / MY / MDL…"). Falls back to 'Other'.
+function _teamRegion(name){
+  if(!name) return 'Other';
+  const cnt={};
+  DB_MODULE.getMatches().forEach(m=>{
+    if(m.blueTeam!==name && m.redTeam!==name) return;
+    const l=(m.league||'').trim();
+    if(!l || ['Scrims','Other','AI Battle'].includes(l)) return;
+    cnt[l]=(cnt[l]||0)+1;
+  });
+  const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
+  if(!top) return 'Other';
+  return top[0].startsWith('MPL ') ? top[0].slice(4) : top[0];
+}
 function _mostRecentSeason(league){
   const ss = [...new Set(DB_MODULE.getMatches()
     .filter(m => (m.league||'') === league)
@@ -3482,6 +3497,10 @@ function _openMatchModal(m) {
               <div class="entry-section-title">Game Duration <span class="hint">mm:ss</span></div>
               <input type="text" inputmode="numeric" class="glass-input" id="mf-duration" value="${m.duration||''}" placeholder="14:32" style="width:88px;">
             </div>
+            <div style="flex-shrink:0;">
+              <div class="entry-section-title">Time <span class="hint">scrim/game time — for time-slot win rate</span></div>
+              <input type="time" class="glass-input" id="mf-time" value="${m.time||''}" style="width:120px;">
+            </div>
           </div>
           <div class="form-row" style="margin-top:14px;">
             <div style="flex:1;">
@@ -3954,6 +3973,7 @@ function saveMatch() {
   } : null;
   // Game duration + phase control (early/mid/late winner) — optional.
   const duration = (document.getElementById('mf-duration')?.value||'').trim();
+  const gameTime = (document.getElementById('mf-time')?.value||'').trim();   // HH:MM (for time-slot win rate)
   const _pw = {
     early: document.getElementById('mf-phase-early')?.value || '',
     mid:   document.getElementById('mf-phase-mid')?.value   || '',
@@ -3991,6 +4011,7 @@ function saveMatch() {
     ...(firstBlood ? { firstBlood } : {}),
     ...(towers     ? { towers }     : {}),
     ...(duration   ? { duration }   : {}),
+    ...(gameTime   ? { time: gameTime } : {}),
     ...(phaseWinners ? { phaseWinners } : {}),
     _createdBy,
     savedAt: Date.now(),
@@ -5517,9 +5538,66 @@ function openTeamReport(teamName) {
             })()}
           </div>
           <div class="rpt2-panel">
-            <div class="rpt2-title"><span class="bar"></span><h3>Map Performance</h3></div>
-            ${mapWRHTML || '<div style="font-size:10.5px;color:var(--text4);">No map data.</div>'}
+            <div class="rpt2-title"><span class="bar"></span><h3>Map Performance</h3><span class="meta">win rate + heroes picked</span></div>
+            ${(()=>{
+              if(!Object.keys(t.mapStats||{}).length) return '<div style="font-size:10.5px;color:var(--text4);">No map data.</div>';
+              const mh={};
+              teamGames.forEach(m=>{ if(!m.map)return; const ours=m.blueTeam===teamName; const picks=ours?(m.bluePicks||[]):(m.redPicks||[]);
+                const a=mh[m.map]||(mh[m.map]={}); picks.forEach(p=>{const n=p&&(p.name||p); if(n)a[n]=(a[n]||0)+1;}); });
+              return Object.entries(t.mapStats).map(([mp,s])=>{
+                const mc=wrc(s.wr); const heroes=Object.entries(mh[mp]||{}).sort((a,b)=>b[1]-a[1]).slice(0,5);
+                return `<div style="margin-bottom:11px;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:10.5px;width:118px;flex-shrink:0;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${mp}</span>
+                    <div style="flex:1;height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;"><div style="width:${s.wr}%;height:100%;background:${mc};border-radius:3px;"></div></div>
+                    <span style="font-size:10.5px;font-weight:700;color:${mc};font-family:var(--font-mono);width:34px;text-align:right;">${s.wr}%</span>
+                    <span style="font-size:9px;color:var(--text3);">${s.games}g</span>
+                  </div>
+                  ${heroes.length?`<div style="display:flex;gap:6px;margin-top:4px;padding-left:2px;flex-wrap:wrap;">${heroes.map(([h,c])=>`<span style="display:inline-flex;align-items:center;gap:3px;font-size:8.5px;color:var(--text3);">${img(h,16)}×${c}</span>`).join('')}</div>`:''}
+                </div>`;
+              }).join('');
+            })()}
           </div>
+        </div>
+
+        <!-- SITUATIONAL WIN RATES (phase · pick order · time slot · vs region) -->
+        <div class="rpt2-panel">
+          <div class="rpt2-title"><span class="bar"></span><h3>Situational Win Rates</h3><span class="meta">when this team performs best</span></div>
+          ${(()=>{
+            let e={g:0,w:0},md={g:0,w:0},l={g:0,w:0}; const region={}, timeslot={};
+            teamGames.forEach(m=>{ const ours=m.blueTeam===teamName; const side=ours?'blue':'red';
+              const won=(ours&&m.winner==='blue')||(!ours&&m.winner==='red'); const pw=m.phaseWinners||{};
+              if(pw.early){e.g++;if(pw.early===side)e.w++;}
+              if(pw.mid){md.g++;if(pw.mid===side)md.w++;}
+              if(pw.late){l.g++;if(pw.late===side)l.w++;}
+              const opp=ours?m.redTeam:m.blueTeam; const rg=_teamRegion(opp);
+              const rb=region[rg]||(region[rg]={g:0,w:0}); rb.g++; if(won)rb.w++;
+              if(m.time){ const hr=String(m.time).slice(0,5); const tb=timeslot[hr]||(timeslot[hr]={g:0,w:0}); tb.g++; if(won)tb.w++; }
+            });
+            const pct=x=>x.g?Math.round(x.w/x.g*100):null;
+            const stat=(label,x)=>{const p=pct(x);return `<div style="text-align:center;min-width:0;"><div style="font-size:18px;font-weight:800;font-family:var(--font-head);color:${p==null?'var(--text4)':wrc(p)};">${p==null?'—':p+'%'}</div><div style="font-size:8px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text3);margin-top:3px;">${label}</div><div style="font-size:8px;color:var(--text4);">${x.g}g</div></div>`;};
+            const fp={g:t.blueSideGames||0,w:t.blueWins||0}, sp={g:t.redSideGames||0,w:t.redWins||0};
+            const fmt12=hr=>{ if(!/^\d\d:\d\d/.test(hr))return hr; let[H,M]=hr.split(':').map(Number); const ap=H>=12?'PM':'AM'; H=H%12||12; return `${H}:${String(M).padStart(2,'0')} ${ap}`; };
+            const barRow=(label,x)=>{const p=pct(x);return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;"><span style="width:80px;flex-shrink:0;font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${label}</span><span style="flex:1;height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;"><span style="display:block;height:100%;width:${p||0}%;background:${wrc(p)};"></span></span><span style="width:34px;text-align:right;font-size:10px;font-weight:700;color:${wrc(p)};font-family:var(--font-mono);">${p==null?'—':p+'%'}</span><span style="width:26px;text-align:right;font-size:8px;color:var(--text4);">${x.g}g</span></div>`;};
+            const timeRows=Object.entries(timeslot).sort((a,b)=>a[0].localeCompare(b[0])).map(([hr,x])=>barRow(fmt12(hr),x)).join('');
+            const regionRows=Object.entries(region).sort((a,b)=>b[1].g-a[1].g).map(([rg,x])=>barRow('vs '+rg,x)).join('');
+            return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:20px;align-items:start;">
+              <div>
+                <div style="font-size:9px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:9px;">Game Phase Control</div>
+                <div style="display:flex;gap:8px;justify-content:space-around;">${stat('Early',e)}${stat('Mid',md)}${stat('Late',l)}</div>
+                <div style="font-size:9px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin:16px 0 9px;">Pick Order</div>
+                <div style="display:flex;gap:8px;justify-content:space-around;">${stat('First Pick',fp)}${stat('Second Pick',sp)}</div>
+              </div>
+              <div>
+                <div style="font-size:9px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">By Time Slot</div>
+                ${timeRows||'<div style="font-size:10px;color:var(--text4);">Add game Time in match entry to see which slots they perform best in.</div>'}
+              </div>
+              <div>
+                <div style="font-size:9px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">vs Region</div>
+                ${regionRows||'<div style="font-size:10px;color:var(--text4);">No opponent-region data.</div>'}
+              </div>
+            </div>`;
+          })()}
         </div>
 
         <!-- ANALYSIS ROW -->
