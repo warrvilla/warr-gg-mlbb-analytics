@@ -2755,12 +2755,16 @@ function setLeagueFilter(lf) {
   try { localStorage.setItem('warr_scout_league', lf); } catch(_){}   // remember league across reloads
   _muSeason = null; _muHero = null; // matchups re-derives this league's current season + a valid hero
   _matchPage = 1; _teamPage = 1; weekFilter = 'all'; _weekAutoPicked = false;
-  // Default to this league's ACTIVE season: the admin-marked current season if
-  // set, otherwise the most recent season present in the data. Only "All Leagues"
-  // stays on all seasons. This keeps Scout focused on the current tournament.
+  // Default to this league's ACTIVE season, but NEVER in a way that hides matches:
+  // - admin-marked current season wins,
+  // - else the most recent season ONLY if every match in this league is season-tagged
+  //   (otherwise narrowing would hide untagged games — the "match log is empty" bug),
+  // - else show all seasons.
   seasonFilter = 'all';
   if (lf !== 'all') {
-    seasonFilter = LEAGUE_CURRENT_SEASON[lf] || _mostRecentSeason(lf) || 'all';
+    const lgMatches = DB_MODULE.getMatches().filter(m => (m.league||'') === lf);
+    const anyUntagged = lgMatches.some(m => !(m.season||'').trim());
+    seasonFilter = LEAGUE_CURRENT_SEASON[lf] || (!anyUntagged ? _mostRecentSeason(lf) : '') || 'all';
   }
   // Sync mobile dropdown
   const sel = document.getElementById('mobileLeagueSelect');
