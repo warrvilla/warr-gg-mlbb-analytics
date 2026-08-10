@@ -3103,6 +3103,9 @@ function renderMatchListBody() {
   let _lastWeekKey = null;
   body.innerHTML = _pageSeries.map(s => {
     const sk = s.key;
+    // Series-level admin/write check for the "Add Game" button (the per-game
+    // _canMod below is scoped to the games loop and isn't visible out here).
+    const _canAddGame = (typeof WAdmin==='undefined') || (WAdmin.canWrite ? WAdmin.canWrite(s.league) : true);
     // Default to EXPANDED for any series the user hasn't explicitly collapsed.
     // The old behavior (undefined → collapsed) made new matches appear to
     // "disappear" — you'd save a Playoffs/Day3/BO5 game and see only the
@@ -3219,7 +3222,7 @@ function renderMatchListBody() {
         <div class="ml-team ml-teamB${seriesWinner===s.redTeam?' win':''}"><span class="ml-logo" style="--mc:${_rm.color}"><img src="${_tlogo(s.redTeam)}" loading="lazy" onerror="this.closest('.ml-logo').classList.add('noimg')"><i>${_rm.init}</i></span><span class="nm">${s.redTeam}</span></div>
         <button class="ml-view" onclick="event.stopPropagation();mlToggle(this.closest('.ml-row'))">View Details ▸</button>
       </div>
-      <div class="ml-detail">${s.games.length>1?`<div class="game-tabs">${gameTabs}</div>`:''}${gamePanels}${_canMod?`<div style="padding:9px 12px;border-top:1px solid var(--border);text-align:right;"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openAddGame('${(s.games[0]&&s.games[0].seriesId)||s.seriesId||''}')" title="Add the next game to this series (keeps league/season/teams, swaps sides)">✚ Add Game to this series</button></div>`:''}</div>
+      <div class="ml-detail">${s.games.length>1?`<div class="game-tabs">${gameTabs}</div>`:''}${gamePanels}${_canAddGame?`<div style="padding:9px 12px;border-top:1px solid var(--border);text-align:right;"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openAddGame('${(s.games[0]&&s.games[0].seriesId)||s.seriesId||''}')" title="Add the next game to this series (keeps league/season/teams, swaps sides)">✚ Add Game to this series</button></div>`:''}</div>
     </div>`;
   }).join('') + _renderPager(series.length, MATCH_PAGE_SIZE, _matchPage, 'goMatchPage');
 }
