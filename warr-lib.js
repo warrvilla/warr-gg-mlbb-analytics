@@ -970,23 +970,37 @@ WDB.saveHeroRelation = async function(hero, type, heroes) {
 // placement, social link, win condition, coach notes. Requires migration 014.
 WDB.loadTeamMeta = async function() {
   if (typeof _sbClient === 'undefined') return {};
+  const build = (data, hasLM) => {
+    const out = {};
+    (data || []).forEach(r => {
+      let lm = {};
+      if (hasLM) { try { lm = (typeof r.league_meta === 'string') ? JSON.parse(r.league_meta) : (r.league_meta || {}); } catch(_) { lm = {}; } }
+      out[r.team_name] = {
+        rsRank: r.rs_rank || '', placement: r.placement || '', link: r.link || '',
+        winCondition: r.win_condition || '', coachNotes: r.coach_notes || '',
+        leagueMeta: lm || {},   // { "<league>::<season>": {placement, rsRank, winCondition, coachNotes} }
+      };
+    });
+    return out;
+  };
   try {
     const { data, error } = await _sbClient
       .from('team_meta')
       .select('team_name, rs_rank, placement, link, win_condition, coach_notes, league_meta');
     if (error) throw error;
-    const out = {};
-    (data || []).forEach(r => {
-      let lm = {};
-      try { lm = (typeof r.league_meta === 'string') ? JSON.parse(r.league_meta) : (r.league_meta || {}); } catch(_) { lm = {}; }
-      out[r.team_name] = {
-        rsRank: r.rs_rank || '', placement: r.placement || '', link: r.link || '',
-        winCondition: r.win_condition || '', coachNotes: r.coach_notes || '',
-        leagueMeta: lm || {},   // { "<league>::<season>": {placement, rsRank} } — per-competition standing
-      };
-    });
-    return out;
-  } catch (e) { console.warn('[WDB] loadTeamMeta failed:', e.message); return {}; }
+    return build(data, true);
+  } catch (e) {
+    // Most likely the league_meta column doesn't exist yet (migration 016 not run).
+    // Fall back to the legacy columns so the whole team profile system still loads
+    // instead of returning nothing. Per-league scoping needs migration 016.
+    console.warn('[WDB] loadTeamMeta: league_meta unavailable (run migration 016 for per-league profiles) —', e.message);
+    try {
+      const { data } = await _sbClient
+        .from('team_meta')
+        .select('team_name, rs_rank, placement, link, win_condition, coach_notes');
+      return build(data, false);
+    } catch (e2) { console.warn('[WDB] loadTeamMeta failed:', e2.message); return {}; }
+  }
 };
 WDB.saveTeamMeta = async function(name, d) {
   if (typeof _sbClient === 'undefined') throw new Error('Supabase not ready');
