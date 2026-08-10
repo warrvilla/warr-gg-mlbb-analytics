@@ -3937,8 +3937,14 @@ function showPlayerPicker(idx, el, team) {
       onclick="setPlayerFromPicker(${idx},'${p.ign.replace(/'/g,"\\'")}')">
       ${p.ign}${p.real_name?' <span style="opacity:.5;font-size:9px;">('+p.real_name+')</span>':''}
     </button>`).join('');
-  pop.innerHTML = (btns || '<span style="color:var(--text3);font-size:11px;padding:4px;">No players found.<br>Add in Team Manager.</span>') +
-    `<button style="color:var(--text3);border-color:var(--border2);margin-top:4px;" onclick="setPlayerFromPicker(${idx},null)">None</button>`;
+  pop.innerHTML = (btns || '<span style="color:var(--text3);font-size:11px;padding:4px;">No players in this team\'s roster yet.</span>') +
+    `<div style="display:flex;gap:4px;margin-top:6px;border-top:1px solid var(--border2);padding-top:6px;">
+       <input id="_qpInput" placeholder="+ new player IGN" autocomplete="off"
+         style="flex:1;min-width:0;font-size:11px;padding:4px 6px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);"
+         onkeydown="if(event.key==='Enter'){event.preventDefault();addPlayerFromPicker(${idx},'${team}');}">
+       <button style="color:var(--accent);border-color:rgba(124,92,246,.5);flex-shrink:0;" onclick="addPlayerFromPicker(${idx},'${team}')">Add</button>
+     </div>
+     <button style="color:var(--text3);border-color:var(--border2);margin-top:4px;" onclick="setPlayerFromPicker(${idx},null)">None</button>`;
   el.style.position = 'relative';
   el.appendChild(pop);
   setTimeout(() => {
@@ -3953,6 +3959,32 @@ function setPlayerFromPicker(idx, ign) {
   if (draftSlots[idx]) draftSlots[idx].player = ign || null;
   document.querySelectorAll('.player-picker-pop').forEach(p => p.remove());
   renderDraftBoard();
+}
+
+// Quick-add a brand-new player right from the draft (new season → new roster).
+// Tags the pick immediately (works for this game regardless), and persists the
+// player to the team's roster so they autocomplete next time.
+async function addPlayerFromPicker(idx, team) {
+  const inp = document.getElementById('_qpInput');
+  const ign = (inp?.value || '').trim();
+  if (!ign) { toast('Enter a player IGN','error'); return; }
+  if (draftSlots[idx]) draftSlots[idx].player = ign;   // tag now — never blocks entry
+  document.querySelectorAll('.player-picker-pop').forEach(p => p.remove());
+  renderDraftBoard();
+  const teamName = document.getElementById(team==='blue'?'mf-blue':'mf-red')?.value?.trim();
+  if (teamName && typeof WDB!=='undefined' && WDB.savePlayer) {
+    // Don't duplicate if they already exist on this team's roster.
+    const exists = (_scoutPlayers[team]||[]).some(p => (p.ign||'').toLowerCase() === ign.toLowerCase());
+    if (exists) return;
+    const lane = draftSlots[idx]?.lane || '';
+    try {
+      await WDB.savePlayer({ ign, team_name: teamName, role: lane, is_active: true });
+      await loadScoutPlayers();
+      toast(`✓ Added ${ign} to ${teamName}'s roster`);
+    } catch(e) {
+      toast(`Tagged ${ign} for this game — couldn't save to roster (${e&&e.message||'permission'})`, 'error');
+    }
+  }
 }
 
 // Inline K/D/A handler — writes to draftSlots[i].kda. Empty input = clear field.
