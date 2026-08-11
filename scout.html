@@ -4925,6 +4925,10 @@ function openTeamReport(teamName) {
   });
   window._heroRespData = respMap;
   window._heroRespTeam = teamName;
+  // Expose the report's team + filter-scoped games so the "Drafts on <map>" popup
+  // can list them without re-scoping the whole report.
+  window._reportTeamName = teamName;
+  window._reportTeamGames = teamGames;
 
   // Auto-derived strengths & weaknesses
   const weaknesses = [], strengths = [];
@@ -5741,7 +5745,7 @@ function openTeamReport(teamName) {
                 ${grp('Top Bans','var(--red)', bans.map(([h,c])=>chip(h,`×${c}`)).join('')||'<span style="font-size:9px;color:var(--text4);">—</span>')}
                 ${best.length?grp('Best Heroes (WR)','var(--green)', best.map(o=>chip(o.n,`<b style="color:var(--green);">${o.wr}%</b> ${o.c}g`)).join('')):''}
                 ${worst.length&&worst.some(o=>o.wr<100)?grp('Worst Heroes (WR)','var(--red)', worst.map(o=>chip(o.n,`<b style="color:${wrc(o.wr)};">${o.wr}%</b> ${o.c}g`)).join('')):''}
-                <button class="rpt2-vall no-print" style="margin-top:11px;" onclick="setReportMapFilter('${mp.replace(/'/g,"\\'")}')" title="Scope the whole report to this map — Match History below shows every full draft on it">View all ${s.games||0} draft${(s.games||0)!==1?'s':''} on ${mp} →</button>
+                <button class="rpt2-vall no-print" style="margin-top:11px;" onclick="showMapDrafts('${mp.replace(/'/g,"\\'")}')" title="See every full draft this team ran on ${mp}">View all ${s.games||0} draft${(s.games||0)!==1?'s':''} on ${mp} →</button>
               </div>`;
             }).join('');
             return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;align-items:start;">${cards}</div>`;
@@ -6448,6 +6452,53 @@ function _heroRespRender(q) {
       ${oneoffs ? `<div style="font-size:9.5px;color:var(--text4);margin-top:10px;">+ ${oneoffs} one-off pick${oneoffs!==1?'s':''} ignored (no signal)</div>` : ''}
       ${recHTML}
     </div>`;
+}
+
+// Focused popup: every full draft this team ran on a given map (respects the
+// report's current filters). Doesn't touch the report's own scope.
+function showMapDrafts(mp) {
+  const team = window._reportTeamName;
+  const all  = window._reportTeamGames || [];
+  const games = all.filter(m => (m.map||'') === mp).sort((a,b)=> new Date(b.date) - new Date(a.date));
+  const ic = (n,s=26)=> n ? `<img src="${_heroIcon(n)}" onerror="${_heroIconErr(n)}" style="width:${s}px;height:${s}px;border-radius:7px;object-fit:cover;flex-shrink:0;background:var(--surface3);" title="${n}">` : '';
+  const list = (arr,s)=>`<div style="display:flex;gap:4px;flex-wrap:wrap;">${(arr||[]).map(p=>ic(p&&(p.name||p),s)).join('')||'<span style="font-size:10px;color:var(--text4);">—</span>'}</div>`;
+  const rows = games.map(g=>{
+    const ours=g.blueTeam===team; const won=(ours&&g.winner==='blue')||(!ours&&g.winner==='red');
+    const opp=ours?g.redTeam:g.blueTeam;
+    const d=new Date(g.date); const ds=isNaN(d.getTime())?g.date:`${d.toLocaleString('default',{month:'short'})} ${d.getDate()}, ${d.getFullYear()}`;
+    const ourPicks=ours?g.bluePicks:g.redPicks, ourBans=ours?g.blueBans:g.redBans;
+    const oppPicks=ours?g.redPicks:g.bluePicks, oppBans=ours?g.redBans:g.blueBans;
+    return `<div style="border:1px solid var(--border);border-radius:11px;padding:12px 14px;margin-bottom:10px;background:var(--surface2);break-inside:avoid;">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:9px;flex-wrap:wrap;">
+        <span style="font-size:13px;font-weight:800;font-family:var(--font-head);color:${won?'var(--green)':'var(--red)'};">${won?'WIN':'LOSS'}</span>
+        <span style="font-size:12.5px;font-weight:700;">vs ${opp}</span>
+        <span style="font-size:9.5px;color:var(--text3);">${ds}${g.league?' · '+g.league:''}${g.season?' · '+g.season:''} · ${ours?'Blue':'Red'} side${g.gameNum?' · Game '+g.gameNum:''}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div>
+          <div style="font-size:8px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--accent);margin-bottom:5px;">${team} · Picks</div>${list(ourPicks,28)}
+          <div style="font-size:8px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--red);margin:8px 0 5px;">Bans</div>${list(ourBans,20)}
+        </div>
+        <div>
+          <div style="font-size:8px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--text3);margin-bottom:5px;">${opp} · Picks</div>${list(oppPicks,28)}
+          <div style="font-size:8px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--red);margin:8px 0 5px;">Bans</div>${list(oppBans,20)}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  const wins = games.filter(g=>(g.blueTeam===team&&g.winner==='blue')||(g.redTeam===team&&g.winner==='red')).length;
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay'; overlay.id='mapDraftsModal';
+  overlay.innerHTML=`<div class="modal" style="max-width:780px;width:94vw;">
+    <div class="modal-header">
+      <div class="modal-title">Drafts on ${mp} — ${team}</div>
+      <div style="font-size:10px;color:var(--text3);margin-left:10px;">${games.length} game${games.length!==1?'s':''} · ${wins}W-${games.length-wins}L</div>
+      <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="document.getElementById('mapDraftsModal').remove()">✕ Close</button>
+    </div>
+    <div class="modal-body">${rows||'<div class="empty-state"><p>No drafts recorded on this map.</p></div>'}</div>
+  </div>`;
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
 }
 
 function openH2H(teamName) {
