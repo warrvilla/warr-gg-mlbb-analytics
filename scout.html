@@ -1272,9 +1272,14 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
 }
 
 /* ══ Redesigned match-entry: two-column (Match Info | Draft Entry) ══ */
-.entry-grid { display:grid; grid-template-columns: minmax(320px,380px) 1fr; gap:16px; align-items:start; }
-@media(max-width:920px){ .entry-grid{ grid-template-columns:1fr; } }
-.entry-card { background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.008)); border:1px solid var(--border); border-radius:14px; padding:16px 18px; }
+/* Uses a wide modal (see inline max-width). Match Info gets a roomy column and
+   Draft Entry takes the larger remainder, so neither side is cramped. */
+.entry-grid { display:grid; grid-template-columns: minmax(440px, 0.9fr) 1.3fr; gap:22px; align-items:start; }
+@media(max-width:1000px){ .entry-grid{ grid-template-columns:1fr; } }
+.entry-card { background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.008)); border:1px solid var(--border); border-radius:14px; padding:18px 20px; }
+/* Give the Match Info form rows comfortable spacing (they were tight). */
+#matchModal .entry-card .form-row { gap:14px; margin-bottom:12px; }
+#matchModal .entry-card .form-group .form-label { margin-bottom:5px; }
 .entry-head { display:flex; align-items:center; gap:11px; margin-bottom:16px; }
 .entry-head .ico { width:34px;height:34px;border-radius:10px;background:var(--accent-dim,rgba(124,92,246,.14));border:1px solid var(--purple-border,rgba(124,92,246,.3));display:flex;align-items:center;justify-content:center;color:var(--accent);flex-shrink:0; }
 .entry-head h3 { margin:0;font-size:13px;font-weight:800;font-family:var(--font-head);letter-spacing:.5px;text-transform:uppercase;color:var(--text); }
@@ -3421,7 +3426,7 @@ function _openMatchModal(m) {
   overlay.className = 'modal-overlay';
   overlay.id = 'matchModal';
   overlay.innerHTML = `
-    <div class="modal" style="max-width:1180px;width:96vw;">
+    <div class="modal" style="max-width:1560px;width:97vw;">
       <div class="modal-header">
         <div class="modal-title">${editingMatchId ? 'Edit Match' : '+ New Match'}${_seriesBanner}</div>
         <div style="font-size:10px;color:var(--text3);margin-left:4px;">
