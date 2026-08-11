@@ -5741,6 +5741,7 @@ function openTeamReport(teamName) {
                 ${grp('Top Bans','var(--red)', bans.map(([h,c])=>chip(h,`×${c}`)).join('')||'<span style="font-size:9px;color:var(--text4);">—</span>')}
                 ${best.length?grp('Best Heroes (WR)','var(--green)', best.map(o=>chip(o.n,`<b style="color:var(--green);">${o.wr}%</b> ${o.c}g`)).join('')):''}
                 ${worst.length&&worst.some(o=>o.wr<100)?grp('Worst Heroes (WR)','var(--red)', worst.map(o=>chip(o.n,`<b style="color:${wrc(o.wr)};">${o.wr}%</b> ${o.c}g`)).join('')):''}
+                <button class="rpt2-vall no-print" style="margin-top:11px;" onclick="setReportMapFilter('${mp.replace(/'/g,"\\'")}')" title="Scope the whole report to this map — Match History below shows every full draft on it">View all ${s.games||0} draft${(s.games||0)!==1?'s':''} on ${mp} →</button>
               </div>`;
             }).join('');
             return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;align-items:start;">${cards}</div>`;
