@@ -5650,9 +5650,8 @@ function openTeamReport(teamName) {
           </div>
         </div>` : ''}
 
-        <!-- OBJECTIVES · MAPS -->
-        <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:14px;align-items:stretch;">
-          <div class="rpt2-panel">
+        <!-- OBJECTIVE CONTROL (full width) -->
+        <div class="rpt2-panel">
             <div class="rpt2-title"><span class="bar" style="background:#5EA0D8;box-shadow:0 0 8px #5EA0D8;"></span><h3>Objective Control</h3></div>
             ${(()=>{
               const ring=(pct,label,sub,color)=>{
@@ -5686,34 +5685,45 @@ function openTeamReport(teamName) {
               </div>`:''}`;
             })()}
           </div>
-          <div class="rpt2-panel">
-            <div class="rpt2-title"><span class="bar"></span><h3>Draft by Map</h3><span class="meta">win rate · picks · bans per map</span></div>
-            ${(()=>{
-              if(!Object.keys(t.mapStats||{}).length) return '<div style="font-size:10.5px;color:var(--text4);">No map data. <span style="color:var(--text3);">Tip: use the Map filter up top to scope the whole report to one map.</span></div>';
-              const mh={}, mb={};
-              teamGames.forEach(m=>{ if(!m.map)return; const ours=m.blueTeam===teamName;
-                const picks=ours?(m.bluePicks||[]):(m.redPicks||[]); const bans=ours?(m.blueBans||[]):(m.redBans||[]);
-                const a=mh[m.map]||(mh[m.map]={}); picks.forEach(p=>{const n=p&&(p.name||p); if(n)a[n]=(a[n]||0)+1;});
-                const b=mb[m.map]||(mb[m.map]={}); bans.forEach(x=>{const n=x&&(x.name||x); if(n)b[n]=(b[n]||0)+1;});
-              });
-              const chip=(h,c)=>`<span style="display:inline-flex;align-items:center;gap:3px;font-size:8.5px;color:var(--text3);">${img(h,16)}×${c}</span>`;
-              return Object.entries(t.mapStats).map(([mp,s])=>{
-                const mc=wrc(s.wr);
-                const picks=Object.entries(mh[mp]||{}).sort((a,b)=>b[1]-a[1]).slice(0,5);
-                const bans =Object.entries(mb[mp]||{}).sort((a,b)=>b[1]-a[1]).slice(0,4);
-                return `<div style="margin-bottom:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
-                  <div style="display:flex;align-items:center;gap:8px;">
-                    <span style="font-size:11px;font-weight:700;width:120px;flex-shrink:0;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${mp}</span>
-                    <div style="flex:1;height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;"><div style="width:${s.wr}%;height:100%;background:${mc};border-radius:3px;"></div></div>
-                    <span style="font-size:10.5px;font-weight:800;color:${mc};font-family:var(--font-mono);width:34px;text-align:right;">${s.wr}%</span>
-                    <span style="font-size:9px;color:var(--text3);">${s.games}g</span>
-                  </div>
-                  ${picks.length?`<div style="display:flex;align-items:center;gap:6px;margin-top:5px;flex-wrap:wrap;"><span style="font-size:7.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text4);width:30px;flex-shrink:0;">Pick</span>${picks.map(([h,c])=>chip(h,c)).join('')}</div>`:''}
-                  ${bans.length?`<div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;"><span style="font-size:7.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--red);width:30px;flex-shrink:0;">Ban</span>${bans.map(([h,c])=>chip(h,c)).join('')}</div>`:''}
-                </div>`;
-              }).join('');
-            })()}
-          </div>
+        <!-- DRAFT BY MAP (full-width per-map cards) -->
+        <div class="rpt2-panel">
+          <div class="rpt2-title"><span class="bar"></span><h3>Draft by Map</h3><span class="meta">per map: win rate · top picks · top bans · best &amp; worst heroes</span></div>
+          ${(()=>{
+            const maps = Object.keys(t.mapStats||{});
+            if(!maps.length) return '<div style="font-size:10.5px;color:var(--text4);">No map data yet. Tip: use the Map filter at the top to scope the whole report to a single map for a full per-map draft profile.</div>';
+            const agg={};
+            teamGames.forEach(m=>{ if(!m.map)return; const ours=m.blueTeam===teamName;
+              const won=(ours&&m.winner==='blue')||(!ours&&m.winner==='red');
+              const picks=ours?(m.bluePicks||[]):(m.redPicks||[]); const bans=ours?(m.blueBans||[]):(m.redBans||[]);
+              const A=agg[m.map]||(agg[m.map]={picks:{},bans:{}});
+              picks.forEach(p=>{const n=p&&(p.name||p); if(!n)return; const e=A.picks[n]||(A.picks[n]={c:0,w:0}); e.c++; if(won)e.w++;});
+              bans.forEach(x=>{const n=x&&(x.name||x); if(!n)return; A.bans[n]=(A.bans[n]||0)+1;});
+            });
+            const chip=(h,extra,col='var(--text3)')=>`<span style="display:inline-flex;align-items:center;gap:4px;font-size:9px;color:${col};background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:20px;padding:2px 8px 2px 2px;white-space:nowrap;">${img(h,18)}<span>${h}${extra?` ${extra}`:''}</span></span>`;
+            const grp=(label,color,html)=> html?`<div style="margin-top:9px;"><div style="font-size:8px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:${color};margin-bottom:5px;">${label}</div><div style="display:flex;gap:5px;flex-wrap:wrap;">${html}</div></div>`:'';
+            const cards = Object.entries(t.mapStats).map(([mp,s])=>{
+              const mc=wrc(s.wr); const A=agg[mp]||{picks:{},bans:{}};
+              const pickArr=Object.entries(A.picks).sort((a,b)=>b[1].c-a[1].c);
+              const topPicks=pickArr.slice(0,6);
+              const bans=Object.entries(A.bans).sort((a,b)=>b[1]-a[1]).slice(0,6);
+              const perf=pickArr.filter(([,e])=>e.c>=2).map(([n,e])=>({n,c:e.c,wr:Math.round(e.w/e.c*100)}));
+              const best=[...perf].sort((a,b)=>b.wr-a.wr||b.c-a.c).slice(0,3);
+              const worst=[...perf].sort((a,b)=>a.wr-b.wr||b.c-a.c).slice(0,3);
+              return `<div style="border:1px solid var(--border);border-radius:12px;padding:13px 14px;background:linear-gradient(180deg,rgba(255,255,255,.02),transparent);break-inside:avoid;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                  <span style="font-size:12.5px;font-weight:800;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${mp}</span>
+                  <span style="font-size:16px;font-weight:800;font-family:var(--font-head);color:${mc};">${s.wr}%</span>
+                  <span style="font-size:9px;color:var(--text3);">${s.wins||0}W-${(s.games||0)-(s.wins||0)}L</span>
+                </div>
+                <div style="height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;"><div style="width:${s.wr}%;height:100%;background:${mc};border-radius:3px;"></div></div>
+                ${grp('Top Picks','var(--text4)', topPicks.map(([h,e])=>chip(h,`×${e.c}`)).join('')||'<span style="font-size:9px;color:var(--text4);">—</span>')}
+                ${grp('Top Bans','var(--red)', bans.map(([h,c])=>chip(h,`×${c}`)).join('')||'<span style="font-size:9px;color:var(--text4);">—</span>')}
+                ${best.length?grp('Best Heroes (WR)','var(--green)', best.map(o=>chip(o.n,`<b style="color:var(--green);">${o.wr}%</b> ${o.c}g`)).join('')):''}
+                ${worst.length&&worst.some(o=>o.wr<100)?grp('Worst Heroes (WR)','var(--red)', worst.map(o=>chip(o.n,`<b style="color:${wrc(o.wr)};">${o.wr}%</b> ${o.c}g`)).join('')):''}
+              </div>`;
+            }).join('');
+            return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;align-items:start;">${cards}</div>`;
+          })()}
         </div>
 
         <!-- SITUATIONAL WIN RATES (phase · pick order · time slot · vs region) -->
