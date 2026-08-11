@@ -3322,6 +3322,7 @@ function openAddGame(seriesId) {
     stage:last.stage, week:last.week, seriesFormat:last.seriesFormat,
     gameNum: nextNum,
     blueTeam: last.redTeam, redTeam: last.blueTeam,   // sides swap between games
+    blueRegion: last.redRegion||'', redRegion: last.blueRegion||'',
     winner:'blue', date:last.date, vodLink:'', notes:'',
     blueBans:[], redBans:[], bluePicks:[], redPicks:[]
   });
@@ -3519,6 +3520,20 @@ function _openMatchModal(m) {
                 <option value="Broken Walls"    ${m.map==='Broken Walls'   ?'selected':''}>Broken Walls</option>
                 <option value="Flying Cloud"    ${m.map==='Flying Cloud'   ?'selected':''}>Flying Cloud</option>
                 <option value="Expanding River" ${m.map==='Expanding River'?'selected':''}>Expanding River</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Blue Team Region <span style="color:var(--text4);font-size:10px;font-weight:400;">(for vs-region win rate)</span></label>
+              <select class="form-select" id="mf-blue-region">
+                ${['','PH','MY','ID','KH','MM','Others'].map(r=>`<option value="${r}"${(m.blueRegion||'')===r?' selected':''}>${r||'—'}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Red Team Region</label>
+              <select class="form-select" id="mf-red-region">
+                ${['','PH','MY','ID','KH','MM','Others'].map(r=>`<option value="${r}"${(m.redRegion||'')===r?' selected':''}>${r||'—'}</option>`).join('')}
               </select>
             </div>
           </div>
@@ -4011,6 +4026,7 @@ function setKda(idx, key, raw) {
 function swapMatchSides() {
   const swapVal = (a,b)=>{ if(a&&b){ const t=a.value; a.value=b.value; b.value=t; } };
   swapVal(document.getElementById('mf-blue'),        document.getElementById('mf-red'));
+  swapVal(document.getElementById('mf-blue-region'), document.getElementById('mf-red-region'));
   swapVal(document.getElementById('mf-towers-blue'), document.getElementById('mf-towers-red'));
   const w=document.getElementById('mf-winner'); if(w) w.value = w.value==='blue'?'red':w.value==='red'?'blue':w.value;
   ['early','mid','late'].forEach(ph=>{ const s=document.getElementById('mf-phase-'+ph); if(s) s.value = s.value==='blue'?'red':s.value==='red'?'blue':''; });
@@ -4100,6 +4116,8 @@ function saveMatch(next) {
   // Game duration + phase control (early/mid/late winner) — optional.
   const duration = (document.getElementById('mf-duration')?.value||'').trim();
   const gameTime = (document.getElementById('mf-time')?.value||'').trim();   // HH:MM (for time-slot win rate)
+  const blueRegion = document.getElementById('mf-blue-region')?.value || '';
+  const redRegion  = document.getElementById('mf-red-region')?.value  || '';
   const _pw = {
     early: document.getElementById('mf-phase-early')?.value || '',
     mid:   document.getElementById('mf-phase-mid')?.value   || '',
@@ -4138,6 +4156,8 @@ function saveMatch(next) {
     ...(towers     ? { towers }     : {}),
     ...(duration   ? { duration }   : {}),
     ...(gameTime   ? { time: gameTime } : {}),
+    ...(blueRegion ? { blueRegion } : {}),
+    ...(redRegion  ? { redRegion }  : {}),
     ...(phaseWinners ? { phaseWinners } : {}),
     _createdBy,
     savedAt: Date.now(),
@@ -4158,6 +4178,7 @@ function saveMatch(next) {
       stage: match.stage, week: match.week, seriesFormat: match.seriesFormat,
       gameNum: (Number(match.gameNum)||1) + 1,
       blueTeam: match.redTeam, redTeam: match.blueTeam,   // auto-swap sides
+      blueRegion: match.redRegion||'', redRegion: match.blueRegion||'',
       date: match.date, winner: 'blue', map: '',
       // per-game fields intentionally omitted → draft, objectives, towers,
       // firstBlood, duration, time, phase winners, VOD, notes all reset.
@@ -5736,7 +5757,10 @@ function openTeamReport(teamName) {
               if(pw.early){e.g++;if(pw.early===side)e.w++;}
               if(pw.mid){md.g++;if(pw.mid===side)md.w++;}
               if(pw.late){l.g++;if(pw.late===side)l.w++;}
-              const opp=ours?m.redTeam:m.blueTeam; const rg=_teamRegion(opp);
+              const opp=ours?m.redTeam:m.blueTeam;
+              // Prefer the region explicitly tagged on this match (opponent's side),
+              // then fall back to inferring from the opponent's official league.
+              const rg=(ours ? m.redRegion : m.blueRegion) || _teamRegion(opp) || 'Others';
               const rb=region[rg]||(region[rg]={g:0,w:0}); rb.g++; if(won)rb.w++;
               if(m.time){ const hr=String(m.time).slice(0,5); const tb=timeslot[hr]||(timeslot[hr]={g:0,w:0}); tb.g++; if(won)tb.w++; }
             });
