@@ -5691,7 +5691,7 @@ function openTeamReport(teamName) {
               };
               const anyObj = t.turtleCtrl!=null||t.lordCtrl!=null||t.firstTurtleRate!=null||t.firstLordRate!=null||t.fbRate!=null;
               if(!anyObj) return '<div style="font-size:10.5px;color:var(--text4);">No objective data.</div>';
-              return `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;">
+              return `<div style="max-width:900px;margin:0 auto;"><div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;">
                 ${ring(t.turtleCtrl,'Turtle Ctrl',t.turtleTotal?`${t.turtleTotal} total`:'','#4CB87A')}
                 ${ring(t.lordCtrl,'Lord Ctrl',t.lordTotal?`${t.lordTotal} total`:'','#f4a534')}
                 ${ring(t.firstTurtleRate,'First Turtle',t.firstTurtleToWin!=null?`${t.firstTurtleToWin}% → win`:'','#4CB87A')}
@@ -5703,7 +5703,7 @@ function openTeamReport(teamName) {
                 <div><div style="font-size:15px;font-weight:800;font-family:var(--font-head);color:var(--red);">${t.avgOppTowers!=null?t.avgOppTowers:'—'}</div><div style="font-size:7.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--text3);margin-top:3px;">Towers Lost</div></div>
                 <div><div style="font-size:15px;font-weight:800;font-family:var(--font-head);color:${(t.towerDiff||0)>=0?'var(--green)':'var(--red)'};">${t.towerDiff!=null?(t.towerDiff>=0?'+':'')+t.towerDiff:'—'}</div><div style="font-size:7.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--text3);margin-top:3px;">Differential</div></div>
                 <div><div style="font-size:15px;font-weight:800;font-family:var(--font-head);color:var(--text2);">${gp}</div><div style="font-size:7.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--text3);margin-top:3px;">Sample</div></div>
-              </div>`:''}`;
+              </div>`:''}</div>`;
             })()}
           </div>
         <!-- DRAFT BY MAP (full-width per-map cards) -->
