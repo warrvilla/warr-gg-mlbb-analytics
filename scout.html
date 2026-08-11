@@ -5687,22 +5687,29 @@ function openTeamReport(teamName) {
             })()}
           </div>
           <div class="rpt2-panel">
-            <div class="rpt2-title"><span class="bar"></span><h3>Map Performance</h3><span class="meta">win rate + heroes picked</span></div>
+            <div class="rpt2-title"><span class="bar"></span><h3>Draft by Map</h3><span class="meta">win rate · picks · bans per map</span></div>
             ${(()=>{
-              if(!Object.keys(t.mapStats||{}).length) return '<div style="font-size:10.5px;color:var(--text4);">No map data.</div>';
-              const mh={};
-              teamGames.forEach(m=>{ if(!m.map)return; const ours=m.blueTeam===teamName; const picks=ours?(m.bluePicks||[]):(m.redPicks||[]);
-                const a=mh[m.map]||(mh[m.map]={}); picks.forEach(p=>{const n=p&&(p.name||p); if(n)a[n]=(a[n]||0)+1;}); });
+              if(!Object.keys(t.mapStats||{}).length) return '<div style="font-size:10.5px;color:var(--text4);">No map data. <span style="color:var(--text3);">Tip: use the Map filter up top to scope the whole report to one map.</span></div>';
+              const mh={}, mb={};
+              teamGames.forEach(m=>{ if(!m.map)return; const ours=m.blueTeam===teamName;
+                const picks=ours?(m.bluePicks||[]):(m.redPicks||[]); const bans=ours?(m.blueBans||[]):(m.redBans||[]);
+                const a=mh[m.map]||(mh[m.map]={}); picks.forEach(p=>{const n=p&&(p.name||p); if(n)a[n]=(a[n]||0)+1;});
+                const b=mb[m.map]||(mb[m.map]={}); bans.forEach(x=>{const n=x&&(x.name||x); if(n)b[n]=(b[n]||0)+1;});
+              });
+              const chip=(h,c)=>`<span style="display:inline-flex;align-items:center;gap:3px;font-size:8.5px;color:var(--text3);">${img(h,16)}×${c}</span>`;
               return Object.entries(t.mapStats).map(([mp,s])=>{
-                const mc=wrc(s.wr); const heroes=Object.entries(mh[mp]||{}).sort((a,b)=>b[1]-a[1]).slice(0,5);
-                return `<div style="margin-bottom:11px;">
+                const mc=wrc(s.wr);
+                const picks=Object.entries(mh[mp]||{}).sort((a,b)=>b[1]-a[1]).slice(0,5);
+                const bans =Object.entries(mb[mp]||{}).sort((a,b)=>b[1]-a[1]).slice(0,4);
+                return `<div style="margin-bottom:12px;padding-bottom:11px;border-bottom:1px solid var(--border);">
                   <div style="display:flex;align-items:center;gap:8px;">
-                    <span style="font-size:10.5px;width:118px;flex-shrink:0;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${mp}</span>
+                    <span style="font-size:11px;font-weight:700;width:120px;flex-shrink:0;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${mp}</span>
                     <div style="flex:1;height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;"><div style="width:${s.wr}%;height:100%;background:${mc};border-radius:3px;"></div></div>
-                    <span style="font-size:10.5px;font-weight:700;color:${mc};font-family:var(--font-mono);width:34px;text-align:right;">${s.wr}%</span>
+                    <span style="font-size:10.5px;font-weight:800;color:${mc};font-family:var(--font-mono);width:34px;text-align:right;">${s.wr}%</span>
                     <span style="font-size:9px;color:var(--text3);">${s.games}g</span>
                   </div>
-                  ${heroes.length?`<div style="display:flex;gap:6px;margin-top:4px;padding-left:2px;flex-wrap:wrap;">${heroes.map(([h,c])=>`<span style="display:inline-flex;align-items:center;gap:3px;font-size:8.5px;color:var(--text3);">${img(h,16)}×${c}</span>`).join('')}</div>`:''}
+                  ${picks.length?`<div style="display:flex;align-items:center;gap:6px;margin-top:5px;flex-wrap:wrap;"><span style="font-size:7.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text4);width:30px;flex-shrink:0;">Pick</span>${picks.map(([h,c])=>chip(h,c)).join('')}</div>`:''}
+                  ${bans.length?`<div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap;"><span style="font-size:7.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--red);width:30px;flex-shrink:0;">Ban</span>${bans.map(([h,c])=>chip(h,c)).join('')}</div>`:''}
                 </div>`;
               }).join('');
             })()}
