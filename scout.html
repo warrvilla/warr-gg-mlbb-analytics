@@ -2736,7 +2736,7 @@ function renderMatchups(){
 // A team's region, inferred from the official league they play most (used to
 // bucket scrim opponents: "vs PH / ID / MY / MDL…"). Falls back to 'Other'.
 function _teamRegion(name){
-  if(!name) return 'Other';
+  if(!name) return 'Others';
   const cnt={};
   DB_MODULE.getMatches().forEach(m=>{
     if(m.blueTeam!==name && m.redTeam!==name) return;
@@ -2745,7 +2745,7 @@ function _teamRegion(name){
     cnt[l]=(cnt[l]||0)+1;
   });
   const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
-  if(!top) return 'Other';
+  if(!top) return 'Others';
   return top[0].startsWith('MPL ') ? top[0].slice(4) : top[0];
 }
 function _mostRecentSeason(league){
