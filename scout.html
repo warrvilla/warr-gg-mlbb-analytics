@@ -3966,6 +3966,11 @@ function showPlayerPicker(idx, el, team) {
   const pop = document.createElement('div');
   pop.className = 'lane-picker-pop player-picker-pop';
   pop.style.width = '180px';
+  // The popup lives inside the clickable player pill, so clicks inside it would
+  // bubble back to the pill and re-open (wiping) the popup — killing the text
+  // input's focus and the Add button. Stop clicks here from bubbling.
+  pop.addEventListener('mousedown', e => e.stopPropagation());
+  pop.addEventListener('click', e => e.stopPropagation());
   const current = draftSlots[idx]?.player;
   const btns = players.map(p =>
     `<button style="color:${current===p.ign?'var(--accent)':'var(--text2)'};border-color:${current===p.ign?'rgba(124,92,246,.5)':'var(--border2)'};background:${current===p.ign?'var(--accent-dim)':'transparent'};"
