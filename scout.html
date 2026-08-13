@@ -1765,14 +1765,16 @@ async function loadCustomLeagues() {
       LEAGUE_COLOR[name] = color;
       LEAGUE_CSS[name]   = 'lg-other'; // use generic styling
 
-      // Add sidebar button (desktop)
+      // Add sidebar button (desktop) — insert with the other league buttons,
+      // i.e. BEFORE the "League Report" action so it doesn't fall below it.
       if (sidebar) {
         const btn = document.createElement('button');
         btn.className = 'sidebar-btn desktop-only';
         btn.id = 'sb-' + name;
         btn.setAttribute('onclick', `setLeagueFilter('${name.replace(/'/g,"\\'")}')`);
         btn.innerHTML = `<div class="league-dot" style="background:${color};box-shadow:0 0 5px ${color}66;"></div> ${name}`;
-        sidebar.appendChild(btn);
+        const anchor = document.getElementById('sb-leaguereport');
+        if (anchor) sidebar.insertBefore(btn, anchor); else sidebar.appendChild(btn);
       }
 
       // Add mobile dropdown option
@@ -3925,14 +3927,27 @@ let _scoutPlayers = {}; // { blue: [...], red: [...] } loaded when modal opens
 async function loadScoutPlayers() {
   const blueTeam = document.getElementById('mf-blue')?.value?.trim();
   const redTeam  = document.getElementById('mf-red')?.value?.trim();
+  const season   = (document.getElementById('mf-season')?.value || '').trim();
   _scoutPlayers = { blue: [], red: [] };
-  if (typeof WDB === 'undefined' || !WDB.loadPlayers) return;
+  if (typeof WDB === 'undefined') return;
   try {
-    const all = await WDB.loadPlayers();
-    if (blueTeam) _scoutPlayers.blue = all.filter(p => p.team_name === blueTeam && p.is_active !== false);
-    if (redTeam)  _scoutPlayers.red  = all.filter(p => p.team_name === redTeam  && p.is_active !== false);
+    // Legacy players table (kept for continuity) merged with the explicit
+    // per-season roster (team_rosters) — one unified autocomplete source.
+    let all = [];
+    try { all = (WDB.loadPlayers ? await WDB.loadPlayers() : []) || []; } catch(_){}
+    const mergeTeam = async (team) => {
+      if (!team) return [];
+      const list = all.filter(p => p.team_name===team && p.is_active!==false)
+                      .map(p => ({ ign:p.ign, real_name:p.real_name, role:p.role, is_active:true }));
+      try {
+        const roster = (WDB.loadTeamRoster ? await WDB.loadTeamRoster(team) : []) || [];
+        roster.filter(r => r.is_active!==false && (!season || r.season===season))
+              .forEach(r => { if(!list.some(x=>(x.ign||'').toLowerCase()===(r.ign||'').toLowerCase())) list.push({ ign:r.ign, real_name:r.real_name, role:r.role, is_active:true }); });
+      } catch(_){}
+      return list;
+    };
+    [_scoutPlayers.blue, _scoutPlayers.red] = await Promise.all([mergeTeam(blueTeam), mergeTeam(redTeam)]);
     // Backfill default players on any existing picks that don't have one yet.
-    // Covers the case where user assigned heroes before the roster finished loading.
     let dirty = false;
     if (Array.isArray(draftSlots)) {
       draftSlots.forEach(sl => {
@@ -3992,15 +4007,22 @@ async function addPlayerFromPicker(idx, team) {
   document.querySelectorAll('.player-picker-pop').forEach(p => p.remove());
   renderDraftBoard();
   const teamName = document.getElementById(team==='blue'?'mf-blue':'mf-red')?.value?.trim();
-  if (teamName && typeof WDB!=='undefined' && WDB.savePlayer) {
+  const season   = (document.getElementById('mf-season')?.value || '').trim();
+  if (teamName && typeof WDB!=='undefined') {
     // Don't duplicate if they already exist on this team's roster.
     const exists = (_scoutPlayers[team]||[]).some(p => (p.ign||'').toLowerCase() === ign.toLowerCase());
     if (exists) return;
     const lane = draftSlots[idx]?.lane || '';
     try {
-      await WDB.savePlayer({ ign, team_name: teamName, role: lane, is_active: true });
+      // Save to the season roster (team_rosters) when a season is set so it
+      // shows on the Teams page for that season; else the legacy players table.
+      if (season && WDB.saveRosterPlayer) {
+        await WDB.saveRosterPlayer({ team_name: teamName, season, ign, role: lane, is_active: true });
+      } else if (WDB.savePlayer) {
+        await WDB.savePlayer({ ign, team_name: teamName, role: lane, is_active: true });
+      }
       await loadScoutPlayers();
-      toast(`✓ Added ${ign} to ${teamName}'s roster`);
+      toast(`✓ Added ${ign} to ${teamName}${season?` · ${season}`:''}`);
     } catch(e) {
       toast(`Tagged ${ign} for this game — couldn't save to roster (${e&&e.message||'permission'})`, 'error');
     }
