@@ -330,6 +330,7 @@ let seasons    = [];
 let activeTeam = null; // currently selected team_name
 
 let poolFilter = { playerId: null, source: 'all', league: '', season: '' };
+let _rosterSeason = '';   // '' = current managed roster; else derive roster from that season's matches
 
 // ── Load ──────────────────────────────────────────────────────
 async function loadAll() {
@@ -530,6 +531,7 @@ function renderTeamList() {
 async function selectTeam(teamName) {
   activeTeam = teamName;
   poolFilter = { playerId: null, source: 'all', league: '', season: '' }; // reset on team switch
+  _rosterSeason = '';
   renderTeamList();
   renderTeamDetail(teamName);
   try { seasons = await WDB.loadSeasons(); } catch(e) {}
@@ -558,8 +560,19 @@ function renderTeamDetail(teamName) {
 
       <!-- ROSTER TAB -->
       <div class="tab-panel active" id="tab-roster">
+        ${(()=>{
+          const teamSeasons=[...new Set((allMatches||[]).filter(m=>m.blueTeam===teamName||m.redTeam===teamName).map(m=>(m.season||'').trim()).filter(Boolean))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+          if(!teamSeasons.length) return '';
+          return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <span style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;">View roster</span>
+            <select class="form-input" style="max-width:230px;font-size:12px;padding:5px 8px;" onchange="setRosterSeason(this.value)">
+              <option value="">Current (managed roster)</option>
+              ${teamSeasons.map(s=>`<option value="${esc(s)}"${_rosterSeason===s?' selected':''}>Who played — ${esc(s)}</option>`).join('')}
+            </select>
+          </div>`;
+        })()}
         <div class="roster-list" id="rosterList">
-          ${renderRosterItems(players, canManage)}
+          ${_rosterHTML(teamName, canManage)}
         </div>
         ${canManage ? `
         <div id="addPlayerToggle">
@@ -602,6 +615,39 @@ function renderTeamDetail(teamName) {
         ${renderHeroPoolTab(teamName, players)}
       </div>
     </div>`;
+}
+
+// Roster view: current managed list, OR (when a season is picked) the roster as
+// it actually was that season — derived from who was tagged on picks in that
+// season's matches. Keeps history accurate without manual per-season snapshots.
+function _rosterHTML(teamName, canManage) {
+  if (!_rosterSeason) {
+    return renderRosterItems(allPlayers.filter(p => p.team_name === teamName), canManage);
+  }
+  const byIgn = {};
+  (allMatches||[]).forEach(m => {
+    if ((m.season||'').trim() !== _rosterSeason) return;
+    const side = m.blueTeam===teamName ? 'blue' : (m.redTeam===teamName ? 'red' : null);
+    if (!side) return;
+    const picks = side==='blue' ? (m.bluePicks||[]) : (m.redPicks||[]);
+    picks.forEach(p => { const ign=p&&p.player; if(!ign) return; const b=byIgn[ign]||(byIgn[ign]={ign,games:0,lanes:{}}); b.games++; if(p.lane) b.lanes[p.lane]=(b.lanes[p.lane]||0)+1; });
+  });
+  const rows = Object.values(byIgn).sort((a,b)=>b.games-a.games);
+  if (!rows.length) return `<div style="font-size:12px;color:var(--text3);padding:10px;">No tagged players in ${esc(_rosterSeason)} yet. Tag players on picks in match entry to build the season roster.</div>`;
+  return `<div style="font-size:10px;color:var(--text3);margin-bottom:8px;">Roster as played in <b style="color:var(--text2);">${esc(_rosterSeason)}</b> — derived from match data.</div>` + rows.map(r => {
+    const managed = allPlayers.find(p => p.team_name===teamName && (p.ign||'').toLowerCase()===r.ign.toLowerCase());
+    const lane = Object.entries(r.lanes).sort((a,b)=>b[1]-a[1])[0]?.[0] || (managed?.role||'');
+    const real = managed?.real_name||'';
+    return `<div class="player-row">
+      <div class="player-info"><div class="player-ign">${esc(r.ign)}</div><div class="player-real">${lane?esc(lane)+' · ':''}${r.games} game${r.games!==1?'s':''}${real?' · '+esc(real):''}</div></div>
+      <span class="player-status active" style="opacity:.85;">${esc(_rosterSeason)}</span>
+    </div>`;
+  }).join('');
+}
+function setRosterSeason(v) {
+  _rosterSeason = v || '';
+  const el = document.getElementById('rosterList');
+  if (el && activeTeam) el.innerHTML = _rosterHTML(activeTeam, WAdmin.canManageTeam(activeTeam));
 }
 
 function renderRosterItems(players, canManage) {
