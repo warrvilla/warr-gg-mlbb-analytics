@@ -2092,6 +2092,44 @@ WDB.deleteLeague = async function(id) {
 };
 
 // ═══════════════════════════════════════════════════════════════
+// TEAM SEASON ROSTERS — explicit per-team, per-season lineups (migration 018)
+// ═══════════════════════════════════════════════════════════════
+WDB.loadTeamRoster = async function(teamName) {
+  try {
+    let q = _sbClient.from('team_rosters').select('id, team_name, season, ign, real_name, role, is_active');
+    if (teamName) q = q.eq('team_name', teamName);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
+  } catch(e) { console.warn('[WDB] loadTeamRoster (run migration 018?):', e.message); return []; }
+};
+WDB.saveRosterPlayer = async function(p) {
+  const user = WAuth.getUser();
+  const row = {
+    team_name: p.team_name, season: p.season, ign: (p.ign||'').trim(),
+    real_name: p.real_name || null, role: p.role || null,
+    is_active: p.is_active !== false, created_by: user?.id,
+  };
+  if (p.id) row.id = p.id;
+  const { data, error } = await _sbClient.from('team_rosters')
+    .upsert(row, { onConflict: 'team_name,season,ign' }).select().single();
+  if (error) throw error;
+  return data;
+};
+WDB.removeRosterPlayer = async function(id) {
+  const { error } = await _sbClient.from('team_rosters').delete().eq('id', id);
+  if (error) throw error;
+};
+/** Copy a team's whole roster from one season to another (transfers made after). */
+WDB.copyRosterSeason = async function(teamName, fromSeason, toSeason) {
+  const rows = (await WDB.loadTeamRoster(teamName)).filter(r => r.season === fromSeason);
+  for (const r of rows) {
+    await WDB.saveRosterPlayer({ team_name: teamName, season: toSeason, ign: r.ign, real_name: r.real_name, role: r.role, is_active: r.is_active });
+  }
+  return rows.length;
+};
+
+// ═══════════════════════════════════════════════════════════════
 // SEASONS — per-league seasons/splits
 // ═══════════════════════════════════════════════════════════════
 
