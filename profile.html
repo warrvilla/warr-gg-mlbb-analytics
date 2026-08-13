@@ -1827,15 +1827,17 @@ function renderAdminLeagues() {
     <div class="admin-row">
       <div class="admin-row-main">
         <div>
-          <div class="admin-row-name">${_adminEsc(l.name)}${isVirtual ? ' <span style="font-size:9px;font-weight:600;color:var(--text3);background:rgba(255,255,255,0.05);padding:1px 6px;border-radius:4px;margin-left:4px;letter-spacing:.5px;">BUILT-IN</span>' : ''}</div>
+          <div class="admin-row-name">${_adminEsc(l.name)}${isVirtual ? ' <span style="font-size:9px;font-weight:600;color:var(--text3);background:rgba(255,255,255,0.05);padding:1px 6px;border-radius:4px;margin-left:4px;letter-spacing:.5px;">BUILT-IN</span>' : ''}${l.hidden ? ' <span style="font-size:9px;font-weight:700;color:var(--text3);background:rgba(255,255,255,0.05);padding:1px 6px;border-radius:4px;margin-left:4px;letter-spacing:.5px;">HIDDEN</span>' : ''}</div>
           <div class="admin-row-meta">${_adminEsc(l.region || 'No region')}${cur ? ` · current: <strong style="color:var(--accent);">${_adminEsc(cur)}</strong>` : ''}${isVirtual ? ' · public preset' : ''}</div>
         </div>
       </div>
       <div class="admin-row-actions" style="flex-wrap:wrap;">
         ${seasonSelect}
-        ${isVirtual
-          ? '<span style="font-size:10px;color:var(--text4);align-self:center;">built-in · cannot delete</span>'
-          : `<button class="admin-mgmt-btn danger sm" onclick="adminDeleteLeague('${_adminEsc(l.id)}','${_adminEsc(l.name)}')">Delete</button>`}
+        ${l.hidden
+          ? `<button class="admin-mgmt-btn sm" onclick="adminUnhideLeague('${_adminEsc(l.id)}','${_adminEsc(l.name)}')">Unhide</button>`
+          : (isVirtual
+              ? `<button class="admin-mgmt-btn sm" onclick="adminHideLeague('${_adminEsc(l.name)}')" title="Hide this preset from all league lists">Hide</button>`
+              : `<button class="admin-mgmt-btn sm" onclick="adminHideLeague('${_adminEsc(l.name)}')" title="Hide from lists (keeps data)">Hide</button><button class="admin-mgmt-btn danger sm" onclick="adminDeleteLeague('${_adminEsc(l.id)}','${_adminEsc(l.name)}')">Delete</button>`)}
       </div>
     </div>
   `;
@@ -1892,6 +1894,31 @@ async function adminDeleteLeague(id, name) {
   } catch (e) {
     _adminToast('Delete failed: ' + e.message, 'error');
   }
+}
+
+// Hide a league preset (built-in or custom) from every league list. Built-ins
+// have no row, so this materialises one flagged hidden. Unhide clears the flag.
+async function adminHideLeague(name) {
+  if (!_adminCheckReady()) return;
+  const lg = _adminLeagueCache.find(l => l.name === name);
+  try {
+    await WDB.saveLeague(lg && lg.id ? { id: lg.id, name, region: lg.region, hidden: true } : { name, hidden: true });
+    if (WDB.invalidateLeagues) WDB.invalidateLeagues();
+    if (WDB.initLeagues) await WDB.initLeagues({ force: true });
+    _adminToast(`"${name}" hidden`);
+    await loadAdminLeagues();
+  } catch (e) { _adminToast(/hidden/.test(e.message)?'Run migration 019 first':('Hide failed: '+e.message), 'error'); }
+}
+async function adminUnhideLeague(id, name) {
+  if (!_adminCheckReady()) return;
+  const lg = _adminLeagueCache.find(l => l.id === id);
+  try {
+    await WDB.saveLeague({ id, name, region: lg && lg.region, hidden: false });
+    if (WDB.invalidateLeagues) WDB.invalidateLeagues();
+    if (WDB.initLeagues) await WDB.initLeagues({ force: true });
+    _adminToast(`"${name}" is visible again`);
+    await loadAdminLeagues();
+  } catch (e) { _adminToast('Unhide failed: ' + e.message, 'error'); }
 }
 
 // ── TEAMS / PLAYERS ───────────────────────────────────────────────────────

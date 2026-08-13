@@ -1924,12 +1924,16 @@ WDB._leaguesReady = false;
 WDB._mergeLeagues = function(rows, myMemberships) {
   const uid = (typeof WAuth!=='undefined' && WAuth.getUser) ? (WAuth.getUser()?.id || null) : null;
   const mem = new Set(myMemberships || []);
+  // Admin-hidden league presets — filtered out of every list.
+  WDB._hiddenLeagues = new Set((rows || []).filter(r => r && r.name && r.hidden).map(r => r.name));
   // Hide private leagues the current user can't access (not owner, not a member).
   // Members keep them so their matches aren't dropped by the client filter; the
   // real gate is RLS on scout_matches (server-side) — this is UX de-clutter.
-  WDB.customLeagues = (rows || []).filter(r => r && r.name && (
+  WDB.customLeagues = (rows || []).filter(r => r && r.name && !r.hidden && (
     (r.visibility || 'public') !== 'private' || r.created_by === uid || mem.has(r.name)
   ));
+  // Rebuild PUBLIC_LEAGUES from base (minus hidden) + visible customs.
+  WDB.PUBLIC_LEAGUES = (WDB.BASE_OFFICIAL_LEAGUES || []).filter(n => !WDB._hiddenLeagues.has(n));
   WDB.customLeagues.forEach(r => {
     if (!WDB.PUBLIC_LEAGUES.includes(r.name)) WDB.PUBLIC_LEAGUES.push(r.name);
     if (typeof WAdmin !== 'undefined' && WAdmin.LOCKED_LEAGUES && !WAdmin.LOCKED_LEAGUES.includes(r.name)) {
@@ -1955,8 +1959,10 @@ WDB.invalidateLeagues = function() {
 };
 /** Official league names: hardcoded base order, then admin-created ones. */
 WDB.officialLeagues = function() {
+  const hidden = WDB._hiddenLeagues || new Set();
+  const base = WDB.BASE_OFFICIAL_LEAGUES.filter(n => !hidden.has(n));
   const customs = WDB.customLeagues.map(r => r.name).filter(n => !WDB.BASE_OFFICIAL_LEAGUES.includes(n));
-  return [...WDB.BASE_OFFICIAL_LEAGUES, ...customs];
+  return [...base, ...customs];
 };
 /** Admin-set default meta view: {league, season} (from the leagues table). */
 WDB.defaultMeta = function() {
@@ -2003,6 +2009,7 @@ WDB.saveLeague = async function(league) {
   if (league.id) baseRow.id = league.id;
   const row = { ...baseRow };
   if (league.visibility !== undefined) row.visibility = (league.visibility === 'private') ? 'private' : 'public';
+  if (league.hidden !== undefined) row.hidden = !!league.hidden;
   const wantsCurrentSeason = league.current_season !== undefined;
   if (wantsCurrentSeason) row.current_season = league.current_season || null;
 
@@ -2031,6 +2038,11 @@ WDB.saveLeague = async function(league) {
     // public default — save without the column
     const { visibility, ...noVis } = row;
     ({ data, error } = await attempt(noVis));
+  }
+  if (error && /hidden/i.test(error.message || '')) {
+    if (row.hidden) throw new Error("Hiding leagues needs a one-time Supabase migration (019_league_hidden.sql). Run it, then try again.");
+    const { hidden, ...noHidden } = row;
+    ({ data, error } = await attempt(noHidden));
   }
   if (error) throw error;
   return data;
