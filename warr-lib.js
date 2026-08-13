@@ -1921,8 +1921,15 @@ function warrToast(msg, type = '') {
 WDB.BASE_OFFICIAL_LEAGUES = ['MPL PH','MPL MY','MPL ID','MPL SG','MPL KH','MSC','M-Series'];
 WDB.customLeagues = [];
 WDB._leaguesReady = false;
-WDB._mergeLeagues = function(rows) {
-  WDB.customLeagues = (rows || []).filter(r => r && r.name);
+WDB._mergeLeagues = function(rows, myMemberships) {
+  const uid = (typeof WAuth!=='undefined' && WAuth.getUser) ? (WAuth.getUser()?.id || null) : null;
+  const mem = new Set(myMemberships || []);
+  // Hide private leagues the current user can't access (not owner, not a member).
+  // Members keep them so their matches aren't dropped by the client filter; the
+  // real gate is RLS on scout_matches (server-side) — this is UX de-clutter.
+  WDB.customLeagues = (rows || []).filter(r => r && r.name && (
+    (r.visibility || 'public') !== 'private' || r.created_by === uid || mem.has(r.name)
+  ));
   WDB.customLeagues.forEach(r => {
     if (!WDB.PUBLIC_LEAGUES.includes(r.name)) WDB.PUBLIC_LEAGUES.push(r.name);
     if (typeof WAdmin !== 'undefined' && WAdmin.LOCKED_LEAGUES && !WAdmin.LOCKED_LEAGUES.includes(r.name)) {
@@ -1934,8 +1941,9 @@ WDB.initLeagues = async function(opts) {
   if (WDB._leaguesReady && !(opts && opts.force)) return WDB.customLeagues;
   try {
     const rows = await WDB.loadLeagues();
-    WDB._mergeLeagues(rows);
-    try { sessionStorage.setItem('warr_leagues_cache', JSON.stringify({ t: Date.now(), rows })); } catch(_) {}
+    let mem = []; try { mem = await WDB.loadMyLeagueMemberships(); } catch(_){}
+    WDB._mergeLeagues(rows, mem);
+    try { sessionStorage.setItem('warr_leagues_cache', JSON.stringify({ t: Date.now(), rows, mem })); } catch(_) {}
     WDB._leaguesReady = true;
     try { window.dispatchEvent(new CustomEvent('warr-leagues-ready')); } catch(_) {}
   } catch(e) { console.warn('[WDB] initLeagues failed:', e && e.message); }
@@ -1969,7 +1977,7 @@ WDB.setDefaultMeta = async function(leagueName, season) {
 // Synchronous warm-start: merge from session cache before any page logic runs.
 try {
   const _lc = JSON.parse(sessionStorage.getItem('warr_leagues_cache') || 'null');
-  if (_lc && _lc.rows && Date.now() - _lc.t < 864e5) WDB._mergeLeagues(_lc.rows);
+  if (_lc && _lc.rows && Date.now() - _lc.t < 864e5) WDB._mergeLeagues(_lc.rows, _lc.mem || []);
 } catch(_) {}
 
 WDB.loadLeagues = async function() {
@@ -1994,6 +2002,7 @@ WDB.saveLeague = async function(league) {
                 created_by: user?.id };
   if (league.id) baseRow.id = league.id;
   const row = { ...baseRow };
+  if (league.visibility !== undefined) row.visibility = (league.visibility === 'private') ? 'private' : 'public';
   const wantsCurrentSeason = league.current_season !== undefined;
   if (wantsCurrentSeason) row.current_season = league.current_season || null;
 
@@ -2015,8 +2024,48 @@ WDB.saveLeague = async function(league) {
     console.warn('[WDB] current_season column missing in schema cache; saving league row without it.');
     ({ data, error } = await attempt(baseRow));
   }
+  if (error && /visibility/i.test(error.message || '')) {
+    if (row.visibility === 'private') {
+      throw new Error("Private leagues need a one-time Supabase migration (017_private_leagues.sql). Run it, then try again.");
+    }
+    // public default — save without the column
+    const { visibility, ...noVis } = row;
+    ({ data, error } = await attempt(noVis));
+  }
   if (error) throw error;
   return data;
+};
+
+// ── Private-league membership (by email) ──
+WDB.loadLeagueMembers = async function(leagueName) {
+  try {
+    const { data, error } = await _sbClient.from('league_members')
+      .select('id, league_name, email, added_by').eq('league_name', leagueName);
+    if (error) throw error;
+    return data || [];
+  } catch(e) { console.warn('[WDB] loadLeagueMembers:', e.message); return []; }
+};
+WDB.addLeagueMember = async function(leagueName, email) {
+  const user = WAuth.getUser();
+  const { data, error } = await _sbClient.from('league_members')
+    .upsert({ league_name: leagueName, email: (email||'').trim().toLowerCase(), added_by: user?.id }, { onConflict: 'league_name,email' })
+    .select().single();
+  if (error) throw error;
+  return data;
+};
+WDB.removeLeagueMember = async function(id) {
+  const { error } = await _sbClient.from('league_members').delete().eq('id', id);
+  if (error) throw error;
+};
+// League names the current user can access as a private-league member (by email).
+WDB.loadMyLeagueMemberships = async function() {
+  try {
+    const email = (WAuth.getUser()?.email || '').toLowerCase();
+    if (!email) return [];
+    const { data, error } = await _sbClient.from('league_members').select('league_name').eq('email', email);
+    if (error) throw error;
+    return (data || []).map(r => r.league_name);
+  } catch(e) { return []; }
 };
 
 /** Look up the admin-marked current season for a league name. Returns string or null.
