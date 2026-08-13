@@ -237,6 +237,7 @@ function leagueRowHTML(l) {
         ${l.is_scout_active
           ? `<span class="active-badge"><span class="active-dot"></span>SCOUT DEFAULT</span>`
           : `<button class="btn btn-ghost btn-sm" onclick="setActive('${l.id}')">Set as Default</button>`}
+        <button class="btn btn-ghost btn-sm" onclick="toggleVisibility('${l.id}')" title="${l.visibility==='private'?'Make this league public (everyone can see it)':'Make this league private (only you + shared emails)'}">${l.visibility==='private'?'Make Public':'Make Private'}</button>
         <button class="btn btn-red btn-sm" onclick="deleteLeague('${l.id}','${esc(l.name)}')">Delete</button>
       </div>
     </div>
@@ -395,6 +396,19 @@ async function saveNewLeague() {
     closeAddLeague();
     await loadLeagues();
   } catch(e) { toast(e.message, 'error'); }
+}
+
+async function toggleVisibility(id) {
+  const lg = (leagues||[]).find(x => x.id === id);
+  if (!lg) return;
+  const next = (lg.visibility === 'private') ? 'public' : 'private';
+  if (next === 'public' && !confirm(`Make "${lg.name}" PUBLIC? Everyone will be able to see its matches.`)) return;
+  try {
+    await WDB.saveLeague({ id: lg.id, name: lg.name, region: lg.region, visibility: next });
+    if (typeof WDB.invalidateLeagues==='function') WDB.invalidateLeagues();
+    toast(next==='private' ? `"${lg.name}" is now private` : `"${lg.name}" is now public`);
+    await loadLeagues();
+  } catch(e) { toast(e.message.includes('visibility') ? 'Run migration 017 first' : e.message, 'error'); }
 }
 
 async function setActive(id) {
