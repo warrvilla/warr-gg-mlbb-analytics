@@ -335,9 +335,13 @@ const WDB = {
         const league = row.data?.league || '';
         const isPublic = WDB.PUBLIC_LEAGUES.includes(league);
         const isOwn = row.created_by === userId;
-        return isPublic || isOwn;
+        // Shared scrims: RLS only returns Scrims-bucket rows that are ours or
+        // shared with us, so any Scrims row that reached the client is allowed.
+        const isSharedScrim = league === 'Scrims' && row.created_by !== userId;
+        return isPublic || isOwn || isSharedScrim;
       })
-      .map(row => ({ ...row.data, id: row.id, _createdBy: row.created_by }));
+      .map(row => ({ ...row.data, id: row.id, _createdBy: row.created_by,
+                     _shared: (row.data?.league === 'Scrims' && row.created_by !== userId) }));
     this._writeMatchCache(result);
     return result;
   },
@@ -2069,6 +2073,34 @@ WDB.removeLeagueMember = async function(id) {
   const { error } = await _sbClient.from('league_members').delete().eq('id', id);
   if (error) throw error;
 };
+// ── SCRIM SHARING — share all my scrims with specific people (by email) ──────
+// The people I currently share my scrims with.
+WDB.loadScrimShares = async function() {
+  try {
+    const user = WAuth.getUser(); if (!user) return [];
+    const { data, error } = await _sbClient.from('scrim_shares')
+      .select('id, email, created_at').eq('owner', user.id).order('created_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch(e) { console.warn('[WDB] loadScrimShares:', e.message); return []; }
+};
+WDB.addScrimShare = async function(email) {
+  const user = WAuth.getUser(); if (!user) throw new Error('Sign in first');
+  const clean = (email||'').trim().toLowerCase();
+  if (!clean) throw new Error('Email required');
+  const { data, error } = await _sbClient.from('scrim_shares')
+    .upsert({ owner: user.id, email: clean }, { onConflict: 'owner,email' })
+    .select().single();
+  if (error) { if (/scrim_shares/.test(error.message)) throw new Error('Run migration 020 first'); throw error; }
+  WDB._invalidateMatchCache?.();
+  return data;
+};
+WDB.removeScrimShare = async function(id) {
+  const { error } = await _sbClient.from('scrim_shares').delete().eq('id', id);
+  if (error) throw error;
+  WDB._invalidateMatchCache?.();
+};
+
 // League names the current user can access as a private-league member (by email).
 WDB.loadMyLeagueMemberships = async function() {
   try {

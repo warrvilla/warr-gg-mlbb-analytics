@@ -503,6 +503,17 @@ body { background: var(--bg); min-height: 100vh; }
       </div>
     </div>
 
+    <!-- SHARE MY SCRIMS -->
+    <div class="profile-card" id="scrimShareCard">
+      <div class="section-label">Share My Scrims</div>
+      <div style="font-size:12px;color:var(--text3);margin:-4px 0 12px;">Your scrims are private by default. Add someone's email to let them see <b>all</b> of your scrims in their Scout. Remove them anytime.</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input type="email" id="scrimShareEmail" class="field-input" placeholder="teammate@email.com" style="flex:1;min-width:180px;" onkeydown="if(event.key==='Enter'){event.preventDefault();addScrimShareUI(this);}">
+        <button type="button" class="save-btn" style="white-space:nowrap;" onclick="addScrimShareUI(this)">Share</button>
+      </div>
+      <div id="scrimShareList" style="margin-top:14px;"></div>
+    </div>
+
     <!-- TOKEN & SUBSCRIPTION PANEL -->
     <div class="tokens-panel" id="tokensPanel">
       <div class="tokens-header">
@@ -1711,6 +1722,7 @@ async function init() {
       setProfileTab(_activePTab);
       setSyncStatus('local', 'Not signed in — data saved locally');
       renderProfile();
+      const _ssc = document.getElementById('scrimShareCard'); if (_ssc) _ssc.style.display = 'none';
       loadHeroPool();
     } else {
       gate.style.display = 'block';
@@ -1720,6 +1732,7 @@ async function init() {
     setProfileTab(_activePTab);
     setSyncStatus('synced', 'Synced with Warr.GG');
     renderProfile();
+    renderScrimShares();
     // Load hero pool — prefer Supabase profile's hero_pool if present
     if (_sbProfile && Array.isArray(_sbProfile.hero_pool) && _sbProfile.hero_pool.length > 0) {
       _poolSelected = new Set(_sbProfile.hero_pool);
@@ -1796,6 +1809,40 @@ async function loadAdminLeagues() {
   } catch (e) {
     el.innerHTML = `<div class="admin-empty" style="color:var(--red);">Failed to load: ${_adminEsc(e.message)}</div>`;
   }
+}
+
+// ── SHARE MY SCRIMS ────────────────────────────────────────────────────────
+async function renderScrimShares() {
+  const el = document.getElementById('scrimShareList');
+  if (!el || typeof WDB === 'undefined' || !WDB.loadScrimShares) return;
+  let rows = [];
+  try { rows = await WDB.loadScrimShares(); } catch(e) {}
+  if (!rows.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text4);">Not shared with anyone yet.</div>';
+    return;
+  }
+  el.innerHTML = '<div style="font-size:9px;color:var(--text4);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Shared with</div>' +
+    rows.map(r => `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;margin-bottom:6px;">
+      <span style="font-size:13px;color:var(--text);word-break:break-all;">${_adminEsc(r.email)}</span>
+      <button type="button" class="admin-mgmt-btn danger sm" style="flex-shrink:0;" onclick="removeScrimShareUI('${_adminEsc(r.id)}','${_adminEsc(r.email)}')">Remove</button>
+    </div>`).join('');
+}
+async function addScrimShareUI(btn) {
+  const inp = document.getElementById('scrimShareEmail');
+  const email = (inp?.value || '').trim();
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { toast('Enter a valid email', 'error'); return; }
+  if (typeof WDB === 'undefined' || !WDB.addScrimShare) { toast('Not available', 'error'); return; }
+  try {
+    await WDB.addScrimShare(email);
+    if (inp) inp.value = '';
+    toast('Sharing scrims with ' + email);
+    await renderScrimShares();
+  } catch(e) { toast(e.message || 'Failed to share', 'error'); }
+}
+async function removeScrimShareUI(id, email) {
+  if (!confirm('Stop sharing your scrims with ' + email + '?')) return;
+  try { await WDB.removeScrimShare(id); toast('Stopped sharing with ' + email); await renderScrimShares(); }
+  catch(e) { toast(e.message || 'Failed', 'error'); }
 }
 
 function renderAdminLeagues() {
