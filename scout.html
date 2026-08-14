@@ -3943,13 +3943,21 @@ async function loadScoutPlayers() {
     try { all = (WDB.loadPlayers ? await WDB.loadPlayers() : []) || []; } catch(_){}
     const mergeTeam = async (team) => {
       if (!team) return [];
+      let roster = [];
+      try { roster = (WDB.loadTeamRoster ? await WDB.loadTeamRoster(team) : []) || []; } catch(_){}
+      // When a season is picked and that season has an explicit roster, it's the
+      // source of truth — show ONLY that season's players, so old players from
+      // other seasons (and the season-less legacy table) don't leak in.
+      const seasonRoster = roster.filter(r => r.is_active!==false && r.season===season);
+      if (season && seasonRoster.length) {
+        return seasonRoster.map(r => ({ ign:r.ign, real_name:r.real_name, role:r.role, is_active:true }));
+      }
+      // Fallback (no season chosen, or this team has no roster for it yet):
+      // legacy players table + any matching roster entries.
       const list = all.filter(p => p.team_name===team && p.is_active!==false)
                       .map(p => ({ ign:p.ign, real_name:p.real_name, role:p.role, is_active:true }));
-      try {
-        const roster = (WDB.loadTeamRoster ? await WDB.loadTeamRoster(team) : []) || [];
-        roster.filter(r => r.is_active!==false && (!season || r.season===season))
-              .forEach(r => { if(!list.some(x=>(x.ign||'').toLowerCase()===(r.ign||'').toLowerCase())) list.push({ ign:r.ign, real_name:r.real_name, role:r.role, is_active:true }); });
-      } catch(_){}
+      roster.filter(r => r.is_active!==false && (!season || r.season===season))
+            .forEach(r => { if(!list.some(x=>(x.ign||'').toLowerCase()===(r.ign||'').toLowerCase())) list.push({ ign:r.ign, real_name:r.real_name, role:r.role, is_active:true }); });
       return list;
     };
     [_scoutPlayers.blue, _scoutPlayers.red] = await Promise.all([mergeTeam(blueTeam), mergeTeam(redTeam)]);
