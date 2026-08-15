@@ -551,11 +551,17 @@ function renderTeamDetail(teamName) {
     <div class="card">
       <div class="team-detail-header">
         <div>
-          <div class="team-detail-name">${esc(teamName)}</div>
+          <div class="team-detail-name">${esc(teamName)}${(typeof WDB!=='undefined'&&WDB.isTeamLocked&&WDB.isTeamLocked(teamName))?' <span title="Locked — hidden from public view" style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#fb923c;background:rgba(251,146,60,.14);border:1px solid rgba(251,146,60,.4);border-radius:20px;padding:2px 8px;vertical-align:middle;">🔒 LOCKED</span>':''}</div>
           <div class="team-detail-meta">${active.length} active · ${inactive.length} former</div>
         </div>
-        ${canManage ? `<button class="btn btn-red btn-sm" onclick="confirmDeleteTeam('${esc(teamName)}')">Delete Team</button>` : ''}
+        <div style="display:flex;gap:8px;align-items:center;">
+          ${_isLockAdmin() ? (WDB.isTeamLocked(teamName)
+            ? `<button class="btn btn-ghost btn-sm" onclick="unlockTeamUI('${esc(teamName)}')">🔓 Unlock</button>`
+            : `<button class="btn btn-ghost btn-sm" onclick="lockTeamUI('${esc(teamName)}')" title="Hide this team's report/analysis/matchups from everyone except you + shared emails">🔒 Lock team</button>`) : ''}
+          ${canManage ? `<button class="btn btn-red btn-sm" onclick="confirmDeleteTeam('${esc(teamName)}')">Delete Team</button>` : ''}
+        </div>
       </div>
+      ${(_isLockAdmin() && WDB.isTeamLocked(teamName)) ? `<div id="lockShareBox" class="card" style="margin:0 0 14px;border:1px solid rgba(251,146,60,.3);background:rgba(251,146,60,.05);"></div>` : ''}
 
       <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('roster','${esc(teamName)}',this)">ROSTER</button>
@@ -611,6 +617,53 @@ function renderTeamDetail(teamName) {
         ${renderHeroPoolTab(teamName, players)}
       </div>
     </div>`;
+  if (_isLockAdmin() && typeof WDB!=='undefined' && WDB.isTeamLocked && WDB.isTeamLocked(teamName)) renderLockShare(teamName);
+}
+
+// ── TEAM LOCK (admin) — hide a team's data + share by email ──────────────────
+function _isLockAdmin() {
+  return typeof WDB!=='undefined' && WDB._isAdminUser && WDB._isAdminUser();
+}
+async function lockTeamUI(teamName) {
+  if (!confirm(`Lock "${teamName}"? Its scout report, analysis and matchups will be hidden from everyone except you and the emails you share it with.`)) return;
+  try { await WDB.lockTeam(teamName); toast(teamName + ' locked'); renderTeamList(); renderTeamDetail(teamName); }
+  catch(e) { toast(e.message || 'Lock failed', 'error'); }
+}
+async function unlockTeamUI(teamName) {
+  if (!confirm(`Unlock "${teamName}"? Everyone will be able to view its data again.`)) return;
+  try { await WDB.unlockTeam(teamName); toast(teamName + ' unlocked'); renderTeamList(); renderTeamDetail(teamName); }
+  catch(e) { toast(e.message || 'Unlock failed', 'error'); }
+}
+async function renderLockShare(teamName) {
+  const box = document.getElementById('lockShareBox');
+  if (!box) return;
+  let members = [];
+  try { members = await WDB.loadLockedTeamMembers(teamName); } catch(e) {}
+  const rows = members.length
+    ? members.map(m => `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;border:1px solid var(--border2);border-radius:8px;margin-bottom:6px;">
+        <span style="font-size:13px;color:var(--text);word-break:break-all;">${esc(m.email)}</span>
+        <button class="btn btn-red btn-sm" style="flex-shrink:0;" onclick="removeLockMemberUI('${esc(m.id)}','${esc(teamName)}')">Remove</button>
+      </div>`).join('')
+    : '<div style="font-size:12px;color:var(--text4);margin-bottom:8px;">Not shared with anyone yet — only you can view this team.</div>';
+  box.innerHTML = `
+    <div class="card-title" style="color:#fb923c;">🔒 SHARE LOCKED TEAM</div>
+    <div style="font-size:12px;color:var(--text3);margin:-4px 0 12px;">Add an email to let that person view <b>${esc(teamName)}</b>'s report, analysis and matchups.</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+      <input type="email" id="lockShareEmail" class="form-input" placeholder="coach@email.com" style="flex:1;min-width:180px;" onkeydown="if(event.key==='Enter'){event.preventDefault();addLockMemberUI('${esc(teamName)}');}">
+      <button class="btn btn-accent btn-sm" style="white-space:nowrap;" onclick="addLockMemberUI('${esc(teamName)}')">Share</button>
+    </div>
+    ${rows}`;
+}
+async function addLockMemberUI(teamName) {
+  const inp = document.getElementById('lockShareEmail');
+  const email = (inp?.value || '').trim();
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { toast('Enter a valid email', 'error'); return; }
+  try { await WDB.addLockedTeamMember(teamName, email); if (inp) inp.value=''; toast('Shared with ' + email); await renderLockShare(teamName); }
+  catch(e) { toast(e.message || 'Failed', 'error'); }
+}
+async function removeLockMemberUI(id, teamName) {
+  try { await WDB.removeLockedTeamMember(id); toast('Removed'); await renderLockShare(teamName); }
+  catch(e) { toast(e.message || 'Failed', 'error'); }
 }
 
 // ── Per-season roster (explicit, from team_rosters) ──

@@ -2526,6 +2526,20 @@ function renderMatchups(){
   if (!teams.length) { area.innerHTML = `<div style="padding:48px 24px;color:var(--text3);text-align:center;">No teams scouted yet — log some matches first.</div>`; return; }
   if (!_muTeam || !teams.includes(_muTeam)) _muTeam = (_focusTeam && teams.includes(_focusTeam)) ? _focusTeam : teams[0];
   const team = _muTeam;
+  // Locked team — mask the matchups analysis unless admin/shared. Still let the
+  // user pick a different team from the dropdown.
+  if (typeof WDB!=='undefined' && WDB.isTeamLocked && WDB.isTeamLocked(team) && !WDB.canViewTeam(team)) {
+    const _teamOpts = teams.map(n=>`<option value="${n.replace(/"/g,'&quot;')}"${n===team?' selected':''}>${n}${(WDB.isTeamLocked(n)&&!WDB.canViewTeam(n))?' 🔒':''}</option>`).join('');
+    area.innerHTML = `<div style="padding:20px 16px;">
+      <div style="margin-bottom:20px;"><select class="form-select" style="font-size:13px;padding:8px 12px;" onchange="selectMuTeam(this.value)">${_teamOpts}</select></div>
+      <div style="padding:60px 24px;text-align:center;color:var(--text3);">
+        <div style="font-size:44px;margin-bottom:14px;">🔒</div>
+        <div style="font-size:16px;font-weight:800;color:var(--text);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">${team} is locked</div>
+        <div style="font-size:13px;line-height:1.6;max-width:340px;margin:0 auto;">This team's matchup data is private. Ask the Warr.GG admin to share access with your account email.</div>
+      </div>
+    </div>`;
+    return;
+  }
   // Seasons this team has data for (within the active league filter). Default to
   // the league's admin-marked CURRENT season if set, else the most recent.
   const _teamMatches = DB_MODULE.getMatches().filter(m => (m.blueTeam===team || m.redTeam===team) && _muInLeague(m));
@@ -4875,6 +4889,22 @@ function clearReportDates()           { _reportFrom = ''; _reportTo = '';   _reR
 function openTeamReport(teamName) {
   const tBase = DB_MODULE.getTeams()[teamName];
   if (!tBase) return;
+
+  // Locked team — hide the report from anyone who isn't the admin or a shared email.
+  if (typeof WDB!=='undefined' && WDB.isTeamLocked && WDB.isTeamLocked(teamName) && !WDB.canViewTeam(teamName)) {
+    document.getElementById('teamReportModal')?.remove();
+    const lo = document.createElement('div');
+    lo.className = 'modal-overlay'; lo.id = 'teamReportModal'; lo.dataset.team = teamName;
+    lo.innerHTML = `<div class="modal-box" style="max-width:460px;width:92vw;text-align:center;padding:40px 30px;">
+      <button class="rpt2-vall" style="position:absolute;top:12px;right:12px;width:auto;padding:6px 12px;" onclick="document.getElementById('teamReportModal').remove()">✕ Close</button>
+      <div style="font-size:44px;line-height:1;margin-bottom:14px;">🔒</div>
+      <h3 style="margin:0 0 8px;font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;">${teamName} is locked</h3>
+      <p style="color:var(--text3);font-size:13px;line-height:1.6;margin:0;">This team's scouting data is private. Ask the Warr.GG admin to share access with your account email.</p>
+    </div>`;
+    lo.addEventListener('click', e => { if (e.target === lo) lo.remove(); });
+    document.body.appendChild(lo);
+    return;
+  }
 
   const allMatches = DB_MODULE.getMatches();
   const _tAll = allMatches.filter(m => m.blueTeam === teamName || m.redTeam === teamName);

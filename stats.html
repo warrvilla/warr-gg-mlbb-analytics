@@ -788,6 +788,7 @@ async function init() {
 })();
 WAuth.renderAuthChip('authChip');
   await loadDBFromSupabase();
+  try { if (typeof WDB!=='undefined' && WDB.initLocks) await WDB.initLocks(); } catch(_){}
   const teams = Object.keys(DB.teams||{}).sort();
   const blueSel = document.getElementById('blueTeamSel');
   const redSel  = document.getElementById('redTeamSel');
@@ -797,9 +798,11 @@ WAuth.renderAuthChip('authChip');
     return;
   }
 
+  const _lockMark = name => (typeof WDB!=='undefined' && WDB.isTeamLocked && WDB.isTeamLocked(name) && !WDB.canViewTeam(name)) ? ' 🔒' : '';
   teams.forEach(name => {
-    const o1 = document.createElement('option'); o1.value = name; o1.textContent = name; blueSel.appendChild(o1);
-    const o2 = document.createElement('option'); o2.value = name; o2.textContent = name; redSel.appendChild(o2);
+    const lbl = name + _lockMark(name);
+    const o1 = document.createElement('option'); o1.value = name; o1.textContent = lbl; blueSel.appendChild(o1);
+    const o2 = document.createElement('option'); o2.value = name; o2.textContent = lbl; redSel.appendChild(o2);
   });
 
   // Build league filter pills
@@ -1041,6 +1044,20 @@ async function generateReport() {
   const blueName = document.getElementById('blueTeamSel').value;
   const redName  = document.getElementById('redTeamSel').value;
   if (!blueName || !redName) return;
+
+  // Locked team — block the analysis if either side is locked and not shared.
+  if (typeof WDB!=='undefined' && WDB.isTeamLocked) {
+    const lockedName = [blueName, redName].find(n => WDB.isTeamLocked(n) && !WDB.canViewTeam(n));
+    if (lockedName) {
+      const out0 = document.getElementById('reportOutput');
+      if (out0) out0.innerHTML = `<div style="padding:60px 24px;text-align:center;color:var(--text3);">
+        <div style="font-size:44px;margin-bottom:14px;">🔒</div>
+        <div style="font-size:16px;font-weight:800;color:var(--text);font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">${lockedName} is locked</div>
+        <div style="font-size:13px;line-height:1.6;max-width:360px;margin:0 auto;">This team's data is private and can't be included in analysis. Ask the Warr.GG admin to share access with your account email.</div>
+      </div>`;
+      return;
+    }
+  }
 
   _reportContext = { blueName, redName };
 

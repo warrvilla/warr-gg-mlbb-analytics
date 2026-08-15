@@ -1953,6 +1953,7 @@ WDB.initLeagues = async function(opts) {
     WDB._mergeLeagues(rows, mem);
     try { sessionStorage.setItem('warr_leagues_cache', JSON.stringify({ t: Date.now(), rows, mem })); } catch(_) {}
     WDB._leaguesReady = true;
+    try { await WDB.initLocks(); } catch(_) {}
     try { window.dispatchEvent(new CustomEvent('warr-leagues-ready')); } catch(_) {}
   } catch(e) { console.warn('[WDB] initLeagues failed:', e && e.message); }
   return WDB.customLeagues;
@@ -2110,6 +2111,74 @@ WDB.loadMyLeagueMemberships = async function() {
     if (error) throw error;
     return (data || []).map(r => r.league_name);
   } catch(e) { return []; }
+};
+
+// ── LOCKED TEAMS — hide a team's report/analysis/matchups from public view ───
+const _ADMIN_EMAIL = 'wrrenvillapando@gmail.com';
+WDB._lockedTeams = WDB._lockedTeams || new Set();       // all locked team names
+WDB._myLockedTeamAccess = WDB._myLockedTeamAccess || new Set(); // locked teams shared with me
+WDB._isAdminUser = function() {
+  try {
+    if (typeof WAdmin !== 'undefined' && WAdmin.isAdmin) return !!WAdmin.isAdmin();
+  } catch(_) {}
+  return (WAuth.getUser()?.email || '').toLowerCase() === _ADMIN_EMAIL;
+};
+// Load lock state (which teams are locked + which are shared with me). Cached in
+// sessionStorage; call with {force:true} after changes.
+WDB.initLocks = async function(opts) {
+  if (WDB._locksReady && !(opts && opts.force)) return;
+  try {
+    const { data: locks } = await _sbClient.from('locked_teams').select('team_name');
+    WDB._lockedTeams = new Set((locks || []).map(r => r.team_name));
+    const email = (WAuth.getUser()?.email || '').toLowerCase();
+    WDB._myLockedTeamAccess = new Set();
+    if (email) {
+      const { data: mine } = await _sbClient.from('locked_team_members').select('team_name').eq('email', email);
+      (mine || []).forEach(r => WDB._myLockedTeamAccess.add(r.team_name));
+    }
+    WDB._locksReady = true;
+    try { window.dispatchEvent(new CustomEvent('warr-locks-ready')); } catch(_) {}
+  } catch(e) { /* tables may not exist yet — treat as nothing locked */ WDB._locksReady = true; }
+};
+WDB.invalidateLocks = function() { WDB._locksReady = false; };
+WDB.isTeamLocked = function(name) { return WDB._lockedTeams.has(name); };
+/** True if the current user may view this team's data (unlocked, admin, or shared). */
+WDB.canViewTeam = function(name) {
+  if (!WDB._lockedTeams.has(name)) return true;
+  if (WDB._isAdminUser()) return true;
+  return WDB._myLockedTeamAccess.has(name);
+};
+// Admin: lock / unlock a team.
+WDB.lockTeam = async function(name) {
+  const { error } = await _sbClient.from('locked_teams').upsert({ team_name: name }, { onConflict: 'team_name' });
+  if (error) { if (/locked_teams/.test(error.message)) throw new Error('Run migration 021 first'); throw error; }
+  await WDB.initLocks({ force: true });
+};
+WDB.unlockTeam = async function(name) {
+  const { error } = await _sbClient.from('locked_teams').delete().eq('team_name', name);
+  if (error) throw error;
+  await WDB.initLocks({ force: true });
+};
+// Admin: manage who a locked team is shared with (by email).
+WDB.loadLockedTeamMembers = async function(name) {
+  try {
+    const { data, error } = await _sbClient.from('locked_team_members')
+      .select('id, email').eq('team_name', name).order('created_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch(e) { return []; }
+};
+WDB.addLockedTeamMember = async function(name, email) {
+  const clean = (email || '').trim().toLowerCase();
+  if (!clean) throw new Error('Email required');
+  const { data, error } = await _sbClient.from('locked_team_members')
+    .upsert({ team_name: name, email: clean }, { onConflict: 'team_name,email' }).select().single();
+  if (error) { if (/locked_team_members/.test(error.message)) throw new Error('Run migration 021 first'); throw error; }
+  return data;
+};
+WDB.removeLockedTeamMember = async function(id) {
+  const { error } = await _sbClient.from('locked_team_members').delete().eq('id', id);
+  if (error) throw error;
 };
 
 /** Look up the admin-marked current season for a league name. Returns string or null.
