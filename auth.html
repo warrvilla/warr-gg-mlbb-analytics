@@ -208,6 +208,13 @@ body>*{position:relative;z-index:1;}
             <span id="signinBtnTxt">Sign In</span>
           </button>
         </form>
+        <!-- Shown only when Supabase rejects login with "email not confirmed" -->
+        <div id="resendWrap" style="display:none;margin-top:12px;padding:10px 12px;border:1px solid rgba(124,92,246,.3);background:rgba(124,92,246,.08);border-radius:10px;text-align:center;">
+          <div style="font-size:12px;color:var(--text2);margin-bottom:8px;">Your email isn't confirmed yet. Confirm it to sign in.</div>
+          <button type="button" class="submit-btn" id="resendBtn" onclick="handleResendConfirmation()" style="margin:0;">
+            <span id="resendBtnTxt">Resend confirmation email</span>
+          </button>
+        </div>
         <div class="invite-note">
           New to Warr.GG? <button type="button" onclick="showPanel('signup')" style="background:none;border:none;color:#7C5CF6;font-weight:700;font-size:inherit;cursor:pointer;text-decoration:underline;font-family:inherit;">Create a free account</button> — 3 AI analyses a month, full draft arena, no card needed.
         </div>
@@ -493,9 +500,14 @@ async function handleSignIn(e) {
   const { error } = await WAuth.signIn(email, password);
   if (error) {
     showMsg(friendlyErr(error.message), 'err');
+    // If the account exists but the email was never confirmed, surface a
+    // one-click resend instead of leaving the user stuck on reset-password.
+    const rw = document.getElementById('resendWrap');
+    if (rw) rw.style.display = /email not confirmed/i.test(error.message || '') ? 'block' : 'none';
     setLoading(btn, txt, false, 'Sign In');
     return;
   }
+  const _rw = document.getElementById('resendWrap'); if (_rw) _rw.style.display = 'none';
   showMsg('Signed in — redirecting…', 'ok');
   setTimeout(() => {
     const redir = new URLSearchParams(location.search).get('redirect') || '/ai_battle';
@@ -625,6 +637,24 @@ function friendlyErr(msg) {
   if (msg.toLowerCase().includes('signups not allowed') || msg.toLowerCase().includes('signup is disabled')) return 'Account signups are currently turned off. If you are the admin, enable them in Supabase → Authentication → Sign In / Providers → "Allow new users to sign up".';
   return msg;
 }
+// ── RESEND CONFIRMATION EMAIL ──────────────────────────────────
+async function handleResendConfirmation() {
+  const email = document.getElementById('siEmail').value.trim();
+  const btn   = document.getElementById('resendBtn');
+  const txt   = document.getElementById('resendBtnTxt');
+  if (!email) { showMsg('Enter your email above first', 'err'); return; }
+  clearMsg();
+  setLoading(btn, txt, true, 'Sending…');
+  const { error } = await WAuth._sb().auth.resend({
+    type: 'signup',
+    email,
+    options: { emailRedirectTo: window.location.origin + '/auth.html' }
+  });
+  setLoading(btn, txt, false, 'Resend confirmation email');
+  if (error) { showMsg(friendlyErr(error.message), 'err'); return; }
+  showMsg('Confirmation email sent — check your inbox (and spam).', 'ok');
+}
+
 // ── RESET PASSWORD REQUEST ─────────────────────────────────────
 async function handleResetRequest() {
   const email = document.getElementById('rstEmail').value.trim();
