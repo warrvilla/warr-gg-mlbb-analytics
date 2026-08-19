@@ -400,12 +400,12 @@ DELETE FROM auth.users WHERE id = 'USER_UUID';</div>
       </p>
     </div>
 
-    <div class="admin-card">
+    <div class="admin-card" id="adminAccessCard" style="display:none;">
       <div class="admin-section-title">Admin Access</div>
       <p style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6;">
         Only <strong style="color:var(--gold);">wrrenvillapando@gmail.com</strong> is the permanent super-admin.
-        You can grant temporary admin access to additional emails below.
-        Extra admins can manage users but cannot add/remove other admins.
+        Grant co-admin access to additional emails below. Co-admins can add leagues
+        and add/edit official match data, but cannot add/remove admins or lock teams.
       </p>
       <div id="extraAdminList" style="margin-bottom:12px;display:flex;flex-direction:column;gap:8px;"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -1115,6 +1115,11 @@ async function _adminApi(payload) {
 
 // ── Extra admin management ──
 function renderExtraAdmins() {
+  // Only the primary admin may see/manage the admin list.
+  const isPrimary = typeof WAdmin !== 'undefined' && WAdmin.isPrimaryAdmin && WAdmin.isPrimaryAdmin();
+  const card = document.getElementById('adminAccessCard');
+  if (card) card.style.display = isPrimary ? '' : 'none';
+  if (!isPrimary) return;
   const list = typeof WAdmin !== 'undefined' ? WAdmin._getExtraAdmins() : [];
   const el = document.getElementById('extraAdminList');
   if (!el) return;

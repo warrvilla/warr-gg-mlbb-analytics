@@ -253,6 +253,17 @@ window.WAdmin = {
     } catch(e) { return false; }
   },
 
+  // The PRIMARY admin only (never granted to co-admins). Powers reserved to the
+  // primary: managing the admin list, and locking/unlocking teams.
+  isPrimaryAdmin() {
+    const user = (typeof WAuth !== 'undefined' && WAuth.getUser) ? WAuth.getUser() : null;
+    if (user && (user.email||'').toLowerCase() === WAdmin.ADMIN_EMAIL) return true;
+    try {
+      const profile = JSON.parse(localStorage.getItem('warr_user_profile') || '{}');
+      return (profile.email||'').toLowerCase() === WAdmin.ADMIN_EMAIL;
+    } catch(e) { return false; }
+  },
+
   // Returns true if this match is from a locked league
   isLockedMatch(match) {
     const league = (match && (match.league || (match.data && match.data.league))) || '';
@@ -2123,6 +2134,14 @@ WDB._isAdminUser = function() {
   } catch(_) {}
   return (WAuth.getUser()?.email || '').toLowerCase() === _ADMIN_EMAIL;
 };
+// The primary admin only — used for lock/unlock (co-admins can't lock teams and
+// must be added as a shared email to view a locked team).
+WDB._isPrimaryAdmin = function() {
+  try {
+    if (typeof WAdmin !== 'undefined' && WAdmin.isPrimaryAdmin) return !!WAdmin.isPrimaryAdmin();
+  } catch(_) {}
+  return (WAuth.getUser()?.email || '').toLowerCase() === _ADMIN_EMAIL;
+};
 // Load lock state (which teams are locked + which are shared with me). Cached in
 // sessionStorage; call with {force:true} after changes.
 WDB.initLocks = async function(opts) {
@@ -2145,8 +2164,8 @@ WDB.isTeamLocked = function(name) { return WDB._lockedTeams.has(name); };
 /** True if the current user may view this team's data (unlocked, admin, or shared). */
 WDB.canViewTeam = function(name) {
   if (!WDB._lockedTeams.has(name)) return true;
-  if (WDB._isAdminUser()) return true;
-  return WDB._myLockedTeamAccess.has(name);
+  if (WDB._isPrimaryAdmin()) return true;   // primary admin sees everything
+  return WDB._myLockedTeamAccess.has(name); // co-admins/others need a shared email
 };
 // Admin: lock / unlock a team.
 WDB.lockTeam = async function(name) {

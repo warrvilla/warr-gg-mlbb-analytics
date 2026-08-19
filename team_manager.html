@@ -622,7 +622,8 @@ function renderTeamDetail(teamName) {
 
 // ── TEAM LOCK (admin) — hide a team's data + share by email ──────────────────
 function _isLockAdmin() {
-  return typeof WDB!=='undefined' && WDB._isAdminUser && WDB._isAdminUser();
+  // Only the PRIMARY admin can lock/unlock teams or manage who they're shared with.
+  return typeof WDB!=='undefined' && WDB._isPrimaryAdmin && WDB._isPrimaryAdmin();
 }
 async function lockTeamUI(teamName) {
   if (!confirm(`Lock "${teamName}"? Its scout report, analysis and matchups will be hidden from everyone except you and the emails you share it with.`)) return;
