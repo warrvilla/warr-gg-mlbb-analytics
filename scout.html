@@ -2784,15 +2784,24 @@ function setLeagueFilter(lf) {
   _muSeason = null; _muHero = null; // matchups re-derives this league's current season + a valid hero
   _matchPage = 1; _teamPage = 1; weekFilter = 'all'; _weekAutoPicked = false;
   // Default to this league's ACTIVE season, but NEVER in a way that hides matches:
-  // - admin-marked current season wins,
-  // - else the most recent season ONLY if every match in this league is season-tagged
-  //   (otherwise narrowing would hide untagged games — the "match log is empty" bug),
-  // - else show all seasons.
+  // - if any match is untagged, show ALL (narrowing would hide untagged games —
+  //   the "match log is empty" bug),
+  // - else land on the NEWEST season that actually has games (that's where a
+  //   just-logged new-season match lives — don't get stuck on a stale
+  //   admin-marked current season),
+  // - fall back to the admin-marked current season, then all.
   seasonFilter = 'all';
   if (lf !== 'all') {
     const lgMatches = DB_MODULE.getMatches().filter(m => (m.league||'') === lf);
     const anyUntagged = lgMatches.some(m => !(m.season||'').trim());
-    seasonFilter = LEAGUE_CURRENT_SEASON[lf] || (!anyUntagged ? _mostRecentSeason(lf) : '') || 'all';
+    if (!anyUntagged) {
+      const newest = _mostRecentSeason(lf);
+      const cur = LEAGUE_CURRENT_SEASON[lf];
+      // Prefer whichever is newer between the newest-with-data and the admin mark,
+      // so a brand-new season surfaces immediately after its first game is logged.
+      seasonFilter = [newest, cur].filter(Boolean)
+        .sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}))[0] || 'all';
+    }
   }
   // Sync mobile dropdown
   const sel = document.getElementById('mobileLeagueSelect');
