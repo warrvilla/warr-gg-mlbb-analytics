@@ -300,6 +300,43 @@ const WDB = {
   _invalidateMatchCache() {
     try { sessionStorage.removeItem(this._MATCH_CACHE_KEY); } catch(e) {}
   },
+  // ── XSS hardening ──────────────────────────────────────────────
+  // Strip HTML/JS-dangerous characters from short free-text NAME fields (team
+  // names, player IGNs, map/stage/week, etc.). These render across the app —
+  // often inside inline onclick="...('${name}')" handlers — so a value like
+  // <img onerror=…> or a') ;alert(1)// would otherwise execute. Esports names
+  // have no legitimate need for < > " ' ` \ or control chars, so we drop them
+  // at the write boundary, which protects every current and future render site.
+  _sanitizeName(s) {
+    return String(s == null ? '' : s)
+      .replace(/[<>"'`\\]/g, '')
+      .replace(/[\x00-\x1F\x7F]/g, '')
+      .slice(0, 120)
+      .trim();
+  },
+  // Free-text notes may legitimately contain apostrophes/quotes, so we only
+  // strip angle brackets (kills tag injection) and cap length; render sites
+  // should still HTML-escape these.
+  _sanitizeNotes(s) {
+    return String(s == null ? '' : s).replace(/[<>]/g, '').slice(0, 4000);
+  },
+  _sanitizeMatch(match) {
+    if (!match || typeof match !== 'object') return match;
+    const S = this._sanitizeName;
+    ['blueTeam','redTeam','map','stage','week','season','seriesFormat',
+     'blueRegion','redRegion'].forEach(k => { if (match[k] != null) match[k] = S(match[k]); });
+    ['bluePicks','redPicks','blueBans','redBans'].forEach(arr => {
+      if (Array.isArray(match[arr])) match[arr].forEach(p => {
+        if (p && typeof p === 'object') {
+          if (p.player != null) p.player = S(p.player);
+          if (p.name   != null) p.name   = S(p.name);
+          if (p.lane   != null) p.lane   = S(p.lane);
+        }
+      });
+    });
+    if (match.notes != null) match.notes = this._sanitizeNotes(match.notes);
+    return match;
+  },
   _readMatchCache() {
     try {
       const raw = sessionStorage.getItem(this._MATCH_CACHE_KEY);
@@ -360,6 +397,7 @@ const WDB = {
   /** Upsert a single match to cloud (insert or update by id) */
   async saveMatch(match) {
     const user = WAuth.getUser();
+    try { match = WDB._sanitizeMatch(match); } catch(_) {}
     const { error } = await _sbClient
       .from('scout_matches')
       .upsert(
@@ -1017,6 +1055,20 @@ WDB.loadTeamMeta = async function() {
     } catch (e2) { console.warn('[WDB] loadTeamMeta failed:', e2.message); return {}; }
   }
 };
+// Sanitize the per-league+season meta blob (keys are `${league}::${season}`,
+// each value has placement/rsRank/winCondition/coachNotes/link).
+function _sanitizeLeagueMeta(lm) {
+  const S = WDB._sanitizeName, N = WDB._sanitizeNotes, out = {};
+  for (const k in lm) {
+    const v = lm[k]; if (!v || typeof v !== 'object') { out[k] = v; continue; }
+    out[k] = { ...v };
+    if (v.placement    != null) out[k].placement    = S(v.placement);
+    if (v.link         != null) out[k].link         = S(v.link);
+    if (v.winCondition != null) out[k].winCondition = N(v.winCondition);
+    if (v.coachNotes   != null) out[k].coachNotes   = N(v.coachNotes);
+  }
+  return out;
+}
 WDB.saveTeamMeta = async function(name, d) {
   if (typeof _sbClient === 'undefined') throw new Error('Supabase not ready');
   if (!name) return;
@@ -1024,13 +1076,14 @@ WDB.saveTeamMeta = async function(name, d) {
   // Only include the columns the caller actually provides, so an update never
   // wipes a field it didn't touch (e.g. saving `league_meta` mustn't clobber the
   // global link, and vice-versa). Omitted columns keep their existing value.
-  const row = { team_name: name, updated_by: user?.id || null, updated_at: new Date().toISOString() };
-  if ('link'         in d) row.link          = d.link || null;
-  if ('winCondition' in d) row.win_condition = d.winCondition || null;   // legacy/global fallback
-  if ('coachNotes'   in d) row.coach_notes   = d.coachNotes || null;     // legacy/global fallback
+  const S = WDB._sanitizeName, N = WDB._sanitizeNotes;
+  const row = { team_name: S(name), updated_by: user?.id || null, updated_at: new Date().toISOString() };
+  if ('link'         in d) row.link          = d.link ? S(d.link) : null;
+  if ('winCondition' in d) row.win_condition = d.winCondition ? N(d.winCondition) : null;   // legacy/global fallback
+  if ('coachNotes'   in d) row.coach_notes   = d.coachNotes ? N(d.coachNotes) : null;       // legacy/global fallback
   if ('rsRank'       in d) row.rs_rank       = (d.rsRank===''||d.rsRank==null) ? null : Number(d.rsRank);
-  if ('placement'    in d) row.placement     = d.placement || null;
-  if (d.leagueMeta && typeof d.leagueMeta === 'object') row.league_meta = d.leagueMeta;  // per league+season standing/notes
+  if ('placement'    in d) row.placement     = d.placement ? S(d.placement) : null;
+  if (d.leagueMeta && typeof d.leagueMeta === 'object') row.league_meta = _sanitizeLeagueMeta(d.leagueMeta);  // per league+season standing/notes
   const { error } = await _sbClient.from('team_meta').upsert(row, { onConflict: 'team_name' });
   if (error) throw error;
 };
@@ -2020,14 +2073,15 @@ WDB.loadLeagues = async function() {
  *  the column is missing. */
 WDB.saveLeague = async function(league) {
   const user = WAuth.getUser();
-  const baseRow = { name: league.name, region: league.region || null,
+  const S = WDB._sanitizeName;
+  const baseRow = { name: S(league.name), region: league.region ? S(league.region) : null,
                 created_by: user?.id };
   if (league.id) baseRow.id = league.id;
   const row = { ...baseRow };
   if (league.visibility !== undefined) row.visibility = (league.visibility === 'private') ? 'private' : 'public';
   if (league.hidden !== undefined) row.hidden = !!league.hidden;
   const wantsCurrentSeason = league.current_season !== undefined;
-  if (wantsCurrentSeason) row.current_season = league.current_season || null;
+  if (wantsCurrentSeason) row.current_season = league.current_season ? S(league.current_season) : null;
 
   const attempt = async (payload) => _sbClient.from('leagues').upsert(payload, { onConflict: 'id' }).select().single();
   let { data, error } = await attempt(row);
@@ -2076,7 +2130,7 @@ WDB.loadLeagueMembers = async function(leagueName) {
 WDB.addLeagueMember = async function(leagueName, email) {
   const user = WAuth.getUser();
   const { data, error } = await _sbClient.from('league_members')
-    .upsert({ league_name: leagueName, email: (email||'').trim().toLowerCase(), added_by: user?.id }, { onConflict: 'league_name,email' })
+    .upsert({ league_name: WDB._sanitizeName(leagueName), email: WDB._sanitizeName(email).toLowerCase(), added_by: user?.id }, { onConflict: 'league_name,email' })
     .select().single();
   if (error) throw error;
   return data;
@@ -2098,7 +2152,7 @@ WDB.loadScrimShares = async function() {
 };
 WDB.addScrimShare = async function(email) {
   const user = WAuth.getUser(); if (!user) throw new Error('Sign in first');
-  const clean = (email||'').trim().toLowerCase();
+  const clean = WDB._sanitizeName(email).toLowerCase();
   if (!clean) throw new Error('Email required');
   const { data, error } = await _sbClient.from('scrim_shares')
     .upsert({ owner: user.id, email: clean }, { onConflict: 'owner,email' })
@@ -2169,6 +2223,7 @@ WDB.canViewTeam = function(name) {
 };
 // Admin: lock / unlock a team.
 WDB.lockTeam = async function(name) {
+  name = WDB._sanitizeName(name);
   const { error } = await _sbClient.from('locked_teams').upsert({ team_name: name }, { onConflict: 'team_name' });
   if (error) { if (/locked_teams/.test(error.message)) throw new Error('Run migration 021 first'); throw error; }
   await WDB.initLocks({ force: true });
@@ -2188,8 +2243,9 @@ WDB.loadLockedTeamMembers = async function(name) {
   } catch(e) { return []; }
 };
 WDB.addLockedTeamMember = async function(name, email) {
-  const clean = (email || '').trim().toLowerCase();
+  const clean = WDB._sanitizeName(email).toLowerCase();
   if (!clean) throw new Error('Email required');
+  name = WDB._sanitizeName(name);
   const { data, error } = await _sbClient.from('locked_team_members')
     .upsert({ team_name: name, email: clean }, { onConflict: 'team_name,email' }).select().single();
   if (error) { if (/locked_team_members/.test(error.message)) throw new Error('Run migration 021 first'); throw error; }
@@ -2237,9 +2293,10 @@ WDB.loadTeamRoster = async function(teamName) {
 };
 WDB.saveRosterPlayer = async function(p) {
   const user = WAuth.getUser();
+  const S = WDB._sanitizeName;
   const row = {
-    team_name: p.team_name, season: p.season, ign: (p.ign||'').trim(),
-    real_name: p.real_name || null, role: p.role || null,
+    team_name: S(p.team_name), season: S(p.season), ign: S(p.ign),
+    real_name: p.real_name ? S(p.real_name) : null, role: p.role ? S(p.role) : null,
     is_active: p.is_active !== false, created_by: user?.id,
   };
   if (p.id) row.id = p.id;
@@ -2315,10 +2372,11 @@ WDB.savePlayer = async function(player) {
   const user = WAuth.getUser();
   // Normalize role: accept only valid values, otherwise store NULL
   const role = WDB.PLAYER_ROLES.includes(player.role) ? player.role : null;
+  const S = WDB._sanitizeName;
   const row = {
-    ign: player.ign,
-    real_name: player.real_name || null,
-    team_name: player.team_name,
+    ign: S(player.ign),
+    real_name: player.real_name ? S(player.real_name) : null,
+    team_name: S(player.team_name),
     role,
     is_active: player.is_active !== false,
     created_by: user?.id,
