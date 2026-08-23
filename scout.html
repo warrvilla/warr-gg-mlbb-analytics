@@ -1974,7 +1974,10 @@ const DB_MODULE = (() => {
   function _seriesKey_raw(m) {
     const teams = [m.blueTeam||'', m.redTeam||''].sort().join('|');
     const anchor = (m.week || m.date || '').trim();
-    return `${anchor}|${teams}|${(m.league||'').trim()}|${(m.stage||'').trim()}|${(m.seriesFormat||'BO3').trim()}`;
+    // Season is part of the series identity — otherwise the same two teams playing
+    // in S17 and S18 (same week/day) collapse into one series, and "Add Game"
+    // pulls the wrong season's data.
+    return `${(m.season||'').trim()}|${anchor}|${teams}|${(m.league||'').trim()}|${(m.stage||'').trim()}|${(m.seriesFormat||'BO3').trim()}`;
   }
 
   function load() {
@@ -3347,7 +3350,10 @@ function openAddGame(seriesId) {
     .filter(mm => DB_MODULE.getSeriesId(mm) === seriesId)
     .sort((a,b)=>(Number(a.gameNum)||1)-(Number(b.gameNum)||1));
   if (!games.length) { toast('Series not found','error'); return; }
-  const last = games[games.length-1];
+  // Seed context (season/week/date/teams) from the game you MOST RECENTLY entered,
+  // not the highest game number — so if an old-season sibling ever shares this
+  // series, "Add Game" still carries the season/date you're actually working in.
+  const last = games.slice().sort((a,b)=>(Number(b.savedAt)||0)-(Number(a.savedAt)||0))[0] || games[games.length-1];
   const nextNum = Math.max(...games.map(g=>Number(g.gameNum)||1)) + 1;
   editingMatchId = null;
   draftStepIndex = 0; draftSlots = Array(DRAFT_STEPS.length).fill(null);
@@ -4145,13 +4151,16 @@ function saveMatch(next) {
   const week   = (document.getElementById('mf-week')?.value||'').trim();
   const date   = document.getElementById('mf-date')?.value || new Date().toISOString().split('T')[0];
   const format = (document.getElementById('mf-format')?.value||'BO3').trim();
+  const season = (document.getElementById('mf-season')?.value||'').trim();
   const sortedTeams = [blueTeam, redTeam].sort().join('|');
 
-  // Find existing series to inherit seriesId
+  // Find existing series to inherit seriesId (season-scoped — a new season is a
+  // new series even for the same teams/week).
   const existingSeries = DB_MODULE.getMatches().find(m => {
     if (m.id === editingMatchId) return false;
     if ([m.blueTeam,m.redTeam].sort().join('|') !== sortedTeams) return false;
     if ((m.league||'').trim() !== league.trim()) return false;
+    if ((m.season||'').trim() !== season) return false;
     if ((m.stage||'').trim() !== stage) return false;
     if ((m.seriesFormat||'BO3').trim() !== format) return false;
     if (week && m.week) return m.week.trim() === week;
@@ -4164,7 +4173,7 @@ function saveMatch(next) {
   // stats, and tempo conversions didn't reflect the correction. Now: try to join
   // an existing sibling game in the corrected series, else fresh hash. If the
   // grouping fields didn't change at all, the hash will be identical anyway.
-  const rawKey = `${(week||date).trim()}|${sortedTeams}|${league.trim()}|${stage}|${format}`;
+  const rawKey = `${season}|${(week||date).trim()}|${sortedTeams}|${league.trim()}|${stage}|${format}`;
   const seriesId = existingSeries?.seriesId || ('sid_' + DB_MODULE._hashStr(rawKey));
 
   const _readObjRow = type => [...document.querySelectorAll(`[data-type="${type}"]`)].map(b => b.dataset.val || '').filter(Boolean);
