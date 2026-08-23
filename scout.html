@@ -3160,8 +3160,11 @@ function renderMatchListBody() {
     const d = new Date(s.date);
     const day = isNaN(d.getTime()) ? '?' : d.getDate();
     const mon = isNaN(d.getTime()) ? '' : d.toLocaleString('default',{month:'short'});
-    // Week group header
-    const weekKey = `${s.league}|${s.stage||''}|${s.week||''}`;
+    // Week group header. Normalize the key (trim, collapse internal whitespace,
+    // ignore case) so cosmetically-identical groups don't split into two headers
+    // because of a stray trailing space or casing difference in the week/stage.
+    const _gk = v => String(v||'').trim().replace(/\s+/g,' ').toLowerCase();
+    const weekKey = `${_gk(s.league)}|${_gk(s.stage)}|${_gk(s.week)}`;
     let groupHdr = '';
     if (weekKey !== _lastWeekKey) {
       _lastWeekKey = weekKey;
