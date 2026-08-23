@@ -1645,6 +1645,32 @@ function _isLearnLeague(lg){
 }
 function _learnMatches(arr){ return (arr||[]).filter(m=>m && _isLearnLeague(m.league)); }
 
+// ── CURRENT-SEASON SCOPING ──────────────────────────────────────────────────
+// AI Battle reads a team's CURRENT form and the CURRENT meta, so it filters scout
+// data to each league's admin-marked current season (Profile → Admin → Leagues).
+// Older seasons (different rosters/patches) are excluded, with safe fallbacks so
+// data is never blanked out.
+let _ABCurrentSeason = Object.create(null);
+async function _loadABCurrentSeasons(){
+  try{
+    if(typeof WDB==='undefined'||!WDB.loadLeagues) return;
+    const rows = await WDB.loadLeagues();
+    const map = Object.create(null);
+    (rows||[]).forEach(l=>{ if(l && l.name && l.current_season) map[l.name]=String(l.current_season).trim(); });
+    _ABCurrentSeason = map;
+    if(typeof invalidateScoutIntel==='function') invalidateScoutIntel();
+  }catch(_){}
+}
+function _curSeasonFor(league){ return _ABCurrentSeason[(league||'').trim()] || ''; }
+// True if a match is in its league's current season. Leagues with no current
+// season set (and non-official buckets like Scrims) pass through so nothing that
+// lacks a season mark gets silently dropped.
+function _seasonOK(m){
+  const cs=_curSeasonFor(m && m.league);
+  if(!cs) return true;
+  return String((m&&m.season)||'').trim()===cs;
+}
+
 function getScoutProfileAB(teamName) {
   if(!teamName) return null;
   const db=loadScoutAB();
@@ -1849,6 +1875,8 @@ document.addEventListener('DOMContentLoaded',async()=>{
   try{ const _cb=document.getElementById('useMyScrims'); if(_cb)_cb.checked=_useMyScrims; }catch(_){}
   // Pre-warm API key cache from Supabase so sync version works immediately
   if(typeof WDB!=='undefined'&&WDB.getAdminApiKey) await WDB.getAdminApiKey();
+  // Load each league's admin-marked current season so AI Battle scopes to it.
+  await _loadABCurrentSeasons();
   updateApiKeyCard();
   updateTokenDisplay();
   // Default opponent mode to VS MPL Team and auto-pick the most-scouted team
@@ -1934,7 +1962,15 @@ function buildEnemyProfileCache(name){
     const db=loadScoutAB();
     const t=db.teams?.[name];
     if(!t){enemyProfile=null;return;}
-    const matches=(db.matches||[]).filter(m=>(m.blueTeam===name||m.redTeam===name) && _isLearnLeague(m.league));
+    const _allTeam=(db.matches||[]).filter(m=>(m.blueTeam===name||m.redTeam===name) && _isLearnLeague(m.league));
+    // Scope to the current season. If the team has no current-season games yet,
+    // fall back to their most recent season so scouting still works.
+    let matches=_allTeam.filter(_seasonOK);
+    if(!matches.length && _allTeam.length){
+      const seasons=[...new Set(_allTeam.map(m=>String(m.season||'').trim()).filter(Boolean))]
+        .sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+      matches = seasons[0] ? _allTeam.filter(m=>String(m.season||'').trim()===seasons[0]) : _allTeam;
+    }
     const bm=matches.filter(m=>m.blueTeam===name);
     const rm=matches.filter(m=>m.redTeam===name);
     const bwr=bm.length?Math.round(bm.filter(m=>m.winner==='blue').length/bm.length*100):0;
@@ -2037,10 +2073,19 @@ function buildEnemyProfileCache(name){
     }
     const bPhased=phasedCore(bm,true),rPhased=phasedCore(rm,false);
     const bBans=phasedBans(bm,true),rBans=phasedBans(rm,false);
+    // Recompute headline aggregates from the SEASON-SCOPED matches (t is the
+    // all-time team aggregate, so using it directly would leak old seasons into
+    // games played / win rate / top picks / top bans).
+    const _gp=matches.length;
+    const _wins=matches.filter(m=>(m.blueTeam===name&&m.winner==='blue')||(m.redTeam===name&&m.winner==='red')).length;
+    const _wr=_gp?Math.round(_wins/_gp*100):0;
+    const _topFrom=(getArr)=>{const f={};matches.forEach(m=>{const isB=m.blueTeam===name;(getArr(m,isB)||[]).forEach(x=>{const n=x&&(x.name||x);if(n)f[n]=(f[n]||0)+1;});});return Object.entries(f).sort((a,b)=>b[1]-a[1]).map(([n])=>n);};
+    const _scopedSeason=(()=>{const f={};matches.forEach(m=>{const s=String(m.season||'').trim();if(s)f[s]=(f[s]||0)+1;});return Object.entries(f).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';})();
+    const _tScoped={...t,gamesPlayed:_gp,wins:_wins,winRate:_wr};
     enemyProfile={
-      name,t,matches,blueWR:bwr,redWR:rwr,
-      topPicks:(t.topPicks||[]).map(p=>p.name),
-      topBans:(t.topBans||[]).map(b=>b.name),
+      name,t:_tScoped,matches,blueWR:bwr,redWR:rwr,season:_scopedSeason,
+      topPicks:_topFrom((m,isB)=>isB?m.bluePicks:m.redPicks),
+      topBans:_topFrom((m,isB)=>isB?m.blueBans:m.redBans),
       winCondition:t.winCondition||'',
       coachNotes:t.coachNotes||'',
       blueSideCore:corePicks(bm,true),
@@ -2239,7 +2284,7 @@ function initBattle(){
     banner.innerHTML=`PVP HOTSEAT — ${pName} (${pSide.toUpperCase()}) vs ${p2Name} (${aiSide.toUpperCase()}) · pass the device between turns`;
   }else if(isEnemy){
     banner.style.background='rgba(240,82,82,.08)';banner.style.borderColor='rgba(240,82,82,.2)';banner.style.color='var(--red)';
-    banner.innerHTML=`Simulating ${enemyProfile.name} · ${enemyProfile.t.gamesPlayed}g scouted · WR ${enemyProfile.t.winRate||0}%<span style="opacity:.65;margin-left:10px;">${_arch.emoji} ${_arch.label}: ${_arch.desc}</span>`;
+    banner.innerHTML=`Simulating ${enemyProfile.name} · ${enemyProfile.t.gamesPlayed}g scouted${enemyProfile.season?` · ${enemyProfile.season}`:''} · WR ${enemyProfile.t.winRate||0}%<span style="opacity:.65;margin-left:10px;">${_arch.emoji} ${_arch.label}: ${_arch.desc}</span>`;
   }else{
     banner.style.background='rgba(168,85,247,.07)';banner.style.borderColor='rgba(168,85,247,.18)';banner.style.color='var(--ai)';
     banner.innerHTML=`${_arch.emoji} <strong>AI Strategy this draft:</strong> ${_arch.label} — ${_arch.desc}`;
@@ -2718,7 +2763,12 @@ function _buildScoutIntel(){
   try{
     const db = loadScoutAB();
     // Learn from official tournament data (+ your own scrims only if you opted in).
-    const matches = _learnMatches(db.matches || []);
+    const allLearn = _learnMatches(db.matches || []);
+    // Scope the meta read to the current season. Fallback: if current-season data
+    // is too thin to model counters/tiers reliably, widen to all official data so
+    // the engine isn't crippled early in a season.
+    const curLearn = allLearn.filter(_seasonOK);
+    const matches = curLearn.length >= 20 ? curLearn : allLearn;
     if (!matches.length || typeof WDB === 'undefined') {
       return { counters:{}, synergies:{}, draftedAgainst:{}, laneCounters:{}, dynamicTiers:{}, n:0 };
     }
