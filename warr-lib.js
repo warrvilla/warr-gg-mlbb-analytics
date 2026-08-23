@@ -311,6 +311,11 @@ const WDB = {
     return String(s == null ? '' : s)
       .replace(/[<>"'`\\]/g, '')
       .replace(/[\x00-\x1F\x7F]/g, '')
+      // Normalize invisible/exotic Unicode spaces (non-breaking, zero-width, BOM,
+      // en/em spaces) that copy-paste sneaks in — otherwise two names that look
+      // identical (e.g. team/week labels) silently fail to match and split data.
+      .replace(/[\u00A0\u1680\u2000-\u200D\u202F\u205F\u2060\u3000\uFEFF]/g, ' ')
+      .replace(/\s+/g, ' ')
       .slice(0, 120)
       .trim();
   },
