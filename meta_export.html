@@ -899,9 +899,25 @@ init();
     const have=new Set([...document.querySelectorAll('.filter-badge')].map(b=>b.textContent.trim()));
     slot.innerHTML=WDB.customLeagues.map(r=>r.name).filter(n=>n&&!have.has(n))
       .map(n=>`<button class="filter-badge" onclick="setFilter('${n.replace(/'/g,"\\'")}',this)">${n}</button>`).join('');
+    _applyActiveLeague();
+  }
+  // Default the card league to whatever league is active elsewhere in the app
+  // (the one you selected in Scout), instead of always starting on All Leagues.
+  function _applyActiveLeague(){
+    let saved=''; try{ saved=localStorage.getItem('warr_scout_league')||''; }catch(_){}
+    if(!saved || saved==='all') return;
+    const badges=[...document.querySelectorAll('.filter-badge')];
+    let matched=null;
+    badges.forEach(b=>{ const on=b.textContent.trim()===saved; b.classList.toggle('active',on); if(on)matched=b; });
+    if(matched){
+      currentFilter=saved;
+      if(document.getElementById('cardsGrid')?.children.length && typeof generateAll==='function') generateAll();
+    }
   }
   window.addEventListener('warr-leagues-ready',inject);
   if(WDB&&WDB.initLeagues)WDB.initLeagues().then(inject).catch(()=>{});
+  // Also try once the built-in badges are present, even before custom leagues load.
+  _applyActiveLeague();
 })();
 
 // Load the live cloud matches (same source as Scout) so meta cards are accurate
