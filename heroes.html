@@ -546,7 +546,9 @@ let _heroMapStats   = {}; // { heroName: { mapName: { games, wins } } } — per-
 let _adminMode      = false;
 let _activeSeason   = ''; // '' = all seasons; otherwise a specific season label
 let _activeLeague   = 'all'; // 'all' or a specific league name
-let _metaTiers      = {};    // hero name → computed tier for current league+season scope
+let _metaTiers      = {};    // hero name → computed tier (hero-wide) for current scope
+let _metaLaneTiers  = {};    // hero name → lane → tier (per-role, so flex heroes tier per role)
+let _heroLaneGames  = {};    // hero name → lane → games played in that role (scoped)
 // Single source of truth for the scoped match pool (league + season).
 function _scopedMatches() {
   let pool = _publicMatches;
@@ -581,6 +583,36 @@ function _computeMetaTiers(pool) {
              : 'B';
   });
   return tiers;
+}
+// PER-ROLE tiers: a flex hero is tiered separately in each role it plays, using
+// that role's own games + win rate — so a strong-in-jungle / weak-in-EXP hero
+// reads correctly per lane instead of as one blended average.
+function _computeMetaLaneTiers(pool) {
+  const total = pool.length;
+  const laneTiers = {}, laneGames = {};
+  if (total < 5) return { laneTiers, laneGames };
+  const stat = {}; // name -> lane -> {g,w}
+  pool.forEach(m => {
+    [[m.bluePicks||[],'blue'],[m.redPicks||[],'red']].forEach(([picks,side]) => {
+      picks.forEach(p => { const n=p&&(p.name||p); if(!n)return;
+        const l = (p&&p.lane) || _heroLaneMap[n] || 'Flex';
+        stat[n]=stat[n]||{}; stat[n][l]=stat[n][l]||{g:0,w:0};
+        stat[n][l].g++; if(m.winner===side) stat[n][l].w++;
+      });
+    });
+  });
+  Object.entries(stat).forEach(([n,lanes]) => {
+    laneTiers[n]={}; laneGames[n]={};
+    Object.entries(lanes).forEach(([l,v]) => {
+      const g=v.g, pr=g/total*100, wr=((v.w+0.5*4)/(g+4))*100;
+      laneTiers[n][l] = g<2 ? 'C' : g<3 ? 'B'
+        : (pr>=30 || (pr>=18 && wr>=58)) ? 'S+'
+        : (pr>=15 || (pr>=8  && wr>=55)) ? 'S'
+        : (pr>=8)  ? 'A' : 'B';
+      laneGames[n][l]=g;
+    });
+  });
+  return { laneTiers, laneGames };
 }
 const MAP_NAMES = ['Dangerous Grass','Broken Walls','Flying Cloud','Expanding River'];
 
@@ -804,6 +836,8 @@ function recomputeForMapFilter() {
   let pool = _scopedMatches();
   if (mapSel)        pool = pool.filter(m => (m.map||'') === mapSel);
   _metaTiers = _computeMetaTiers(_scopedMatches()); // tier ignores map filter
+  const _ll = _computeMetaLaneTiers(_scopedMatches());
+  _metaLaneTiers = _ll.laneTiers; _heroLaneGames = _ll.laneGames;
   _countersMap   = WDB.computeScoutCountersFromMatches(pool);
   _synergiesMap  = WDB.computeScoutSynergiesFromMatches(pool);
   _draftedAgainst = WDB.computeDraftedAgainstFromMatches?.(pool) || {};
@@ -832,11 +866,22 @@ function getFilteredHeroes() {
     // Scout-observed lane wins; otherwise fall back to the static default lanes
     // from warr-lib so heroes that haven't been picked yet still appear under
     // their natural lane filter (Phoveus → EXP, Lancelot → Jungle, etc.).
-    const observedLane = _heroLaneMap[name] || '';
+    const primaryLane = _heroLaneMap[name] || '';
     const defaultLanes = (typeof WDB !== 'undefined' && WDB.getHeroLanes)
       ? WDB.getHeroLanes(name, heroRole) : [];
-    const allLanes = observedLane ? [observedLane] : defaultLanes;
-    return { name, role: heroRole, lane: observedLane, allLanes };
+    // ALL roles this hero has actually been played in (scoped), so a flex hero
+    // appears under each of its lanes' filters — not just its primary.
+    const observedLanes = Object.keys(_heroLaneGames[name] || {}).filter(l => l && l !== 'Flex');
+    const allLanes = observedLanes.length ? observedLanes : (primaryLane ? [primaryLane] : defaultLanes);
+    // Which lane to SHOW: the filtered lane if set & played, else primary/best.
+    const displayLane = (lane && allLanes.includes(lane)) ? lane
+      : (primaryLane || observedLanes[0] || defaultLanes[0] || '');
+    // Per-role tier + games for the shown lane, falling back to hero-wide.
+    const laneTier  = displayLane && _metaLaneTiers[name] ? _metaLaneTiers[name][displayLane] : null;
+    const tier      = laneTier || _metaTiers[name] || null;
+    const laneGames = displayLane && _heroLaneGames[name] ? (_heroLaneGames[name][displayLane]||0) : 0;
+    const isFlex    = observedLanes.length > 1;
+    return { name, role: heroRole, lane: displayLane, allLanes, tier, laneGames, isFlex };
   });
 
   if (role)  list = list.filter(h => h.role.includes(role));
@@ -919,8 +964,8 @@ function heroCardHTML(h) {
              onerror="this.style.background='var(--surface3)';this.removeAttribute('src')">
         <div class="hero-meta">
           <div class="hero-name">${escHtml(h.name)}</div>
-          <div class="hero-role">${escHtml((h.role || '—').toUpperCase())}${h.lane ? ` · ${escHtml(h.lane.toUpperCase())}` : ''}</div>
-          <div class="hero-gamecount">${games} game${games !== 1 ? 's' : ''} scouted${_metaTiers[h.name] && games>0 ? ` · <span class="meta-tier-badge t-${_metaTiers[h.name].replace('+','p')}">${_metaTiers[h.name]}</span>` : ''}</div>
+          <div class="hero-role">${escHtml((h.role || '—').toUpperCase())}${h.lane ? ` · ${escHtml(h.lane.toUpperCase())}` : ''}${h.isFlex ? ` · <span style="color:var(--purple);font-weight:800;">FLEX</span>` : ''}</div>
+          <div class="hero-gamecount">${games} game${games !== 1 ? 's' : ''} scouted${h.tier && games>0 ? ` · <span class="meta-tier-badge t-${h.tier.replace('+','p')}" title="${h.lane?escHtml(h.lane)+' tier':'tier'}${h.isFlex?' — this hero tiers separately per role':''}">${h.tier}${h.lane?` ${escHtml(h.lane)}`:''}</span>` : ''}</div>
           ${mapSplitsHTML(h.name)}
         </div>
       </div>
