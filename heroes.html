@@ -549,6 +549,7 @@ let _activeLeague   = 'all'; // 'all' or a specific league name
 let _metaTiers      = {};    // hero name → computed tier (hero-wide) for current scope
 let _metaLaneTiers  = {};    // hero name → lane → tier (per-role, so flex heroes tier per role)
 let _heroLaneGames  = {};    // hero name → lane → games played in that role (scoped)
+let _metaLaneInfo   = {};    // hero name → lane → {tier,contest,pickRate,banRate,wr,g} for reasoning
 // Single source of truth for the scoped match pool (league + season).
 function _scopedMatches() {
   let pool = _publicMatches;
@@ -584,14 +585,28 @@ function _computeMetaTiers(pool) {
   });
   return tiers;
 }
-// PER-ROLE tiers: a flex hero is tiered separately in each role it plays, using
-// that role's own games + win rate — so a strong-in-jungle / weak-in-EXP hero
-// reads correctly per lane instead of as one blended average.
+// PER-ROLE tiers: a flex hero is tiered separately in each role it plays.
+//
+// TIERING MODEL (why a hero is S+/S/A/B/C):
+//   A hero's tier reflects DRAFT PRIORITY = how contested it is (pick+ban rate),
+//   adjusted by how well it actually performs (win rate). The old model gated
+//   almost entirely on pick rate, so a popular-but-mediocre hero could reach S+
+//   while an efficient high-WR pick stalled at A, and bans were ignored entirely.
+//   New model:
+//     contest = pickRate% + banRate%      (banned heroes ARE high priority)
+//     wr      = Bayesian-shrunk win rate (prior 50%, k=6, so small samples
+//               regress toward 50% instead of swinging to extremes)
+//     score   = contest + max(0, wr-50) × 1.2   (win impact worth ~1.2×/point)
+//   Tiers are then assigned RELATIVE to the strongest hero in the current pool
+//   (self-calibrating, so thresholds adapt to the league/season/sample instead
+//   of arbitrary absolute cutoffs), with sample-size gates: <2 games = C,
+//   <4 games capped at B (not enough data to crown).
 function _computeMetaLaneTiers(pool) {
   const total = pool.length;
-  const laneTiers = {}, laneGames = {};
-  if (total < 5) return { laneTiers, laneGames };
-  const stat = {}; // name -> lane -> {g,w}
+  const laneTiers = {}, laneGames = {}, laneInfo = {}, heroTiers = {};
+  if (total < 5) return { laneTiers, laneGames, laneInfo, heroTiers };
+  const stat = {};   // name -> lane -> {g,w}
+  const bans = {};   // name -> ban count (hero-wide; bans aren't per-role)
   pool.forEach(m => {
     [[m.bluePicks||[],'blue'],[m.redPicks||[],'red']].forEach(([picks,side]) => {
       picks.forEach(p => { const n=p&&(p.name||p); if(!n)return;
@@ -600,19 +615,41 @@ function _computeMetaLaneTiers(pool) {
         stat[n][l].g++; if(m.winner===side) stat[n][l].w++;
       });
     });
+    [...(m.blueBans||[]),...(m.redBans||[])].forEach(b => { const n=b&&(b.name||b); if(n) bans[n]=(bans[n]||0)+1; });
   });
+  const K = 6;
+  // Pass 1 — raw score per (hero, lane); established roles (≥3g) set the ceiling.
+  const info = {}; let maxScore = 0;
   Object.entries(stat).forEach(([n,lanes]) => {
-    laneTiers[n]={}; laneGames[n]={};
+    info[n] = {};
     Object.entries(lanes).forEach(([l,v]) => {
-      const g=v.g, pr=g/total*100, wr=((v.w+0.5*4)/(g+4))*100;
-      laneTiers[n][l] = g<2 ? 'C' : g<3 ? 'B'
-        : (pr>=30 || (pr>=18 && wr>=58)) ? 'S+'
-        : (pr>=15 || (pr>=8  && wr>=55)) ? 'S'
-        : (pr>=8)  ? 'A' : 'B';
-      laneGames[n][l]=g;
+      const g=v.g, pickRate=g/total*100, banRate=(bans[n]||0)/total*100;
+      const contest = pickRate + banRate;
+      const wr = ((v.w + 0.5*K)/(g + K))*100;
+      const score = contest + Math.max(0, wr-50)*1.2;
+      info[n][l] = { g, wins:v.w, pickRate:Math.round(pickRate), banRate:Math.round(banRate),
+                     contest:Math.round(contest), wr:Math.round(wr), score };
+      if (g>=3 && score>maxScore) maxScore = score;
     });
   });
-  return { laneTiers, laneGames };
+  if (maxScore<=0) maxScore = 1;
+  // Pass 2 — assign tiers relative to the pool ceiling, with sample gates.
+  Object.entries(info).forEach(([n,lanes]) => {
+    laneTiers[n]={}; laneGames[n]={}; laneInfo[n]={};
+    let bestRank=-1, bestTier=null;
+    Object.entries(lanes).forEach(([l,d]) => {
+      const f = d.score/maxScore;
+      let tier;
+      if (d.g < 2)      tier = 'C';
+      else if (d.g < 4) tier = f>=0.58 ? 'B' : 'C';         // low sample: cap at B
+      else              tier = f>=0.78 ? 'S+' : f>=0.58 ? 'S' : f>=0.40 ? 'A' : f>=0.22 ? 'B' : 'C';
+      laneTiers[n][l]=tier; laneGames[n][l]=d.g; laneInfo[n][l]={...d, tier};
+      const rank={'S+':5,S:4,A:3,B:2,C:1}[tier]||0;
+      if (rank>bestRank){ bestRank=rank; bestTier=tier; }
+    });
+    heroTiers[n]=bestTier;   // hero-wide badge = their best role
+  });
+  return { laneTiers, laneGames, laneInfo, heroTiers };
 }
 const MAP_NAMES = ['Dangerous Grass','Broken Walls','Flying Cloud','Expanding River'];
 
@@ -835,9 +872,11 @@ function recomputeForMapFilter() {
   // most-recent so out-of-date patch data doesn't bleed into current analytics.
   let pool = _scopedMatches();
   if (mapSel)        pool = pool.filter(m => (m.map||'') === mapSel);
-  _metaTiers = _computeMetaTiers(_scopedMatches()); // tier ignores map filter
-  const _ll = _computeMetaLaneTiers(_scopedMatches());
-  _metaLaneTiers = _ll.laneTiers; _heroLaneGames = _ll.laneGames;
+  const _ll = _computeMetaLaneTiers(_scopedMatches());   // tier ignores map filter
+  _metaLaneTiers = _ll.laneTiers; _heroLaneGames = _ll.laneGames; _metaLaneInfo = _ll.laneInfo;
+  // Hero-wide badge = the hero's best role tier (falls back to legacy blended
+  // model only if the per-role pass produced nothing).
+  _metaTiers = Object.keys(_ll.heroTiers).length ? _ll.heroTiers : _computeMetaTiers(_scopedMatches());
   _countersMap   = WDB.computeScoutCountersFromMatches(pool);
   _synergiesMap  = WDB.computeScoutSynergiesFromMatches(pool);
   _draftedAgainst = WDB.computeDraftedAgainstFromMatches?.(pool) || {};
@@ -881,7 +920,13 @@ function getFilteredHeroes() {
     const tier      = laneTier || _metaTiers[name] || null;
     const laneGames = displayLane && _heroLaneGames[name] ? (_heroLaneGames[name][displayLane]||0) : 0;
     const isFlex    = observedLanes.length > 1;
-    return { name, role: heroRole, lane: displayLane, allLanes, tier, laneGames, isFlex };
+    // All roles this hero is played in, each with its own tier + reasoning,
+    // ordered by games so the primary role shows first.
+    const roles = observedLanes
+      .map(l => ({ lane:l, tier:(_metaLaneTiers[name]||{})[l]||null, info:(_metaLaneInfo[name]||{})[l]||null,
+                   g:(_heroLaneGames[name]||{})[l]||0 }))
+      .sort((a,b) => b.g - a.g);
+    return { name, role: heroRole, lane: displayLane, allLanes, tier, laneGames, isFlex, roles };
   });
 
   if (role)  list = list.filter(h => h.role.includes(role));
@@ -964,8 +1009,15 @@ function heroCardHTML(h) {
              onerror="this.style.background='var(--surface3)';this.removeAttribute('src')">
         <div class="hero-meta">
           <div class="hero-name">${escHtml(h.name)}</div>
-          <div class="hero-role">${escHtml((h.role || '—').toUpperCase())}${h.lane ? ` · ${escHtml(h.lane.toUpperCase())}` : ''}${h.isFlex ? ` · <span style="color:var(--purple);font-weight:800;">FLEX</span>` : ''}</div>
-          <div class="hero-gamecount">${games} game${games !== 1 ? 's' : ''} scouted${h.tier && games>0 ? ` · <span class="meta-tier-badge t-${h.tier.replace('+','p')}" title="${h.lane?escHtml(h.lane)+' tier':'tier'}${h.isFlex?' — this hero tiers separately per role':''}">${h.tier}${h.lane?` ${escHtml(h.lane)}`:''}</span>` : ''}</div>
+          <div class="hero-role">${escHtml((h.role || '—').toUpperCase())}${h.isFlex ? ` · <span style="color:var(--purple);font-weight:800;">FLEX</span>` : ''}</div>
+          <div class="hero-gamecount">${games} game${games !== 1 ? 's' : ''} scouted</div>
+          ${(h.roles && h.roles.length && games>0) ? `<div class="hero-roletiers" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;">${
+            h.roles.filter(r=>r.tier).map(r=>{
+              const inf=r.info;
+              const tip = inf ? `${r.lane} · ${r.tier}\n${inf.contest}% contest (${inf.pickRate}% pick + ${inf.banRate}% ban)\n${inf.wr}% win rate · ${inf.g} game${inf.g!==1?'s':''}` : `${r.lane} · ${r.tier}`;
+              return `<span class="meta-tier-badge t-${r.tier.replace('+','p')}" title="${escHtml(tip)}" style="display:inline-flex;gap:4px;align-items:center;"><span style="opacity:.75;font-weight:700;">${escHtml(r.lane)}</span>${r.tier}</span>`;
+            }).join('')
+          }</div>` : ''}
           ${mapSplitsHTML(h.name)}
         </div>
       </div>
