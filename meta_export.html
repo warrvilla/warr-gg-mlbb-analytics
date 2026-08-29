@@ -452,8 +452,11 @@ const TIER_STYLE = {
 let currentFilter = 'all';
 let metaSeason    = '';       // '' = current season · 'all' = every season · else specific
 let patchVersion  = null;
-let heroScoutStats = {};
+let heroScoutStats = {};   // hero-wide (blended) — used for scoring + hero-wide ban rate
+let heroLaneStats  = {};   // name -> lane -> {picks,wins,winRate,pickRate,banRate,presence}
 let scoutMatchCount = 0;
+const MIN_LANE_GAMES = 2;  // a hero needs this many games in a role to earn a card slot there
+function getLaneStat(name, lane){ return (heroLaneStats[name] && heroLaneStats[name][lane]) || null; }
 // League → admin-marked current season (from the leagues table).
 let _metaCurSeason = Object.create(null);
 let _metaSeasonUsed = '';     // the season actually shown on the last generate
@@ -567,6 +570,7 @@ function loadScoutStats() {
     _metaSeasonUsed = _dominantSeason(matches);
     scoutMatchCount = matches.length;
     const heroData = {};
+    const laneData = {};   // name -> { lane -> {picks, wins} } for per-role stats
     matches.forEach(m => {
       // Picks
       const sides = [
@@ -579,9 +583,16 @@ function loadScoutStats() {
           if (!heroData[name]) heroData[name] = { picks:0, wins:0, bans:0 };
           heroData[name].picks++;
           if (winner) heroData[name].wins++;
+          // Per-role: attribute to the pick's tagged lane (fallback to the hero's
+          // primary lane when a pick wasn't lane-tagged).
+          const lane = (p && p.lane) || (HERO_LANES[name] && HERO_LANES[name][0]) || 'Flex';
+          if (!laneData[name]) laneData[name] = {};
+          if (!laneData[name][lane]) laneData[name][lane] = { picks:0, wins:0 };
+          laneData[name][lane].picks++;
+          if (winner) laneData[name][lane].wins++;
         });
       });
-      // Bans
+      // Bans (not tied to a role — counted hero-wide)
       [...(m.blueBans||[]), ...(m.redBans||[])].forEach(b => {
         const name = b.name || b;
         if (!heroData[name]) heroData[name] = { picks:0, wins:0, bans:0 };
@@ -600,6 +611,27 @@ function loadScoutStats() {
           presence: Math.round(total / scoutMatchCount * 100),
         };
       }
+    });
+    // Per-role stats: each (hero, lane) is its own line so a flex hero shows on
+    // every role it's actually played, with that role's OWN win rate — no more
+    // cross-role blended averages. Ban count is hero-wide (bans aren't per-role).
+    heroLaneStats = {};
+    Object.entries(laneData).forEach(([name, lanes]) => {
+      const bans = heroData[name]?.bans || 0;
+      heroLaneStats[name] = {};
+      Object.entries(lanes).forEach(([lane, d]) => {
+        heroLaneStats[name][lane] = {
+          picks:    d.picks,
+          wins:     d.wins,
+          bans,
+          winRate:  d.picks > 0 ? Math.round(d.wins / d.picks * 100) : null,
+          pickRate: Math.round(d.picks / scoutMatchCount * 100),
+          banRate:  Math.round(bans / scoutMatchCount * 100),
+          // Presence in this role = its picks + the hero's bans, so a banned flex
+          // hero still reads as high-priority on each role it threatens.
+          presence: Math.round((d.picks + bans) / scoutMatchCount * 100),
+        };
+      });
     });
   } catch(e) { console.warn('Scout load error:', e); }
 }
@@ -648,19 +680,32 @@ function getHeroScore(h) {
 }
 
 function getTopForLane(lane) {
-  const pool = ALL_HEROES.filter(h => getHeroLane(h) === lane);
-  // When scout data exists, sort by presence% (pick+ban / total games) — the most
-  // effective competitive metric: high presence = hero must be dealt with every draft.
-  // Tie-break (and no-data fallback) by composite meta score.
-  if (scoutMatchCount > 0) {
-    return pool.sort((a, b) => {
-      const pa = heroScoutStats[a.name]?.presence ?? 0;
-      const pb = heroScoutStats[b.name]?.presence ?? 0;
-      if (pb !== pa) return pb - pa;
-      return getHeroScore(b) - getHeroScore(a);
-    }).slice(0, 12);
+  // No scout data → fall back to static single-lane assignment by meta score.
+  if (scoutMatchCount === 0) {
+    return ALL_HEROES.filter(h => getHeroLane(h) === lane)
+      .sort((a, b) => getHeroScore(b) - getHeroScore(a)).slice(0, 12);
   }
-  return pool.sort((a, b) => getHeroScore(b) - getHeroScore(a)).slice(0, 12);
+  // PER-ROLE: a hero earns a slot on this lane's card if it has ≥MIN_LANE_GAMES
+  // games IN this lane — so a flex hero appears on every role it's actually
+  // played, ranked by that role's own presence.
+  const seen = new Set();
+  const qualified = ALL_HEROES.filter(h => {
+    const ls = getLaneStat(h.name, lane);
+    return ls && ls.picks >= MIN_LANE_GAMES;
+  }).sort((a, b) => {
+    const pa = getLaneStat(a.name, lane).presence, pb = getLaneStat(b.name, lane).presence;
+    if (pb !== pa) return pb - pa;
+    return getHeroScore(b) - getHeroScore(a);
+  });
+  qualified.forEach(h => seen.add(h.name));
+  // If the role is thin on scouted data, top up with static-lane heroes so the
+  // card still fills out (they'll show "—" for role stats they don't have).
+  if (qualified.length < 10) {
+    const fill = ALL_HEROES.filter(h => getHeroLane(h) === lane && !seen.has(h.name))
+      .sort((a, b) => getHeroScore(b) - getHeroScore(a));
+    return qualified.concat(fill).slice(0, 12);
+  }
+  return qualified.slice(0, 12);
 }
 
 function getRoleColor(role) {
@@ -732,11 +777,14 @@ function buildCard(lane) {
   const heroRows = heroes.map((h, i) => {
     const rank      = i + 1;
     const rc        = RANK_C[i];
-    const stats     = heroScoutStats[h.name];
+    // Per-role stats for THIS card's lane (flex heroes show role-specific numbers,
+    // not a cross-role blend). Fall back to hero-wide only if no per-lane row.
+    const laneStats = getLaneStat(h.name, lane);
+    const stats     = laneStats || heroScoutStats[h.name];
     const wr        = stats?.winRate;
     const pres      = stats?.presence;
-    const pickRate  = (stats && scoutMatchCount > 0) ? Math.round(stats.picks / scoutMatchCount * 100) : undefined;
-    const banRate   = (stats && scoutMatchCount > 0) ? Math.round(stats.bans  / scoutMatchCount * 100) : undefined;
+    const pickRate  = (scoutMatchCount > 0 && stats) ? (stats.pickRate ?? Math.round(stats.picks / scoutMatchCount * 100)) : undefined;
+    const banRate   = (scoutMatchCount > 0 && stats) ? (stats.banRate  ?? Math.round((stats.bans||0) / scoutMatchCount * 100)) : undefined;
     // "Must Ban" is data-driven from the SELECTED LEAGUE. A hero earns it when
     // teams clearly refuse to let it through: banned in a strong majority of
     // games (≥60%), OR banned very often (≥45%) AND still winning when it slips
@@ -747,7 +795,10 @@ function buildCard(lane) {
       ? ( banRate >= 60 || (banRate >= 45 && wr !== undefined && wr >= 55 && (stats?.picks||0) >= 3) )
       : (scoutMatchCount === 0 && h.mp === 'mustban');
     const nameColor = isMustban ? '#E07878' : 'rgba(240,240,248,.95)';
-    const roleName  = fullRoleName(h.role);
+    // Label the row with THIS card's role (so a flex hero reads correctly on each
+    // card it appears on), and flag it as flex if it's meta in >1 role.
+    const _roleCount = Object.values(heroLaneStats[h.name]||{}).filter(s=>s.picks>=MIN_LANE_GAMES).length;
+    const roleName  = fullRoleName(lane) + (_roleCount > 1 ? ' · FLEX' : '');
     const rowBg     = i % 2 === 0 ? 'rgba(255,255,255,.018)' : 'transparent';
 
     return `<div style="display:flex;align-items:center;height:75px;padding:0 36px;background:${rowBg};border-bottom:1px solid rgba(255,255,255,.028);box-sizing:border-box;flex-shrink:0;">
