@@ -209,6 +209,10 @@
     <button class="filter-badge" onclick="setFilter('MSC',this)">MSC</button>
     <button class="filter-badge" onclick="setFilter('M-Series',this)">M-Series</button>
     <button class="filter-badge" onclick="setFilter('Scrims',this)">Scrims</button>
+    <select id="metaSeasonSel" class="filter-badge" style="cursor:pointer;" onchange="setMetaSeason(this.value)" title="Which season's meta to export — defaults to the league's current season">
+      <option value="">Current season</option>
+      <option value="all">All seasons</option>
+    </select>
     <button class="gen-btn" id="genBtn" onclick="generateAll()">▶ Generate All Cards</button>
   </div>
 
@@ -446,9 +450,39 @@ const TIER_STYLE = {
 
 // ── State ───────────────────────────────────────────────────────────────────
 let currentFilter = 'all';
+let metaSeason    = '';       // '' = current season · 'all' = every season · else specific
 let patchVersion  = null;
 let heroScoutStats = {};
 let scoutMatchCount = 0;
+// League → admin-marked current season (from the leagues table).
+let _metaCurSeason = Object.create(null);
+let _metaSeasonUsed = '';     // the season actually shown on the last generate
+function _metaSeasonOK(m){
+  const cs = _metaCurSeason[(m&&m.league||'').trim()] || '';
+  if (!cs) return true;                                  // no current season set → don't drop
+  return String((m&&m.season)||'').trim() === cs;
+}
+function _dominantSeason(ms){
+  const f={}; (ms||[]).forEach(m=>{const s=String(m.season||'').trim(); if(s)f[s]=(f[s]||0)+1;});
+  return Object.entries(f).sort((a,b)=>b[1]-a[1])[0]?.[0] || '';
+}
+function setMetaSeason(v){
+  metaSeason = v || '';
+  if (document.getElementById('cardsGrid')?.children.length && typeof generateAll==='function') generateAll();
+}
+// List the seasons that actually exist for the selected league in the dropdown.
+function _populateMetaSeasonOptions(){
+  const sel=document.getElementById('metaSeasonSel'); if(!sel) return;
+  let src = window._scoutMatchesCloud || [];
+  if(!src.length){ try{ const raw=localStorage.getItem('warr_scout_data')||localStorage.getItem('warr_scout_db'); const db=raw?JSON.parse(raw):null; src=(db&&db.matches)||[]; }catch(_){} }
+  const pool = currentFilter==='all' ? src : src.filter(m=>m.league===currentFilter);
+  const seasons=[...new Set(pool.map(m=>String(m.season||'').trim()).filter(Boolean))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+  const keep=metaSeason;
+  sel.innerHTML = `<option value="">Current season</option><option value="all">All seasons</option>`
+    + seasons.map(s=>`<option value="${s.replace(/"/g,'&quot;')}">${s}</option>`).join('');
+  sel.value = [...sel.options].some(o=>o.value===keep) ? keep : '';
+  metaSeason = sel.value;
+}
 
 // ── Init ────────────────────────────────────────────────────────────────────
 function init() {
@@ -512,9 +546,25 @@ function loadScoutStats() {
       source = db || db2;
     }
     if (!source || !source.matches) return;
-    const matches = currentFilter === 'all'
+    let matches = currentFilter === 'all'
       ? source.matches
       : source.matches.filter(m => m.league === currentFilter);
+    // SEASON SCOPE — never blend seasons by default. '' = each league's current
+    // season (admin-marked), 'all' = every season, else a specific season.
+    if (metaSeason === '') {
+      let scoped = matches.filter(_metaSeasonOK);
+      // Fallback: if the current season has no data for the selected league yet,
+      // use that league's most recent season instead of blending everything.
+      if (!scoped.length && matches.length && currentFilter !== 'all') {
+        const seasons=[...new Set(matches.map(m=>String(m.season||'').trim()).filter(Boolean))]
+          .sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+        scoped = seasons[0] ? matches.filter(m=>String(m.season||'').trim()===seasons[0]) : matches;
+      }
+      matches = scoped;
+    } else if (metaSeason !== 'all') {
+      matches = matches.filter(m => String(m.season||'').trim() === metaSeason);
+    }
+    _metaSeasonUsed = _dominantSeason(matches);
     scoutMatchCount = matches.length;
     const heroData = {};
     matches.forEach(m => {
@@ -660,10 +710,11 @@ function fullRoleName(role) {
 function buildCard(lane) {
   const cfg         = LANE_CONFIG[lane];
   const heroes      = getTopForLane(lane).slice(0, 10);
-  const filterLabel = currentFilter === 'all' ? 'All Leagues' : currentFilter;
+  const _seasonTxt  = metaSeason==='all' ? 'All Seasons' : (_metaSeasonUsed || (metaSeason || ''));
+  const filterLabel = (currentFilter === 'all' ? 'All Leagues' : currentFilter) + (_seasonTxt ? ` · ${_seasonTxt}` : '');
   const patchLabel  = patchVersion ? `Patch ${patchVersion}` : `Meta ${new Date().getFullYear()}`;
   const scoutLabel  = scoutMatchCount > 0
-    ? `Based on ${scoutMatchCount} matches`
+    ? `Based on ${scoutMatchCount} matches${_seasonTxt && metaSeason!=='all' ? ` · ${_seasonTxt}` : ''}`
     : 'Sorted by tier score';
 
   const RANK_C = [
@@ -820,7 +871,8 @@ async function downloadCard(lane) {
     document.body.removeChild(wrapper);
 
     const link = document.createElement('a');
-    link.download = `warr_meta_${lane.toLowerCase()}_${currentFilter.replace(/\s/g,'_')}.png`;
+    const _seasonTag = metaSeason==='all' ? 'all_seasons' : (_metaSeasonUsed || metaSeason || '').replace(/\s/g,'_');
+    link.download = `warr_meta_${lane.toLowerCase()}_${currentFilter.replace(/\s/g,'_')}${_seasonTag?'_'+_seasonTag:''}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
   } catch(e) {
@@ -859,6 +911,7 @@ function setFilter(f, el) {
   currentFilter = f;
   document.querySelectorAll('.filter-badge').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
+  _populateMetaSeasonOptions();   // seasons differ per league
   // Re-read + re-render for the newly selected league (this was missing — the
   // cards used to keep showing the previous league's data until you hit Generate).
   if (document.getElementById('cardsGrid')?.children.length) generateAll();
@@ -914,8 +967,17 @@ init();
       if(document.getElementById('cardsGrid')?.children.length && typeof generateAll==='function') generateAll();
     }
   }
-  window.addEventListener('warr-leagues-ready',inject);
-  if(WDB&&WDB.initLeagues)WDB.initLeagues().then(inject).catch(()=>{});
+  async function _loadSeasonMap(){
+    try{
+      if(typeof WDB==='undefined'||!WDB.loadLeagues) return;
+      const rows=await WDB.loadLeagues();
+      const map=Object.create(null);
+      (rows||[]).forEach(l=>{ if(l&&l.name&&l.current_season) map[l.name]=String(l.current_season).trim(); });
+      _metaCurSeason=map;
+    }catch(_){}
+  }
+  window.addEventListener('warr-leagues-ready',()=>{ inject(); _loadSeasonMap(); });
+  if(WDB&&WDB.initLeagues)WDB.initLeagues().then(()=>{inject();_loadSeasonMap();}).catch(()=>{});
   // Also try once the built-in badges are present, even before custom leagues load.
   _applyActiveLeague();
 })();
@@ -928,6 +990,7 @@ init();
       const ms = await WDB.loadMatches();
       if (Array.isArray(ms) && ms.length) {
         window._scoutMatchesCloud = ms;
+        if (typeof _populateMetaSeasonOptions==='function') _populateMetaSeasonOptions();
         // If cards are already on screen, refresh them with the authoritative data.
         if (document.getElementById('cardsGrid')?.children.length && typeof generateAll==='function') generateAll();
       }
