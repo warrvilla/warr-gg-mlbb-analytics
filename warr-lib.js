@@ -2261,6 +2261,82 @@ WDB.removeLockedTeamMember = async function(id) {
   if (error) throw error;
 };
 
+// ═══════════════════════════════════════════════════════════════
+// SHARED META TIERING — one model used everywhere (homepage, Heroes,
+// Scout, meta cards) so a hero's tier is consistent across the app.
+//
+// A hero's tier reflects DRAFT PRIORITY, not just popularity:
+//   contest = pick% + ban%             (a banned hero IS high priority)
+//   wr      = Bayesian-shrunk win rate (prior 50%, k=6 — small samples
+//             regress toward 50% instead of swinging to extremes)
+//   score   = contest + max(0, wr-50) × 1.2
+// Tiers are assigned RELATIVE to the strongest hero in the pool, so the
+// scale self-calibrates to the league/season/sample. Sample gates: <2
+// games = C, <4 games capped at B.
+//
+// Returns { laneInfo, heroTiers, maxScore }:
+//   laneInfo[name][lane] = { g, pickRate, banRate, contest, wr, score, tier }
+//   heroTiers[name]      = the hero's best-role tier (hero-wide badge)
+// Options: { lanePrimary } — map of name→primary lane, used to bucket picks
+//   that weren't lane-tagged. { minTotal } default 5. { recencyHalfLifeDays }
+//   optional — weight recent games more (homepage uses ~90).
+WDB.computeMetaTiers = function(matches, opts) {
+  opts = opts || {};
+  const lanePrimary = opts.lanePrimary || {};
+  const minTotal = opts.minTotal != null ? opts.minTotal : 5;
+  const hl = opts.recencyHalfLifeDays || 0;
+  const now = Date.now();
+  const wOf = m => { if (!hl) return 1; const t = Date.parse(m && m.date || ''); if (!t) return 0.7; return Math.pow(0.5, Math.max(0, (now - t) / 864e5) / hl); };
+  const laneInfo = {}, heroTiers = {};
+  const list = matches || [];
+  if (list.length < minTotal) return { laneInfo, heroTiers, maxScore: 0 };
+  const stat = {}, bans = {};
+  let totalW = 0;
+  list.forEach(m => {
+    const w = wOf(m); totalW += w;
+    [[m.bluePicks||[],'blue'],[m.redPicks||[],'red']].forEach(([picks, side]) => {
+      (picks||[]).forEach(p => { const n = p && (p.name||p); if(!n) return;
+        const l = (p && p.lane) || lanePrimary[n] || 'Flex';
+        stat[n] = stat[n] || {}; stat[n][l] = stat[n][l] || { w:0, winW:0, g:0 };
+        stat[n][l].w += w; stat[n][l].g++; if (m.winner === side) stat[n][l].winW += w;
+      });
+    });
+    [...(m.blueBans||[]), ...(m.redBans||[])].forEach(b => { const n = b && (b.name||b); if(n) bans[n] = (bans[n]||0) + w; });
+  });
+  if (totalW <= 0) return { laneInfo, heroTiers, maxScore: 0 };
+  const K = 6;
+  const info = {}; let maxScore = 0;
+  Object.entries(stat).forEach(([n, lanes]) => {
+    info[n] = {};
+    Object.entries(lanes).forEach(([l, v]) => {
+      const pickRate = v.w / totalW * 100;
+      const banRate  = (bans[n]||0) / totalW * 100;
+      const contest  = pickRate + banRate;
+      const wr = ((v.winW + 0.5*K) / (v.w + K)) * 100;
+      const score = contest + Math.max(0, wr-50) * 1.2;
+      info[n][l] = { g:v.g, pickRate:Math.round(pickRate), banRate:Math.round(banRate),
+                     contest:Math.round(contest), wr:Math.round(wr), score };
+      if (v.g >= 3 && score > maxScore) maxScore = score;
+    });
+  });
+  if (maxScore <= 0) maxScore = 1;
+  Object.entries(info).forEach(([n, lanes]) => {
+    laneInfo[n] = {}; let bestRank = -1, bestTier = null;
+    Object.entries(lanes).forEach(([l, d]) => {
+      const f = d.score / maxScore;
+      let tier;
+      if (d.g < 2)      tier = 'C';
+      else if (d.g < 4) tier = f >= 0.58 ? 'B' : 'C';
+      else              tier = f >= 0.78 ? 'S+' : f >= 0.58 ? 'S' : f >= 0.40 ? 'A' : f >= 0.22 ? 'B' : 'C';
+      laneInfo[n][l] = { ...d, tier };
+      const rank = {'S+':5,S:4,A:3,B:2,C:1}[tier] || 0;
+      if (rank > bestRank) { bestRank = rank; bestTier = tier; }
+    });
+    heroTiers[n] = bestTier;
+  });
+  return { laneInfo, heroTiers, maxScore };
+};
+
 /** Look up the admin-marked current season for a league name. Returns string or null.
  *  Returns null silently if the column doesn't exist yet (graceful degradation). */
 WDB.getCurrentSeasonForLeague = async function(leagueName) {

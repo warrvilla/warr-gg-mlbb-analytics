@@ -585,70 +585,20 @@ function _computeMetaTiers(pool) {
   });
   return tiers;
 }
-// PER-ROLE tiers: a flex hero is tiered separately in each role it plays.
-//
-// TIERING MODEL (why a hero is S+/S/A/B/C):
-//   A hero's tier reflects DRAFT PRIORITY = how contested it is (pick+ban rate),
-//   adjusted by how well it actually performs (win rate). The old model gated
-//   almost entirely on pick rate, so a popular-but-mediocre hero could reach S+
-//   while an efficient high-WR pick stalled at A, and bans were ignored entirely.
-//   New model:
-//     contest = pickRate% + banRate%      (banned heroes ARE high priority)
-//     wr      = Bayesian-shrunk win rate (prior 50%, k=6, so small samples
-//               regress toward 50% instead of swinging to extremes)
-//     score   = contest + max(0, wr-50) × 1.2   (win impact worth ~1.2×/point)
-//   Tiers are then assigned RELATIVE to the strongest hero in the current pool
-//   (self-calibrating, so thresholds adapt to the league/season/sample instead
-//   of arbitrary absolute cutoffs), with sample-size gates: <2 games = C,
-//   <4 games capped at B (not enough data to crown).
+// PER-ROLE tiers via the SHARED model in warr-lib (WDB.computeMetaTiers), so the
+// Heroes page, homepage meta hierarchy, Scout and meta cards all agree on tiers.
+// See warr-lib.js → WDB.computeMetaTiers for the full model & reasoning.
 function _computeMetaLaneTiers(pool) {
-  const total = pool.length;
   const laneTiers = {}, laneGames = {}, laneInfo = {}, heroTiers = {};
-  if (total < 5) return { laneTiers, laneGames, laneInfo, heroTiers };
-  const stat = {};   // name -> lane -> {g,w}
-  const bans = {};   // name -> ban count (hero-wide; bans aren't per-role)
-  pool.forEach(m => {
-    [[m.bluePicks||[],'blue'],[m.redPicks||[],'red']].forEach(([picks,side]) => {
-      picks.forEach(p => { const n=p&&(p.name||p); if(!n)return;
-        const l = (p&&p.lane) || _heroLaneMap[n] || 'Flex';
-        stat[n]=stat[n]||{}; stat[n][l]=stat[n][l]||{g:0,w:0};
-        stat[n][l].g++; if(m.winner===side) stat[n][l].w++;
-      });
-    });
-    [...(m.blueBans||[]),...(m.redBans||[])].forEach(b => { const n=b&&(b.name||b); if(n) bans[n]=(bans[n]||0)+1; });
-  });
-  const K = 6;
-  // Pass 1 — raw score per (hero, lane); established roles (≥3g) set the ceiling.
-  const info = {}; let maxScore = 0;
-  Object.entries(stat).forEach(([n,lanes]) => {
-    info[n] = {};
-    Object.entries(lanes).forEach(([l,v]) => {
-      const g=v.g, pickRate=g/total*100, banRate=(bans[n]||0)/total*100;
-      const contest = pickRate + banRate;
-      const wr = ((v.w + 0.5*K)/(g + K))*100;
-      const score = contest + Math.max(0, wr-50)*1.2;
-      info[n][l] = { g, wins:v.w, pickRate:Math.round(pickRate), banRate:Math.round(banRate),
-                     contest:Math.round(contest), wr:Math.round(wr), score };
-      if (g>=3 && score>maxScore) maxScore = score;
+  if (typeof WDB === 'undefined' || !WDB.computeMetaTiers) return { laneTiers, laneGames, laneInfo, heroTiers };
+  const res = WDB.computeMetaTiers(pool, { lanePrimary: _heroLaneMap });
+  Object.entries(res.laneInfo).forEach(([n, lanes]) => {
+    laneTiers[n] = {}; laneGames[n] = {}; laneInfo[n] = {};
+    Object.entries(lanes).forEach(([l, d]) => {
+      laneTiers[n][l] = d.tier; laneGames[n][l] = d.g; laneInfo[n][l] = d;
     });
   });
-  if (maxScore<=0) maxScore = 1;
-  // Pass 2 — assign tiers relative to the pool ceiling, with sample gates.
-  Object.entries(info).forEach(([n,lanes]) => {
-    laneTiers[n]={}; laneGames[n]={}; laneInfo[n]={};
-    let bestRank=-1, bestTier=null;
-    Object.entries(lanes).forEach(([l,d]) => {
-      const f = d.score/maxScore;
-      let tier;
-      if (d.g < 2)      tier = 'C';
-      else if (d.g < 4) tier = f>=0.58 ? 'B' : 'C';         // low sample: cap at B
-      else              tier = f>=0.78 ? 'S+' : f>=0.58 ? 'S' : f>=0.40 ? 'A' : f>=0.22 ? 'B' : 'C';
-      laneTiers[n][l]=tier; laneGames[n][l]=d.g; laneInfo[n][l]={...d, tier};
-      const rank={'S+':5,S:4,A:3,B:2,C:1}[tier]||0;
-      if (rank>bestRank){ bestRank=rank; bestTier=tier; }
-    });
-    heroTiers[n]=bestTier;   // hero-wide badge = their best role
-  });
+  Object.assign(heroTiers, res.heroTiers);
   return { laneTiers, laneGames, laneInfo, heroTiers };
 }
 const MAP_NAMES = ['Dangerous Grass','Broken Walls','Flying Cloud','Expanding River'];
