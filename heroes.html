@@ -536,6 +536,9 @@
 // ── State ─────────────────────────────────────────────────────
 let _matches        = [];
 let _publicMatches  = [];  // cached match pool (PUBLIC_LEAGUES filtered)
+let _myScrims       = [];  // the viewer's OWN scrims only (for the "My Scrims" filter)
+// Base pool for the active league: My Scrims when that's selected, else public.
+function _baseLeaguePool() { return _activeLeague === 'Scrims' ? _myScrims : _publicMatches; }
 let _countersMap    = {};
 let _synergiesMap   = {};
 let _draftedAgainst = {}; // { [hero]: [{name, count}] } — who opponents pick when hero is on enemy team
@@ -552,8 +555,9 @@ let _heroLaneGames  = {};    // hero name → lane → games played in that role
 let _metaLaneInfo   = {};    // hero name → lane → {tier,contest,pickRate,banRate,wr,g} for reasoning
 // Single source of truth for the scoped match pool (league + season).
 function _scopedMatches() {
-  let pool = _publicMatches;
-  if (_activeLeague !== 'all') pool = pool.filter(m => (m.league||'') === _activeLeague);
+  let pool = _baseLeaguePool();
+  // 'all' and 'Scrims' are whole-pool selections; a specific league sub-filters.
+  if (_activeLeague !== 'all' && _activeLeague !== 'Scrims') pool = pool.filter(m => (m.league||'') === _activeLeague);
   if (_activeSeason)           pool = pool.filter(m => (m.season||'') === _activeSeason);
   return pool;
 }
@@ -635,6 +639,9 @@ async function loadAll() {
   }
 
   _publicMatches = _matches.filter(m => WDB.PUBLIC_LEAGUES.includes(m.league));
+  // The viewer's OWN scrims only (never other people's shared scrims) — powers
+  // the "My Scrims" league option.
+  _myScrims = _matches.filter(m => (m.league||'') === 'Scrims' && !m._shared);
   // Adopt the admin's default league BEFORE first paint so Heroes opens on it.
   try {
     if (typeof WDB!=='undefined' && WDB.initLeagues) await WDB.initLeagues();
@@ -674,7 +681,7 @@ async function loadAll() {
   // Build the lane map once across the full pool — primary lane shouldn't shift
   // when the user filters by map. Lane filter still uses observed primary lane.
   const laneCounts = {};
-  _publicMatches.forEach(m => {
+  _publicMatches.concat(_myScrims).forEach(m => {
     [...(m.bluePicks || []), ...(m.redPicks || [])].forEach(p => {
       if (!p || !p.name || !p.lane) return;
       laneCounts[p.name] = laneCounts[p.name] || {};
@@ -778,7 +785,8 @@ function populateLeagueDropdownH() {
   if (!sel || typeof WDB==='undefined' || !WDB.officialLeagues) return;
   const cur = _activeLeague;
   sel.innerHTML = `<option value="all">All leagues</option>`
-    + WDB.officialLeagues().map(n => `<option value="${n}"${cur===n?' selected':''}>${n}</option>`).join('');
+    + WDB.officialLeagues().map(n => `<option value="${n}"${cur===n?' selected':''}>${n}</option>`).join('')
+    + `<option value="Scrims"${cur==='Scrims'?' selected':''}>My Scrims (private)</option>`;
 }
 window.addEventListener('warr-leagues-ready', populateLeagueDropdownH);
 function onLeagueChange() {
@@ -791,7 +799,7 @@ function onLeagueChange() {
 function onSeasonChange() {
   _activeSeason = document.getElementById('seasonFilter')?.value || '';
   recomputeForMapFilter();
-  renderStats(_publicMatches.filter(m => !_activeSeason || (m.season||'') === _activeSeason));
+  renderStats(_scopedMatches());
   renderGrid();
 }
 
@@ -801,7 +809,7 @@ function onSeasonChange() {
 function populateSeasonDropdown() {
   const sel = document.getElementById('seasonFilter');
   if (!sel) return;
-  const leaguePool = _activeLeague==='all' ? _publicMatches : _publicMatches.filter(m=>(m.league||'')===_activeLeague);
+  const leaguePool = (_activeLeague==='all' || _activeLeague==='Scrims') ? _baseLeaguePool() : _publicMatches.filter(m=>(m.league||'')===_activeLeague);
   const seasons = [...new Set(leaguePool.map(m => (m.season||'').trim()).filter(Boolean))]
     .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
   // Prefer the admin's default season for this league if present, else most-recent.
@@ -1088,7 +1096,7 @@ function relationItemsHTML(items, kind, heroName) {
 // Everything is computed from the same season-scoped public pool the cards
 // use, so the drawer never disagrees with the grid.
 function _drawerPool() {
-  return _activeSeason ? _publicMatches.filter(m => (m.season||'') === _activeSeason) : _publicMatches;
+  return _scopedMatches();   // same league+season (+My Scrims) scope the cards use
 }
 function _banNamesDD(m) {
   return [...(m.blueBans||[]), ...(m.redBans||[])].map(b => typeof b === 'string' ? b : (b && b.name) || '').filter(Boolean);
@@ -1150,9 +1158,9 @@ function openHeroDrawer(name) {
     return `<div class="dd-teamrow"><span class="t-name" title="${escHtml(t)}">${escHtml(t)}</span><span class="t-league">${escHtml([...v.lg].filter(Boolean).join(', '))}</span><span class="map-wr ${cls}">${w}%</span><span class="map-g">${v.g}g</span></div>`;
   }).join('') || '<div class="dd-empty">—</div>';
 
-  // Season trend — across all seasons regardless of the page filter
+  // Season trend — across all seasons of the active pool (public, or My Scrims)
   const seasonAgg = {};
-  _publicMatches.forEach(m => {
+  _baseLeaguePool().forEach(m => {
     const inB = _inPicksDD(m.bluePicks, name), inR = _inPicksDD(m.redPicks, name);
     if (!inB && !inR) return;
     const sk = m.season || '—';
