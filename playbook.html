@@ -22,8 +22,13 @@
 .matchcard .lg{width:22px;height:22px;border-radius:6px;object-fit:cover;background:var(--surface3);}
 .matchcard select{background:transparent;border:none;color:var(--text2);font-size:12px;cursor:pointer;font-family:var(--font-body);}
 /* Layout */
-.pb-grid{display:grid;grid-template-columns:246px 1fr 268px;gap:16px;align-items:start;}
-@media(max-width:1200px){.pb-grid{grid-template-columns:1fr;}}
+.pb-grid{display:grid;grid-template-columns:1fr 272px;gap:16px;align-items:start;}
+@media(max-width:1000px){.pb-grid{grid-template-columns:1fr;}}
+.board-col{max-width:1000px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:12px;}
+/* Playbooks modal */
+.pb-modal{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:none;align-items:flex-start;justify-content:center;padding-top:76px;}
+.pb-modal.open{display:flex;}
+.pb-modal-card{width:440px;max-width:92vw;max-height:76vh;overflow:auto;padding:18px;}
 .pb-card{padding:15px;}
 .side-h{font-family:var(--font-head);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
 .side-h .add{width:22px;height:22px;border-radius:7px;background:var(--accent-dim);border:0.5px solid var(--accent-border);color:var(--accent);display:grid;place-items:center;cursor:pointer;font-size:14px;}
@@ -48,12 +53,12 @@
 /* Center */
 .board-col{display:flex;flex-direction:column;gap:12px;}
 .pb-toolbar{background:var(--glass);backdrop-filter:var(--blur-sm);-webkit-backdrop-filter:var(--blur-sm);border:0.5px solid var(--glass-border);border-radius:var(--r2);padding:0;box-shadow:var(--glass-shadow);overflow:hidden;}
-.tb-row{display:flex;align-items:center;gap:5px;padding:9px 12px;flex-wrap:wrap;}
-.tb-row2{border-top:0.5px solid var(--border);background:rgba(0,0,0,.16);padding:8px 12px;}
+.tb-row{display:flex;align-items:center;gap:4px;padding:6px 10px;flex-wrap:wrap;}
+.tb-row2{border-top:0.5px solid var(--border);background:rgba(0,0,0,.16);padding:6px 10px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
 .tb-group{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
 .tb-right{margin-left:auto;display:flex;align-items:center;gap:5px;}
 .tb-lbl{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text4);margin:0 6px 0 2px;}
-.tool{display:inline-flex;align-items:center;gap:6px;background:transparent;border:0.5px solid transparent;color:var(--text2);border-radius:var(--r);padding:7px 11px;font-size:12.5px;font-weight:500;cursor:pointer;user-select:none;transition:all .14s;white-space:nowrap;}
+.tool{display:inline-flex;align-items:center;gap:5px;background:transparent;border:0.5px solid transparent;color:var(--text2);border-radius:var(--r);padding:6px 10px;font-size:12px;font-weight:500;cursor:pointer;user-select:none;transition:all .14s;white-space:nowrap;}
 .tool:hover{color:var(--text);background:rgba(255,255,255,0.07);}
 .tool.active{background:var(--accent-dim);border-color:var(--accent-border);color:var(--accent);box-shadow:0 0 12px -4px var(--accent-glow);}
 .tool.on{background:var(--accent-dim);border-color:var(--accent-border);color:var(--accent);}
@@ -135,6 +140,8 @@
   <div class="pb-head">
     <div class="pb-title-slim">Playbook <span class="pb-beta">Beta</span></div>
     <div class="pb-head-right">
+      <button class="btn" onclick="openPlaybooks()">📁 My Playbooks</button>
+      <button class="btn" onclick="newPlan()">+ New</button>
       <button class="btn" onclick="exportPNG()">⤓ Export</button>
       <button class="btn" onclick="addShare()">⇄ Share</button>
       <button class="btn btn-accent" onclick="savePlan()">Save</button>
@@ -142,20 +149,6 @@
   </div>
 
   <div class="pb-grid">
-    <!-- LEFT: playbooks -->
-    <div class="card pb-card">
-      <div class="side-h">My Playbooks <span class="add" onclick="newPlan()" title="New plan">+</span></div>
-      <div class="pl-nav" id="plNav">
-        <a class="active" data-filter="all"    onclick="setFilter('all',this)"><span class="ic">▤</span> All Playbooks <span class="ct" id="ctAll">0</span></a>
-        <a data-filter="recent" onclick="setFilter('recent',this)"><span class="ic">◷</span> Recent <span class="ct" id="ctRecent">0</span></a>
-        <a data-filter="shared" onclick="setFilter('shared',this)"><span class="ic">⇄</span> Shared with Me <span class="ct" id="ctShared">0</span></a>
-        <a data-filter="starred" onclick="setFilter('starred',this)"><span class="ic">★</span> Starred <span class="ct" id="ctStarred">0</span></a>
-      </div>
-      <div class="pl-lbl">Saved Strategies</div>
-      <div id="savedList"><div class="muted">No saved plans yet.</div></div>
-      <div class="viewall" onclick="setFilter('all',document.querySelector('[data-filter=all]'))">View all playbooks →</div>
-    </div>
-
     <!-- CENTER: board -->
     <div class="board-col">
       <div class="pb-toolbar">
@@ -246,6 +239,21 @@
     </div>
   </div>
 </div>
+</div>
+
+<!-- MY PLAYBOOKS modal -->
+<div id="pbModal" class="pb-modal" onclick="if(event.target===this)closePlaybooks()">
+  <div class="pb-modal-card card">
+    <div class="side-h">My Playbooks <span class="add" onclick="newPlan();closePlaybooks()" title="New plan">+</span></div>
+    <div class="pl-nav" id="plNav">
+      <a class="active" data-filter="all"    onclick="setFilter('all',this)"><span class="ic">▤</span> All Playbooks <span class="ct" id="ctAll">0</span></a>
+      <a data-filter="recent" onclick="setFilter('recent',this)"><span class="ic">◷</span> Recent <span class="ct" id="ctRecent">0</span></a>
+      <a data-filter="shared" onclick="setFilter('shared',this)"><span class="ic">⇄</span> Shared with Me <span class="ct" id="ctShared">0</span></a>
+      <a data-filter="starred" onclick="setFilter('starred',this)"><span class="ic">★</span> Starred <span class="ct" id="ctStarred">0</span></a>
+    </div>
+    <div class="pl-lbl">Saved Strategies</div>
+    <div id="savedList"><div class="muted">No saved plans yet.</div></div>
+  </div>
 </div>
 <div id="pbToast"></div>
 
@@ -426,6 +434,8 @@ function renderSaved(){let list=_plans.slice();
       ${p._shared?'':`<span class="star${p.data&&p.data.starred?' on':''}" onclick="event.stopPropagation();toggleStar('${p.id}')">★</span>`}
     </div>`;}).join('');}
 function setFilter(f,el){_filter=f;document.querySelectorAll('#plNav a').forEach(a=>a.classList.remove('active'));if(el)el.classList.add('active');renderSaved();}
+function openPlaybooks(){document.getElementById('pbModal').classList.add('open');refreshPlans();}
+function closePlaybooks(){document.getElementById('pbModal').classList.remove('open');}
 async function toggleStar(id){const p=_plans.find(x=>x.id===id);if(!p)return;p.data=p.data||{};p.data.starred=!p.data.starred;
   try{await WDB.savePlan({id:p.id,name:p.name,team_name:p.team_name,data:p.data});if(plan.id===id)plan.data.starred=p.data.starred;await refreshPlans();}catch(e){toast(e.message,'err');}}
 async function savePlan(){if(!_user){toast('Sign in to save','err');return;}
@@ -437,7 +447,7 @@ async function loadPlan(id){const p=_plans.find(x=>x.id===id);if(!p)return;
   if(!plan.data.frames)plan.data.frames=blankData().frames;if(!plan.data.lineup)plan.data.lineup={blue:{},red:{}};if(!plan.data.objectives)plan.data.objectives={turtle:'02:00',lord:'08:00'};
   _undo=[];_redo=[];_phase='early';setPhase('early',document.querySelector('[data-phase=early]'));
   document.getElementById('objTurtle').value=plan.data.objectives.turtle;document.getElementById('objLord').value=plan.data.objectives.lord;
-  render();renderAll();renderSaved();toast('Opened "'+p.name+'"');}
+  render();renderAll();renderSaved();closePlaybooks();toast('Opened "'+p.name+'"');}
 // Share the current (saved) plan with a teammate by email (async view/edit).
 async function addShare(){
   if(!_user){toast('Sign in first','err');return;}
