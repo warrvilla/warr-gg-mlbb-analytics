@@ -249,15 +249,10 @@ const ROLES=['Gold','Jungle','Mid','EXP','Roam'];
 const ROLE_COLORS={Gold:'#C89050',Jungle:'#4CB87A',Mid:'#A78BFA',EXP:'#5EA0D8',Roam:'#D87880'};
 const ROLE_ABBR={Gold:'GOLD',Jungle:'JGL',Mid:'MID',EXP:'EXP',Roam:'ROAM'};
 const LANE_ORDER=['EXP','Jungle','Mid','Roam','Gold'];   // display/sort order
-// Original lane glyphs (24-box, stroke/fill via currentColor) — not game assets.
-const LANE_ICON={
-  Gold:'<circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="3.4" fill="currentColor"/>',
-  Jungle:'<path d="M12 4C7 8 7 15 12 20C17 15 17 8 12 4Z" fill="currentColor" opacity=".22"/><path d="M12 4C7 8 7 15 12 20C17 15 17 8 12 4Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 20V9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
-  Mid:'<path d="M12 2L14.2 9.8L22 12L14.2 14.2L12 22L9.8 14.2L2 12L9.8 9.8Z" fill="currentColor"/>',
-  EXP:'<path d="M5.5 18.5L16 8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M13 7H17V11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16.5L7.5 20" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
-  Roam:'<path d="M12 3L19 5.6V11C19 16 15.6 19 12 21C8.4 19 5 16 5 11V5.6Z" fill="currentColor" opacity=".22"/><path d="M12 3L19 5.6V11C19 16 15.6 19 12 21C8.4 19 5 16 5 11V5.6Z" fill="none" stroke="currentColor" stroke-width="2"/>'
-};
-function laneIconHTML(lane,size){return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" style="color:${ROLE_COLORS[lane]};vertical-align:middle;">${LANE_ICON[lane]}</svg>`;}
+// Custom lane role icons (blue/red side variants) — assets/lanes/lane_<lane>_<side>.png
+const LANE_KEY={EXP:'exp',Jungle:'jungle',Mid:'mid',Roam:'roam',Gold:'gold'};
+function laneImg(lane,side){return 'assets/lanes/lane_'+(LANE_KEY[lane]||'mid')+'_'+(side==='red'?'red':'blue')+'.png';}
+function laneIconHTML(lane,size,side){return `<img src="${laneImg(lane,side)}" width="${size}" height="${size}" style="vertical-align:middle;object-fit:contain;" alt="${lane}">`;}
 const COLORS=['#5EA0D8','#D87880','#C89050','#4CB87A','#ffffff','#A78BFA'];
 // default token positions per side/role (normalised)
 const DEF={ blue:{Gold:[.30,.82],Jungle:[.34,.63],Mid:[.44,.55],EXP:[.18,.30],Roam:[.28,.74]},
@@ -309,7 +304,7 @@ function render(){
     else if(d.type==='circle'){e=mk('ellipse',{cx:(d.x1+d.x2)/2,cy:(d.y1+d.y2)/2,rx:Math.abs(d.x2-d.x1)/2,ry:Math.abs(d.y2-d.y1)/2,fill:d.color,'fill-opacity':.12,stroke:d.color,'stroke-width':d.width});}
     else if(d.type==='text'){e=mk('text',{x:d.x,y:d.y,fill:d.color,'font-size':34,'font-weight':800,'font-family':'sans-serif','paint-order':'stroke',stroke:'#000','stroke-width':4});e.textContent=d.text;}
     else if(d.type==='zone'){e=mk('g',{});e.appendChild(mk('circle',{cx:d.x,cy:d.y,r:d.r||90,fill:d.color,'fill-opacity':.12,stroke:d.color,'stroke-width':2.5,'stroke-dasharray':'9 8'}));e.appendChild(mk('circle',{cx:d.x,cy:d.y,r:13,fill:d.color,stroke:'#000','stroke-width':3}));}
-    else if(d.type==='pos'){e=mk('g',{});const c=ROLE_COLORS[d.role]||'#888';e.appendChild(mk('circle',{cx:d.x,cy:d.y,r:30,fill:c,stroke:'#0a0a12','stroke-width':3}));const ic=mk('svg',{x:d.x-19,y:d.y-19,width:38,height:38,viewBox:'0 0 24 24'});ic.style.color='#0a0a12';ic.innerHTML=LANE_ICON[d.role]||'';e.appendChild(ic);}
+    else if(d.type==='pos'){e=mk('g',{});e.appendChild(mk('image',{href:laneImg(d.role,d.side),x:d.x-38,y:d.y-38,width:76,height:76,preserveAspectRatio:'xMidYMid meet'}));}
     if(e){e.setAttribute('data-kind','draw');e.setAttribute('data-id',d.id);layer.appendChild(e);}
   });
   // tokens from lineup, positioned per phase
@@ -323,9 +318,8 @@ function render(){
       g.appendChild(mk('circle',{r:46,fill:'#0a0a12',stroke:ring,'stroke-width':6}));
       const cid='c'+key.replace(':','');const defs=mk('defs',{});const cp=mk('clipPath',{id:cid});cp.appendChild(mk('circle',{r:42}));defs.appendChild(cp);g.appendChild(defs);
       g.appendChild(mk('image',{href:heroImg(hero),x:-42,y:-42,width:84,height:84,'clip-path':`url(#${cid})`,preserveAspectRatio:'xMidYMid slice'}));
-      // role lane badge (icon)
-      g.appendChild(mk('circle',{cx:0,cy:54,r:16,fill:ROLE_COLORS[role],stroke:'#0a0a12','stroke-width':2.5}));
-      const ic=mk('svg',{x:-11,y:43,width:22,height:22,viewBox:'0 0 24 24'});ic.style.color='#0a0a12';ic.innerHTML=LANE_ICON[role]||'';g.appendChild(ic);
+      // role lane badge — custom icon in the token's side colour
+      g.appendChild(mk('image',{href:laneImg(role,side),x:-23,y:33,width:46,height:46,preserveAspectRatio:'xMidYMid meet'}));
       const lbl=(plan.data.labels||{})[key];
       if(lbl){const lt=mk('text',{x:0,y:86,fill:'#fff','font-size':22,'font-weight':800,'text-anchor':'middle','font-family':'sans-serif','paint-order':'stroke',stroke:'#000','stroke-width':5});lt.textContent=lbl;g.appendChild(lt);}
       layer.appendChild(g);
@@ -340,7 +334,7 @@ svg.addEventListener('pointerdown',e=>{const p=pt(e);const g=e.target.closest('[
   if(_tool==='erase'){if(g){snap();const id=g.getAttribute('data-id'),k=g.getAttribute('data-key');if(g.getAttribute('data-kind')==='token'&&k){const[s,r]=k.split(':');delete plan.data.lineup[s][r];delete frame().pos[k];renderAll();}else if(id){frame().draws=frame().draws.filter(d=>d.id!==id);}render();}return;}
   if(_tool==='select'){if(g&&g.getAttribute('data-kind')==='token'){_dragKey=g.getAttribute('data-key');const cur=frame().pos[_dragKey]||_defPos(_dragKey);snap();_dragOff={x:p.x-cur.x,y:p.y-cur.y};svg.setPointerCapture(e.pointerId);}return;}
   if(_tool==='text'){const t=prompt('Text note:');if(t&&t.trim()){snap();frame().draws.push({id:nid(),type:'text',x:p.x,y:p.y,text:t.trim().slice(0,80),color:_color});render();}return;}
-  if(_tool==='pos'){snap();frame().draws.push({id:nid(),type:'pos',role:_posType,x:p.x,y:p.y});render();return;}
+  if(_tool==='pos'){snap();frame().draws.push({id:nid(),type:'pos',role:_posType,side:_side,x:p.x,y:p.y});render();return;}
   if(_tool==='zone'){_drawing={id:nid(),type:'zone',x:p.x,y:p.y,r:0,color:_color};svg.setPointerCapture(e.pointerId);return;}
   if(_tool==='pen'||_tool==='highlight')_drawing={id:nid(),type:_tool,points:[[p.x,p.y]],color:_color,width:_penW};
   else _drawing={id:nid(),type:_tool,x1:p.x,y1:p.y,x2:p.x,y2:p.y,color:_color,width:_penW};
