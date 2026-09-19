@@ -129,14 +129,6 @@
       <div class="pb-sub">Build, visualize and save your team's game plans.</div>
     </div>
     <div class="pb-head-right">
-      <div class="matchcard">
-        <span class="tm"><span id="mcOur">Your Team</span></span>
-        <span class="vs">vs</span>
-        <span class="tm"><span id="mcOpp">Opponent</span></span>
-        <select id="mcGame" title="Game" onchange="plan.game=this.value">
-          <option>Game 1</option><option>Game 2</option><option>Game 3</option><option>Game 4</option><option>Game 5</option>
-        </select>
-      </div>
       <button class="btn" onclick="exportPNG()">⤓ Export</button>
       <button class="btn" onclick="addShare()">⇄ Share</button>
       <button class="btn btn-accent" onclick="savePlan()">Save</button>
@@ -153,12 +145,6 @@
         <a data-filter="shared" onclick="setFilter('shared',this)"><span class="ic">⇄</span> Shared with Me <span class="ct" id="ctShared">0</span></a>
         <a data-filter="starred" onclick="setFilter('starred',this)"><span class="ic">★</span> Starred <span class="ct" id="ctStarred">0</span></a>
       </div>
-      <div class="pl-lbl">Your Team</div>
-      <select class="w-select fld" id="ourTeamSel" onchange="onMetaChange()"></select>
-      <div class="pl-lbl">Opponent</div>
-      <select class="w-select fld" id="oppSel" onchange="onMetaChange()"></select>
-      <div class="pl-lbl">Series</div>
-      <select class="w-select fld" id="seriesSel" onchange="onMetaChange()"></select>
       <div class="pl-lbl">Saved Strategies</div>
       <div id="savedList"><div class="muted">No saved plans yet.</div></div>
       <div class="viewall" onclick="setFilter('all',document.querySelector('[data-filter=all]'))">View all playbooks →</div>
@@ -175,15 +161,11 @@
         <div class="tool" data-tool="circle" onclick="setTool('circle',this)">◯ Circle</div>
         <div class="tool" data-tool="highlight" onclick="setTool('highlight',this)">▨ Highlight</div>
         <div class="tool" data-tool="text" onclick="setTool('text',this)">T Text</div>
+        <div class="tool" data-tool="zone" onclick="setTool('zone',this)" title="Position / zone marker">◎ Position</div>
         <div class="tool" data-tool="erase" onclick="setTool('erase',this)">⌫ Erase</div>
         <div class="tsep"></div>
-        <span id="posTools" style="display:inline-flex;gap:4px;align-items:center;">
-          <div class="tool" style="color:#C89050;" onclick="setPos('Gold',this)">GOLD</div>
-          <div class="tool" style="color:#4CB87A;" onclick="setPos('Jungle',this)">JGL</div>
-          <div class="tool" style="color:#A78BFA;" onclick="setPos('Mid',this)">MID</div>
-          <div class="tool" style="color:#5EA0D8;" onclick="setPos('EXP',this)">EXP</div>
-          <div class="tool" style="color:#D87880;" onclick="setPos('Roam',this)">ROAM</div>
-        </span>
+        <span class="muted" style="font-size:10px;margin-right:2px;">Lane:</span>
+        <span id="posTools" style="display:inline-flex;gap:4px;align-items:center;" title="Drop a lane icon on the map"></span>
         <div class="tsep"></div>
         <span id="swatches" style="display:inline-flex;gap:5px;align-items:center;"></span>
         <input type="range" class="pb-range" id="widthRange" min="2" max="40" value="8" oninput="_penW=+this.value">
@@ -216,11 +198,7 @@
 
       <div class="card">
         <div class="legend-bar">
-          <span class="legend-item"><span class="legend-dot" style="background:#C89050;"></span>GOLD</span>
-          <span class="legend-item"><span class="legend-dot" style="background:#4CB87A;"></span>JUNGLE</span>
-          <span class="legend-item"><span class="legend-dot" style="background:#A78BFA;"></span>MID</span>
-          <span class="legend-item"><span class="legend-dot" style="background:#5EA0D8;"></span>EXP</span>
-          <span class="legend-item"><span class="legend-dot" style="background:#D87880;"></span>ROAM</span>
+          <span id="legendItems" style="display:inline-flex;gap:16px;flex-wrap:wrap;"></span>
           <div class="obj-wrap">
             <div class="obj"><span class="oi" style="background:rgba(94,160,216,.15);">🐢</span><div><div class="ol">Turtle</div><input id="objTurtle" value="02:00" oninput="plan.data.objectives.turtle=this.value"></div></div>
             <div class="obj"><span class="oi" style="background:rgba(167,139,250,.15);">🐉</span><div><div class="ol">Lord</div><input id="objLord" value="08:00" oninput="plan.data.objectives.lord=this.value"></div></div>
@@ -270,6 +248,16 @@ const W=1959,H=1080;
 const ROLES=['Gold','Jungle','Mid','EXP','Roam'];
 const ROLE_COLORS={Gold:'#C89050',Jungle:'#4CB87A',Mid:'#A78BFA',EXP:'#5EA0D8',Roam:'#D87880'};
 const ROLE_ABBR={Gold:'GOLD',Jungle:'JGL',Mid:'MID',EXP:'EXP',Roam:'ROAM'};
+const LANE_ORDER=['EXP','Jungle','Mid','Roam','Gold'];   // display/sort order
+// Original lane glyphs (24-box, stroke/fill via currentColor) — not game assets.
+const LANE_ICON={
+  Gold:'<circle cx="12" cy="12" r="8.4" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="12" cy="12" r="3.4" fill="currentColor"/>',
+  Jungle:'<path d="M12 4C7 8 7 15 12 20C17 15 17 8 12 4Z" fill="currentColor" opacity=".22"/><path d="M12 4C7 8 7 15 12 20C17 15 17 8 12 4Z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 20V9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  Mid:'<path d="M12 2L14.2 9.8L22 12L14.2 14.2L12 22L9.8 14.2L2 12L9.8 9.8Z" fill="currentColor"/>',
+  EXP:'<path d="M5.5 18.5L16 8" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M13 7H17V11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16.5L7.5 20" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+  Roam:'<path d="M12 3L19 5.6V11C19 16 15.6 19 12 21C8.4 19 5 16 5 11V5.6Z" fill="currentColor" opacity=".22"/><path d="M12 3L19 5.6V11C19 16 15.6 19 12 21C8.4 19 5 16 5 11V5.6Z" fill="none" stroke="currentColor" stroke-width="2"/>'
+};
+function laneIconHTML(lane,size){return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" style="color:${ROLE_COLORS[lane]};vertical-align:middle;">${LANE_ICON[lane]}</svg>`;}
 const COLORS=['#5EA0D8','#D87880','#C89050','#4CB87A','#ffffff','#A78BFA'];
 // default token positions per side/role (normalised)
 const DEF={ blue:{Gold:[.30,.82],Jungle:[.34,.63],Mid:[.44,.55],EXP:[.18,.30],Roam:[.28,.74]},
@@ -320,7 +308,8 @@ function render(){
     else if(d.type==='rect')e=mk('rect',{x:Math.min(d.x1,d.x2),y:Math.min(d.y1,d.y2),width:Math.abs(d.x2-d.x1),height:Math.abs(d.y2-d.y1),fill:d.color,'fill-opacity':.12,stroke:d.color,'stroke-width':d.width,rx:6});
     else if(d.type==='circle'){e=mk('ellipse',{cx:(d.x1+d.x2)/2,cy:(d.y1+d.y2)/2,rx:Math.abs(d.x2-d.x1)/2,ry:Math.abs(d.y2-d.y1)/2,fill:d.color,'fill-opacity':.12,stroke:d.color,'stroke-width':d.width});}
     else if(d.type==='text'){e=mk('text',{x:d.x,y:d.y,fill:d.color,'font-size':34,'font-weight':800,'font-family':'sans-serif','paint-order':'stroke',stroke:'#000','stroke-width':4});e.textContent=d.text;}
-    else if(d.type==='pos'){e=mk('g',{});const c=ROLE_COLORS[d.role]||'#888';e.appendChild(mk('rect',{x:d.x-52,y:d.y-24,width:104,height:48,rx:24,fill:c,stroke:'#000','stroke-width':3}));const t=mk('text',{x:d.x,y:d.y+9,fill:'#0a0a12','font-size':26,'font-weight':900,'text-anchor':'middle','font-family':'sans-serif'});t.textContent=ROLE_ABBR[d.role];e.appendChild(t);}
+    else if(d.type==='zone'){e=mk('g',{});e.appendChild(mk('circle',{cx:d.x,cy:d.y,r:d.r||90,fill:d.color,'fill-opacity':.12,stroke:d.color,'stroke-width':2.5,'stroke-dasharray':'9 8'}));e.appendChild(mk('circle',{cx:d.x,cy:d.y,r:13,fill:d.color,stroke:'#000','stroke-width':3}));}
+    else if(d.type==='pos'){e=mk('g',{});const c=ROLE_COLORS[d.role]||'#888';e.appendChild(mk('circle',{cx:d.x,cy:d.y,r:30,fill:c,stroke:'#0a0a12','stroke-width':3}));const ic=mk('svg',{x:d.x-19,y:d.y-19,width:38,height:38,viewBox:'0 0 24 24'});ic.style.color='#0a0a12';ic.innerHTML=LANE_ICON[d.role]||'';e.appendChild(ic);}
     if(e){e.setAttribute('data-kind','draw');e.setAttribute('data-id',d.id);layer.appendChild(e);}
   });
   // tokens from lineup, positioned per phase
@@ -334,8 +323,11 @@ function render(){
       g.appendChild(mk('circle',{r:46,fill:'#0a0a12',stroke:ring,'stroke-width':6}));
       const cid='c'+key.replace(':','');const defs=mk('defs',{});const cp=mk('clipPath',{id:cid});cp.appendChild(mk('circle',{r:42}));defs.appendChild(cp);g.appendChild(defs);
       g.appendChild(mk('image',{href:heroImg(hero),x:-42,y:-42,width:84,height:84,'clip-path':`url(#${cid})`,preserveAspectRatio:'xMidYMid slice'}));
-      g.appendChild(mk('rect',{x:-34,y:44,width:68,height:24,rx:12,fill:ROLE_COLORS[role],opacity:.95}));
-      const rl=mk('text',{x:0,y:61,fill:'#0a0a12','font-size':16,'font-weight':900,'text-anchor':'middle','font-family':'sans-serif'});rl.textContent=ROLE_ABBR[role];g.appendChild(rl);
+      // role lane badge (icon)
+      g.appendChild(mk('circle',{cx:0,cy:54,r:16,fill:ROLE_COLORS[role],stroke:'#0a0a12','stroke-width':2.5}));
+      const ic=mk('svg',{x:-11,y:43,width:22,height:22,viewBox:'0 0 24 24'});ic.style.color='#0a0a12';ic.innerHTML=LANE_ICON[role]||'';g.appendChild(ic);
+      const lbl=(plan.data.labels||{})[key];
+      if(lbl){const lt=mk('text',{x:0,y:86,fill:'#fff','font-size':22,'font-weight':800,'text-anchor':'middle','font-family':'sans-serif','paint-order':'stroke',stroke:'#000','stroke-width':5});lt.textContent=lbl;g.appendChild(lt);}
       layer.appendChild(g);
     });
   });
@@ -349,6 +341,7 @@ svg.addEventListener('pointerdown',e=>{const p=pt(e);const g=e.target.closest('[
   if(_tool==='select'){if(g&&g.getAttribute('data-kind')==='token'){_dragKey=g.getAttribute('data-key');const cur=frame().pos[_dragKey]||_defPos(_dragKey);snap();_dragOff={x:p.x-cur.x,y:p.y-cur.y};svg.setPointerCapture(e.pointerId);}return;}
   if(_tool==='text'){const t=prompt('Text note:');if(t&&t.trim()){snap();frame().draws.push({id:nid(),type:'text',x:p.x,y:p.y,text:t.trim().slice(0,80),color:_color});render();}return;}
   if(_tool==='pos'){snap();frame().draws.push({id:nid(),type:'pos',role:_posType,x:p.x,y:p.y});render();return;}
+  if(_tool==='zone'){_drawing={id:nid(),type:'zone',x:p.x,y:p.y,r:0,color:_color};svg.setPointerCapture(e.pointerId);return;}
   if(_tool==='pen'||_tool==='highlight')_drawing={id:nid(),type:_tool,points:[[p.x,p.y]],color:_color,width:_penW};
   else _drawing={id:nid(),type:_tool,x1:p.x,y1:p.y,x2:p.x,y2:p.y,color:_color,width:_penW};
   svg.setPointerCapture(e.pointerId);
@@ -356,19 +349,40 @@ svg.addEventListener('pointerdown',e=>{const p=pt(e);const g=e.target.closest('[
 function _defPos(key){const[s,r]=key.split(':');const d=DEF[s][r]||[.5,.5];return{x:d[0]*W,y:d[1]*H};}
 svg.addEventListener('pointermove',e=>{const p=pt(e);
   if(_dragKey){frame().pos[_dragKey]={x:p.x-_dragOff.x,y:p.y-_dragOff.y};render();return;}
-  if(!_drawing)return;if(_drawing.type==='pen'||_drawing.type==='highlight')_drawing.points.push([p.x,p.y]);else{_drawing.x2=p.x;_drawing.y2=p.y;}_pv();});
-svg.addEventListener('pointerup',()=>{if(_dragKey){_dragKey=null;return;}if(_drawing){if(_prev){_prev.remove();_prev=null;}const d=_drawing;_drawing=null;const tiny=(d.type==='pen'||d.type==='highlight')?d.points.length<2:Math.hypot(d.x2-d.x1,d.y2-d.y1)<8;if(!tiny){snap();frame().draws.push(d);render();}}});
+  if(!_drawing)return;if(_drawing.type==='zone')_drawing.r=Math.hypot(p.x-_drawing.x,p.y-_drawing.y);else if(_drawing.type==='pen'||_drawing.type==='highlight')_drawing.points.push([p.x,p.y]);else{_drawing.x2=p.x;_drawing.y2=p.y;}_pv();});
+svg.addEventListener('pointerup',()=>{if(_dragKey){_dragKey=null;return;}if(_drawing){if(_prev){_prev.remove();_prev=null;}const d=_drawing;_drawing=null;if(d.type==='zone'){if(!d.r||d.r<10)d.r=90;snap();frame().draws.push(d);render();return;}const tiny=(d.type==='pen'||d.type==='highlight')?d.points.length<2:Math.hypot(d.x2-d.x1,d.y2-d.y1)<8;if(!tiny){snap();frame().draws.push(d);render();}}});
 function _pv(){if(_prev)_prev.remove();const d=_drawing;if(!d)return;const s=frame().draws;frame().draws=[...s,d];render();frame().draws=s;_prev=layer.lastChild;}
 svg.addEventListener('dblclick',e=>{const g=e.target.closest('[data-kind=token]');if(!g)return;const[s,r]=g.getAttribute('data-key').split(':');const hero=plan.data.lineup[s][r];const v=prompt('Player name for '+hero+' ('+r+'):',(plan.data.labels&&plan.data.labels[s+':'+r])||'');if(v!==null){plan.data.labels=plan.data.labels||{};plan.data.labels[s+':'+r]=v.trim().slice(0,24);}});
 
 // ════════════════ LINEUP / HERO GRID / ASSIGN ════════════════
 function heroList(){try{return(typeof WDB!=='undefined'&&WDB.HERO_ROSTER)?WDB.HERO_ROSTER:[];}catch(_){return[];}}
-function _roleMatch(h){if(_roleFilter==='All')return true;const r=(h.role||h.r||'').toLowerCase();const f=_roleFilter.toLowerCase();if(f==='marksman')return r.includes('mm')||r.includes('marksman')||r.includes('gold');return r.includes(f);}
-function renderRoleChips(){const cs=['All','Tank','Fighter','Assassin','Mage','Marksman','Support'];document.getElementById('roleChips').innerHTML=cs.map(c=>`<div class="rchip${c===_roleFilter?' active':''}" onclick="_roleFilter='${c}';renderRoleChips();renderHeroGrid();">${c}</div>`).join('');}
+// Which lanes a hero plays (Gold/Jungle/Mid/EXP/Roam) — from WDB data, else class.
+function heroLanes(h){const name=h.name||h.n||h,role=h.role||h.r||'';
+  try{if(typeof WDB!=='undefined'&&WDB.getHeroLanes){const l=WDB.getHeroLanes(name,role);if(l&&l.length)return l;}}catch(_){}
+  try{if(typeof WDB!=='undefined'&&WDB.HERO_LANE_DEFAULTS&&WDB.HERO_LANE_DEFAULTS[name])return WDB.HERO_LANE_DEFAULTS[name];}catch(_){}
+  const r=role.toLowerCase(),out=[];
+  if(r.includes('mm')||r.includes('marks'))out.push('Gold');
+  if(r.includes('assassin'))out.push('Jungle');
+  if(r.includes('mage'))out.push('Mid');
+  if(r.includes('support')||r.includes('tank'))out.push('Roam');
+  if(r.includes('fighter'))out.push('EXP');
+  return out.length?out:['Mid'];
+}
+function _laneIdx(l){const i=LANE_ORDER.indexOf(l);return i<0?9:i;}
+function primaryLane(h){return heroLanes(h).slice().sort((a,b)=>_laneIdx(a)-_laneIdx(b))[0]||'Mid';}
+// Lane filter chips (icons) + toolbar lane buttons + legend.
+function renderRoleChips(){const cs=['All',...LANE_ORDER];
+  document.getElementById('roleChips').innerHTML=cs.map(c=>`<div class="rchip${c===_roleFilter?' active':''}" onclick="_roleFilter='${c}';renderRoleChips();renderHeroGrid();">${c==='All'?'All':laneIconHTML(c,13)+' '+ROLE_ABBR[c]}</div>`).join('');}
+function renderLaneUI(){
+  const pt=document.getElementById('posTools'); if(pt)pt.innerHTML=LANE_ORDER.map(l=>`<div class="tool" title="Drop ${l} lane icon on the map" onclick="setPos('${l}',this)">${laneIconHTML(l,15)}</div>`).join('');
+  const lg=document.getElementById('legendItems'); if(lg)lg.innerHTML=LANE_ORDER.map(l=>`<span class="legend-item">${laneIconHTML(l,14)} ${ROLE_ABBR[l]}</span>`).join('');
+}
 function renderHeroGrid(){const q=(document.getElementById('heroSearch').value||'').toLowerCase();
   const used=new Set(Object.values(plan.data.lineup[_side]));
-  const list=heroList().filter(h=>_roleMatch(h)).map(h=>({n:h.name||h.n||h})).filter(x=>x.n&&x.n.toLowerCase().includes(q)).sort((a,b)=>a.n.localeCompare(b.n));
-  document.getElementById('hgrid').innerHTML=list.map(x=>`<div class="hcell${used.has(x.n)?' used':''}" title="Add ${x.n} to ${_side}" onclick="addHero('${_esc(x.n).replace(/'/g,"\\'")}')"><div class="pic"><img src="${heroImg(x.n)}" onerror="this.style.opacity=0"></div><div class="hn">${x.n}</div></div>`).join('')||'<div class="muted" style="grid-column:1/-1;">No heroes.</div>';
+  let list=heroList().map(h=>({n:h.name||h.n||h,lanes:heroLanes(h),pl:primaryLane(h)}));
+  if(_roleFilter!=='All')list=list.filter(x=>x.lanes.includes(_roleFilter));
+  list=list.filter(x=>x.n&&x.n.toLowerCase().includes(q)).sort((a,b)=>_laneIdx(a.pl)-_laneIdx(b.pl)||a.n.localeCompare(b.n));
+  document.getElementById('hgrid').innerHTML=list.map(x=>`<div class="hcell${used.has(x.n)?' used':''}" title="${x.n} · ${x.pl}" onclick="addHero('${_esc(x.n).replace(/'/g,"\\'")}')"><div class="pic"><img src="${heroImg(x.n)}" onerror="this.style.opacity=0"></div><div class="hn">${x.n}</div></div>`).join('')||'<div class="muted" style="grid-column:1/-1;">No heroes.</div>';
 }
 function addHero(hero){const lu=plan.data.lineup[_side];
   if(Object.values(lu).includes(hero)){toast(hero+' already on '+_side);return;}
@@ -383,14 +397,6 @@ function assignRole(role,hero){snap();const lu=plan.data.lineup[_side];
   render();renderAll();}
 function _counts(){document.getElementById('cntBlue').textContent=Object.keys(plan.data.lineup.blue).length+'/5';document.getElementById('cntRed').textContent=Object.keys(plan.data.lineup.red).length+'/5';}
 function renderAll(){renderHeroGrid();renderAssign();_counts();}
-
-// ════════════════ META (team/opponent/series) ════════════════
-function _teamNames(){const s=new Set();try{(WDB._matchCacheTmp||[]).forEach(m=>{});}catch(_){}
-  try{ (window._pbMatches||[]).forEach(m=>{if(m.blueTeam)s.add(m.blueTeam);if(m.redTeam)s.add(m.redTeam);}); }catch(_){}
-  return [...s].sort();}
-function _fillSelect(id,vals,cur,ph){const el=document.getElementById(id);el.innerHTML=`<option value="">${ph}</option>`+vals.map(v=>`<option${v===cur?' selected':''}>${_esc(v)}</option>`).join('');}
-function onMetaChange(){plan.data.ourTeam=document.getElementById('ourTeamSel').value||'';plan.team_name=document.getElementById('oppSel').value||'';plan.data.series=document.getElementById('seriesSel').value||'';
-  document.getElementById('mcOur').textContent=plan.data.ourTeam||'Your Team';document.getElementById('mcOpp').textContent=plan.team_name||'Opponent';}
 
 // ════════════════ PLANS ════════════════
 async function refreshPlans(){if(!_user){document.getElementById('savedList').innerHTML='<div class="muted">Sign in to save & see plans.</div>';return;}
@@ -418,16 +424,13 @@ async function toggleStar(id){const p=_plans.find(x=>x.id===id);if(!p)return;p.d
 async function savePlan(){if(!_user){toast('Sign in to save','err');return;}
   const name=(prompt('Plan name:',plan.name||('Plan '+new Date().toLocaleDateString()))||'').trim();if(!name)return;plan.name=name;
   try{const s=await WDB.savePlan({id:plan.id,name,team_name:plan.team_name,data:plan.data});plan.id=s.id;toast('✓ Saved');await refreshPlans();}catch(e){toast(e.message||'save failed','err');}}
-function newPlan(){if(!confirm('Start a new blank plan? Unsaved work is lost.'))return;plan={id:null,name:'',team_name:document.getElementById('oppSel').value||'',game:'Game 1',data:blankData()};_undo=[];_redo=[];_phase='early';setPhase('early',document.querySelector('[data-phase=early]'));render();renderAll();syncMeta();toast('New plan');}
+function newPlan(){if((Object.keys(plan.data.lineup.blue).length||Object.keys(plan.data.lineup.red).length)&&!confirm('Start a new blank plan? Unsaved work is lost.'))return;plan={id:null,name:'',team_name:'',game:'Game 1',data:blankData()};_undo=[];_redo=[];_phase='early';setPhase('early',document.querySelector('[data-phase=early]'));document.getElementById('objTurtle').value='02:00';document.getElementById('objLord').value='08:00';render();renderAll();renderSaved();toast('New plan');}
 async function loadPlan(id){const p=_plans.find(x=>x.id===id);if(!p)return;
   plan={id:p.id,name:p.name,team_name:p.team_name||'',game:'Game 1',data:Object.assign(blankData(),p.data||{})};
   if(!plan.data.frames)plan.data.frames=blankData().frames;if(!plan.data.lineup)plan.data.lineup={blue:{},red:{}};if(!plan.data.objectives)plan.data.objectives={turtle:'02:00',lord:'08:00'};
   _undo=[];_redo=[];_phase='early';setPhase('early',document.querySelector('[data-phase=early]'));
   document.getElementById('objTurtle').value=plan.data.objectives.turtle;document.getElementById('objLord').value=plan.data.objectives.lord;
-  render();renderAll();syncMeta();renderSaved();toast('Opened "'+p.name+'"');}
-function syncMeta(){document.getElementById('mcOur').textContent=plan.data.ourTeam||'Your Team';document.getElementById('mcOpp').textContent=plan.team_name||'Opponent';
-  const os=document.getElementById('ourTeamSel');if(os)os.value=plan.data.ourTeam||'';const op=document.getElementById('oppSel');if(op)op.value=plan.team_name||'';const ss=document.getElementById('seriesSel');if(ss)ss.value=plan.data.series||'';}
-
+  render();renderAll();renderSaved();toast('Opened "'+p.name+'"');}
 // Share the current (saved) plan with a teammate by email (async view/edit).
 async function addShare(){
   if(!_user){toast('Sign in first','err');return;}
@@ -442,11 +445,8 @@ async function exportPNG(){toast('Rendering…');try{const c=await html2canvas(d
 
 // ════════════════ INIT ════════════════
 (async()=>{
-  _swatches();renderRoleChips();renderHeroGrid();renderAssign();render();_counts();
+  _swatches();renderLaneUI();renderRoleChips();renderHeroGrid();renderAssign();render();_counts();
   try{if(typeof WAuth!=='undefined'&&WAuth.init){await WAuth.init();_user=WAuth.getUser();}}catch(_){}
-  try{ window._pbMatches=(typeof WDB!=='undefined'&&WDB.loadMatches)?await WDB.loadMatches():[]; }catch(_){window._pbMatches=[];}
-  const teams=_teamNames();const seasons=[...new Set((window._pbMatches||[]).map(m=>(m.season||'').trim()).filter(Boolean))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
-  _fillSelect('ourTeamSel',teams,'','Your team…');_fillSelect('oppSel',teams,'','Opponent…');_fillSelect('seriesSel',seasons,'','Season / series…');
   renderHeroGrid();renderAssign();
   await refreshPlans();
 })();
