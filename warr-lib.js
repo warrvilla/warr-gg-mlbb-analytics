@@ -2261,6 +2261,59 @@ WDB.removeLockedTeamMember = async function(id) {
   if (error) throw error;
 };
 
+// ── PLAYBOOK / STRATEGY PLANS — map plans, private + share-by-email ──────────
+// Plans readable by the user are their own + any shared with their email + admin.
+WDB.loadPlans = async function() {
+  try {
+    const { data, error } = await _sbClient.from('strategy_plans')
+      .select('id, name, team_name, league, data, created_by, updated_at')
+      .order('updated_at', { ascending: false });
+    if (error) throw error;
+    const uid = WAuth.getUser()?.id || null;
+    return (data || []).map(r => ({ ...r, _shared: r.created_by !== uid }));
+  } catch(e) { if (/strategy_plans/.test(e.message||'')) throw new Error('Run migration 023 first'); throw e; }
+};
+WDB.savePlan = async function(plan) {
+  const user = WAuth.getUser(); if (!user) throw new Error('Sign in to save plans');
+  const S = WDB._sanitizeName;
+  const row = {
+    name: S(plan.name) || 'Untitled plan',
+    team_name: plan.team_name ? S(plan.team_name) : null,
+    league: plan.league ? S(plan.league) : null,
+    data: plan.data || {},
+    updated_at: new Date().toISOString(),
+  };
+  if (plan.id) row.id = plan.id; else row.created_by = user.id;
+  const { data, error } = await _sbClient.from('strategy_plans')
+    .upsert(row, { onConflict: 'id' }).select().single();
+  if (error) { if (/strategy_plans/.test(error.message)) throw new Error('Run migration 023 first'); throw error; }
+  return data;
+};
+WDB.deletePlan = async function(id) {
+  const { error } = await _sbClient.from('strategy_plans').delete().eq('id', id);
+  if (error) throw error;
+};
+WDB.loadPlanMembers = async function(planId) {
+  try {
+    const { data, error } = await _sbClient.from('strategy_plan_members')
+      .select('id, email').eq('plan_id', planId).order('created_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch(e) { return []; }
+};
+WDB.addPlanMember = async function(planId, email) {
+  const clean = WDB._sanitizeName(email).toLowerCase();
+  if (!clean) throw new Error('Email required');
+  const { data, error } = await _sbClient.from('strategy_plan_members')
+    .upsert({ plan_id: planId, email: clean }, { onConflict: 'plan_id,email' }).select().single();
+  if (error) { if (/strategy_plan_members/.test(error.message)) throw new Error('Run migration 023 first'); throw error; }
+  return data;
+};
+WDB.removePlanMember = async function(id) {
+  const { error } = await _sbClient.from('strategy_plan_members').delete().eq('id', id);
+  if (error) throw error;
+};
+
 // ═══════════════════════════════════════════════════════════════
 // SHARED META TIERING — one model used everywhere (homepage, Heroes,
 // Scout, meta cards) so a hero's tier is consistent across the app.

@@ -168,6 +168,7 @@
     { href: '/stats',        label: 'Analysis'  },
     { href: '/heroes',       label: 'Heroes'    },
     { href: '/team_manager', label: 'Teams'     },
+    { href: '/playbook',     label: 'Playbook'  },
   ];
 
   // Identify current page from URL path — works for both /heroes and

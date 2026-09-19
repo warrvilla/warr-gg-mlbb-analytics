@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/jpeg" href="assets/favicon.jpg">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Playbook — Strategy Board | Warr.GG</title>
+<meta name="description" content="Plan MLBB strategies on the map — hero positioning, rotations, ganks, wards and objectives. Save and share plays with your team on Warr.GG.">
+<meta name="robots" content="noindex">
+<style>
+:root{
+  --bg:#050509; --surface:#0e0e17; --surface2:#14141f; --surface3:#1b1b28;
+  --border:#22222f; --border2:#2c2c3c; --text:#f0f0f8; --text2:#b8b8c8; --text3:#7a7a8c; --text4:#55556a;
+  --accent:#7c5cf6; --accent-dim:rgba(124,92,246,.14); --accent-border:rgba(124,92,246,.4);
+  --blue:#4aa3ff; --red:#ff5a6a; --gold:#e0b060; --green:#4CB87A;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);}
+.pb-wrap{max-width:1700px;margin:0 auto;padding:14px 16px 40px;}
+h1.pb-title{font-size:18px;font-weight:800;letter-spacing:.5px;margin:6px 0 2px;}
+.pb-sub{font-size:12px;color:var(--text3);margin-bottom:14px;}
+/* Toolbar */
+.pb-toolbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px 10px;margin-bottom:12px;position:sticky;top:6px;z-index:20;}
+.tool{display:inline-flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border2);color:var(--text2);border-radius:8px;padding:7px 10px;font-size:12px;font-weight:600;cursor:pointer;user-select:none;}
+.tool:hover{border-color:var(--border2);color:var(--text);background:var(--surface3);}
+.tool.active{background:var(--accent-dim);border-color:var(--accent-border);color:#c9b8ff;}
+.tool.ghost{background:transparent;}
+.tsep{width:1px;align-self:stretch;background:var(--border2);margin:0 3px;}
+.swatch{width:22px;height:22px;border-radius:6px;border:2px solid transparent;cursor:pointer;flex-shrink:0;}
+.swatch.active{border-color:#fff;box-shadow:0 0 0 2px var(--bg),0 0 0 3px #fff;}
+.pb-range{width:90px;}
+/* Layout */
+.pb-main{display:grid;grid-template-columns:230px 1fr 230px;gap:12px;align-items:start;}
+@media(max-width:1100px){.pb-main{grid-template-columns:1fr;}}
+.pb-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;}
+.panel-label{font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text3);margin:0 0 8px;}
+.field{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);}
+.btn:hover{background:var(--surface3);color:var(--text);}
+.btn.accent{background:var(--accent);border-color:var(--accent);color:#fff;}
+.btn.accent:hover{opacity:.9;background:var(--accent);}
+.btn.red{color:var(--red);border-color:rgba(255,90,106,.4);}
+.btn.sm{padding:5px 9px;font-size:11px;}
+.btn.full{width:100%;}
+/* Board */
+.pb-board-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px;overflow:hidden;}
+.pb-board{position:relative;width:100%;aspect-ratio:1959/1080;border-radius:8px;overflow:hidden;background:#0a0a12;touch-action:none;}
+#board{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair;}
+#board.select-mode{cursor:default;}
+#board.erase-mode{cursor:not-allowed;}
+.pb-hint{font-size:11px;color:var(--text4);margin-top:6px;text-align:center;}
+/* Side toggle */
+.side-toggle{display:flex;gap:6px;margin-bottom:10px;}
+.side-btn{flex:1;text-align:center;padding:7px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--text3);font-weight:800;font-size:12px;cursor:pointer;}
+.side-btn.blue.active{background:rgba(74,163,255,.16);border-color:var(--blue);color:var(--blue);}
+.side-btn.red.active{background:rgba(255,90,106,.16);border-color:var(--red);color:var(--red);}
+/* Hero tray */
+.hero-search{margin-bottom:8px;}
+.hero-tray{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;max-height:360px;overflow-y:auto;padding-right:2px;}
+.hero-chip{aspect-ratio:1;border-radius:7px;overflow:hidden;border:1px solid var(--border2);cursor:pointer;background:var(--surface3);position:relative;}
+.hero-chip img{width:100%;height:100%;object-fit:cover;display:block;}
+.hero-chip:hover{border-color:var(--accent-border);}
+.hero-chip .nm{position:absolute;bottom:0;left:0;right:0;font-size:7px;line-height:1.1;padding:2px 1px;background:rgba(0,0,0,.6);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* Plans list */
+.plan-row{display:flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid var(--border2);border-radius:8px;margin-bottom:6px;background:var(--surface2);}
+.plan-row .nm{flex:1;min-width:0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
+.plan-row .nm:hover{color:var(--accent);}
+.plan-row .shared{font-size:8px;color:var(--gold);border:1px solid rgba(224,176,96,.4);border-radius:10px;padding:1px 5px;flex-shrink:0;}
+.member-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 8px;border:1px solid var(--border2);border-radius:7px;margin-bottom:5px;font-size:12px;}
+.muted{font-size:11px;color:var(--text4);}
+#pbToast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:10px 18px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:100;}
+#pbToast.show{opacity:1;}
+#pbToast.err{border-color:var(--red);color:#ffb3ba;}
+</style>
+</head>
+<body>
+<div class="pb-wrap">
+  <h1 class="pb-title">Playbook — Strategy Board</h1>
+  <div class="pb-sub">Plan on the map: place heroes, draw rotations & ganks, mark wards and objectives. Save plays and share them with your team.</div>
+
+  <!-- TOOLBAR -->
+  <div class="pb-toolbar">
+    <div class="tool active" data-tool="select" onclick="setTool('select',this)" title="Select / move">✋ Select</div>
+    <div class="tool" data-tool="pen" onclick="setTool('pen',this)" title="Freehand">✎ Pen</div>
+    <div class="tool" data-tool="line" onclick="setTool('line',this)" title="Straight line">╱ Line</div>
+    <div class="tool" data-tool="arrow" onclick="setTool('arrow',this)" title="Arrow">➤ Arrow</div>
+    <div class="tool" data-tool="highlight" onclick="setTool('highlight',this)" title="Highlighter">▨ Highlight</div>
+    <div class="tool" data-tool="rect" onclick="setTool('rect',this)" title="Rectangle zone">▭ Box</div>
+    <div class="tool" data-tool="circle" onclick="setTool('circle',this)" title="Circle zone">◯ Circle</div>
+    <div class="tool" data-tool="ward" onclick="setTool('ward',this)" title="Ward marker">◈ Ward</div>
+    <div class="tool" data-tool="text" onclick="setTool('text',this)" title="Text note">T Text</div>
+    <div class="tool" data-tool="erase" onclick="setTool('erase',this)" title="Erase (tap an element)">⌫ Erase</div>
+    <div class="tsep"></div>
+    <span id="swatches" style="display:inline-flex;gap:5px;align-items:center;"></span>
+    <input type="range" class="pb-range" id="widthRange" min="2" max="40" value="8" title="Stroke thickness" oninput="_penW=+this.value">
+    <div class="tsep"></div>
+    <div class="tool ghost" onclick="undo()" title="Undo">↶</div>
+    <div class="tool ghost" onclick="redo()" title="Redo">↷</div>
+    <div class="tool ghost" onclick="clearDraws()" title="Clear drawings (keep heroes)">Clear draw</div>
+    <div class="tool ghost" onclick="clearAll()" title="Clear everything">Clear all</div>
+    <div class="tsep"></div>
+    <div class="tool ghost" onclick="exportPNG()" title="Download as image">⤓ PNG</div>
+  </div>
+
+  <div class="pb-main">
+    <!-- LEFT: plans + save + share -->
+    <div>
+      <div class="pb-panel" style="margin-bottom:12px;">
+        <div class="panel-label">This Plan</div>
+        <input class="field" id="planName" placeholder="Plan name (e.g. vs Team X — Lord setup)" style="margin-bottom:8px;">
+        <input class="field" id="planTeam" placeholder="Opponent / team (optional)" style="margin-bottom:8px;">
+        <div style="display:flex;gap:6px;">
+          <button class="btn accent" style="flex:1;" onclick="savePlan()">💾 Save</button>
+          <button class="btn" onclick="newPlan()" title="Start a blank plan">+ New</button>
+        </div>
+        <div id="authNote" class="muted" style="margin-top:8px;display:none;">Sign in to save & share plans.</div>
+      </div>
+      <div class="pb-panel" id="sharePanel" style="margin-bottom:12px;display:none;">
+        <div class="panel-label">Share (view/edit by email)</div>
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <input class="field" id="shareEmail" type="email" placeholder="teammate@email.com" style="flex:1;" onkeydown="if(event.key==='Enter')addShare()">
+          <button class="btn accent sm" onclick="addShare()">Share</button>
+        </div>
+        <div id="memberList"></div>
+      </div>
+      <div class="pb-panel">
+        <div class="panel-label">My Plans</div>
+        <div id="planList"><div class="muted">No saved plans yet.</div></div>
+      </div>
+    </div>
+
+    <!-- CENTER: board -->
+    <div class="pb-board-wrap">
+      <div class="pb-board" id="boardWrap">
+        <svg id="board" viewBox="0 0 1959 1080" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+          <image id="mapBg" href="assets/MLBB%20Map.jpg" x="0" y="0" width="1959" height="1080" preserveAspectRatio="xMidYMid slice"></image>
+          <g id="layer"></g>
+        </svg>
+      </div>
+      <div class="pb-hint">Click a hero on the right to drop it on the map · use <b>Select</b> to drag/relabel (double-click a hero to set a player name) · pick a tool to draw</div>
+    </div>
+
+    <!-- RIGHT: side toggle + hero tray -->
+    <div class="pb-panel">
+      <div class="panel-label">Add Hero — Side</div>
+      <div class="side-toggle">
+        <div class="side-btn blue active" id="sideBlue" onclick="setSide('blue')">BLUE</div>
+        <div class="side-btn red" id="sideRed" onclick="setSide('red')">RED</div>
+      </div>
+      <input class="field hero-search" id="heroSearch" placeholder="🔍 Search hero…" oninput="renderTray()">
+      <div class="hero-tray" id="heroTray"></div>
+    </div>
+  </div>
+</div>
+<div id="pbToast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="warr-lib.js?v=2"></script>
+<script src="warr-nav.js"></script>
+<script>
+// ═══════════════════════════════ STATE ═══════════════════════════════
+const svg   = document.getElementById('board');
+const layer = document.getElementById('layer');
+const W = 1959, H = 1080;
+let plan = { id:null, name:'', team_name:'', tokens:[], draws:[] };
+let _tool = 'select', _side = 'blue', _color = '#4aa3ff', _penW = 8;
+let _user = null, _plans = [];
+let _undo = [], _redo = [];
+let _uid = 0; const nid = () => 'e'+(Date.now().toString(36))+(_uid++);
+
+const COLORS = ['#4aa3ff','#ff5a6a','#e0b060','#4CB87A','#ffffff','#c084fc'];
+
+function toast(m,type){ const t=document.getElementById('pbToast'); t.textContent=m; t.className='show'+(type==='err'?' err':''); clearTimeout(t._t); t._t=setTimeout(()=>t.className='',2400); }
+
+// ═══════════════════════════════ TOOLS ═══════════════════════════════
+function setTool(t,el){ _tool=t; document.querySelectorAll('.tool[data-tool]').forEach(x=>x.classList.remove('active')); if(el)el.classList.add('active');
+  svg.classList.toggle('select-mode', t==='select'); svg.classList.toggle('erase-mode', t==='erase'); }
+function setSide(s){ _side=s; document.getElementById('sideBlue').classList.toggle('active',s==='blue'); document.getElementById('sideRed').classList.toggle('active',s==='red'); }
+function _renderSwatches(){ const w=document.getElementById('swatches');
+  w.innerHTML = COLORS.map(c=>`<span class="swatch${c===_color?' active':''}" style="background:${c};" onclick="_pickColor('${c}',this)"></span>`).join(''); }
+function _pickColor(c,el){ _color=c; document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active')); el.classList.add('active'); }
+
+// ═══════════════════════════════ HISTORY ═══════════════════════════════
+function snapshot(){ _undo.push(JSON.stringify({tokens:plan.tokens,draws:plan.draws})); if(_undo.length>60)_undo.shift(); _redo=[]; }
+function _restore(s){ const o=JSON.parse(s); plan.tokens=o.tokens; plan.draws=o.draws; render(); }
+function undo(){ if(!_undo.length)return; _redo.push(JSON.stringify({tokens:plan.tokens,draws:plan.draws})); _restore(_undo.pop()); }
+function redo(){ if(!_redo.length)return; _undo.push(JSON.stringify({tokens:plan.tokens,draws:plan.draws})); _restore(_redo.pop()); }
+function clearDraws(){ if(!plan.draws.length)return; snapshot(); plan.draws=[]; render(); }
+function clearAll(){ if(!plan.tokens.length&&!plan.draws.length)return; if(!confirm('Clear the whole board?'))return; snapshot(); plan.tokens=[]; plan.draws=[]; render(); }
+
+// ═══════════════════════════════ COORDS ═══════════════════════════════
+function pt(evt){ const p=svg.createSVGPoint(); p.x=evt.clientX; p.y=evt.clientY; const m=svg.getScreenCTM(); if(!m)return{x:0,y:0}; const r=p.matrixTransform(m.inverse()); return {x:Math.max(0,Math.min(W,r.x)), y:Math.max(0,Math.min(H,r.y))}; }
+
+// ═══════════════════════════════ RENDER ═══════════════════════════════
+const SVGNS='http://www.w3.org/2000/svg';
+function el(tag,attrs){ const e=document.createElementNS(SVGNS,tag); for(const k in attrs) e.setAttribute(k,attrs[k]); return e; }
+function _arrowHead(x1,y1,x2,y2,color,wm){ const a=Math.atan2(y2-y1,x2-x1); const L=18+wm*1.6, spread=Math.PI/7;
+  const p1=[x2-L*Math.cos(a-spread), y2-L*Math.sin(a-spread)], p2=[x2-L*Math.cos(a+spread), y2-L*Math.sin(a+spread)];
+  return el('polygon',{points:`${x2},${y2} ${p1[0]},${p1[1]} ${p2[0]},${p2[1]}`, fill:color}); }
+
+function render(){
+  layer.innerHTML='';
+  // drawings first (under tokens)
+  plan.draws.forEach(d=>{
+    let e;
+    if(d.type==='pen'||d.type==='highlight'){
+      e=el('polyline',{points:d.points.map(p=>p[0]+','+p[1]).join(' '), fill:'none', stroke:d.color,
+        'stroke-width':d.width, 'stroke-linecap':'round','stroke-linejoin':'round',
+        opacity:d.type==='highlight'?0.35:1});
+    } else if(d.type==='line'||d.type==='arrow'){
+      e=el('g',{}); e.appendChild(el('line',{x1:d.x1,y1:d.y1,x2:d.x2,y2:d.y2,stroke:d.color,'stroke-width':d.width,'stroke-linecap':'round'}));
+      if(d.type==='arrow') e.appendChild(_arrowHead(d.x1,d.y1,d.x2,d.y2,d.color,d.width));
+    } else if(d.type==='rect'){
+      e=el('rect',{x:Math.min(d.x1,d.x2),y:Math.min(d.y1,d.y2),width:Math.abs(d.x2-d.x1),height:Math.abs(d.y2-d.y1),
+        fill:d.color,'fill-opacity':0.12,stroke:d.color,'stroke-width':d.width,rx:6});
+    } else if(d.type==='circle'){
+      const rx=Math.abs(d.x2-d.x1)/2, ry=Math.abs(d.y2-d.y1)/2;
+      e=el('ellipse',{cx:(d.x1+d.x2)/2,cy:(d.y1+d.y2)/2,rx:rx,ry:ry,fill:d.color,'fill-opacity':0.12,stroke:d.color,'stroke-width':d.width});
+    } else if(d.type==='text'){
+      e=el('text',{x:d.x,y:d.y,fill:d.color,'font-size':d.size||34,'font-weight':800,'font-family':'sans-serif','paint-order':'stroke',stroke:'#000','stroke-width':4}); e.textContent=d.text;
+    } else if(d.type==='ward'){
+      e=el('g',{});
+      e.appendChild(el('circle',{cx:d.x,cy:d.y,r:70,fill:d.color,'fill-opacity':0.10,stroke:d.color,'stroke-width':2,'stroke-dasharray':'6 6'}));
+      e.appendChild(el('circle',{cx:d.x,cy:d.y,r:16,fill:d.color,stroke:'#000','stroke-width':3}));
+      const eye=el('circle',{cx:d.x,cy:d.y,r:6,fill:'#000'}); e.appendChild(eye);
+    }
+    if(e){ e.setAttribute('data-kind','draw'); e.setAttribute('data-id',d.id); e.style.cursor=(_tool==='erase')?'not-allowed':'inherit'; layer.appendChild(e); }
+  });
+  // tokens on top
+  plan.tokens.forEach(t=>{
+    const g=el('g',{'data-kind':'token','data-id':t.id, transform:`translate(${t.x},${t.y})`, style:'cursor:'+(_tool==='erase'?'not-allowed':'grab')});
+    const ring=t.side==='red'?'#ff5a6a':'#4aa3ff';
+    g.appendChild(el('circle',{r:46,fill:'#0a0a12',stroke:ring,'stroke-width':6}));
+    const clip='clip'+t.id; const defs=el('defs',{}); const cp=el('clipPath',{id:clip}); cp.appendChild(el('circle',{r:42})); defs.appendChild(cp); g.appendChild(defs);
+    const img=el('image',{href:heroImg(t.hero), x:-42,y:-42,width:84,height:84,'clip-path':`url(#${clip})`, preserveAspectRatio:'xMidYMid slice'}); g.appendChild(img);
+    if(t.label){ const lt=el('text',{x:0,y:70,fill:'#fff','font-size':26,'font-weight':800,'text-anchor':'middle','font-family':'sans-serif','paint-order':'stroke',stroke:'#000','stroke-width':5}); lt.textContent=t.label; g.appendChild(lt); }
+    layer.appendChild(g);
+  });
+}
+function heroImg(name){ try{ if(typeof WDB!=='undefined'&&WDB.heroPortrait) return WDB.heroPortrait(name); }catch(_){} return 'portraits/'+String(name).toLowerCase().replace(/[^a-z0-9]/g,'')+'.png'; }
+
+// ═══════════════════════════════ POINTER (draw / place / move / erase) ═══
+let _dragToken=null, _dragOff=null, _drawing=null, _preview=null;
+svg.addEventListener('pointerdown', e=>{
+  const p=pt(e); const targetG=e.target.closest('[data-kind]');
+  if(_tool==='erase'){ if(targetG){ const id=targetG.getAttribute('data-id'), k=targetG.getAttribute('data-kind'); snapshot();
+      if(k==='token') plan.tokens=plan.tokens.filter(t=>t.id!==id); else plan.draws=plan.draws.filter(d=>d.id!==id); render(); } return; }
+  if(_tool==='select'){ if(targetG&&targetG.getAttribute('data-kind')==='token'){ const id=targetG.getAttribute('data-id'); _dragToken=plan.tokens.find(t=>t.id===id);
+      if(_dragToken){ snapshot(); _dragOff={x:p.x-_dragToken.x, y:p.y-_dragToken.y}; svg.setPointerCapture(e.pointerId); } } return; }
+  if(_tool==='text'){ const txt=prompt('Text note:'); if(txt&&txt.trim()){ snapshot(); plan.draws.push({id:nid(),type:'text',x:p.x,y:p.y,text:txt.trim().slice(0,80),color:_color,size:34}); render(); } return; }
+  if(_tool==='ward'){ snapshot(); plan.draws.push({id:nid(),type:'ward',x:p.x,y:p.y,color:_color}); render(); return; }
+  // drawing tools
+  if(_tool==='pen'||_tool==='highlight'){ _drawing={id:nid(),type:_tool,points:[[p.x,p.y]],color:_color,width:_penW}; }
+  else { _drawing={id:nid(),type:_tool,x1:p.x,y1:p.y,x2:p.x,y2:p.y,color:_color,width:_penW}; }
+  svg.setPointerCapture(e.pointerId);
+});
+svg.addEventListener('pointermove', e=>{
+  const p=pt(e);
+  if(_dragToken){ _dragToken.x=p.x-_dragOff.x; _dragToken.y=p.y-_dragOff.y; render(); return; }
+  if(!_drawing) return;
+  if(_drawing.type==='pen'||_drawing.type==='highlight'){ _drawing.points.push([p.x,p.y]); }
+  else { _drawing.x2=p.x; _drawing.y2=p.y; }
+  _renderPreview();
+});
+svg.addEventListener('pointerup', e=>{
+  if(_dragToken){ _dragToken=null; return; }
+  if(_drawing){ if(_preview){_preview.remove();_preview=null;}
+    const d=_drawing; _drawing=null;
+    const tiny=(d.type==='pen'||d.type==='highlight')? d.points.length<2 : (Math.hypot(d.x2-d.x1,d.y2-d.y1)<8);
+    if(!tiny){ snapshot(); plan.draws.push(d); render(); }
+  }
+});
+function _renderPreview(){ if(_preview)_preview.remove(); const d=_drawing; if(!d)return;
+  const tmp={...d}; const save=plan.draws; plan.draws=[...save,tmp]; render(); plan.draws=save;
+  _preview=layer.lastChild; }
+
+// double-click a token → set player label
+svg.addEventListener('dblclick', e=>{ const g=e.target.closest('[data-kind="token"]'); if(!g)return;
+  const t=plan.tokens.find(x=>x.id===g.getAttribute('data-id')); if(!t)return;
+  const v=prompt('Player / label for '+t.hero+':', t.label||''); if(v!==null){ snapshot(); t.label=v.trim().slice(0,24); render(); } });
+
+// ═══════════════════════════════ HERO TRAY ═══════════════════════════════
+function heroList(){ try{ return (typeof WDB!=='undefined'&&WDB.HERO_ROSTER)?WDB.HERO_ROSTER:[]; }catch(_){ return []; } }
+function renderTray(){ const q=(document.getElementById('heroSearch').value||'').toLowerCase();
+  const tray=document.getElementById('heroTray');
+  const list=heroList().map(h=>h.name||h.n||h).filter(Boolean).filter(n=>n.toLowerCase().includes(q)).sort((a,b)=>a.localeCompare(b));
+  tray.innerHTML=list.map(n=>`<div class="hero-chip" title="Add ${n} (${_side})" onclick="addToken('${String(n).replace(/'/g,"\\'")}')"><img src="${heroImg(n)}" onerror="this.style.opacity=0"><span class="nm">${n}</span></div>`).join('')
+    || '<div class="muted" style="grid-column:1/-1;">No heroes.</div>';
+}
+function addToken(hero){ snapshot(); plan.tokens.push({id:nid(),hero,side:_side,x:W*(0.3+Math.random()*0.4),y:H*(0.35+Math.random()*0.3),label:''}); render(); }
+
+// ═══════════════════════════════ PLANS (save/load/share) ═══════════════════
+async function refreshPlans(){ const list=document.getElementById('planList'); if(!_user){ list.innerHTML='<div class="muted">Sign in to see saved plans.</div>'; return; }
+  try{ _plans=await WDB.loadPlans(); }catch(e){ list.innerHTML='<div class="muted">'+(e.message||'Load failed')+'</div>'; return; }
+  if(!_plans.length){ list.innerHTML='<div class="muted">No saved plans yet.</div>'; return; }
+  list.innerHTML=_plans.map(p=>`<div class="plan-row">
+    <span class="nm" onclick="loadPlan('${p.id}')" title="Open">${_esc(p.name)}${p.team_name?` · <span style="color:var(--text3)">${_esc(p.team_name)}</span>`:''}</span>
+    ${p._shared?'<span class="shared">shared</span>':`<button class="btn red sm" onclick="delPlan('${p.id}','${_esc(p.name)}')">✕</button>`}
+  </div>`).join('');
+}
+function _esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+async function savePlan(){ if(!_user){ toast('Sign in to save plans','err'); return; }
+  const name=(document.getElementById('planName').value||'').trim(); if(!name){ toast('Name your plan first','err'); return; }
+  plan.name=name; plan.team_name=(document.getElementById('planTeam').value||'').trim();
+  try{ const saved=await WDB.savePlan({ id:plan.id, name:plan.name, team_name:plan.team_name, data:{tokens:plan.tokens,draws:plan.draws} });
+    plan.id=saved.id; toast('✓ Plan saved'); await refreshPlans(); _showShare(); }
+  catch(e){ toast(e.message||'Save failed','err'); }
+}
+function newPlan(){ if((plan.tokens.length||plan.draws.length)&&!confirm('Start a new blank plan? Unsaved changes will be lost.'))return;
+  plan={id:null,name:'',team_name:'',tokens:[],draws:[]}; _undo=[];_redo=[];
+  document.getElementById('planName').value=''; document.getElementById('planTeam').value=''; document.getElementById('sharePanel').style.display='none'; render(); }
+async function loadPlan(id){ const p=_plans.find(x=>x.id===id); if(!p)return;
+  if((plan.tokens.length||plan.draws.length)&&!plan.id&&!confirm('Open this plan? Unsaved changes will be lost.'))return;
+  plan={ id:p.id, name:p.name, team_name:p.team_name||'', tokens:(p.data&&p.data.tokens)||[], draws:(p.data&&p.data.draws)||[] };
+  document.getElementById('planName').value=p.name||''; document.getElementById('planTeam').value=p.team_name||'';
+  _undo=[];_redo=[]; render(); _showShare(p._shared); toast('Opened "'+p.name+'"'); }
+async function delPlan(id,name){ if(!confirm('Delete plan "'+name+'"?'))return; try{ await WDB.deletePlan(id); if(plan.id===id)newPlan(); toast('Deleted'); await refreshPlans(); }catch(e){ toast(e.message,'err'); } }
+
+// Sharing (only for saved, owned plans)
+function _showShare(isShared){ const el=document.getElementById('sharePanel'); if(!plan.id||isShared){ el.style.display='none'; return; } el.style.display='block'; refreshMembers(); }
+async function refreshMembers(){ if(!plan.id)return; const box=document.getElementById('memberList'); let m=[]; try{ m=await WDB.loadPlanMembers(plan.id);}catch(_){}
+  box.innerHTML = m.length ? m.map(x=>`<div class="member-row"><span>${_esc(x.email)}</span><button class="btn red sm" onclick="delShare('${x.id}')">Remove</button></div>`).join('')
+    : '<div class="muted">Not shared with anyone yet.</div>'; }
+async function addShare(){ if(!plan.id){ toast('Save the plan first','err'); return; } const inp=document.getElementById('shareEmail'); const email=(inp.value||'').trim();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ toast('Enter a valid email','err'); return; }
+  try{ await WDB.addPlanMember(plan.id,email); inp.value=''; toast('Shared with '+email); refreshMembers(); }catch(e){ toast(e.message,'err'); } }
+async function delShare(id){ try{ await WDB.removePlanMember(id); refreshMembers(); }catch(e){ toast(e.message,'err'); } }
+
+// ═══════════════════════════════ EXPORT ═══════════════════════════════
+async function exportPNG(){ toast('Rendering image…');
+  try{ const canvas=await html2canvas(document.getElementById('boardWrap'),{useCORS:true,backgroundColor:'#0a0a12',scale:2});
+    const a=document.createElement('a'); a.download=`warr_playbook_${(plan.name||'board').replace(/[^a-z0-9]+/gi,'_')}.png`; a.href=canvas.toDataURL('image/png'); a.click(); }
+  catch(e){ toast('Export failed — try again','err'); }
+}
+
+// ═══════════════════════════════ INIT ═══════════════════════════════
+(async ()=>{
+  _renderSwatches(); renderTray(); render();
+  try{ if(typeof WAuth!=='undefined'&&WAuth.init){ await WAuth.init(); _user=WAuth.getUser(); } }catch(_){}
+  document.getElementById('authNote').style.display=_user?'none':'block';
+  if(!_user) document.getElementById('planName').placeholder='Sign in to save — you can still draw & export';
+  await refreshPlans();
+})();
+</script>
+</body>
+</html>
