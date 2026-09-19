@@ -52,25 +52,23 @@
 .viewall{display:block;text-align:center;font-size:12px;color:var(--accent);margin-top:10px;cursor:pointer;}
 /* Center */
 .board-col{display:flex;flex-direction:column;gap:12px;}
-.pb-toolbar{background:var(--glass);backdrop-filter:var(--blur-sm);-webkit-backdrop-filter:var(--blur-sm);border:0.5px solid var(--glass-border);border-radius:var(--r2);padding:0;box-shadow:var(--glass-shadow);overflow:hidden;}
-.tb-row{display:flex;align-items:center;gap:4px;padding:6px 10px;flex-wrap:wrap;}
-.tb-row2{border-top:0.5px solid var(--border);background:rgba(0,0,0,.16);padding:6px 10px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
-.tb-group{display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
-.tb-right{margin-left:auto;display:flex;align-items:center;gap:5px;}
-.tb-lbl{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text4);margin:0 6px 0 2px;}
-.tool{display:inline-flex;align-items:center;gap:5px;background:transparent;border:0.5px solid transparent;color:var(--text2);border-radius:var(--r);padding:6px 10px;font-size:12px;font-weight:500;cursor:pointer;user-select:none;transition:all .14s;white-space:nowrap;}
+.pb-toolbar{background:var(--glass);backdrop-filter:var(--blur-sm);-webkit-backdrop-filter:var(--blur-sm);border:0.5px solid var(--glass-border);border-radius:var(--r2);box-shadow:var(--glass-shadow);}
+.tb-single{display:flex;align-items:center;gap:3px;padding:7px 9px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;}
+.tb-single::-webkit-scrollbar{display:none;}
+.tool{display:inline-flex;align-items:center;justify-content:center;gap:5px;background:transparent;border:0.5px solid transparent;color:var(--text2);border-radius:9px;cursor:pointer;user-select:none;transition:all .14s;white-space:nowrap;flex-shrink:0;}
+.tool.ico{width:32px;height:32px;font-size:15px;line-height:1;}
 .tool:hover{color:var(--text);background:rgba(255,255,255,0.07);}
 .tool.active{background:var(--accent-dim);border-color:var(--accent-border);color:var(--accent);box-shadow:0 0 12px -4px var(--accent-glow);}
 .tool.on{background:var(--accent-dim);border-color:var(--accent-border);color:var(--accent);}
-.tool.icobtn{padding:6px 8px;}
-.tsep{width:1px;height:20px;background:var(--border2);margin:0 5px;}
-.swrap{display:inline-flex;gap:6px;align-items:center;background:rgba(0,0,0,.22);border:0.5px solid var(--border2);border-radius:var(--pill);padding:5px 9px;}
-.swatch{width:18px;height:18px;border-radius:var(--pill);border:2px solid transparent;cursor:pointer;transition:transform .12s;}
-.swatch:hover{transform:scale(1.12);}
+.tool.ghost{color:var(--text3);}
+.tsep{width:1px;height:22px;background:var(--border2);margin:0 5px;flex-shrink:0;}
+.swrap{display:inline-flex;gap:5px;align-items:center;flex-shrink:0;}
+.swatch{width:17px;height:17px;border-radius:var(--pill);border:2px solid transparent;cursor:pointer;transition:transform .12s;}
+.swatch:hover{transform:scale(1.14);}
 .swatch.active{border-color:var(--text);box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--text);}
-.pb-range{width:96px;accent-color:var(--accent);}
-.lanebtn{width:32px;height:32px;padding:0;display:grid;place-items:center;border-radius:10px;background:rgba(255,255,255,0.03);border:0.5px solid var(--border2);cursor:pointer;transition:all .14s;}
-.lanebtn:hover{background:rgba(255,255,255,0.08);transform:translateY(-1px);}
+.pb-range{width:74px;accent-color:var(--accent);flex-shrink:0;}
+.lanebtn{width:30px;height:30px;padding:0;display:grid;place-items:center;border-radius:9px;background:rgba(255,255,255,0.03);border:0.5px solid var(--border2);cursor:pointer;transition:all .14s;flex-shrink:0;}
+.lanebtn:hover{background:rgba(255,255,255,0.08);}
 .lanebtn.active{background:var(--accent-dim);border-color:var(--accent-border);}
 .board-stage{position:relative;border-radius:var(--r2);overflow:hidden;border:0.5px solid var(--glass-border);box-shadow:var(--glass-shadow);width:fit-content;max-width:100%;margin:0 auto;}
 .board-stage .mapdrop{position:absolute;top:10px;left:10px;z-index:6;display:flex;align-items:center;gap:6px;background:rgba(10,10,18,.7);backdrop-filter:blur(10px);border:0.5px solid var(--border2);border-radius:var(--r);padding:5px 10px;font-size:11px;color:var(--text2);}
@@ -152,36 +150,29 @@
     <!-- CENTER: board -->
     <div class="board-col">
       <div class="pb-toolbar">
-        <div class="tb-row">
-          <div class="tb-group">
-            <div class="tool active" data-tool="select" onclick="setTool('select',this)">↖ Select</div>
-            <div class="tool" data-tool="pen" onclick="setTool('pen',this)">✎ Pen</div>
-            <div class="tool" data-tool="line" onclick="setTool('line',this)">╱ Line</div>
-            <div class="tool" data-tool="arrow" onclick="setTool('arrow',this)">➤ Arrow</div>
-            <div class="tool" data-tool="rect" onclick="setTool('rect',this)">▭ Box</div>
-            <div class="tool" data-tool="circle" onclick="setTool('circle',this)">◯ Circle</div>
-            <div class="tool" data-tool="highlight" onclick="setTool('highlight',this)">▨ Highlight</div>
-            <div class="tool" data-tool="text" onclick="setTool('text',this)">T Text</div>
-            <div class="tool" data-tool="zone" onclick="setTool('zone',this)" title="Position / zone marker">◎ Position</div>
-            <div class="tool" data-tool="erase" onclick="setTool('erase',this)">⌫ Erase</div>
-          </div>
-          <div class="tb-right">
-            <div class="tool ghost icobtn" onclick="undo()" title="Undo">↶</div>
-            <div class="tool ghost icobtn" onclick="redo()" title="Redo">↷</div>
-            <div class="tool ghost" onclick="clearDraws()" title="Clear drawings">Clear</div>
-            <div class="tsep"></div>
-            <div class="tool" id="layersBtn" onclick="toggleLayers(this)" title="Show/hide annotations">◈ Layers</div>
-            <div class="tool" id="gridBtn" onclick="toggleGrid(this)" title="Toggle grid">▦ Grid</div>
-          </div>
-        </div>
-        <div class="tb-row tb-row2">
-          <span class="tb-lbl">Color</span>
-          <span class="swrap" id="swatches"></span>
-          <span class="tb-lbl" style="margin-left:10px;">Size</span>
-          <input type="range" class="pb-range" id="widthRange" min="2" max="40" value="8" oninput="_penW=+this.value">
+        <div class="tb-single">
+          <div class="tool ico active" data-tool="select" onclick="setTool('select',this)" title="Select / move">↖</div>
+          <div class="tool ico" data-tool="pen" onclick="setTool('pen',this)" title="Pen (freehand)">✎</div>
+          <div class="tool ico" data-tool="line" onclick="setTool('line',this)" title="Line">╱</div>
+          <div class="tool ico" data-tool="arrow" onclick="setTool('arrow',this)" title="Arrow">➤</div>
+          <div class="tool ico" data-tool="rect" onclick="setTool('rect',this)" title="Box / zone">▭</div>
+          <div class="tool ico" data-tool="circle" onclick="setTool('circle',this)" title="Circle">◯</div>
+          <div class="tool ico" data-tool="highlight" onclick="setTool('highlight',this)" title="Highlighter">▨</div>
+          <div class="tool ico" data-tool="text" onclick="setTool('text',this)" title="Text note">T</div>
+          <div class="tool ico" data-tool="zone" onclick="setTool('zone',this)" title="Position / zone marker">◎</div>
+          <div class="tool ico" data-tool="erase" onclick="setTool('erase',this)" title="Erase (tap an element)">⌫</div>
           <div class="tsep"></div>
-          <span class="tb-lbl">Lanes</span>
-          <span id="posTools" style="display:inline-flex;gap:5px;align-items:center;" title="Drop a lane icon on the map"></span>
+          <div class="tool ico ghost" onclick="undo()" title="Undo">↶</div>
+          <div class="tool ico ghost" onclick="redo()" title="Redo">↷</div>
+          <div class="tool ico ghost" onclick="clearDraws()" title="Clear drawings">🗑</div>
+          <div class="tsep"></div>
+          <span class="swrap" id="swatches"></span>
+          <input type="range" class="pb-range" id="widthRange" min="2" max="40" value="8" title="Stroke size" oninput="_penW=+this.value">
+          <div class="tsep"></div>
+          <span id="posTools" style="display:inline-flex;gap:4px;align-items:center;" title="Drop a lane marker on the map"></span>
+          <div class="tsep"></div>
+          <div class="tool ico" id="layersBtn" onclick="toggleLayers(this)" title="Show / hide annotations">◈</div>
+          <div class="tool ico" id="gridBtn" onclick="toggleGrid(this)" title="Toggle grid">▦</div>
         </div>
       </div>
 
