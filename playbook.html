@@ -88,7 +88,14 @@ h1.pb-title{font-size:18px;font-weight:800;letter-spacing:.5px;margin:6px 0 2px;
     <div class="tool" data-tool="highlight" onclick="setTool('highlight',this)" title="Highlighter">▨ Highlight</div>
     <div class="tool" data-tool="rect" onclick="setTool('rect',this)" title="Rectangle zone">▭ Box</div>
     <div class="tool" data-tool="circle" onclick="setTool('circle',this)" title="Circle zone">◯ Circle</div>
-    <div class="tool" data-tool="ward" onclick="setTool('ward',this)" title="Ward marker">◈ Ward</div>
+    <span id="roleTools" style="display:inline-flex;gap:4px;align-items:center;">
+      <span class="muted" style="font-size:10px;">Position:</span>
+      <div class="tool role-chip" data-role="Gold"   onclick="setRole('Gold',this)"   style="color:#C89050;">GOLD</div>
+      <div class="tool role-chip" data-role="Jungle" onclick="setRole('Jungle',this)" style="color:#4CB87A;">JGL</div>
+      <div class="tool role-chip" data-role="Mid"    onclick="setRole('Mid',this)"    style="color:#a78bfa;">MID</div>
+      <div class="tool role-chip" data-role="EXP"    onclick="setRole('EXP',this)"    style="color:#5EA0D8;">EXP</div>
+      <div class="tool role-chip" data-role="Roam"   onclick="setRole('Roam',this)"   style="color:#D87880;">ROAM</div>
+    </span>
     <div class="tool" data-tool="text" onclick="setTool('text',this)" title="Text note">T Text</div>
     <div class="tool" data-tool="erase" onclick="setTool('erase',this)" title="Erase (tap an element)">⌫ Erase</div>
     <div class="tsep"></div>
@@ -165,7 +172,9 @@ const svg   = document.getElementById('board');
 const layer = document.getElementById('layer');
 const W = 1959, H = 1080;
 let plan = { id:null, name:'', team_name:'', tokens:[], draws:[] };
-let _tool = 'select', _side = 'blue', _color = '#4aa3ff', _penW = 8;
+let _tool = 'select', _side = 'blue', _color = '#4aa3ff', _penW = 8, _roleType = 'Jungle';
+const ROLE_COLORS = { Gold:'#C89050', Jungle:'#4CB87A', Mid:'#a78bfa', EXP:'#5EA0D8', Roam:'#D87880' };
+const ROLE_ABBR   = { Gold:'GOLD', Jungle:'JGL', Mid:'MID', EXP:'EXP', Roam:'ROAM' };
 let _user = null, _plans = [];
 let _undo = [], _redo = [];
 let _uid = 0; const nid = () => 'e'+(Date.now().toString(36))+(_uid++);
@@ -175,8 +184,10 @@ const COLORS = ['#4aa3ff','#ff5a6a','#e0b060','#4CB87A','#ffffff','#c084fc'];
 function toast(m,type){ const t=document.getElementById('pbToast'); t.textContent=m; t.className='show'+(type==='err'?' err':''); clearTimeout(t._t); t._t=setTimeout(()=>t.className='',2400); }
 
 // ═══════════════════════════════ TOOLS ═══════════════════════════════
-function setTool(t,el){ _tool=t; document.querySelectorAll('.tool[data-tool]').forEach(x=>x.classList.remove('active')); if(el)el.classList.add('active');
+function setTool(t,el){ _tool=t; document.querySelectorAll('.tool').forEach(x=>x.classList.remove('active')); if(el)el.classList.add('active');
   svg.classList.toggle('select-mode', t==='select'); svg.classList.toggle('erase-mode', t==='erase'); }
+function setRole(r,el){ _tool='role'; _roleType=r; document.querySelectorAll('.tool').forEach(x=>x.classList.remove('active')); if(el)el.classList.add('active');
+  svg.classList.remove('select-mode','erase-mode'); }
 function setSide(s){ _side=s; document.getElementById('sideBlue').classList.toggle('active',s==='blue'); document.getElementById('sideRed').classList.toggle('active',s==='red'); }
 function _renderSwatches(){ const w=document.getElementById('swatches');
   w.innerHTML = COLORS.map(c=>`<span class="swatch${c===_color?' active':''}" style="background:${c};" onclick="_pickColor('${c}',this)"></span>`).join(''); }
@@ -220,11 +231,10 @@ function render(){
       e=el('ellipse',{cx:(d.x1+d.x2)/2,cy:(d.y1+d.y2)/2,rx:rx,ry:ry,fill:d.color,'fill-opacity':0.12,stroke:d.color,'stroke-width':d.width});
     } else if(d.type==='text'){
       e=el('text',{x:d.x,y:d.y,fill:d.color,'font-size':d.size||34,'font-weight':800,'font-family':'sans-serif','paint-order':'stroke',stroke:'#000','stroke-width':4}); e.textContent=d.text;
-    } else if(d.type==='ward'){
-      e=el('g',{});
-      e.appendChild(el('circle',{cx:d.x,cy:d.y,r:70,fill:d.color,'fill-opacity':0.10,stroke:d.color,'stroke-width':2,'stroke-dasharray':'6 6'}));
-      e.appendChild(el('circle',{cx:d.x,cy:d.y,r:16,fill:d.color,stroke:'#000','stroke-width':3}));
-      const eye=el('circle',{cx:d.x,cy:d.y,r:6,fill:'#000'}); e.appendChild(eye);
+    } else if(d.type==='role'){
+      e=el('g',{}); const c=ROLE_COLORS[d.role]||'#888';
+      e.appendChild(el('rect',{x:d.x-52,y:d.y-24,width:104,height:48,rx:24,fill:c,stroke:'#000','stroke-width':3}));
+      const t=el('text',{x:d.x,y:d.y+9,fill:'#0a0a12','font-size':26,'font-weight':900,'text-anchor':'middle','font-family':'sans-serif','letter-spacing':'1'}); t.textContent=ROLE_ABBR[d.role]||d.role; e.appendChild(t);
     }
     if(e){ e.setAttribute('data-kind','draw'); e.setAttribute('data-id',d.id); e.style.cursor=(_tool==='erase')?'not-allowed':'inherit'; layer.appendChild(e); }
   });
@@ -238,6 +248,10 @@ function render(){
     if(t.label){ const lt=el('text',{x:0,y:70,fill:'#fff','font-size':26,'font-weight':800,'text-anchor':'middle','font-family':'sans-serif','paint-order':'stroke',stroke:'#000','stroke-width':5}); lt.textContent=t.label; g.appendChild(lt); }
     layer.appendChild(g);
   });
+  // live per-side counters on the toggle
+  const bc=plan.tokens.filter(t=>t.side==='blue').length, rc=plan.tokens.filter(t=>t.side==='red').length;
+  const sb=document.getElementById('sideBlue'), sr=document.getElementById('sideRed');
+  if(sb) sb.textContent='BLUE '+bc+'/5'; if(sr) sr.textContent='RED '+rc+'/5';
 }
 function heroImg(name){ try{ if(typeof WDB!=='undefined'&&WDB.heroPortrait) return WDB.heroPortrait(name); }catch(_){} return 'portraits/'+String(name).toLowerCase().replace(/[^a-z0-9]/g,'')+'.png'; }
 
@@ -250,7 +264,7 @@ svg.addEventListener('pointerdown', e=>{
   if(_tool==='select'){ if(targetG&&targetG.getAttribute('data-kind')==='token'){ const id=targetG.getAttribute('data-id'); _dragToken=plan.tokens.find(t=>t.id===id);
       if(_dragToken){ snapshot(); _dragOff={x:p.x-_dragToken.x, y:p.y-_dragToken.y}; svg.setPointerCapture(e.pointerId); } } return; }
   if(_tool==='text'){ const txt=prompt('Text note:'); if(txt&&txt.trim()){ snapshot(); plan.draws.push({id:nid(),type:'text',x:p.x,y:p.y,text:txt.trim().slice(0,80),color:_color,size:34}); render(); } return; }
-  if(_tool==='ward'){ snapshot(); plan.draws.push({id:nid(),type:'ward',x:p.x,y:p.y,color:_color}); render(); return; }
+  if(_tool==='role'){ snapshot(); plan.draws.push({id:nid(),type:'role',role:_roleType,x:p.x,y:p.y}); render(); return; }
   // drawing tools
   if(_tool==='pen'||_tool==='highlight'){ _drawing={id:nid(),type:_tool,points:[[p.x,p.y]],color:_color,width:_penW}; }
   else { _drawing={id:nid(),type:_tool,x1:p.x,y1:p.y,x2:p.x,y2:p.y,color:_color,width:_penW}; }
@@ -289,7 +303,11 @@ function renderTray(){ const q=(document.getElementById('heroSearch').value||'')
   tray.innerHTML=list.map(n=>`<div class="hero-chip" title="Add ${n} (${_side})" onclick="addToken('${String(n).replace(/'/g,"\\'")}')"><img src="${heroImg(n)}" onerror="this.style.opacity=0"><span class="nm">${n}</span></div>`).join('')
     || '<div class="muted" style="grid-column:1/-1;">No heroes.</div>';
 }
-function addToken(hero){ snapshot(); plan.tokens.push({id:nid(),hero,side:_side,x:W*(0.3+Math.random()*0.4),y:H*(0.35+Math.random()*0.3),label:''}); render(); }
+function addToken(hero){
+  const cnt=plan.tokens.filter(t=>t.side===_side).length;
+  if(cnt>=5){ toast('Max 5 heroes on the '+_side.toUpperCase()+' side','err'); return; }
+  snapshot(); plan.tokens.push({id:nid(),hero,side:_side,x:W*(0.3+Math.random()*0.4),y:H*(0.35+Math.random()*0.3),label:''}); render();
+}
 
 // ═══════════════════════════════ PLANS (save/load/share) ═══════════════════
 async function refreshPlans(){ const list=document.getElementById('planList'); if(!_user){ list.innerHTML='<div class="muted">Sign in to see saved plans.</div>'; return; }
