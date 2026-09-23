@@ -368,6 +368,18 @@ const WDB = {
     }
   },
 
+  // ── DELETE TOMBSTONES ──────────────────────────────────────────
+  // A deleted match must never come back. Because the sync re-uploads any local
+  // match that's missing from the cloud, a delete could be resurrected by a stale
+  // copy (another tab/device) or by a cloud-delete that didn't land. We persist
+  // the deleted ids so loadMatches hides them, the sync never re-uploads them, and
+  // a failed cloud delete is retried automatically. Pruned after 60 days.
+  _TOMB_KEY: 'warr_deleted_matches',
+  _tombs() { try { return JSON.parse(localStorage.getItem(this._TOMB_KEY) || '{}'); } catch(_) { return {}; } },
+  _tombAdd(id) { try { const t=this._tombs(); t[id]=Date.now(); const cut=Date.now()-60*864e5; for(const k in t) if(t[k]<cut) delete t[k]; localStorage.setItem(this._TOMB_KEY, JSON.stringify(t)); } catch(_) {} },
+  _isTomb(id) { return !!this._tombs()[id]; },
+  _tombDrop(id) { try { const t=this._tombs(); if(t[id]){ delete t[id]; localStorage.setItem(this._TOMB_KEY, JSON.stringify(t)); } } catch(_) {} },
+
   /** Fetch scout matches — public leagues for everyone, private leagues only own.
    *  Uses a sessionStorage cache (5 min TTL, invalidated on save/delete) so
    *  repeat page navigations are instant. Pass {force:true} to skip the cache. */
@@ -383,7 +395,14 @@ const WDB = {
       .order('created_at', { ascending: false });
     if (error) throw error;
     const userId = WAuth.getUser()?.id || null;
+    // Honor tombstones: never surface a deleted match, and retry any cloud delete
+    // that previously failed (the row is still there → delete it again).
+    const tomb = this._tombs();
+    (data || []).forEach(row => { if (tomb[row.id]) {
+      _sbClient.from('scout_matches').delete().eq('id', row.id).then(({error}) => { if (!error) WDB._tombDrop(row.id); });
+    }});
     const result = (data || [])
+      .filter(row => !tomb[row.id])
       .filter(row => {
         const league = row.data?.league || '';
         const isPublic = WDB.PUBLIC_LEAGUES.includes(league);
@@ -393,7 +412,9 @@ const WDB = {
         const isSharedScrim = league === 'Scrims' && row.created_by !== userId;
         return isPublic || isOwn || isSharedScrim;
       })
-      .map(row => ({ ...row.data, id: row.id, _createdBy: row.created_by,
+      // _synced=true marks these as confirmed-in-cloud, so the sync knows a local
+      // copy later missing from the cloud was DELETED (drop it), not new (upload it).
+      .map(row => ({ ...row.data, id: row.id, _createdBy: row.created_by, _synced: true,
                      _shared: (row.data?.league === 'Scrims' && row.created_by !== userId) }));
     this._writeMatchCache(result);
     return result;
@@ -413,11 +434,12 @@ const WDB = {
     this._invalidateMatchCache();
   },
 
-  /** Delete a match from cloud */
+  /** Delete a match from cloud (tombstoned so it can never be resurrected) */
   async deleteMatch(id) {
+    WDB._tombAdd(id);                 // remember it's deleted BEFORE the network call
     const { error } = await _sbClient.from('scout_matches').delete().eq('id', id);
-    if (error) throw error;
     this._invalidateMatchCache();
+    if (error) throw error;           // tombstone stays → loadMatches hides it + retries
   },
 
   // ── DRAFT SAVES — private, per user account ──────────────────

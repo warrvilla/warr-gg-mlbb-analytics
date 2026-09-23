@@ -2258,10 +2258,12 @@ async function loadFromSupabase() {
     const cloudMatches = await WDB.loadMatches();
     const cloudIds = new Set(cloudMatches.map(m => m.id));
     const userId = WAuth.getUser()?.id || null;
-    // Only keep local-only matches that belong to the CURRENT user (prevents stale
-    // data from a previously-logged-in user from leaking into the current session)
+    // Re-upload ONLY genuinely-new offline matches: not in cloud, mine, NOT a
+    // previously-synced match (a synced one missing from cloud was DELETED — don't
+    // resurrect it), and not tombstoned. This is what stops deletes from coming back.
     const localOnly = DB_MODULE.getMatches().filter(m =>
-      !cloudIds.has(m.id) && (m._createdBy === userId || (!m._createdBy && userId === null))
+      !cloudIds.has(m.id) && !m._synced && !(WDB._isTomb && WDB._isTomb(m.id)) &&
+      (m._createdBy === userId || (!m._createdBy && userId === null))
     );
     // Replace entire match list with authoritative cloud data first
     DB_MODULE.resetMatches(cloudMatches.slice());
@@ -2271,6 +2273,7 @@ async function loadFromSupabase() {
       WDB.saveMatch(m).catch(() => {});
     }
     DB_MODULE.rebuildTeams();
+    DB_MODULE.save();   // persist cloud state (incl. _synced flags) so deletes stick across reloads
     // Apply cloud-synced team profile metadata (rank, placement, link, notes)
     try {
       if (WDB.loadTeamMeta) {
