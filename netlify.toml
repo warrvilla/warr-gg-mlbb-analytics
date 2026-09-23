@@ -35,10 +35,11 @@
   from = "/scrims"
   to = "/scrims.html"
   status = 200
-[[redirects]]
-  from = "/playbook"
-  to = "/playbook.html"
-  status = 200
+# Playbook hidden until ready — re-add this redirect (and the nav link) to ship it.
+# [[redirects]]
+#   from = "/playbook"
+#   to = "/playbook.html"
+#   status = 200
 # Meta page retired — hero/meta data lives on /heroes
 [[redirects]]
   from = "/patch_meta"
