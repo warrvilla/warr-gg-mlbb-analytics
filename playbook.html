@@ -5,299 +5,247 @@
 <link rel="icon" type="image/jpeg" href="assets/favicon.jpg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Playbook — Strategy Board | Warr.GG</title>
-<meta name="description" content="Plan MLBB strategies on an interactive map with timed play steps, rotations, and pro insights.">
+<meta name="description" content="Plan MLBB strategies on the map — hero positioning, rotations, ganks and objectives across early/mid/late game. Save and share plays with your team on Warr.GG.">
 <meta name="robots" content="noindex">
 <link rel="stylesheet" href="warr-styles.css">
 <style>
 /* ===== Playbook — page-specific; colours/type from warr-styles.css tokens ===== */
-.pb-shell{display:grid;grid-template-columns:214px 1fr;gap:0;max-width:1760px;margin:0 auto;}
-@media(max-width:1080px){.pb-shell{grid-template-columns:1fr;} .pb-rail{display:none;}}
-/* Left nav rail */
-.pb-rail{padding:20px 14px 30px;border-right:0.5px solid var(--border);min-height:calc(100vh - var(--nav-h));position:sticky;top:var(--nav-h);align-self:start;}
-.rail-lbl{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text4);margin:18px 6px 8px;}
-.rail-lbl:first-child{margin-top:0;}
-.rail-item{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:var(--r);font-size:13px;color:var(--text2);cursor:pointer;transition:all .14s;margin-bottom:2px;}
-.rail-item:hover{background:rgba(255,255,255,.05);color:var(--text);}
-.rail-item.active{background:var(--accent-dim);color:var(--accent);box-shadow:inset 0 0 0 0.5px var(--accent-border);}
-.rail-item .ic{width:16px;text-align:center;opacity:.85;font-size:14px;}
-.rail-pro{margin-top:22px;background:linear-gradient(160deg,rgba(124,92,246,.18),rgba(124,92,246,.05));border:0.5px solid var(--accent-border);border-radius:var(--r2);padding:14px;}
-.rail-pro h4{font-size:12.5px;font-weight:700;margin:0 0 4px;display:flex;align-items:center;gap:6px;}
-.rail-pro p{font-size:11px;color:var(--text3);margin:0 0 10px;line-height:1.5;}
-/* Content */
-.pb-content{padding:18px 22px 40px;min-width:0;}
-.pb-banner{position:relative;overflow:hidden;border-radius:var(--r3);border:0.5px solid var(--glass-border);padding:26px 28px;margin-bottom:18px;min-height:168px;
-  background:radial-gradient(ellipse 70% 130% at 88% 20%,rgba(94,160,216,.22),transparent 60%),radial-gradient(ellipse 60% 130% at 100% 90%,rgba(216,120,128,.18),transparent 55%),linear-gradient(120deg,#0d0d18,#12101f);}
-.pb-banner .eyebrow{position:relative;z-index:2;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);}
-.pb-banner h1{position:relative;z-index:2;font-family:var(--font-head);font-size:clamp(26px,3.4vw,40px);font-weight:800;letter-spacing:-.02em;margin:6px 0 8px;}
-.pb-banner p{position:relative;z-index:2;font-size:13.5px;color:var(--text2);max-width:520px;}
-.pb-banner .banner-hero{position:absolute;right:0;top:0;height:100%;width:auto;object-fit:cover;object-position:center top;opacity:.92;pointer-events:none;z-index:1;
-  -webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 55%);mask-image:linear-gradient(90deg,transparent 0%,#000 55%);}
-.pb-banner .quote{position:absolute;right:26px;bottom:20px;z-index:2;text-align:right;font-style:italic;color:var(--text2);font-size:13px;max-width:210px;line-height:1.5;text-shadow:0 1px 6px rgba(0,0,0,.8);}
-@media(max-width:900px){.pb-banner .banner-hero{opacity:.4;} .pb-banner .quote{display:none;}}
-/* Editor row */
-.editor-row{display:grid;grid-template-columns:1fr 336px;gap:16px;align-items:start;}
-@media(max-width:1240px){.editor-row{grid-template-columns:1fr;}}
-.card2{background:var(--glass);backdrop-filter:var(--blur-sm);-webkit-backdrop-filter:var(--blur-sm);border:0.5px solid var(--glass-border);border-radius:var(--r2);box-shadow:var(--glass-shadow);}
-.ed-head{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:0.5px solid var(--border);flex-wrap:wrap;}
-.ed-title{font-family:var(--font-head);font-size:16px;font-weight:700;background:transparent;border:none;color:var(--text);outline:none;min-width:120px;max-width:260px;}
-.ed-title:focus{border-bottom:1px solid var(--accent-border);}
-.ed-head .btns{margin-left:auto;display:flex;gap:8px;}
-.ed-body{display:flex;gap:12px;padding:12px 14px;}
-.tools-rail{display:flex;flex-direction:column;gap:6px;flex-shrink:0;width:112px;}
-.trbtn{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:var(--r);border:0.5px solid var(--border2);background:rgba(255,255,255,.03);color:var(--text2);font-size:12.5px;cursor:pointer;transition:all .14s;}
-.trbtn:hover{background:rgba(255,255,255,.08);color:var(--text);}
-.trbtn.active{background:var(--accent-dim);border-color:var(--accent-border);color:var(--accent);}
-.trbtn .i{width:15px;text-align:center;}
-.tr-lbl{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text4);margin:12px 4px 3px;}
-.layer-row{display:flex;align-items:center;justify-content:space-between;padding:6px 4px;font-size:12px;color:var(--text2);}
-.layer-row .lname{display:flex;align-items:center;gap:8px;}
-.sw{position:relative;width:32px;height:18px;border-radius:20px;background:var(--surface4);cursor:pointer;transition:background .16s;flex-shrink:0;}
-.sw.on{background:var(--accent);}
-.sw::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .16s;}
-.sw.on::after{transform:translateX(14px);}
-.board-wrap{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;}
-.board-stage{position:relative;border-radius:var(--r);overflow:hidden;border:0.5px solid var(--border2);background:#0a0a12;}
-.side-toggle{position:absolute;top:10px;left:10px;z-index:6;display:flex;gap:5px;background:rgba(10,10,18,.72);backdrop-filter:blur(8px);border:0.5px solid var(--border2);border-radius:var(--pill);padding:3px;}
-.side-toggle button{border:none;background:transparent;color:var(--text3);font-size:11px;font-weight:700;padding:4px 11px;border-radius:var(--pill);cursor:pointer;}
-.side-toggle button.blue.on{background:var(--blue-dim);color:var(--blue);}
-.side-toggle button.red.on{background:var(--red-dim);color:var(--red);}
-.fs-btn{position:absolute;top:10px;right:10px;z-index:6;width:30px;height:30px;border-radius:8px;background:rgba(10,10,18,.72);border:0.5px solid var(--border2);color:var(--text2);cursor:pointer;}
-.pb-board{position:relative;height:min(46vh,470px);aspect-ratio:1959/1080;max-width:100%;margin:0 auto;background:#0a0a12;touch-action:none;}
+.pb-body{padding:0 22px 28px;max-width:1760px;margin:0 auto;}
+/* Header (slim) */
+.pb-head{display:flex;align-items:center;gap:16px;padding:12px 2px 12px;}
+.pb-title-slim{font-family:var(--font-head);font-size:16px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:9px;color:var(--text);}
+.pb-beta{font-size:9px;font-weight:700;letter-spacing:.5px;color:var(--accent);background:var(--accent-dim);border:0.5px solid var(--accent-border);border-radius:var(--pill);padding:2px 8px;}
+.pb-head-right{margin-left:auto;display:flex;align-items:center;gap:9px;}
+.matchcard{display:flex;align-items:center;gap:10px;background:var(--glass);border:0.5px solid var(--glass-border);border-radius:var(--r2);padding:8px 12px;box-shadow:var(--glass-shadow);}
+.matchcard .vs{font-size:11px;color:var(--text4);font-weight:700;}
+.matchcard .tm{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;}
+.matchcard .lg{width:22px;height:22px;border-radius:6px;object-fit:cover;background:var(--surface3);}
+.matchcard select{background:transparent;border:none;color:var(--text2);font-size:12px;cursor:pointer;font-family:var(--font-body);}
+/* Layout */
+.pb-grid{display:grid;grid-template-columns:1fr 272px;gap:16px;align-items:start;}
+@media(max-width:1000px){.pb-grid{grid-template-columns:1fr;}}
+.board-col{max-width:1000px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:12px;}
+/* Playbooks modal */
+.pb-modal{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:none;align-items:flex-start;justify-content:center;padding-top:76px;}
+.pb-modal.open{display:flex;}
+.pb-modal-card{width:440px;max-width:92vw;max-height:76vh;overflow:auto;padding:18px;}
+.pb-card{padding:15px;}
+.side-h{font-family:var(--font-head);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.side-h .add{width:22px;height:22px;border-radius:7px;background:var(--accent-dim);border:0.5px solid var(--accent-border);color:var(--accent);display:grid;place-items:center;cursor:pointer;font-size:14px;}
+.pl-nav{display:flex;flex-direction:column;gap:2px;margin-bottom:16px;}
+.pl-nav a{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r);font-size:13px;color:var(--text2);cursor:pointer;text-decoration:none;}
+.pl-nav a:hover{background:rgba(255,255,255,0.05);color:var(--text);}
+.pl-nav a.active{background:var(--accent-dim);color:var(--accent);}
+.pl-nav a .ic{width:16px;text-align:center;opacity:.8;}
+.pl-nav a .ct{margin-left:auto;font-size:11px;color:var(--text4);font-variant-numeric:tabular-nums;}
+.pl-nav a.active .ct{color:var(--accent);}
+.pl-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text4);margin:14px 0 7px;}
+.saved-row{display:flex;align-items:center;gap:10px;padding:7px;border-radius:var(--r);cursor:pointer;margin-bottom:4px;border:0.5px solid transparent;}
+.saved-row:hover{background:rgba(255,255,255,0.04);}
+.saved-row.active{background:var(--accent-dim);border-color:var(--accent-border);}
+.saved-row .thumb{width:44px;height:30px;border-radius:6px;object-fit:cover;flex-shrink:0;border:0.5px solid var(--border2);}
+.saved-row .m{min-width:0;flex:1;}
+.saved-row .m .n{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.saved-row .m .d{font-size:10px;color:var(--text4);}
+.saved-row .star{opacity:.35;cursor:pointer;flex-shrink:0;font-size:13px;}
+.saved-row .star.on{opacity:1;color:var(--gold);}
+.viewall{display:block;text-align:center;font-size:12px;color:var(--accent);margin-top:10px;cursor:pointer;}
+/* Center */
+.board-col{display:flex;flex-direction:column;gap:12px;}
+.pb-toolbar{background:var(--glass);backdrop-filter:var(--blur-sm);-webkit-backdrop-filter:var(--blur-sm);border:0.5px solid var(--glass-border);border-radius:var(--r2);box-shadow:var(--glass-shadow);}
+.tb-single{display:flex;align-items:center;gap:3px;padding:7px 9px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;}
+.tb-single::-webkit-scrollbar{display:none;}
+.tool{display:inline-flex;align-items:center;justify-content:center;gap:5px;background:transparent;border:0.5px solid transparent;color:var(--text2);border-radius:9px;cursor:pointer;user-select:none;transition:all .14s;white-space:nowrap;flex-shrink:0;}
+.tool.ico{width:32px;height:32px;font-size:15px;line-height:1;}
+.tool:hover{color:var(--text);background:rgba(255,255,255,0.07);}
+.tool.active{background:var(--accent-dim);border-color:var(--accent-border);color:var(--accent);box-shadow:0 0 12px -4px var(--accent-glow);}
+.tool.on{background:var(--accent-dim);border-color:var(--accent-border);color:var(--accent);}
+.tool.ghost{color:var(--text3);}
+.tsep{width:1px;height:22px;background:var(--border2);margin:0 5px;flex-shrink:0;}
+.swrap{display:inline-flex;gap:5px;align-items:center;flex-shrink:0;}
+.swatch{width:17px;height:17px;border-radius:var(--pill);border:2px solid transparent;cursor:pointer;transition:transform .12s;}
+.swatch:hover{transform:scale(1.14);}
+.swatch.active{border-color:var(--text);box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--text);}
+.pb-range{width:74px;accent-color:var(--accent);flex-shrink:0;}
+.lanebtn{width:30px;height:30px;padding:0;display:grid;place-items:center;border-radius:9px;background:rgba(255,255,255,0.03);border:0.5px solid var(--border2);cursor:pointer;transition:all .14s;flex-shrink:0;}
+.lanebtn:hover{background:rgba(255,255,255,0.08);}
+.lanebtn.active{background:var(--accent-dim);border-color:var(--accent-border);}
+.board-stage{position:relative;border-radius:var(--r2);overflow:hidden;border:0.5px solid var(--glass-border);box-shadow:var(--glass-shadow);width:fit-content;max-width:100%;margin:0 auto;}
+.board-stage .mapdrop{position:absolute;top:10px;left:10px;z-index:6;display:flex;align-items:center;gap:6px;background:rgba(10,10,18,.7);backdrop-filter:blur(10px);border:0.5px solid var(--border2);border-radius:var(--r);padding:5px 10px;font-size:11px;color:var(--text2);}
+.board-stage .edge-ctrl{position:absolute;right:10px;bottom:12px;z-index:6;display:flex;flex-direction:column;gap:6px;}
+.board-stage .edge-ctrl button{width:30px;height:30px;border-radius:8px;background:rgba(10,10,18,.7);backdrop-filter:blur(10px);border:0.5px solid var(--border2);color:var(--text2);cursor:pointer;font-size:13px;}
+.board-stage .compass{position:absolute;left:12px;bottom:12px;z-index:6;width:34px;height:34px;border-radius:50%;background:rgba(10,10,18,.7);border:0.5px solid var(--border2);display:grid;place-items:center;color:var(--text3);font-size:10px;font-weight:700;}
+/* Board is sized by HEIGHT so the whole tool fits one screen (like the mockup),
+   width follows the map's aspect ratio; clamps to the column on narrow screens. */
+.pb-board{position:relative;height:min(52vh,520px);aspect-ratio:1959/1080;max-width:100%;background:#0a0a12;touch-action:none;}
 #board{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair;}
 #board.select-mode{cursor:default;} #board.erase-mode{cursor:not-allowed;}
-/* style strip under board (color/size) */
-.style-strip{display:flex;align-items:center;gap:8px;padding:0 2px;flex-wrap:wrap;}
-.swrap{display:inline-flex;gap:5px;align-items:center;}
-.swatch{width:17px;height:17px;border-radius:var(--pill);border:2px solid transparent;cursor:pointer;}
-.swatch.active{border-color:var(--text);box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--text);}
-.pb-range{width:90px;accent-color:var(--accent);}
-.mini-lbl{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text4);}
-/* timeline */
-.timeline{display:flex;align-items:center;gap:12px;padding:2px;}
-.tl-play{width:34px;height:34px;border-radius:50%;background:var(--accent-dim);border:0.5px solid var(--accent-border);color:var(--accent);cursor:pointer;flex-shrink:0;}
+/* Legend + objectives bar */
+.legend-bar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 14px;}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.03em;color:var(--text2);}
+.legend-dot{width:11px;height:11px;border-radius:50%;}
+.obj-wrap{margin-left:auto;display:flex;gap:10px;}
+.obj{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.03);border:0.5px solid var(--border2);border-radius:var(--r);padding:7px 12px;font-size:12px;}
+.obj .oi{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font-size:13px;}
+.obj input{width:52px;background:transparent;border:none;color:var(--text);font-family:var(--font-mono);font-size:13px;text-align:center;}
+.obj .ol{font-size:9px;color:var(--text4);text-transform:uppercase;letter-spacing:.5px;}
+/* Timeline */
+.timeline{display:flex;align-items:center;gap:14px;padding:10px 14px;}
+.tl-play{width:36px;height:36px;border-radius:50%;background:var(--accent-dim);border:0.5px solid var(--accent-border);color:var(--accent);cursor:pointer;font-size:14px;flex-shrink:0;}
 .tl-track{flex:1;height:5px;border-radius:5px;background:var(--surface3);position:relative;cursor:pointer;}
-.tl-fill{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:var(--accent);width:0%;}
-.tl-time{font-size:11px;color:var(--text3);font-family:var(--font-mono);}
-.tl-speed{background:rgba(255,255,255,.04);border:0.5px solid var(--border2);border-radius:var(--r);color:var(--text2);font-size:12px;padding:4px 7px;}
-.icobtn{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.04);border:0.5px solid var(--border2);color:var(--text2);cursor:pointer;flex-shrink:0;}
-/* right panel */
-.rp{padding:14px;}
-.rp h3{font-family:var(--font-head);font-size:14px;font-weight:700;margin:0;display:flex;align-items:center;justify-content:space-between;}
-.rp-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text4);margin:16px 0 8px;}
-.step{display:flex;gap:10px;align-items:flex-start;padding:8px;border:0.5px solid var(--border2);border-radius:var(--r);margin-bottom:7px;background:rgba(255,255,255,.02);cursor:pointer;transition:all .14s;}
-.step:hover{background:rgba(255,255,255,.05);}
-.step.active{border-color:var(--accent-border);background:var(--accent-dim);}
-.step .num{width:22px;height:22px;border-radius:50%;background:var(--accent-dim);border:0.5px solid var(--accent-border);color:var(--accent);font-size:11px;font-weight:800;display:grid;place-items:center;flex-shrink:0;}
-.step .m{flex:1;min-width:0;}
-.step .m .n{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text);}
-.step .m .n .t{color:var(--text4);font-weight:600;font-family:var(--font-mono);font-size:10px;margin-left:6px;}
-.step .m .d{font-size:11px;color:var(--text3);line-height:1.4;margin-top:2px;}
-.step .thumb{width:52px;height:34px;border-radius:6px;object-fit:cover;flex-shrink:0;border:0.5px solid var(--border2);background:var(--surface3);}
-.step .sdel{color:var(--text4);cursor:pointer;font-size:12px;padding:0 2px;flex-shrink:0;}
-.step .sdel:hover{color:var(--red);}
-.assigned{display:flex;gap:7px;flex-wrap:wrap;align-items:center;}
-.ah{width:42px;text-align:center;cursor:pointer;}
-.ah img{width:42px;height:42px;border-radius:11px;object-fit:cover;border:0.5px solid var(--border2);background:var(--surface3);}
-.ah .x{font-size:8px;color:var(--text4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:42px;}
-.ah-add{width:42px;height:42px;border-radius:11px;border:1px dashed var(--border3);color:var(--text3);display:grid;place-items:center;cursor:pointer;font-size:18px;}
-.tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
-.tagchip{font-size:11px;padding:4px 9px;border-radius:var(--pill);background:var(--accent-dim);border:0.5px solid var(--accent-border);color:var(--accent);display:flex;align-items:center;gap:5px;}
-.tagchip .x{cursor:pointer;opacity:.7;}
-.tag-add{font-size:16px;width:26px;height:26px;border-radius:50%;border:1px dashed var(--border3);color:var(--text3);cursor:pointer;background:transparent;}
-.notes{width:100%;min-height:88px;background:rgba(255,255,255,.03);border:0.5px solid var(--border2);border-radius:var(--r);color:var(--text);font-size:12.5px;padding:10px;resize:vertical;font-family:var(--font-body);outline:none;}
-.notes-count{text-align:right;font-size:10px;color:var(--text4);margin-top:3px;}
-/* popular */
-.popular{margin-top:24px;}
-.pop-head{display:flex;align-items:baseline;gap:12px;margin-bottom:12px;}
-.pop-head h2{font-family:var(--font-head);font-size:18px;font-weight:800;}
-.pop-head .sub{font-size:12px;color:var(--text3);}
-.pop-head .viewall{margin-left:auto;font-size:12px;color:var(--accent);cursor:pointer;}
-.pop-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
-@media(max-width:1100px){.pop-grid{grid-template-columns:repeat(2,1fr);}}
-.pop-card{border:0.5px solid var(--border2);border-radius:var(--r2);overflow:hidden;background:var(--glass);cursor:pointer;transition:all .16s;}
-.pop-card:hover{border-color:var(--accent-border);transform:translateY(-2px);}
-.pop-card .cover{aspect-ratio:16/9;position:relative;background:#0a0a12;}
-.pop-card .cover img{width:100%;height:100%;object-fit:cover;}
-.pop-card .cover .play{position:absolute;inset:0;margin:auto;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.5);color:#fff;border:0.5px solid rgba(255,255,255,.4);}
-.pop-card .b{padding:11px 12px;}
-.pop-card .b .n{font-size:13px;font-weight:700;}
-.pop-card .b .tm{font-size:11px;color:var(--text3);margin-top:2px;}
-.pop-card .b .tg{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;}
-.pop-card .b .tg span{font-size:9px;padding:2px 7px;border-radius:var(--pill);background:rgba(255,255,255,.05);color:var(--text3);}
-/* modal */
-.pb-modal{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:none;align-items:flex-start;justify-content:center;padding-top:70px;}
-.pb-modal.open{display:flex;}
-.pb-modal-card{width:460px;max-width:92vw;max-height:78vh;overflow:auto;padding:18px;}
-.hpick-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;max-height:340px;overflow:auto;margin-top:10px;}
-.hpick{cursor:pointer;text-align:center;}
-.hpick img{width:100%;aspect-ratio:1;border-radius:9px;object-fit:cover;border:0.5px solid var(--border2);background:var(--surface3);}
-.hpick .n{font-size:8px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.saved-row{display:flex;align-items:center;gap:10px;padding:8px;border:0.5px solid var(--border2);border-radius:var(--r);margin-bottom:6px;background:rgba(255,255,255,.02);cursor:pointer;}
-.saved-row:hover{background:rgba(255,255,255,.05);}
-.saved-row .thumb{width:52px;height:33px;border-radius:6px;object-fit:cover;border:0.5px solid var(--border2);flex-shrink:0;}
-.saved-row .m{flex:1;min-width:0;}
-.saved-row .m .n{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.saved-row .m .d{font-size:10px;color:var(--text4);}
-.saved-row .star{opacity:.35;cursor:pointer;font-size:13px;}
-.saved-row .star.on{opacity:1;color:var(--gold);}
-.plfilter{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
-.plfilter .f{font-size:11px;padding:5px 11px;border-radius:var(--pill);border:0.5px solid var(--border2);background:rgba(255,255,255,.03);color:var(--text3);cursor:pointer;}
-.plfilter .f.active{background:var(--accent-dim);border-color:var(--accent-border);color:var(--accent);}
+.tl-fill{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:var(--accent);width:50%;}
+.tl-speed{background:rgba(255,255,255,0.04);border:0.5px solid var(--border2);border-radius:var(--r);color:var(--text2);font-size:12px;padding:5px 8px;}
+.phase-tabs{display:flex;gap:8px;}
+.phase{padding:6px 14px;border-radius:var(--r);border:0.5px solid var(--border2);background:rgba(255,255,255,0.03);cursor:pointer;text-align:center;}
+.phase .pn{font-size:12px;font-weight:700;color:var(--text2);}
+.phase .pt{font-size:9px;color:var(--text4);}
+.phase.active{background:var(--accent-dim);border-color:var(--accent-border);}
+.phase.active .pn{color:var(--accent);}
+/* Right: team setup */
+.ts-tabs{display:flex;gap:8px;margin-bottom:12px;}
+.ts-tab{flex:1;text-align:center;padding:9px;border-radius:var(--r);border:0.5px solid var(--border2);background:rgba(255,255,255,0.03);cursor:pointer;font-weight:700;font-size:12px;font-family:var(--font-head);}
+.ts-tab.blue.active{background:var(--blue-dim);border-color:var(--blue-border);color:var(--blue);}
+.ts-tab.red.active{background:var(--red-dim);border-color:var(--red-border);color:var(--red);}
+.role-chips{display:flex;flex-wrap:wrap;gap:5px;margin:10px 0;}
+.rchip{font-size:10.5px;padding:5px 10px;border-radius:var(--pill);border:0.5px solid var(--border2);background:rgba(255,255,255,0.03);color:var(--text3);cursor:pointer;}
+.rchip.active{background:var(--accent-dim);border-color:var(--accent-border);color:var(--accent);}
+.hgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;max-height:300px;overflow-y:auto;padding-right:3px;}
+.hcell{cursor:pointer;text-align:center;}
+.hcell .pic{aspect-ratio:1;border-radius:10px;overflow:hidden;border:0.5px solid var(--border2);background:var(--surface3);position:relative;transition:all .14s;}
+.hcell:hover .pic{border-color:var(--accent-border);transform:translateY(-1px);}
+.hcell.used .pic{outline:2px solid var(--accent);}
+.hcell .pic img{width:100%;height:100%;object-fit:cover;display:block;}
+.hcell .hn{font-size:8.5px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.assign{margin-top:6px;}
+.assign-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.assign-row .num{width:16px;font-size:11px;color:var(--text4);font-weight:700;}
+.assign-row .rd{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.assign-row .rl{width:42px;font-size:11px;font-weight:600;color:var(--text2);}
+.assign-row select{flex:1;}
 .muted{font-size:11px;color:var(--text4);}
-.w-input.mini{padding:5px 9px;font-size:12px;}
-#pbToast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--surface3);border:0.5px solid var(--border2);color:var(--text);padding:11px 20px;border-radius:var(--pill);font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:400;box-shadow:var(--shadow);}
+.fld{width:100%;margin-bottom:9px;}
+.btn-sm{padding:4px 11px !important;font-size:11px !important;}
+#pbToast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:var(--surface3);border:0.5px solid var(--border2);color:var(--text);padding:11px 20px;border-radius:var(--pill);font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:200;box-shadow:var(--shadow);}
 #pbToast.show{opacity:1;} #pbToast.err{border-color:var(--red-border);color:#ffb3ba;}
 </style>
 </head>
 <body>
 <div id="warr-nav-root"></div>
 <div class="page-body">
-<div class="pb-shell">
+<div class="pb-body">
 
-  <!-- LEFT NAV RAIL -->
-  <aside class="pb-rail">
-    <div class="rail-lbl">Playbook</div>
-    <div class="rail-item active" onclick="newPlan();railActive(this)"><span class="ic">✏️</span> Create Play</div>
-    <div class="rail-item" onclick="openSaved('featured');railActive(this)"><span class="ic">🏆</span> Pro Plays</div>
-    <div class="rail-item" onclick="openSaved('all');railActive(this)"><span class="ic">📋</span> Strategies</div>
-    <div class="rail-item" onclick="soon('Draft Comps')"><span class="ic">🎯</span> Draft Comps</div>
-    <div class="rail-item" onclick="soon('Map Control')"><span class="ic">🗺️</span> Map Control</div>
-    <div class="rail-item" onclick="jumpObjectives()"><span class="ic">⏱️</span> Objective Timers</div>
-    <div class="rail-item" onclick="openSaved('all');railActive(this)"><span class="ic">💾</span> Saved Plays</div>
-    <div class="rail-lbl">My Playbook</div>
-    <div class="rail-item" onclick="openSaved('mine');railActive(this)"><span class="ic">📁</span> My Plays</div>
-    <div class="rail-item" onclick="openSaved('mine');railActive(this)"><span class="ic">📐</span> My Strategies</div>
-    <div class="rail-item" onclick="openSaved('starred');railActive(this)"><span class="ic">♥</span> Favorites</div>
-    <div class="rail-pro">
-      <h4>👑 Upgrade to Pro</h4>
-      <p>Unlock pro plays, team strategies and advanced tools.</p>
-      <a class="btn btn-accent" style="width:100%;justify-content:center;" href="/profile">Upgrade Now</a>
+  <!-- HEADER (slim) -->
+  <div class="pb-head">
+    <div class="pb-title-slim">Playbook <span class="pb-beta">Beta</span></div>
+    <div class="pb-head-right">
+      <button class="btn" onclick="openPlaybooks()">📁 My Playbooks</button>
+      <button class="btn" onclick="newPlan()">+ New</button>
+      <button class="btn" onclick="exportPNG()">⤓ Export</button>
+      <button class="btn" onclick="addShare()">⇄ Share</button>
+      <button class="btn btn-accent" onclick="savePlan()">Save</button>
     </div>
-  </aside>
+  </div>
 
-  <!-- CONTENT -->
-  <div class="pb-content">
-    <!-- Banner -->
-    <div class="pb-banner">
-      <img class="banner-hero" src="portraits/400x500/Ling.webp" alt="" onerror="this.style.display='none'">
-      <div class="eyebrow">Playbook</div>
-      <h1>Plan. Visualize. Execute.</h1>
-      <p>Create and study team strategies with an interactive map, timed play steps, and pro insights.</p>
-      <div class="quote">"Good macro wins more games." — WARR.GG</div>
-    </div>
-
-    <!-- Editor row -->
-    <div class="editor-row">
-      <!-- Editor -->
-      <div class="card2">
-        <div class="ed-head">
-          <input class="ed-title" id="edTitle" value="Untitled Play" oninput="plan.name=this.value" placeholder="Play name">
-          <select class="w-select mini" id="edCategory" onchange="plan.data.category=this.value" style="max-width:150px;">
-            <option>Custom Play</option><option>Early Game</option><option>Objective Setup</option><option>Teamfight</option><option>Split Push</option><option>Rotation</option>
-          </select>
-          <div class="btns">
-            <button class="btn" onclick="exportPNG()">⤓ Export</button>
-            <button class="btn" onclick="addShare()">⇄ Share</button>
-            <button class="btn btn-accent" onclick="savePlan()">💾 Save</button>
-          </div>
-        </div>
-        <div class="ed-body">
-          <!-- Tools rail -->
-          <div class="tools-rail">
-            <div class="tr-lbl">Tools</div>
-            <div class="trbtn active" data-tool="select" onclick="setTool('select',this)"><span class="i">↖</span> Select</div>
-            <div class="trbtn" data-tool="pen" onclick="setTool('pen',this)"><span class="i">✎</span> Draw</div>
-            <div class="trbtn" data-tool="arrow" onclick="setTool('arrow',this)"><span class="i">➤</span> Arrow</div>
-            <div class="trbtn" data-tool="ping" onclick="setTool('ping',this)"><span class="i">◉</span> Ping</div>
-            <div class="trbtn" data-tool="text" onclick="setTool('text',this)"><span class="i">T</span> Text</div>
-            <div class="trbtn" data-tool="hero" onclick="openHeroPick()"><span class="i">＋</span> Hero</div>
-            <div class="trbtn" data-tool="erase" onclick="setTool('erase',this)"><span class="i">⌫</span> Erase</div>
-            <div class="tr-lbl">Layers</div>
-            <div id="layerRows"></div>
-            <div class="tr-lbl">Lanes</div>
-            <div id="posTools" style="display:flex;gap:5px;flex-wrap:wrap;"></div>
-          </div>
-          <!-- Board + timeline -->
-          <div class="board-wrap">
-            <div class="board-stage" id="boardWrap">
-              <div class="side-toggle">
-                <button class="blue on" id="sideBlue" onclick="setSide('blue')">BLUE</button>
-                <button class="red" id="sideRed" onclick="setSide('red')">RED</button>
-              </div>
-              <button class="fs-btn" onclick="document.getElementById('boardWrap').requestFullscreen?.()" title="Fullscreen">⛶</button>
-              <div class="pb-board">
-                <svg id="board" viewBox="0 0 1959 1080" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
-                  <image id="mapBg" href="assets/MLBB%20Map.jpg" x="0" y="0" width="1959" height="1080" preserveAspectRatio="xMidYMid slice"></image>
-                  <g id="gridLayer" style="display:none;"></g>
-                  <g id="layer"></g>
-                </svg>
-              </div>
-            </div>
-            <div class="style-strip">
-              <span class="mini-lbl">Color</span><span class="swrap" id="swatches"></span>
-              <span class="mini-lbl" style="margin-left:8px;">Size</span>
-              <input type="range" class="pb-range" id="widthRange" min="2" max="40" value="8" oninput="_penW=+this.value">
-              <span style="margin-left:auto;"></span>
-              <button class="btn btn-ghost" onclick="undo()" title="Undo">↶</button>
-              <button class="btn btn-ghost" onclick="redo()" title="Redo">↷</button>
-              <button class="btn btn-ghost" onclick="clearDraws()">Clear</button>
-            </div>
-            <div class="timeline">
-              <button class="tl-play" onclick="playSteps()" title="Play through steps">▶</button>
-              <div class="tl-track" id="tlTrack" onclick="_seek(event)"><div class="tl-fill" id="tlFill"></div></div>
-              <span class="tl-time" id="tlTime">Step 1 / 1</span>
-              <button class="icobtn" onclick="stepPrev()" title="Prev step">⏮</button>
-              <button class="icobtn" onclick="stepNext()" title="Next step">⏭</button>
-            </div>
-          </div>
+  <div class="pb-grid">
+    <!-- CENTER: board -->
+    <div class="board-col">
+      <div class="pb-toolbar">
+        <div class="tb-single">
+          <div class="tool ico active" data-tool="select" onclick="setTool('select',this)" title="Select / move">↖</div>
+          <div class="tool ico" data-tool="pen" onclick="setTool('pen',this)" title="Pen (freehand)">✎</div>
+          <div class="tool ico" data-tool="line" onclick="setTool('line',this)" title="Line">╱</div>
+          <div class="tool ico" data-tool="arrow" onclick="setTool('arrow',this)" title="Arrow">➤</div>
+          <div class="tool ico" data-tool="rect" onclick="setTool('rect',this)" title="Box / zone">▭</div>
+          <div class="tool ico" data-tool="circle" onclick="setTool('circle',this)" title="Circle">◯</div>
+          <div class="tool ico" data-tool="highlight" onclick="setTool('highlight',this)" title="Highlighter">▨</div>
+          <div class="tool ico" data-tool="text" onclick="setTool('text',this)" title="Text note">T</div>
+          <div class="tool ico" data-tool="zone" onclick="setTool('zone',this)" title="Position / zone marker">◎</div>
+          <div class="tool ico" data-tool="erase" onclick="setTool('erase',this)" title="Erase (tap an element)">⌫</div>
+          <div class="tsep"></div>
+          <div class="tool ico ghost" onclick="undo()" title="Undo">↶</div>
+          <div class="tool ico ghost" onclick="redo()" title="Redo">↷</div>
+          <div class="tool ico ghost" onclick="clearDraws()" title="Clear drawings">🗑</div>
+          <div class="tsep"></div>
+          <span class="swrap" id="swatches"></span>
+          <input type="range" class="pb-range" id="widthRange" min="2" max="40" value="8" title="Stroke size" oninput="_penW=+this.value">
+          <div class="tsep"></div>
+          <span id="posTools" style="display:inline-flex;gap:4px;align-items:center;" title="Drop a lane marker on the map"></span>
+          <div class="tsep"></div>
+          <div class="tool ico" id="layersBtn" onclick="toggleLayers(this)" title="Show / hide annotations">◈</div>
+          <div class="tool ico" id="gridBtn" onclick="toggleGrid(this)" title="Toggle grid">▦</div>
         </div>
       </div>
 
-      <!-- Right panel -->
-      <div class="card2 rp">
-        <h3>Play Steps <button class="btn btn-accent" style="padding:5px 11px;font-size:12px;" onclick="addStep()">+ Add Step</button></h3>
-        <div id="stepList" style="margin-top:12px;"></div>
-        <div class="rp-lbl">Assigned Heroes <span class="muted">(optional)</span></div>
-        <div class="assigned" id="assigned"></div>
-        <div class="rp-lbl">Tags</div>
-        <div class="tags" id="tags"></div>
-        <div class="rp-lbl">Notes</div>
-        <textarea class="notes" id="notes" maxlength="500" placeholder="Coaching notes for this play…" oninput="plan.data.notes=this.value;document.getElementById('nCount').textContent=this.value.length+'/500'"></textarea>
-        <div class="notes-count"><span id="nCount">0/500</span></div>
+      <div class="card board-stage">
+        <div class="mapdrop">🗺 <span>Default Map</span></div>
+        <div class="edge-ctrl">
+          <button onclick="exportPNG()" title="Export">◇</button>
+          <button onclick="clearAll()" title="Clear board">−</button>
+          <button onclick="document.querySelector('.board-stage').requestFullscreen?.()" title="Fullscreen">⛶</button>
+        </div>
+        <div class="compass">N</div>
+        <div class="pb-board" id="boardWrap">
+          <svg id="board" viewBox="0 0 1959 1080" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+            <image id="mapBg" href="assets/MLBB%20Map.jpg" x="0" y="0" width="1959" height="1080" preserveAspectRatio="xMidYMid slice"></image>
+            <g id="gridLayer" style="display:none;"></g>
+            <g id="layer"></g>
+          </svg>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="legend-bar">
+          <span id="legendItems" style="display:inline-flex;gap:16px;flex-wrap:wrap;"></span>
+          <div class="obj-wrap">
+            <div class="obj"><span class="oi" style="background:rgba(94,160,216,.15);">🐢</span><div><div class="ol">Turtle</div><input id="objTurtle" value="02:00" oninput="plan.data.objectives.turtle=this.value"></div></div>
+            <div class="obj"><span class="oi" style="background:rgba(167,139,250,.15);">🐉</span><div><div class="ol">Lord</div><input id="objLord" value="08:00" oninput="plan.data.objectives.lord=this.value"></div></div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="timeline">
+          <button class="tl-play" onclick="playPhases()" title="Step through phases">▶</button>
+          <div class="tl-track" id="tlTrack" onclick="_seekPhase(event)"><div class="tl-fill" id="tlFill"></div></div>
+          <select class="tl-speed"><option>1x</option><option>0.5x</option><option>2x</option></select>
+          <div class="phase-tabs" id="phaseTabs">
+            <div class="phase active" data-phase="early" onclick="setPhase('early',this)"><div class="pn">Early Game</div><div class="pt">0:00 – 5:00</div></div>
+            <div class="phase" data-phase="mid" onclick="setPhase('mid',this)"><div class="pn">Mid Game</div><div class="pt">5:00 – 12:00</div></div>
+            <div class="phase" data-phase="late" onclick="setPhase('late',this)"><div class="pn">Late Game</div><div class="pt">12:00 – 20:00</div></div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Popular plays -->
-    <div class="popular">
-      <div class="pop-head">
-        <h2>Popular Plays</h2><span class="sub">Featured strategies from pros &amp; top coaches.</span>
-        <span class="viewall" onclick="openSaved('featured')">View All →</span>
+    <!-- RIGHT: team setup -->
+    <div class="card pb-card">
+      <div class="side-h">Team Setup</div>
+      <div class="ts-tabs">
+        <div class="ts-tab blue active" id="tsBlue" onclick="setSide('blue')">Blue Side <span id="cntBlue">0/5</span></div>
+        <div class="ts-tab red" id="tsRed" onclick="setSide('red')">Red Side <span id="cntRed">0/5</span></div>
       </div>
-      <div class="pop-grid" id="popGrid"><div class="muted" style="grid-column:1/-1;">No featured plays yet.</div></div>
+      <input class="w-input fld" id="heroSearch" placeholder="🔍 Search heroes…" oninput="renderHeroGrid()">
+      <div class="role-chips" id="roleChips"></div>
+      <div class="hgrid" id="hgrid"></div>
+      <div class="pl-lbl" style="margin-top:16px;">Player Assignment</div>
+      <div class="assign" id="assign"></div>
     </div>
   </div>
 </div>
 </div>
 
-<!-- HERO PICKER modal -->
-<div id="heroModal" class="pb-modal" onclick="if(event.target===this)closeHeroPick()">
+<!-- MY PLAYBOOKS modal -->
+<div id="pbModal" class="pb-modal" onclick="if(event.target===this)closePlaybooks()">
   <div class="pb-modal-card card">
-    <h3 style="margin:0 0 4px;font-family:var(--font-head);">Add hero to board</h3>
-    <div class="muted" style="margin-bottom:8px;">Placing on the <b id="hpSide">BLUE</b> side · <a href="javascript:void(0)" onclick="_hpToggleSide()" style="color:var(--accent);">switch</a></div>
-    <input class="w-input" id="hpSearch" placeholder="🔍 Search heroes…" oninput="renderHeroPick()">
-    <div class="hpick-grid" id="hpickGrid"></div>
+    <div class="side-h">My Playbooks <span class="add" onclick="newPlan();closePlaybooks()" title="New plan">+</span></div>
+    <div class="pl-nav" id="plNav">
+      <a class="active" data-filter="all"    onclick="setFilter('all',this)"><span class="ic">▤</span> All Playbooks <span class="ct" id="ctAll">0</span></a>
+      <a data-filter="recent" onclick="setFilter('recent',this)"><span class="ic">◷</span> Recent <span class="ct" id="ctRecent">0</span></a>
+      <a data-filter="shared" onclick="setFilter('shared',this)"><span class="ic">⇄</span> Shared with Me <span class="ct" id="ctShared">0</span></a>
+      <a data-filter="starred" onclick="setFilter('starred',this)"><span class="ic">★</span> Starred <span class="ct" id="ctStarred">0</span></a>
+    </div>
+    <div class="pl-lbl">Saved Strategies</div>
+    <div id="savedList"><div class="muted">No saved plans yet.</div></div>
   </div>
 </div>
-
-<!-- SAVED / PRO PLAYS modal -->
-<div id="savedModal" class="pb-modal" onclick="if(event.target===this)closeSaved()">
-  <div class="pb-modal-card card">
-    <h3 style="margin:0 0 10px;font-family:var(--font-head);" id="savedTitle">My Playbooks</h3>
-    <div class="plfilter" id="plFilter"></div>
-    <div id="savedList"><div class="muted">Sign in to save &amp; see plays.</div></div>
-  </div>
-</div>
-
 <div id="pbToast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -306,230 +254,210 @@
 <script src="warr-nav.js"></script>
 <script src="warr-theme.js"></script>
 <script>
-// ═════════════ CONSTANTS / STATE ═════════════
-const svg=document.getElementById('board'),layer=document.getElementById('layer'),gridLayer=document.getElementById('gridLayer');
+// ════════════════ STATE ════════════════
+const svg=document.getElementById('board'), layer=document.getElementById('layer'), gridLayer=document.getElementById('gridLayer');
 const W=1959,H=1080;
-const LANE_ORDER=['EXP','Jungle','Mid','Roam','Gold'];
-const LANE_KEY={EXP:'exp',Jungle:'jungle',Mid:'mid',Roam:'roam',Gold:'gold'};
+const ROLES=['Gold','Jungle','Mid','EXP','Roam'];
 const ROLE_COLORS={Gold:'#C89050',Jungle:'#4CB87A',Mid:'#A78BFA',EXP:'#5EA0D8',Roam:'#D87880'};
-function laneImg(l,s){return 'assets/lanes/lane_'+(LANE_KEY[l]||'mid')+'_'+(s==='red'?'red':'blue')+'.png';}
-function laneIconHTML(l,sz){return `<img src="${laneImg(l,'blue')}" width="${sz}" height="${sz}" style="object-fit:contain;vertical-align:middle;" alt="${l}">`;}
+const ROLE_ABBR={Gold:'GOLD',Jungle:'JGL',Mid:'MID',EXP:'EXP',Roam:'ROAM'};
+const LANE_ORDER=['EXP','Jungle','Mid','Roam','Gold'];   // display/sort order
+// Custom lane role icons (blue/red side variants) — assets/lanes/lane_<lane>_<side>.png
+const LANE_KEY={EXP:'exp',Jungle:'jungle',Mid:'mid',Roam:'roam',Gold:'gold'};
+function laneImg(lane,side){return 'assets/lanes/lane_'+(LANE_KEY[lane]||'mid')+'_'+(side==='red'?'red':'blue')+'.png';}
+function laneIconHTML(lane,size,side){return `<img src="${laneImg(lane,side)}" width="${size}" height="${size}" style="vertical-align:middle;object-fit:contain;" alt="${lane}">`;}
 const COLORS=['#5EA0D8','#D87880','#C89050','#4CB87A','#ffffff','#A78BFA'];
-// layers (annotation groups that actually exist on a single map image)
-const LAYERS=[['heroes','Heroes'],['routes','Routes'],['markers','Markers'],['text','Text'],['grid','Grid']];
-function blankStep(name,time){return {id:sid(),name:name||'New step',time:time||'00:00',desc:'',tokens:[],draws:[],thumb:''};}
-function blankData(){return {category:'Custom Play',team:'',tags:[],notes:'',assigned:[],featured:false,
-  layers:{heroes:true,routes:true,markers:true,text:true,grid:false},
-  steps:[blankStep('Step 1','00:00')]};}
-let plan={id:null,name:'Untitled Play',team_name:'',data:blankData()};
-let _cur=0; const step=()=>plan.data.steps[_cur];
-let _tool='select',_side='blue',_color='#5EA0D8',_penW=8,_pingN=1,_posType=null;
-let _user=null,_plans=[],_savedFilter='all';
-let _undo=[],_redo=[]; let _uidc=0; function sid(){return 's'+Date.now().toString(36)+(_uidc++);}
+// default token positions per side/role (normalised)
+const DEF={ blue:{Gold:[.30,.82],Jungle:[.34,.63],Mid:[.44,.55],EXP:[.18,.30],Roam:[.28,.74]},
+            red:{Gold:[.72,.20],Jungle:[.66,.40],Mid:[.57,.47],EXP:[.83,.72],Roam:[.72,.28]} };
+function blankData(){ return { starred:false, objectives:{turtle:'02:00',lord:'08:00'},
+  lineup:{blue:{},red:{}}, frames:{ early:{pos:{},draws:[]}, mid:{pos:{},draws:[]}, late:{pos:{},draws:[]} } }; }
+let plan={ id:null, name:'', team_name:'', game:'Game 1', data:blankData() };
+let _tool='select',_side='blue',_phase='early',_color='#5EA0D8',_penW=8,_posType='Jungle';
+let _roleFilter='All', _user=null,_plans=[],_filter='all',_layersOn=true;
+let _undo=[],_redo=[]; let _uid=0; const nid=()=>'e'+Date.now().toString(36)+(_uid++);
+const frame=()=>plan.data.frames[_phase];
 function toast(m,t){const e=document.getElementById('pbToast');e.textContent=m;e.className='show'+(t==='err'?' err':'');clearTimeout(e._t);e._t=setTimeout(()=>e.className='',2400);}
 function _esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function heroImg(n){try{if(typeof WDB!=='undefined'&&WDB.heroPortrait)return WDB.heroPortrait(n);}catch(_){}return 'portraits/'+String(n).toLowerCase().replace(/[^a-z0-9]/g,'')+'.png';}
-function heroList(){try{return(typeof WDB!=='undefined'&&WDB.HERO_ROSTER)?WDB.HERO_ROSTER:[];}catch(_){return[];}}
 
-// ═════════════ TOOLS ═════════════
-function setTool(t,el){_tool=t;document.querySelectorAll('.trbtn[data-tool],#posTools .lanebtn').forEach(x=>x.classList.remove('active'));if(el)el.classList.add('active');svg.classList.toggle('select-mode',t==='select');svg.classList.toggle('erase-mode',t==='erase');}
-function setPos(r,el){_tool='pos';_posType=r;document.querySelectorAll('.trbtn[data-tool],#posTools .lanebtn').forEach(x=>x.classList.remove('active'));if(el)el.classList.add('active');svg.classList.remove('select-mode','erase-mode');}
-function setSide(s){_side=s;document.getElementById('sideBlue').classList.toggle('on',s==='blue');document.getElementById('sideRed').classList.toggle('on',s==='red');}
+// ════════════════ TOOLS ════════════════
+function setTool(t,el){_tool=t;document.querySelectorAll('.tool[data-tool],#posTools .lanebtn').forEach(x=>x.classList.remove('active'));if(el)el.classList.add('active');svg.classList.toggle('select-mode',t==='select');svg.classList.toggle('erase-mode',t==='erase');}
+function setPos(r,el){_tool='pos';_posType=r;document.querySelectorAll('.tool[data-tool],#posTools .lanebtn').forEach(x=>x.classList.remove('active'));if(el)el.classList.add('active');svg.classList.remove('select-mode','erase-mode');}
+function setSide(s){_side=s;document.getElementById('tsBlue').classList.toggle('active',s==='blue');document.getElementById('tsRed').classList.toggle('active',s==='red');renderHeroGrid();renderAssign();}
+function setPhase(p,el){_phase=p;document.querySelectorAll('.phase').forEach(x=>x.classList.remove('active'));if(el)el.classList.add('active');
+  document.getElementById('tlFill').style.width=(p==='early'?17:p==='mid'?50:83)+'%';render();}
+function _seekPhase(e){const t=document.getElementById('tlTrack');const r=t.getBoundingClientRect();const f=(e.clientX-r.left)/r.width;const p=f<.34?'early':f<.67?'mid':'late';setPhase(p,document.querySelector('[data-phase='+p+']'));}
+function playPhases(){setPhase('early',document.querySelector('[data-phase=early]'));setTimeout(()=>setPhase('mid',document.querySelector('[data-phase=mid]')),700);setTimeout(()=>setPhase('late',document.querySelector('[data-phase=late]')),1400);}
 function _swatches(){document.getElementById('swatches').innerHTML=COLORS.map(c=>`<span class="swatch${c===_color?' active':''}" style="background:${c};" onclick="_pick('${c}',this)"></span>`).join('');}
 function _pick(c,el){_color=c;document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));el.classList.add('active');}
-function renderLaneTools(){document.getElementById('posTools').innerHTML=LANE_ORDER.map(l=>`<div class="lanebtn" title="${l} marker" onclick="setPos('${l}',this)" style="width:30px;height:30px;display:grid;place-items:center;border-radius:8px;border:0.5px solid var(--border2);background:rgba(255,255,255,.03);cursor:pointer;">${laneIconHTML(l,20)}</div>`).join('');}
-function renderLayers(){document.getElementById('layerRows').innerHTML=LAYERS.map(([k,label])=>`<div class="layer-row"><span class="lname">${label}</span><span class="sw ${plan.data.layers[k]?'on':''}" onclick="toggleLayer('${k}',this)"></span></div>`).join('');}
-function toggleLayer(k,el){plan.data.layers[k]=!plan.data.layers[k];el.classList.toggle('on',plan.data.layers[k]);if(k==='grid'){gridLayer.style.display=plan.data.layers.grid?'block':'none';buildGrid();}render();}
-function buildGrid(){if(gridLayer.childNodes.length)return;for(let i=1;i<20;i++)gridLayer.appendChild(mk('line',{x1:i*W/20,y1:0,x2:i*W/20,y2:H,stroke:'rgba(255,255,255,.06)','stroke-width':1}));for(let i=1;i<11;i++)gridLayer.appendChild(mk('line',{x1:0,y1:i*H/11,x2:W,y2:i*H/11,stroke:'rgba(255,255,255,.06)','stroke-width':1}));}
+function toggleGrid(el){const on=gridLayer.style.display==='none';gridLayer.style.display=on?'block':'none';el.classList.toggle('on',on);if(on&&!gridLayer.childNodes.length){for(let i=1;i<20;i++){gridLayer.appendChild(mk('line',{x1:i*W/20,y1:0,x2:i*W/20,y2:H,stroke:'rgba(255,255,255,.06)','stroke-width':1}));}for(let i=1;i<11;i++){gridLayer.appendChild(mk('line',{x1:0,y1:i*H/11,x2:W,y2:i*H/11,stroke:'rgba(255,255,255,.06)','stroke-width':1}));}}}
+function toggleLayers(el){_layersOn=!_layersOn;el.classList.toggle('on',!_layersOn);render();}
 
-// ═════════════ HISTORY ═════════════
+// ════════════════ HISTORY ════════════════
 function snap(){_undo.push(JSON.stringify(plan.data));if(_undo.length>60)_undo.shift();_redo=[];}
-function undo(){if(!_undo.length)return;_redo.push(JSON.stringify(plan.data));plan.data=JSON.parse(_undo.pop());_cur=Math.min(_cur,plan.data.steps.length-1);renderAll();}
-function redo(){if(!_redo.length)return;_undo.push(JSON.stringify(plan.data));plan.data=JSON.parse(_redo.pop());_cur=Math.min(_cur,plan.data.steps.length-1);renderAll();}
-function clearDraws(){if(!step().draws.length)return;snap();step().draws=[];render();}
+function undo(){if(!_undo.length)return;_redo.push(JSON.stringify(plan.data));plan.data=JSON.parse(_undo.pop());render();renderAll();}
+function redo(){if(!_redo.length)return;_undo.push(JSON.stringify(plan.data));plan.data=JSON.parse(_redo.pop());render();renderAll();}
+function clearDraws(){if(!frame().draws.length)return;snap();frame().draws=[];render();}
+function clearAll(){if(!confirm('Clear the whole board (this phase)?'))return;snap();frame().draws=[];render();}
 
-// ═════════════ SVG / COORDS ═════════════
+// ════════════════ COORDS + SVG ════════════════
 const NS='http://www.w3.org/2000/svg';
 function mk(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
 function pt(e){const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const m=svg.getScreenCTM();if(!m)return{x:0,y:0};const r=p.matrixTransform(m.inverse());return{x:Math.max(0,Math.min(W,r.x)),y:Math.max(0,Math.min(H,r.y))};}
 function _arrow(x1,y1,x2,y2,c,w){const a=Math.atan2(y2-y1,x2-x1),L=18+w*1.6,s=Math.PI/7;return mk('polygon',{points:`${x2},${y2} ${x2-L*Math.cos(a-s)},${y2-L*Math.sin(a-s)} ${x2-L*Math.cos(a+s)},${y2-L*Math.sin(a+s)}`,fill:c});}
 
-// ═════════════ RENDER BOARD ═════════════
+// ════════════════ RENDER BOARD ════════════════
 function render(){
   layer.innerHTML='';
-  const L=plan.data.layers, st=step();
-  st.draws.forEach(d=>{
-    const grp = (d.type==='ping'||d.type==='pos'||d.type==='zone')?'markers':(d.type==='text')?'text':'routes';
-    if(!L[grp]) return;
+  if(_layersOn) frame().draws.forEach(d=>{
     let e;
     if(d.type==='pen'||d.type==='highlight') e=mk('polyline',{points:d.points.map(p=>p[0]+','+p[1]).join(' '),fill:'none',stroke:d.color,'stroke-width':d.width,'stroke-linecap':'round','stroke-linejoin':'round',opacity:d.type==='highlight'?.35:1});
-    else if(d.type==='line'||d.type==='arrow'){e=mk('g',{});e.appendChild(mk('line',{x1:d.x1,y1:d.y1,x2:d.x2,y2:d.y2,stroke:d.color,'stroke-width':d.width,'stroke-linecap':'round'}));if(d.type==='arrow')e.appendChild(_arrow(d.x1,d.y1,d.x2,d.y2,d.color,d.width));}
+    else if(d.type==='line'||d.type==='arrow'){e=mk('g',{});e.appendChild(mk('line',{x1:d.x1,y1:d.y1,x2:d.x2,y2:d.y2,stroke:d.color,'stroke-width':d.width,'stroke-linecap':'round',opacity:.95}));if(d.type==='arrow')e.appendChild(_arrow(d.x1,d.y1,d.x2,d.y2,d.color,d.width));}
+    else if(d.type==='rect')e=mk('rect',{x:Math.min(d.x1,d.x2),y:Math.min(d.y1,d.y2),width:Math.abs(d.x2-d.x1),height:Math.abs(d.y2-d.y1),fill:d.color,'fill-opacity':.12,stroke:d.color,'stroke-width':d.width,rx:6});
+    else if(d.type==='circle'){e=mk('ellipse',{cx:(d.x1+d.x2)/2,cy:(d.y1+d.y2)/2,rx:Math.abs(d.x2-d.x1)/2,ry:Math.abs(d.y2-d.y1)/2,fill:d.color,'fill-opacity':.12,stroke:d.color,'stroke-width':d.width});}
     else if(d.type==='text'){e=mk('text',{x:d.x,y:d.y,fill:d.color,'font-size':34,'font-weight':800,'font-family':'sans-serif','paint-order':'stroke',stroke:'#000','stroke-width':4});e.textContent=d.text;}
     else if(d.type==='zone'){e=mk('g',{});e.appendChild(mk('circle',{cx:d.x,cy:d.y,r:d.r||90,fill:d.color,'fill-opacity':.12,stroke:d.color,'stroke-width':2.5,'stroke-dasharray':'9 8'}));e.appendChild(mk('circle',{cx:d.x,cy:d.y,r:13,fill:d.color,stroke:'#000','stroke-width':3}));}
-    else if(d.type==='ping'){e=mk('g',{});e.appendChild(mk('circle',{cx:d.x,cy:d.y,r:26,fill:d.color||'#5EA0D8',stroke:'#0a0a12','stroke-width':3}));const t=mk('text',{x:d.x,y:d.y+8,fill:'#0a0a12','font-size':26,'font-weight':900,'text-anchor':'middle','font-family':'sans-serif'});t.textContent=d.n;e.appendChild(t);}
-    else if(d.type==='pos'){e=mk('g',{});e.appendChild(mk('image',{href:laneImg(d.role,d.pside),x:d.x-36,y:d.y-36,width:72,height:72,preserveAspectRatio:'xMidYMid meet'}));}
+    else if(d.type==='pos'){e=mk('g',{});e.appendChild(mk('image',{href:laneImg(d.role,d.side),x:d.x-38,y:d.y-38,width:76,height:76,preserveAspectRatio:'xMidYMid meet'}));}
     if(e){e.setAttribute('data-kind','draw');e.setAttribute('data-id',d.id);layer.appendChild(e);}
   });
-  if(L.heroes) st.tokens.forEach(t=>{
-    const g=mk('g',{'data-kind':'token','data-id':t.id,transform:`translate(${t.x},${t.y})`,style:'cursor:'+(_tool==='erase'?'not-allowed':'grab')});
-    const ring=t.side==='red'?'#D87880':'#5EA0D8';
-    g.appendChild(mk('circle',{r:44,fill:'#0a0a12',stroke:ring,'stroke-width':6}));
-    const cid='c'+t.id;const defs=mk('defs',{});const cp=mk('clipPath',{id:cid});cp.appendChild(mk('circle',{r:40}));defs.appendChild(cp);g.appendChild(defs);
-    g.appendChild(mk('image',{href:heroImg(t.hero),x:-40,y:-40,width:80,height:80,'clip-path':`url(#${cid})`,preserveAspectRatio:'xMidYMid slice'}));
-    layer.appendChild(g);
+  // tokens from lineup, positioned per phase
+  ['blue','red'].forEach(side=>{
+    ROLES.forEach(role=>{
+      const hero=plan.data.lineup[side][role]; if(!hero)return;
+      const key=side+':'+role; let pos=frame().pos[key];
+      if(!pos){const d=DEF[side][role]||[.5,.5];pos={x:d[0]*W,y:d[1]*H};}
+      const g=mk('g',{'data-kind':'token','data-key':key,transform:`translate(${pos.x},${pos.y})`,style:'cursor:'+(_tool==='erase'?'not-allowed':'grab')});
+      const ring=side==='red'?'#D87880':'#5EA0D8';
+      g.appendChild(mk('circle',{r:46,fill:'#0a0a12',stroke:ring,'stroke-width':6}));
+      const cid='c'+key.replace(':','');const defs=mk('defs',{});const cp=mk('clipPath',{id:cid});cp.appendChild(mk('circle',{r:42}));defs.appendChild(cp);g.appendChild(defs);
+      g.appendChild(mk('image',{href:heroImg(hero),x:-42,y:-42,width:84,height:84,'clip-path':`url(#${cid})`,preserveAspectRatio:'xMidYMid slice'}));
+      // role lane badge — custom icon in the token's side colour
+      g.appendChild(mk('image',{href:laneImg(role,side),x:-23,y:33,width:46,height:46,preserveAspectRatio:'xMidYMid meet'}));
+      const lbl=(plan.data.labels||{})[key];
+      if(lbl){const lt=mk('text',{x:0,y:86,fill:'#fff','font-size':22,'font-weight':800,'text-anchor':'middle','font-family':'sans-serif','paint-order':'stroke',stroke:'#000','stroke-width':5});lt.textContent=lbl;g.appendChild(lt);}
+      layer.appendChild(g);
+    });
   });
 }
+function heroImg(n){try{if(typeof WDB!=='undefined'&&WDB.heroPortrait)return WDB.heroPortrait(n);}catch(_){}return 'portraits/'+String(n).toLowerCase().replace(/[^a-z0-9]/g,'')+'.png';}
 
-// ═════════════ POINTER ═════════════
-let _dragTok=null,_dragOff=null,_drawing=null,_prev=null;
+// ════════════════ POINTER ════════════════
+let _dragKey=null,_dragOff=null,_drawing=null,_prev=null;
 svg.addEventListener('pointerdown',e=>{const p=pt(e);const g=e.target.closest('[data-kind]');
-  if(_tool==='erase'){if(g){snap();const id=g.getAttribute('data-id');if(g.getAttribute('data-kind')==='token')step().tokens=step().tokens.filter(t=>t.id!==id);else step().draws=step().draws.filter(d=>d.id!==id);render();}return;}
-  if(_tool==='select'){if(g&&g.getAttribute('data-kind')==='token'){const id=g.getAttribute('data-id');_dragTok=step().tokens.find(t=>t.id===id);if(_dragTok){snap();_dragOff={x:p.x-_dragTok.x,y:p.y-_dragTok.y};svg.setPointerCapture(e.pointerId);}}return;}
-  if(_tool==='text'){const t=prompt('Text / callout:');if(t&&t.trim()){snap();step().draws.push({id:sid(),type:'text',x:p.x,y:p.y,text:t.trim().slice(0,80),color:_color});render();}return;}
-  if(_tool==='ping'){snap();const n=step().draws.filter(d=>d.type==='ping').length+1;step().draws.push({id:sid(),type:'ping',x:p.x,y:p.y,n,color:_color});render();return;}
-  if(_tool==='pos'){snap();step().draws.push({id:sid(),type:'pos',role:_posType,pside:_side,x:p.x,y:p.y});render();return;}
-  if(_tool==='pen')_drawing={id:sid(),type:'pen',points:[[p.x,p.y]],color:_color,width:_penW};
-  else if(_tool==='arrow'||_tool==='line')_drawing={id:sid(),type:_tool,x1:p.x,y1:p.y,x2:p.x,y2:p.y,color:_color,width:_penW};
-  else return;
+  if(_tool==='erase'){if(g){snap();const id=g.getAttribute('data-id'),k=g.getAttribute('data-key');if(g.getAttribute('data-kind')==='token'&&k){const[s,r]=k.split(':');delete plan.data.lineup[s][r];delete frame().pos[k];renderAll();}else if(id){frame().draws=frame().draws.filter(d=>d.id!==id);}render();}return;}
+  if(_tool==='select'){if(g&&g.getAttribute('data-kind')==='token'){_dragKey=g.getAttribute('data-key');const cur=frame().pos[_dragKey]||_defPos(_dragKey);snap();_dragOff={x:p.x-cur.x,y:p.y-cur.y};svg.setPointerCapture(e.pointerId);}return;}
+  if(_tool==='text'){const t=prompt('Text note:');if(t&&t.trim()){snap();frame().draws.push({id:nid(),type:'text',x:p.x,y:p.y,text:t.trim().slice(0,80),color:_color});render();}return;}
+  if(_tool==='pos'){snap();frame().draws.push({id:nid(),type:'pos',role:_posType,side:_side,x:p.x,y:p.y});render();return;}
+  if(_tool==='zone'){_drawing={id:nid(),type:'zone',x:p.x,y:p.y,r:0,color:_color};svg.setPointerCapture(e.pointerId);return;}
+  if(_tool==='pen'||_tool==='highlight')_drawing={id:nid(),type:_tool,points:[[p.x,p.y]],color:_color,width:_penW};
+  else _drawing={id:nid(),type:_tool,x1:p.x,y1:p.y,x2:p.x,y2:p.y,color:_color,width:_penW};
   svg.setPointerCapture(e.pointerId);
 });
+function _defPos(key){const[s,r]=key.split(':');const d=DEF[s][r]||[.5,.5];return{x:d[0]*W,y:d[1]*H};}
 svg.addEventListener('pointermove',e=>{const p=pt(e);
-  if(_dragTok){_dragTok.x=p.x-_dragOff.x;_dragTok.y=p.y-_dragOff.y;render();return;}
-  if(!_drawing)return;if(_drawing.type==='pen')_drawing.points.push([p.x,p.y]);else{_drawing.x2=p.x;_drawing.y2=p.y;}_pv();});
-svg.addEventListener('pointerup',()=>{if(_dragTok){_dragTok=null;return;}if(_drawing){if(_prev){_prev.remove();_prev=null;}const d=_drawing;_drawing=null;const tiny=d.type==='pen'?d.points.length<2:Math.hypot(d.x2-d.x1,d.y2-d.y1)<8;if(!tiny){snap();step().draws.push(d);render();}}});
-function _pv(){if(_prev)_prev.remove();const d=_drawing;if(!d)return;const s=step().draws;step().draws=[...s,d];render();step().draws=s;_prev=layer.lastChild;}
+  if(_dragKey){frame().pos[_dragKey]={x:p.x-_dragOff.x,y:p.y-_dragOff.y};render();return;}
+  if(!_drawing)return;if(_drawing.type==='zone')_drawing.r=Math.hypot(p.x-_drawing.x,p.y-_drawing.y);else if(_drawing.type==='pen'||_drawing.type==='highlight')_drawing.points.push([p.x,p.y]);else{_drawing.x2=p.x;_drawing.y2=p.y;}_pv();});
+svg.addEventListener('pointerup',()=>{if(_dragKey){_dragKey=null;return;}if(_drawing){if(_prev){_prev.remove();_prev=null;}const d=_drawing;_drawing=null;if(d.type==='zone'){if(!d.r||d.r<10)d.r=90;snap();frame().draws.push(d);render();return;}const tiny=(d.type==='pen'||d.type==='highlight')?d.points.length<2:Math.hypot(d.x2-d.x1,d.y2-d.y1)<8;if(!tiny){snap();frame().draws.push(d);render();}}});
+function _pv(){if(_prev)_prev.remove();const d=_drawing;if(!d)return;const s=frame().draws;frame().draws=[...s,d];render();frame().draws=s;_prev=layer.lastChild;}
+svg.addEventListener('dblclick',e=>{const g=e.target.closest('[data-kind=token]');if(!g)return;const[s,r]=g.getAttribute('data-key').split(':');const hero=plan.data.lineup[s][r];const v=prompt('Player name for '+hero+' ('+r+'):',(plan.data.labels&&plan.data.labels[s+':'+r])||'');if(v!==null){plan.data.labels=plan.data.labels||{};plan.data.labels[s+':'+r]=v.trim().slice(0,24);}});
 
-// ═════════════ HERO PICKER ═════════════
-function openHeroPick(){document.getElementById('hpSide').textContent=_side.toUpperCase();document.getElementById('heroModal').classList.add('open');renderHeroPick();document.getElementById('hpSearch').focus();}
-function closeHeroPick(){document.getElementById('heroModal').classList.remove('open');}
-function _hpToggleSide(){setSide(_side==='blue'?'red':'blue');document.getElementById('hpSide').textContent=_side.toUpperCase();}
-function renderHeroPick(){const q=(document.getElementById('hpSearch').value||'').toLowerCase();
-  const list=heroList().map(h=>h.name||h.n||h).filter(n=>n&&n.toLowerCase().includes(q)).sort((a,b)=>a.localeCompare(b));
-  document.getElementById('hpickGrid').innerHTML=list.map(n=>`<div class="hpick" onclick="placeHero('${_esc(n).replace(/'/g,"\\'")}')"><img src="${heroImg(n)}" onerror="this.style.opacity=.2"><div class="n">${n}</div></div>`).join('')||'<div class="muted" style="grid-column:1/-1;">No heroes.</div>';
+// ════════════════ LINEUP / HERO GRID / ASSIGN ════════════════
+function heroList(){try{return(typeof WDB!=='undefined'&&WDB.HERO_ROSTER)?WDB.HERO_ROSTER:[];}catch(_){return[];}}
+// Which lanes a hero plays (Gold/Jungle/Mid/EXP/Roam) — from WDB data, else class.
+function heroLanes(h){const name=h.name||h.n||h,role=h.role||h.r||'';
+  try{if(typeof WDB!=='undefined'&&WDB.getHeroLanes){const l=WDB.getHeroLanes(name,role);if(l&&l.length)return l;}}catch(_){}
+  try{if(typeof WDB!=='undefined'&&WDB.HERO_LANE_DEFAULTS&&WDB.HERO_LANE_DEFAULTS[name])return WDB.HERO_LANE_DEFAULTS[name];}catch(_){}
+  const r=role.toLowerCase(),out=[];
+  if(r.includes('mm')||r.includes('marks'))out.push('Gold');
+  if(r.includes('assassin'))out.push('Jungle');
+  if(r.includes('mage'))out.push('Mid');
+  if(r.includes('support')||r.includes('tank'))out.push('Roam');
+  if(r.includes('fighter'))out.push('EXP');
+  return out.length?out:['Mid'];
 }
-function placeHero(n){snap();step().tokens.push({id:sid(),hero:n,side:_side,x:W*(_side==='blue'?.3:.68)+(Math.random()*120-60),y:H*(.45+Math.random()*.15)});render();toast(n+' added ('+_side+')');closeHeroPick();}
+function _laneIdx(l){const i=LANE_ORDER.indexOf(l);return i<0?9:i;}
+function primaryLane(h){return heroLanes(h).slice().sort((a,b)=>_laneIdx(a)-_laneIdx(b))[0]||'Mid';}
+// Lane filter chips (icons) + toolbar lane buttons + legend.
+function renderRoleChips(){const cs=['All',...LANE_ORDER];
+  document.getElementById('roleChips').innerHTML=cs.map(c=>`<div class="rchip${c===_roleFilter?' active':''}" onclick="_roleFilter='${c}';renderRoleChips();renderHeroGrid();">${c==='All'?'All':laneIconHTML(c,13)+' '+ROLE_ABBR[c]}</div>`).join('');}
+function renderLaneUI(){
+  const pt=document.getElementById('posTools'); if(pt)pt.innerHTML=LANE_ORDER.map(l=>`<div class="lanebtn" title="Drop ${l} lane marker" onclick="setPos('${l}',this)">${laneIconHTML(l,22)}</div>`).join('');
+  const lg=document.getElementById('legendItems'); if(lg)lg.innerHTML=LANE_ORDER.map(l=>`<span class="legend-item">${laneIconHTML(l,16)} ${ROLE_ABBR[l]}</span>`).join('');
+}
+function renderHeroGrid(){const q=(document.getElementById('heroSearch').value||'').toLowerCase();
+  const used=new Set(Object.values(plan.data.lineup[_side]));
+  let list=heroList().map(h=>({n:h.name||h.n||h,lanes:heroLanes(h),pl:primaryLane(h)}));
+  if(_roleFilter!=='All')list=list.filter(x=>x.lanes.includes(_roleFilter));
+  list=list.filter(x=>x.n&&x.n.toLowerCase().includes(q)).sort((a,b)=>_laneIdx(a.pl)-_laneIdx(b.pl)||a.n.localeCompare(b.n));
+  document.getElementById('hgrid').innerHTML=list.map(x=>`<div class="hcell${used.has(x.n)?' used':''}" title="${x.n} · ${x.pl}" onclick="addHero('${_esc(x.n).replace(/'/g,"\\'")}')"><div class="pic"><img src="${heroImg(x.n)}" onerror="this.style.opacity=0"></div><div class="hn">${x.n}</div></div>`).join('')||'<div class="muted" style="grid-column:1/-1;">No heroes.</div>';
+}
+function addHero(hero){const lu=plan.data.lineup[_side];
+  if(Object.values(lu).includes(hero)){toast(hero+' already on '+_side);return;}
+  const free=ROLES.find(r=>!lu[r]); if(!free){toast('Max 5 on '+_side.toUpperCase()+' — assign via dropdowns to swap','err');return;}
+  snap();lu[free]=hero;render();renderAll();}
+function renderAssign(){const lu=plan.data.lineup[_side];const opts=heroList().map(h=>h.name||h.n||h).filter(Boolean).sort();
+  document.getElementById('assign').innerHTML=ROLES.map((r,i)=>`<div class="assign-row"><span class="num">${i+1}</span><span class="rd" style="background:${ROLE_COLORS[r]};"></span><span class="rl">${ROLE_ABBR[r]}</span>
+    <select class="w-select" onchange="assignRole('${r}',this.value)"><option value="">[Select hero]</option>${opts.map(o=>`<option${lu[r]===o?' selected':''}>${_esc(o)}</option>`).join('')}</select></div>`).join('');
+}
+function assignRole(role,hero){snap();const lu=plan.data.lineup[_side];
+  if(hero){for(const r of ROLES)if(lu[r]===hero&&r!==role)delete lu[r];lu[role]=hero;} else {delete lu[role];delete frame().pos[_side+':'+role];}
+  render();renderAll();}
+function _counts(){document.getElementById('cntBlue').textContent=Object.keys(plan.data.lineup.blue).length+'/5';document.getElementById('cntRed').textContent=Object.keys(plan.data.lineup.red).length+'/5';}
+function renderAll(){renderHeroGrid();renderAssign();_counts();}
 
-// ═════════════ PLAY STEPS ═════════════
-function renderSteps(){
-  document.getElementById('stepList').innerHTML=plan.data.steps.map((s,i)=>`
-    <div class="step${i===_cur?' active':''}" onclick="gotoStep(${i})">
-      <div class="num">${i+1}</div>
-      <div class="m">
-        <div class="n" contenteditable oninput="plan.data.steps[${i}].name=this.textContent" onclick="event.stopPropagation()">${_esc(s.name)}<span class="t">${_esc(s.time)}</span></div>
-        <div class="d" contenteditable data-ph="Describe this step…" oninput="plan.data.steps[${i}].desc=this.textContent" onclick="event.stopPropagation()">${_esc(s.desc)}</div>
-      </div>
-      <img class="thumb" src="${s.thumb||'assets/MLBB%20Map.jpg'}">
-      ${plan.data.steps.length>1?`<span class="sdel" onclick="event.stopPropagation();delStep(${i})">✕</span>`:''}
-    </div>`).join('');
-  document.getElementById('tlTime').textContent='Step '+(_cur+1)+' / '+plan.data.steps.length;
-  document.getElementById('tlFill').style.width=(plan.data.steps.length<2?100:(_cur/(plan.data.steps.length-1))*100)+'%';
-}
-function gotoStep(i){_cur=i;renderSteps();render();}
-function addStep(){snap();const prev=step();const ns=blankStep('Step '+(plan.data.steps.length+1),prev.time);
-  ns.tokens=JSON.parse(JSON.stringify(prev.tokens)); // carry the lineup forward, fresh annotations
-  plan.data.steps.push(ns);_cur=plan.data.steps.length-1;renderSteps();render();}
-function delStep(i){if(plan.data.steps.length<2)return;snap();plan.data.steps.splice(i,1);_cur=Math.max(0,Math.min(_cur,plan.data.steps.length-1));renderSteps();render();}
-function stepNext(){if(_cur<plan.data.steps.length-1)gotoStep(_cur+1);}
-function stepPrev(){if(_cur>0)gotoStep(_cur-1);}
-function _seek(e){const t=document.getElementById('tlTrack'),r=t.getBoundingClientRect();const f=(e.clientX-r.left)/r.width;gotoStep(Math.round(f*(plan.data.steps.length-1)));}
-function playSteps(){let i=0;gotoStep(0);const iv=setInterval(()=>{i++;if(i>=plan.data.steps.length){clearInterval(iv);return;}gotoStep(i);},900);}
-
-// ═════════════ ASSIGNED / TAGS / NOTES ═════════════
-let _assignIdx=-1;
-function renderAssigned(){const a=plan.data.assigned||[];
-  document.getElementById('assigned').innerHTML=a.map((h,i)=>`<div class="ah" onclick="removeAssigned(${i})" title="Remove"><img src="${heroImg(h)}"><div class="x">${_esc(h)}</div></div>`).join('')
-    +(a.length<5?`<div class="ah-add" onclick="_assignIdx=-1;openAssignPick()" title="Add hero">＋</div>`:'');
-}
-function openAssignPick(){ // reuse hero picker but route to assigned
-  _assignMode=true; document.getElementById('hpSide').parentElement.style.display='none'; openHeroPick();
-}
-let _assignMode=false;
-function removeAssigned(i){plan.data.assigned.splice(i,1);renderAssigned();}
-function renderTags(){const t=plan.data.tags||[];
-  document.getElementById('tags').innerHTML=t.map((x,i)=>`<span class="tagchip">${_esc(x)}<span class="x" onclick="plan.data.tags.splice(${i},1);renderTags()">✕</span></span>`).join('')
-    +`<button class="tag-add" onclick="addTag()">+</button>`;
-}
-function addTag(){const v=(prompt('Tag:')||'').trim();if(!v)return;plan.data.tags=plan.data.tags||[];if(!plan.data.tags.includes(v))plan.data.tags.push(v);renderTags();}
-
-// ═════════════ SAVE / LOAD / SHARE ═════════════
-async function refreshPlans(){if(!_user){document.getElementById('savedList').innerHTML='<div class="muted">Sign in to save &amp; see plays.</div>';renderPopular();return;}
+// ════════════════ PLANS ════════════════
+async function refreshPlans(){if(!_user){document.getElementById('savedList').innerHTML='<div class="muted">Sign in to save & see plans.</div>';return;}
   try{_plans=await WDB.loadPlans();}catch(e){document.getElementById('savedList').innerHTML='<div class="muted">'+(e.message||'load failed')+'</div>';return;}
-  renderSaved();renderPopular();}
-function renderPopular(){const feat=_plans.filter(p=>p.data&&p.data.featured);
-  const g=document.getElementById('popGrid');
-  if(!feat.length){g.innerHTML='<div class="muted" style="grid-column:1/-1;">No featured plays yet'+((typeof WDB!=='undefined'&&WDB._isPrimaryAdmin&&WDB._isPrimaryAdmin())?' — open a saved play and toggle ★ Featured to add one.':'.')+'</div>';return;}
-  g.innerHTML=feat.slice(0,8).map(p=>`<div class="pop-card" onclick="loadPlan('${p.id}')">
-    <div class="cover"><img src="${(p.data.steps&&p.data.steps[0]&&p.data.steps[0].thumb)||'assets/MLBB%20Map.jpg'}"><button class="play">▶</button></div>
-    <div class="b"><div class="n">${_esc(p.name)}</div><div class="tm">${_esc(p.team_name||'—')}</div>
-      <div class="tg">${((p.data.tags)||[]).slice(0,3).map(t=>`<span>${_esc(t)}</span>`).join('')}</div></div>
-  </div>`).join('');
-}
-const _FILTERS=[['all','All'],['mine','My Plays'],['featured','Pro Plays'],['starred','Favorites']];
-function openSaved(f){_savedFilter=f||'all';document.getElementById('savedModal').classList.add('open');
-  document.getElementById('savedTitle').textContent=({all:'All Playbooks',mine:'My Plays',featured:'Pro Plays',starred:'Favorites'})[_savedFilter]||'Playbooks';
-  document.getElementById('plFilter').innerHTML=_FILTERS.map(([k,l])=>`<div class="f${k===_savedFilter?' active':''}" onclick="openSaved('${k}')">${l}</div>`).join('');
-  refreshPlans();}
-function closeSaved(){document.getElementById('savedModal').classList.remove('open');}
-function renderSaved(){let list=_plans.slice();const uid=_user&&_user.id;
-  if(_savedFilter==='mine')list=list.filter(p=>!p._shared);
-  else if(_savedFilter==='featured')list=list.filter(p=>p.data&&p.data.featured);
-  else if(_savedFilter==='starred')list=list.filter(p=>p.data&&p.data.starred);
+  document.getElementById('ctAll').textContent=_plans.length;
+  document.getElementById('ctShared').textContent=_plans.filter(p=>p._shared).length;
+  document.getElementById('ctStarred').textContent=_plans.filter(p=>p.data&&p.data.starred).length;
+  document.getElementById('ctRecent').textContent=Math.min(_plans.length,5);
+  renderSaved();}
+function renderSaved(){let list=_plans.slice();
+  if(_filter==='shared')list=list.filter(p=>p._shared);
+  else if(_filter==='starred')list=list.filter(p=>p.data&&p.data.starred);
+  else if(_filter==='recent')list=list.slice(0,5);
   const box=document.getElementById('savedList');
   if(!list.length){box.innerHTML='<div class="muted">Nothing here yet.</div>';return;}
-  const adm=typeof WDB!=='undefined'&&WDB._isPrimaryAdmin&&WDB._isPrimaryAdmin();
-  box.innerHTML=list.map(p=>{const d=p.updated_at?new Date(p.updated_at).toLocaleDateString(undefined,{month:'short',day:'numeric'}):'';
-    return `<div class="saved-row" onclick="loadPlan('${p.id}')">
-      <img class="thumb" src="${(p.data&&p.data.steps&&p.data.steps[0]&&p.data.steps[0].thumb)||'assets/MLBB%20Map.jpg'}">
-      <div class="m"><div class="n">${_esc(p.name)}${p.data&&p.data.featured?' 🏆':''}</div><div class="d">${p.team_name?_esc(p.team_name)+' · ':''}${d}${p._shared?' · shared':''}</div></div>
-      ${adm&&!p._shared?`<span class="star" title="Feature as Pro Play" onclick="event.stopPropagation();toggleFeatured('${p.id}')">${p.data&&p.data.featured?'🏆':'☆'}</span>`:''}
-      ${!p._shared?`<span class="star${p.data&&p.data.starred?' on':''}" onclick="event.stopPropagation();toggleStar('${p.id}')">★</span>`:''}
-    </div>`;}).join('');
-}
+  box.innerHTML=list.map(p=>{const d=p.updated_at?new Date(p.updated_at):null;const ds=d?d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):'';
+    return `<div class="saved-row${plan.id===p.id?' active':''}" onclick="loadPlan('${p.id}')">
+      <img class="thumb" src="assets/MLBB%20Map.jpg">
+      <div class="m"><div class="n">${_esc(p.name)}</div><div class="d">${p.team_name?_esc(p.team_name)+' · ':''}${ds}</div></div>
+      ${p._shared?'':`<span class="star${p.data&&p.data.starred?' on':''}" onclick="event.stopPropagation();toggleStar('${p.id}')">★</span>`}
+    </div>`;}).join('');}
+function setFilter(f,el){_filter=f;document.querySelectorAll('#plNav a').forEach(a=>a.classList.remove('active'));if(el)el.classList.add('active');renderSaved();}
+function openPlaybooks(){document.getElementById('pbModal').classList.add('open');refreshPlans();}
+function closePlaybooks(){document.getElementById('pbModal').classList.remove('open');}
 async function toggleStar(id){const p=_plans.find(x=>x.id===id);if(!p)return;p.data=p.data||{};p.data.starred=!p.data.starred;
-  try{await WDB.savePlan({id:p.id,name:p.name,team_name:p.team_name,data:p.data});renderSaved();}catch(e){toast(e.message,'err');}}
-async function toggleFeatured(id){const p=_plans.find(x=>x.id===id);if(!p)return;p.data=p.data||{};p.data.featured=!p.data.featured;
-  try{await WDB.savePlan({id:p.id,name:p.name,team_name:p.team_name,data:p.data});toast(p.data.featured?'Featured as Pro Play':'Unfeatured');renderSaved();renderPopular();}catch(e){toast(e.message,'err');}}
+  try{await WDB.savePlan({id:p.id,name:p.name,team_name:p.team_name,data:p.data});if(plan.id===id)plan.data.starred=p.data.starred;await refreshPlans();}catch(e){toast(e.message,'err');}}
 async function savePlan(){if(!_user){toast('Sign in to save','err');return;}
-  await snapThumb(); // capture current step thumbnail before saving
-  const name=(document.getElementById('edTitle').value||'').trim()||'Untitled Play';plan.name=name;
-  const team=(prompt('Attribute to team (optional — e.g. ONIC, or leave blank):',plan.team_name||'')||'').trim();plan.team_name=team;
-  try{const s=await WDB.savePlan({id:plan.id,name,team_name:team,data:plan.data});plan.id=s.id;toast('✓ Saved');if(document.getElementById('savedModal').classList.contains('open'))refreshPlans();else refreshPlans();}
-  catch(e){toast(e.message||'save failed','err');}}
-function newPlan(){if((step().tokens.length||step().draws.length)&&!confirm('Start a new blank play? Unsaved work is lost.'))return;
-  plan={id:null,name:'Untitled Play',team_name:'',data:blankData()};_cur=0;_undo=[];_redo=[];syncFields();renderAll();closeSaved();toast('New play');}
+  const name=(prompt('Plan name:',plan.name||('Plan '+new Date().toLocaleDateString()))||'').trim();if(!name)return;plan.name=name;
+  try{const s=await WDB.savePlan({id:plan.id,name,team_name:plan.team_name,data:plan.data});plan.id=s.id;toast('✓ Saved');await refreshPlans();}catch(e){toast(e.message||'save failed','err');}}
+function newPlan(){if((Object.keys(plan.data.lineup.blue).length||Object.keys(plan.data.lineup.red).length)&&!confirm('Start a new blank plan? Unsaved work is lost.'))return;plan={id:null,name:'',team_name:'',game:'Game 1',data:blankData()};_undo=[];_redo=[];_phase='early';setPhase('early',document.querySelector('[data-phase=early]'));document.getElementById('objTurtle').value='02:00';document.getElementById('objLord').value='08:00';render();renderAll();renderSaved();toast('New plan');}
 async function loadPlan(id){const p=_plans.find(x=>x.id===id);if(!p)return;
-  plan={id:p.id,name:p.name,team_name:p.team_name||'',data:Object.assign(blankData(),p.data||{})};
-  if(!plan.data.steps||!plan.data.steps.length)plan.data.steps=[blankStep('Step 1','00:00')];
-  if(!plan.data.layers)plan.data.layers=blankData().layers;
-  _cur=0;_undo=[];_redo=[];syncFields();renderAll();closeSaved();toast('Opened "'+p.name+'"');}
-function syncFields(){document.getElementById('edTitle').value=plan.name;document.getElementById('edCategory').value=plan.data.category||'Custom Play';
-  document.getElementById('notes').value=plan.data.notes||'';document.getElementById('nCount').textContent=(plan.data.notes||'').length+'/500';
-  gridLayer.style.display=plan.data.layers.grid?'block':'none';if(plan.data.layers.grid)buildGrid();}
-async function addShare(){if(!_user){toast('Sign in first','err');return;}if(!plan.id){toast('Save the play before sharing','err');return;}
-  const email=(prompt('Share with (email):','')||'').trim();if(!email)return;if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('Enter a valid email','err');return;}
-  try{await WDB.addPlanMember(plan.id,email);toast('Shared with '+email);}catch(e){toast(e.message||'Failed','err');}}
+  plan={id:p.id,name:p.name,team_name:p.team_name||'',game:'Game 1',data:Object.assign(blankData(),p.data||{})};
+  if(!plan.data.frames)plan.data.frames=blankData().frames;if(!plan.data.lineup)plan.data.lineup={blue:{},red:{}};if(!plan.data.objectives)plan.data.objectives={turtle:'02:00',lord:'08:00'};
+  _undo=[];_redo=[];_phase='early';setPhase('early',document.querySelector('[data-phase=early]'));
+  document.getElementById('objTurtle').value=plan.data.objectives.turtle;document.getElementById('objLord').value=plan.data.objectives.lord;
+  render();renderAll();renderSaved();closePlaybooks();toast('Opened "'+p.name+'"');}
+// Share the current (saved) plan with a teammate by email (async view/edit).
+async function addShare(){
+  if(!_user){toast('Sign in first','err');return;}
+  if(!plan.id){toast('Save the plan before sharing','err');return;}
+  const email=(prompt('Share this plan with (email):','')||'').trim();
+  if(!email)return; if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('Enter a valid email','err');return;}
+  try{await WDB.addPlanMember(plan.id,email);toast('Shared with '+email);}catch(e){toast(e.message||'Failed','err');}
+}
 
-// ═════════════ THUMBNAIL + EXPORT ═════════════
-async function snapThumb(){try{const c=await html2canvas(document.getElementById('boardWrap'),{useCORS:true,backgroundColor:'#0a0a12',scale:0.35});step().thumb=c.toDataURL('image/jpeg',0.6);renderSteps();}catch(_){}}
-async function exportPNG(){toast('Rendering…');try{const c=await html2canvas(document.getElementById('boardWrap'),{useCORS:true,backgroundColor:'#0a0a12',scale:2});const a=document.createElement('a');a.download='warr_play_'+((plan.name||'board').replace(/[^a-z0-9]+/gi,'_'))+'_s'+(_cur+1)+'.png';a.href=c.toDataURL('image/png');a.click();}catch(e){toast('Export failed','err');}}
+// ════════════════ EXPORT ════════════════
+async function exportPNG(){toast('Rendering…');try{const c=await html2canvas(document.getElementById('boardWrap'),{useCORS:true,backgroundColor:'#0a0a12',scale:2});const a=document.createElement('a');a.download='warr_playbook_'+((plan.name||'board').replace(/[^a-z0-9]+/gi,'_'))+'_'+_phase+'.png';a.href=c.toDataURL('image/png');a.click();}catch(e){toast('Export failed','err');}}
 
-// ═════════════ RAIL / MISC ═════════════
-function railActive(el){document.querySelectorAll('.pb-rail .rail-item').forEach(x=>x.classList.remove('active'));if(el)el.classList.add('active');}
-function soon(n){toast(n+' — coming soon');}
-function jumpObjectives(){toast('Objective timers live inside each play (add a Text/Ping at the pit).');}
-
-function renderAll(){render();renderSteps();renderAssigned();renderTags();renderLayers();}
-
-// ═════════════ INIT ═════════════
+// ════════════════ INIT ════════════════
 (async()=>{
-  _swatches();renderLaneTools();renderAll();syncFields();
+  _swatches();renderLaneUI();renderRoleChips();renderHeroGrid();renderAssign();render();_counts();
   try{if(typeof WAuth!=='undefined'&&WAuth.init){await WAuth.init();_user=WAuth.getUser();}}catch(_){}
+  renderHeroGrid();renderAssign();
   await refreshPlans();
 })();
-
-// Route assigned-hero picks: override placeHero when in assign mode
-const _origPlace=placeHero;
-placeHero=function(n){ if(_assignMode){ plan.data.assigned=plan.data.assigned||[]; if(plan.data.assigned.length<5&&!plan.data.assigned.includes(n))plan.data.assigned.push(n); _assignMode=false; document.getElementById('hpSide').parentElement.style.display=''; renderAssigned(); closeHeroPick(); return; } _origPlace(n); };
 </script>
 </body>
 </html>
