@@ -1599,6 +1599,41 @@ WDB.teamMonogram = function(name){
   return { init, color: colors[h%colors.length] };
 };
 
+// ── BATTLE MAPS ──────────────────────────────────────────────────
+// Single source of truth for the map pool. MLBB rotated maps mid-season:
+//   CURRENT = the live pool — listed first / used as defaults everywhere.
+//   LEGACY  = retired maps — still selectable so past games can be logged
+//             (back-filled), and still counted in every report.
+// Map names are stored verbatim on each match (m.map), so NEVER rename an
+// entry — add the new name instead. Images: maps/<slug>.webp (see mapImage).
+WDB.MAPS_CURRENT = ['Flying Cloud (Sustained)', 'Revealing Wisps', 'Healing Turtle', 'Golden Turret'];
+WDB.MAPS_LEGACY  = ['Dangerous Grass', 'Broken Walls', 'Flying Cloud', 'Expanding River'];
+WDB.MAPS_ALL     = WDB.MAPS_CURRENT.concat(WDB.MAPS_LEGACY);
+WDB.isLegacyMap  = function(name){ return WDB.MAPS_LEGACY.includes(name); };
+/** Compact label for tight spots (team cards). Full name stays in the data. */
+WDB.mapShortLabel = function(name){ return String(name||'').replace(/\s*\(Sustained\)$/i, ' (S)'); };
+/** 'Flying Cloud (Sustained)' → 'maps/flying_cloud_sustained.webp' */
+WDB.mapImage = function(name){
+  return 'maps/' + String(name||'').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') + '.webp';
+};
+/** Every map for stats: current → legacy → any other name found in the data. */
+WDB.mapsOrdered = function(matches){
+  const out = WDB.MAPS_ALL.slice();
+  (matches||[]).forEach(m => { const n = m && m.map; if (n && !out.includes(n)) out.push(n); });
+  return out;
+};
+/** <option> markup for a map <select>: 'Current maps' + 'Old maps (past games)'
+ *  groups. A saved value that's in neither list is kept so editing never drops it. */
+WDB.mapOptionsHTML = function(selected, placeholder){
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  const opt = mp => `<option value="${esc(mp)}"${mp===selected?' selected':''}>${esc(mp)}</option>`;
+  let html = `<option value="">${esc(placeholder || '— Any —')}</option>`;
+  if (selected && !WDB.MAPS_ALL.includes(selected)) html += opt(selected);
+  html += `<optgroup label="Current maps">${WDB.MAPS_CURRENT.map(opt).join('')}</optgroup>`;
+  html += `<optgroup label="Old maps (past games)">${WDB.MAPS_LEGACY.map(opt).join('')}</optgroup>`;
+  return html;
+};
+
 // ── Hero Pool helpers ──
 /** Get saved hero pool (array of hero names) */
 WDB.getHeroPool = function() {

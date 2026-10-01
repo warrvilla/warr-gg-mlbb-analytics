@@ -2066,7 +2066,9 @@ const DB_MODULE = (() => {
       t.redSideWR  = t.redSideGames  ? Math.round(t.redWins/t.redSideGames*100)   : null;
 
       // Map win rates
-      const MAP_NAMES = ['Dangerous Grass','Broken Walls','Flying Cloud','Expanding River'];
+      // Current + legacy maps (+ any other map name in the data), so games on
+      // the new mid-season maps and back-filled old-map games both count.
+      const MAP_NAMES = WDB.mapsOrdered(games);
       t.mapStats = {};
       MAP_NAMES.forEach(mp => {
         const mg = games.filter(m => m.map === mp);
@@ -3563,11 +3565,7 @@ function _openMatchModal(m) {
             <div class="form-group">
               <label class="form-label">Map</label>
               <select class="form-select" id="mf-map">
-                <option value="">— Any —</option>
-                <option value="Dangerous Grass" ${m.map==='Dangerous Grass'?'selected':''}>Dangerous Grass</option>
-                <option value="Broken Walls"    ${m.map==='Broken Walls'   ?'selected':''}>Broken Walls</option>
-                <option value="Flying Cloud"    ${m.map==='Flying Cloud'   ?'selected':''}>Flying Cloud</option>
-                <option value="Expanding River" ${m.map==='Expanding River'?'selected':''}>Expanding River</option>
+                ${WDB.mapOptionsHTML(m.map || '', '— Any —')}
               </select>
             </div>
           </div>
@@ -4425,7 +4423,12 @@ function _renderTeamsGrid() {
   const _tPages = Math.max(1, Math.ceil(teams.length / TEAM_PAGE_SIZE));
   if (_teamPage > _tPages) _teamPage = 1;
   const _pageTeams = teams.slice((_teamPage-1)*TEAM_PAGE_SIZE, _teamPage*TEAM_PAGE_SIZE);
-  const _TMAPS=['Dangerous Grass','Broken Walls','Flying Cloud','Expanding River'];
+  // 4 map rows per card: current maps played → old maps played → unplayed
+  // current maps as empty rows. Mid-season this shows the new maps as soon as
+  // they have games, topped up with the old ones; full split lives in the report.
+  const _TMAPS=t=>{const ms=t.mapStats||{}; const g=k=>(ms[k]&&ms[k].games)||0; const byG=(a,b)=>g(b)-g(a);
+    const cur=WDB.MAPS_CURRENT, played=Object.keys(ms).filter(g);
+    return [...played.filter(k=>cur.includes(k)).sort(byG), ...played.filter(k=>!cur.includes(k)).sort(byG), ...cur.filter(k=>!g(k))].slice(0,4);};
   const _C=v=>v>=60?'var(--green)':v>=50?'var(--gold)':'var(--red)';
   grid.innerHTML = _pageTeams.map((t,_i) => {
     const rank=(_teamPage-1)*TEAM_PAGE_SIZE+_i+1;
@@ -4435,8 +4438,8 @@ function _renderTeamsGrid() {
     const logo=(typeof WDB!=='undefined'&&WDB.teamLogo)?WDB.teamLogo(t.name):'';
     const form=(t.form||[]).slice(-5).map(r=>`<span class="tc-fl ${r==='W'?'w':'l'}">${r}</span>`).join('');
     const streak=(t.streak&&t.streak.count>1&&t.streak.type==='W')?`<span class="tc-streak">W${t.streak.count}</span>`:'';
-    const maps=_TMAPS.map(mp=>{const sm=(t.mapStats||{})[mp]; const has=sm&&sm.games; const c=has?_C(sm.wr):'var(--text3)';
-      return `<div class="tc-map"><span class="tc-map-ico">◈</span><span class="tc-map-nm">${mp}</span><div class="tc-map-bar"><i style="width:${has?sm.wr:0}%;background:${c}"></i></div><span class="tc-map-pct" style="color:${c}">${has?sm.wr+'%':'—'}</span><span class="tc-map-g">${has?sm.games+'g':''}</span></div>`;}).join('');
+    const maps=_TMAPS(t).map(mp=>{const sm=(t.mapStats||{})[mp]; const has=sm&&sm.games; const c=has?_C(sm.wr):'var(--text3)';
+      return `<div class="tc-map"><span class="tc-map-ico">◈</span><span class="tc-map-nm" title="${mp}">${WDB.mapShortLabel(mp)}</span><div class="tc-map-bar"><i style="width:${has?sm.wr:0}%;background:${c}"></i></div><span class="tc-map-pct" style="color:${c}">${has?sm.wr+'%':'—'}</span><span class="tc-map-g">${has?sm.games+'g':''}</span></div>`;}).join('');
     const cell=(name,l1,l1c,l2)=>`<div class="tc-hero"><img src="${_heroIcon(name)}" onerror="${_heroIconErr(name)}"><div class="tc-hero-nm">${name}</div><div class="tc-hero-l1" style="color:${l1c}">${l1}</div>${l2?`<div class="tc-hero-l2">${l2}</div>`:''}</div>`;
     const tpc=(t.topPicks||[]).slice(0,5).map(p=>cell(p.name,(p.wr||0)+'%',_C(p.wr||0),'x'+p.count)).join('')||'<span class="tc-none">No data</span>';
     const tbc=(t.topBans||[]).slice(0,5).map(b=>cell(b.name,'x'+b.count,'var(--red)','')).join('')||'<span class="tc-none">No data</span>';
@@ -4628,7 +4631,7 @@ function openTeamEditor(teamName, ctxLeague, ctxSeason) {
                   const wrc=s.wr>=60?'var(--green)':s.wr>=50?'var(--gold)':'var(--red)';
                   const barW=s.wr;
                   return `<div style="display:flex;align-items:center;gap:8px;">
-                    <span style="font-size:11px;width:130px;flex-shrink:0;">${mp}</span>
+                    <span style="font-size:11px;width:150px;flex-shrink:0;">${mp}</span>
                     <div style="flex:1;height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;">
                       <div style="width:${barW}%;height:100%;background:${wrc};border-radius:3px;"></div>
                     </div>
@@ -5290,7 +5293,7 @@ function openTeamReport(teamName) {
   const mapWRHTML = Object.entries(t.mapStats||{}).map(([mp,s]) => {
     const mc = wrc(s.wr);
     return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
-      <span style="font-size:10.5px;width:132px;flex-shrink:0;color:var(--text2);">${mp}</span>
+      <span style="font-size:10.5px;width:150px;flex-shrink:0;color:var(--text2);">${mp}</span>
       <div style="flex:1;height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;">
         <div style="width:${s.wr}%;height:100%;background:${mc};border-radius:3px;"></div>
       </div>
@@ -5484,7 +5487,8 @@ function openTeamReport(teamName) {
   // Options built from what this team has ACTUALLY played, so dropdowns never
   // show empty tournaments/seasons.
   const _teamAll = allMatches.filter(m => m.blueTeam === teamName || m.redTeam === teamName);
-  const playedMaps = [...new Set(_teamAll.map(m => m.map).filter(Boolean))];
+  const _played = new Set(_teamAll.map(m => m.map).filter(Boolean));
+  const playedMaps = WDB.mapsOrdered(_teamAll).filter(mp => _played.has(mp));   // current maps first, then old
   const mapOpts = `<option value="">All maps</option>` + playedMaps.map(mp =>
     `<option value="${mp}"${_reportMapFilter===mp?' selected':''}>${mp}</option>`
   ).join('');
@@ -5836,7 +5840,7 @@ function openTeamReport(teamName) {
               const worst=[...perf].sort((a,b)=>a.wr-b.wr||b.c-a.c).slice(0,3);
               return `<div style="border:1px solid var(--border);border-radius:12px;padding:13px 14px;background:linear-gradient(180deg,rgba(255,255,255,.02),transparent);break-inside:avoid;">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                  <span style="font-size:12.5px;font-weight:800;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${mp}</span>
+                  <span style="font-size:12.5px;font-weight:800;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${mp}${WDB.isLegacyMap(mp)?'<span style="margin-left:6px;font-size:8px;font-weight:800;letter-spacing:.6px;color:var(--text4);border:1px solid var(--border);border-radius:20px;padding:1px 6px;vertical-align:middle;">OLD MAP</span>':''}</span>
                   <span style="font-size:16px;font-weight:800;font-family:var(--font-head);color:${mc};">${s.wr}%</span>
                   <span style="font-size:9px;color:var(--text3);">${s.wins||0}W-${(s.games||0)-(s.wins||0)}L</span>
                 </div>
@@ -6203,7 +6207,8 @@ function openLeagueReport(league, season) {
   // ── Filter options ──
   const _lAll = DB_MODULE.getMatches().filter(m => LEAGUE==='all' || (m.league||'')===LEAGUE);
   const seasonsInLeague=[...new Set(_lAll.map(m=>(m.season||'').trim()).filter(Boolean))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
-  const mapsInLeague=[...new Set(_lAll.map(m=>m.map).filter(Boolean))];
+  const _lPlayed=new Set(_lAll.map(m=>m.map).filter(Boolean));
+  const mapsInLeague=WDB.mapsOrdered(_lAll).filter(mp=>_lPlayed.has(mp));   // current maps first, then old
   const seasonOpts=`<option value="">All seasons</option>`+seasonsInLeague.map(s=>`<option value="${s}"${_lrSeason===s?' selected':''}>${s}</option>`).join('');
   const mapOpts=`<option value="">All maps</option>`+mapsInLeague.map(mp=>`<option value="${mp}"${_lrMap===mp?' selected':''}>${mp}</option>`).join('');
 

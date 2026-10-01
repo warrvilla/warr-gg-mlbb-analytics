@@ -1166,10 +1166,7 @@ body.in-battle .page-body{overflow:hidden !important;}
     <div class="ab-step"><span class="ab-num">4</span> BATTLE MAP <small>optional — weights the team map WR into the simulation</small></div>
     <div class="ab-maps">
       <div class="opt-card ab-map ab-map-any" id="map-none" onclick="setMap('');updateSummary()"><span class="ab-map-ico">⟳</span><div class="ab-map-name">Any</div></div>
-      <div class="opt-card ab-map" id="map-Dangerous Grass" onclick="setMap('Dangerous Grass');updateSummary()" style="background-image:url('maps/dangerous_grass.webp') !important;"><div class="ab-map-name">Dangerous Grass</div></div>
-      <div class="opt-card ab-map" id="map-Broken Walls" onclick="setMap('Broken Walls');updateSummary()" style="background-image:url('maps/broken_walls.webp') !important;"><div class="ab-map-name">Broken Walls</div></div>
-      <div class="opt-card ab-map" id="map-Flying Cloud" onclick="setMap('Flying Cloud');updateSummary()" style="background-image:url('maps/flying_cloud.webp') !important;"><div class="ab-map-name">Flying Cloud</div></div>
-      <div class="opt-card ab-map" id="map-Expanding River" onclick="setMap('Expanding River');updateSummary()" style="background-image:url('maps/expanding_river.webp') !important;"><div class="ab-map-name">Expanding River</div></div>
+      <!-- Current map pool cards are rendered from WDB.MAPS_CURRENT (warr-lib.js) by renderMapCards() -->
     </div>
     <div id="mapWRContext" style="display:none;margin-top:10px;font-size:11px;color:var(--text3);"></div>
   </section>
@@ -1832,12 +1829,25 @@ function setSide(s){['blue','red','random'].forEach(x=>{document.getElementById(
 function setDiff(d){['normal','hard','gm'].forEach(x=>{document.getElementById('dc-'+x).className='opt-card';});document.getElementById('dc-'+d).className='opt-card sel-gold';_diff=d;
   const echo=document.getElementById('enemyDiffEcho');if(echo)echo.textContent=d==='normal'?'Normal':d==='gm'?'Grandmaster':'Hard';}
 
+// Map cards = the CURRENT map pool from warr-lib (old maps stay in Scout for
+// back-filling past games, but you only draft on the live pool here).
+// Background: maps/<slug>.webp — until a file exists the card shows the plain fallback.
+function renderMapCards(){
+  const box=document.querySelector('#setup .ab-maps')||document.querySelector('.ab-maps');
+  if(!box||typeof WDB==='undefined'||!WDB.MAPS_CURRENT)return;
+  box.querySelectorAll('.ab-map:not(#map-none)').forEach(el=>el.remove());
+  const esc=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  box.insertAdjacentHTML('beforeend',WDB.MAPS_CURRENT.map(mp=>
+    `<div class="opt-card ab-map" id="map-${esc(mp)}" data-map="${esc(mp)}" onclick="setMap(this.dataset.map);updateSummary()" style="background-image:url('${WDB.mapImage(mp)}') !important;"><div class="ab-map-name">${esc(mp)}</div></div>`
+  ).join(''));
+}
+renderMapCards();
+
 function setMap(m){
   _selectedMap=m;
-  const keys=['','Dangerous Grass','Broken Walls','Flying Cloud','Expanding River'];
-  keys.forEach(k=>{
-    const el=document.getElementById('map-'+k);
-    if(el) el.className='opt-card'+(k===m?' sel-blue':'');
+  document.querySelectorAll('.ab-maps [id^="map-"]').forEach(el=>{
+    const k=el.id==='map-none'?'':el.id.slice(4);
+    el.classList.toggle('sel-blue',k===m);
   });
   // Show map WR context if a map is selected and scout data has it
   const ctx=document.getElementById('mapWRContext');
