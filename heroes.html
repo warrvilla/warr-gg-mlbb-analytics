@@ -488,10 +488,6 @@
       </select>
       <select class="ctrl-select" id="mapFilter" onchange="onMapChange()" title="Filter stats to games on a specific map">
         <option value="">All maps</option>
-        <option value="Dangerous Grass">Dangerous Grass</option>
-        <option value="Broken Walls">Broken Walls</option>
-        <option value="Flying Cloud">Flying Cloud</option>
-        <option value="Expanding River">Expanding River</option>
       </select>
       <select class="ctrl-select" id="leagueFilterH" onchange="onLeagueChange()" title="Which league's meta to show — tiers are computed from that league's scout matches">
         <option value="all">All leagues</option>
@@ -605,7 +601,9 @@ function _computeMetaLaneTiers(pool) {
   Object.assign(heroTiers, res.heroTiers);
   return { laneTiers, laneGames, laneInfo, heroTiers };
 }
-const MAP_NAMES = ['Dangerous Grass','Broken Walls','Flying Cloud','Expanding River'];
+const MAP_NAMES = WDB.MAPS_ALL;
+// Map filter options come from the shared list in warr-lib (current + old maps).
+(function(){ const sel = document.getElementById('mapFilter'); if (sel) sel.innerHTML = WDB.mapOptionsHTML(sel.value, 'All maps'); })();
 
 // Sample-size threshold: relations computed from fewer than this many games
 // are dimmed and labeled "low confidence" in the UI.

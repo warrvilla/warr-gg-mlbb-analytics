@@ -198,7 +198,10 @@ body {
   background: rgba(124,92,246,0.07);
 }
 .form-textarea { resize: vertical; min-height: 58px; }
-.form-select option { background: var(--surface2); }
+.form-select option { background: var(--surface2); color: var(--text); }
+/* Group headers inside dropdowns (e.g. map: Current maps / Old maps) — without
+   this the native popup paints them white with light text (unreadable). */
+.form-select optgroup { background: var(--surface3); color: var(--text2); font-style: normal; font-weight: 700; }
 
 /* ── MATCH LIST — reference rows ── */
 .ml-group{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin:14px 0 7px;}
@@ -2071,7 +2074,7 @@ const DB_MODULE = (() => {
       const MAP_NAMES = WDB.mapsOrdered(games);
       t.mapStats = {};
       MAP_NAMES.forEach(mp => {
-        const mg = games.filter(m => m.map === mp);
+        const mg = games.filter(m => WDB.normalizeMap(m.map) === mp);
         if (!mg.length) return;
         const mw = mg.filter(m => (m.winner==='blue'&&m.blueTeam===name)||(m.winner==='red'&&m.redTeam===name)).length;
         t.mapStats[mp] = { games: mg.length, wins: mw, wr: Math.round(mw/mg.length*100) };
@@ -4439,7 +4442,7 @@ function _renderTeamsGrid() {
     const form=(t.form||[]).slice(-5).map(r=>`<span class="tc-fl ${r==='W'?'w':'l'}">${r}</span>`).join('');
     const streak=(t.streak&&t.streak.count>1&&t.streak.type==='W')?`<span class="tc-streak">W${t.streak.count}</span>`:'';
     const maps=_TMAPS(t).map(mp=>{const sm=(t.mapStats||{})[mp]; const has=sm&&sm.games; const c=has?_C(sm.wr):'var(--text3)';
-      return `<div class="tc-map"><span class="tc-map-ico">◈</span><span class="tc-map-nm" title="${mp}">${WDB.mapShortLabel(mp)}</span><div class="tc-map-bar"><i style="width:${has?sm.wr:0}%;background:${c}"></i></div><span class="tc-map-pct" style="color:${c}">${has?sm.wr+'%':'—'}</span><span class="tc-map-g">${has?sm.games+'g':''}</span></div>`;}).join('');
+      return `<div class="tc-map"><span class="tc-map-ico">◈</span><span class="tc-map-nm" title="${mp}">${mp}</span><div class="tc-map-bar"><i style="width:${has?sm.wr:0}%;background:${c}"></i></div><span class="tc-map-pct" style="color:${c}">${has?sm.wr+'%':'—'}</span><span class="tc-map-g">${has?sm.games+'g':''}</span></div>`;}).join('');
     const cell=(name,l1,l1c,l2)=>`<div class="tc-hero"><img src="${_heroIcon(name)}" onerror="${_heroIconErr(name)}"><div class="tc-hero-nm">${name}</div><div class="tc-hero-l1" style="color:${l1c}">${l1}</div>${l2?`<div class="tc-hero-l2">${l2}</div>`:''}</div>`;
     const tpc=(t.topPicks||[]).slice(0,5).map(p=>cell(p.name,(p.wr||0)+'%',_C(p.wr||0),'x'+p.count)).join('')||'<span class="tc-none">No data</span>';
     const tbc=(t.topBans||[]).slice(0,5).map(b=>cell(b.name,'x'+b.count,'var(--red)','')).join('')||'<span class="tc-none">No data</span>';

@@ -340,6 +340,7 @@ const WDB = {
       });
     });
     if (match.notes != null) match.notes = this._sanitizeNotes(match.notes);
+    if (match.map && WDB.normalizeMap) match.map = WDB.normalizeMap(match.map);
     return match;
   },
   _readMatchCache() {
@@ -414,7 +415,8 @@ const WDB = {
       })
       // _synced=true marks these as confirmed-in-cloud, so the sync knows a local
       // copy later missing from the cloud was DELETED (drop it), not new (upload it).
-      .map(row => ({ ...row.data, id: row.id, _createdBy: row.created_by, _synced: true,
+      .map(row => ({ ...row.data, ...(row.data?.map ? { map: WDB.normalizeMap(row.data.map) } : {}),
+                     id: row.id, _createdBy: row.created_by, _synced: true,
                      _shared: (row.data?.league === 'Scrims' && row.created_by !== userId) }));
     this._writeMatchCache(result);
     return result;
@@ -1602,24 +1604,27 @@ WDB.teamMonogram = function(name){
 // ── BATTLE MAPS ──────────────────────────────────────────────────
 // Single source of truth for the map pool. MLBB rotated maps mid-season:
 //   CURRENT = the live pool — listed first / used as defaults everywhere.
+//             (Flying Cloud carried over from the old pool — same map.)
 //   LEGACY  = retired maps — still selectable so past games can be logged
 //             (back-filled), and still counted in every report.
 // Map names are stored verbatim on each match (m.map), so NEVER rename an
 // entry — add the new name instead. Images: maps/<slug>.webp (see mapImage).
-WDB.MAPS_CURRENT = ['Flying Cloud (Sustained)', 'Revealing Wisps', 'Healing Turtle', 'Golden Turret'];
-WDB.MAPS_LEGACY  = ['Dangerous Grass', 'Broken Walls', 'Flying Cloud', 'Expanding River'];
+WDB.MAPS_CURRENT = ['Flying Cloud', 'Revealing Wisps', 'Healing Turtle', 'Golden Turret'];
+WDB.MAPS_LEGACY  = ['Dangerous Grass', 'Broken Walls', 'Expanding River'];
 WDB.MAPS_ALL     = WDB.MAPS_CURRENT.concat(WDB.MAPS_LEGACY);
 WDB.isLegacyMap  = function(name){ return WDB.MAPS_LEGACY.includes(name); };
-/** Compact label for tight spots (team cards). Full name stays in the data. */
-WDB.mapShortLabel = function(name){ return String(name||'').replace(/\s*\(Sustained\)$/i, ' (S)'); };
-/** 'Flying Cloud (Sustained)' → 'maps/flying_cloud_sustained.webp' */
+// Names that mean the same map. 'Flying Cloud (Sustained)' was briefly offered
+// by mistake — any game saved with it is folded back into 'Flying Cloud'.
+WDB.MAP_ALIASES  = { 'Flying Cloud (Sustained)': 'Flying Cloud' };
+WDB.normalizeMap = function(name){ return (name && WDB.MAP_ALIASES[name]) || name; };
+/** 'Revealing Wisps' → 'maps/revealing_wisps.webp' */
 WDB.mapImage = function(name){
   return 'maps/' + String(name||'').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') + '.webp';
 };
 /** Every map for stats: current → legacy → any other name found in the data. */
 WDB.mapsOrdered = function(matches){
   const out = WDB.MAPS_ALL.slice();
-  (matches||[]).forEach(m => { const n = m && m.map; if (n && !out.includes(n)) out.push(n); });
+  (matches||[]).forEach(m => { const n = m && WDB.normalizeMap(m.map); if (n && !out.includes(n)) out.push(n); });
   return out;
 };
 /** <option> markup for a map <select>: 'Current maps' + 'Old maps (past games)'
