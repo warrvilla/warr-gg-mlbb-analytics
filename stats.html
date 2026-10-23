@@ -8,7 +8,7 @@
 <title>Analysis — Warr.GG</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="warr-lib.js?v=2"></script>
-<script src="warr-intel.js?v=1"></script>
+<script src="warr-intel.js?v=2"></script>
 <script src="warr-nav.js"></script>
 <link rel="stylesheet" href="warr-styles.css">
 <style>
@@ -825,7 +825,10 @@ async function loadDBFromSupabase() {
   // Always load localStorage as base (Supabase may be unconfigured)
   const localDB = loadDB();
   try {
-    const matches = await WDB.getAllMatches();
+    // Live data (official leagues + your own/shared scrims, RLS-enforced).
+    // getAllMatches never existed, so this page used to silently fall back
+    // to whatever the Scout page last cached in this browser.
+    const matches = await (WDB.getAllMatches ? WDB.getAllMatches() : WDB.loadMatches());
     if (matches && matches.length > 0) {
       // Merge: Supabase data + any local-only matches not in Supabase
       const sbIds = new Set(matches.map(m => m.id).filter(Boolean));
@@ -1318,6 +1321,7 @@ async function generateReport() {
         <button class="rep-jump" onclick="repJump('sec-pockets')">Pocket picks</button>
         <button class="rep-jump" onclick="repJump('aiReportSection')">AI strategy</button>
       </nav>
+      <button class="btn btn-ghost btn-sm" onclick="window.Heimer && Heimer.open(${_mpArg('How do we beat ' + redName + '?')})" title="Ask Heimerdinger about this matchup">Ask Heimer</button>
       <button class="btn btn-accent btn-sm" id="analysisPdfBtn" onclick="exportAnalysisPDF()">Export PDF</button>
     </div>
     <div id="reportBody">${buildStaticReport(blueName, redName, blueStats, redStats, h2h)}</div>`;

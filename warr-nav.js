@@ -397,6 +397,14 @@
     wireMobile();
     wireTheme();
     try { wireGlide(); } catch (_) {}
+    // Heimerdinger side chat — one shared script, loaded on every page.
+    try {
+      if (!document.querySelector('script[data-heimer]')) {
+        const hs = document.createElement('script');
+        hs.src = 'warr-heimer.js?v=1'; hs.defer = true; hs.setAttribute('data-heimer', '');
+        document.head.appendChild(hs);
+      }
+    } catch (_) {}
     postMount();
   }
 

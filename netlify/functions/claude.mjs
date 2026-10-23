@@ -123,7 +123,9 @@ export default async (req) => {
 
   let body;
   try { body = await req.json(); } catch { return _err(400, 'BAD_JSON'); }
-  const purpose = body.purpose === 'analysis' ? 'analysis' : 'pick';
+  // 'chat' = the Ask AI assistant: same deep routing as analysis, bigger context.
+  const isChat = body.purpose === 'chat';
+  const purpose = (body.purpose === 'analysis' || isChat) ? 'analysis' : 'pick';
 
   if (!hasAI && FREE_MONTHLY_CALLS <= 0) {
     return _err(403, 'NO_AI_ACCESS',
@@ -166,10 +168,11 @@ export default async (req) => {
   const answerMax = Math.min(Math.max(1, Number(body.max_tokens) || 300), 3000);
   const headroom = purpose === 'analysis' ? 6000 : 1500;
 
-  const messages = Array.isArray(body.messages) ? body.messages.slice(0, 12) : [];
+  const messages = Array.isArray(body.messages) ? body.messages.slice(isChat ? -16 : 0, isChat ? undefined : 12) : [];
+  while (messages.length && messages[0] && messages[0].role !== 'user') messages.shift();   // API needs a user turn first
   if (!messages.length) return _err(400, 'NO_MESSAGES');
   const base = { messages };
-  if (body.system && typeof body.system === 'string') base.system = body.system.slice(0, 20000);
+  if (body.system && typeof body.system === 'string') base.system = body.system.slice(0, isChat ? 60000 : 20000);
   // Web search: admin only (it costs $10 per 1,000 searches).
   if (isAdmin && Array.isArray(body.tools)) {
     const ws = body.tools.filter(t => t && typeof t.type === 'string' && t.type.startsWith('web_search'));

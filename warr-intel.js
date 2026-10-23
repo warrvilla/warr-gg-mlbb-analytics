@@ -327,5 +327,81 @@
     return lines.join('\n');
   };
 
+  // ── Recent games for a team (newest first), compact text lines ─────────
+  W.recentGames = function (matches, team, n) {
+    return (matches || []).filter(m => sideOf(m, team) && (m.winner === 'blue' || m.winner === 'red'))
+      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, n || 8).map(m => {
+        const s = sideOf(m, team), o = other(s), opp = s === 'blue' ? m.redTeam : m.blueTeam, win = m.winner === s;
+        const pk = (m[s + 'Picks'] || []).map(p => nm(p) + (p && p.lane ? '(' + p.lane + ')' : '')).join(', ');
+        const op = (m[o + 'Picks'] || []).map(nm).join(', ');
+        const d = W.mins(m.duration);
+        const obj = m.objectives || {};
+        const ft = Array.isArray(obj.turtle) && obj.turtle[0] ? (obj.turtle[0] === s ? 'got 1st turtle' : 'lost 1st turtle') : '';
+        return `${(m.date || '').slice(0, 10)} ${win ? 'WIN' : 'LOSS'} vs ${opp} [${s}${m.league === 'Scrims' ? ', SCRIM' : ''}${d ? ', ' + Math.round(d) + 'm' : ''}${ft ? ', ' + ft : ''}] picks: ${pk} | vs: ${op} | their bans: ${(m[s + 'Bans'] || []).map(nm).join(', ')} | banned vs them: ${(m[o + 'Bans'] || []).map(nm).join(', ')}`;
+      });
+  };
+
+  // ── One hero in this pool: presence, WR, who plays it, lanes ──────────
+  W.hero = function (matches, hero) {
+    const ms = (matches || []).filter(m => m && (m.winner === 'blue' || m.winner === 'red'));
+    let p = 0, w = 0, b = 0; const teams = {}, lanes = {}, vs = {};
+    ms.forEach(m => ['blue', 'red'].forEach(s => {
+      const o = other(s), team = s === 'blue' ? m.blueTeam : m.redTeam;
+      if ((m[s + 'Bans'] || []).some(x => nm(x) === hero)) b++;
+      const pick = (m[s + 'Picks'] || []).find(x => nm(x) === hero);
+      if (!pick) return;
+      const win = m.winner === s; p++; if (win) w++;
+      const T = teams[team] || (teams[team] = { g: 0, w: 0 }); T.g++; if (win) T.w++;
+      if (pick.lane) lanes[pick.lane] = (lanes[pick.lane] || 0) + 1;
+      (m[o + 'Picks'] || []).forEach(x => { const h = nm(x); const V = vs[h] || (vs[h] = { g: 0, w: 0 }); V.g++; if (win) V.w++; });
+    }));
+    const G = Math.max(1, ms.length);
+    const vsList = Object.entries(vs).filter(([, v]) => v.g >= 3).map(([h, v]) => ({ hero: h, g: v.g, w: v.w, adj: shrink(v.w, v.g, p ? w / p : 0.5, 3) }));
+    return {
+      hero, games: ms.length, picks: p, wins: w, bans: b, pres: (p + b) / G, wr: p ? w / p : null,
+      lanes: Object.entries(lanes).sort((a, b) => b[1] - a[1]).map(([l, c]) => `${l} ${c}`),
+      teams: Object.entries(teams).sort((a, b) => b[1].g - a[1].g).slice(0, 5).map(([t, v]) => `${t} ${v.w}-${v.g - v.w}`),
+      bestInto: [...vsList].sort((a, b) => b.adj - a.adj).slice(0, 3).map(v => `${v.hero} ${v.w}-${v.g - v.w}`),
+      worstInto: [...vsList].sort((a, b) => a.adj - b.adj).slice(0, 3).map(v => `${v.hero} ${v.w}-${v.g - v.w}`),
+    };
+  };
+
+  // ── Find teams / heroes mentioned in free text ────────────────────────
+  // "falcons", "srg", "rrq tora", "liquid ph" … Tie-breaks (e.g. "liquid" →
+  // PH or ID) go to prefer(team) — usually the user's league, then recency.
+  const norm = t => ' ' + String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+  const STOP = new Set(['team', 'esports', 'esport', 'gaming', 'gamers', 'club', 'the', 'legends', 'pro', 'ph', 'id', 'my', 'sg', 'th', 'kh', 'mena', 'of', 'and', 'vs', 'x', 'united', 'red', 'blue']);
+  const REGION = new Set(['ph', 'id', 'my', 'sg', 'th', 'kh', 'mena']);
+  W.findTeams = function (text, teams, prefer) {
+    const q = norm(text), hits = [];
+    (teams || []).forEach(t => {
+      const full = norm(t), words = full.trim().split(' ');
+      let score = 0; const matched = [];
+      if (q.includes(full)) { score += 100; matched.push(full); }
+      words.forEach(wd => { if (wd.length >= 3 && !STOP.has(wd) && q.includes(' ' + wd + ' ')) { score += 10; matched.push(wd); } });
+      const core = words.filter(wd => !STOP.has(wd) || wd === 'red');
+      const acr = words.filter(wd => wd !== 'team' && !REGION.has(wd)).map(wd => wd[0]).join('');
+      if (acr.length >= 3 && q.includes(' ' + acr + ' ')) { score += 9; matched.push(acr); }
+      const reg = words.find(wd => REGION.has(wd) && q.includes(' ' + wd + ' '));
+      if (score && reg) { score += 5; matched.push(reg); }
+      if (score) hits.push({ team: t, score: score + (prefer ? prefer(t) : 0), toks: matched.filter(x => x !== full) });
+      void core;
+    });
+    hits.sort((a, b) => b.score - a.score);
+    // Drop a hit whose matched words are all covered by a stronger hit
+    // ("rrq tora" → RRQ Tora, not also RRQ Hoshi via "rrq").
+    const out = [];
+    hits.forEach(h => {
+      if (h.score >= 100) { out.push(h); return; }
+      if (out.some(o => h.toks.every(t => o.toks.includes(t)))) return;
+      out.push(h);
+    });
+    return out.slice(0, 3).map(h => h.team);
+  };
+  W.findHeroes = function (text, heroNames) {
+    const q = norm(text);
+    return (heroNames || []).filter(h => { const n = norm(h); return n.trim().length >= 3 && q.includes(n); }).slice(0, 4);
+  };
+
   root.WIntel = W;
 })(typeof window !== 'undefined' ? window : globalThis);
