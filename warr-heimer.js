@@ -79,7 +79,30 @@
   .hd-ib + .hd-ib{margin-left:2px;}
   .hd-ib:hover{background:rgba(255,255,255,.07);color:#F0F0F8;}
   .hd-ctx{display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:11.5px;color:rgba(240,240,248,.45);border-bottom:0.5px solid rgba(255,255,255,.06);flex-wrap:wrap;}
-  .hd-panel select.hd-sel{background:rgba(255,255,255,.05) !important;color:#F0F0F8 !important;border:0.5px solid rgba(255,255,255,.1) !important;border-radius:8px !important;padding:4px 8px !important;font-size:11.5px !important;height:auto !important;width:auto !important;max-width:180px;box-shadow:none !important;}
+  .hd-pick{display:inline-flex;align-items:center;gap:7px;max-width:220px;padding:4px 10px 4px 5px;border-radius:9999px;border:0.5px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);color:#F0F0F8;font:inherit;font-size:12px;font-weight:600;cursor:pointer;}
+  .hd-pick:hover{background:rgba(255,255,255,.09);}
+  .hd-pick .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hd-pick .car{opacity:.55;font-size:10px;}
+  .hd-lg{width:20px;height:20px;border-radius:6px;flex-shrink:0;position:relative;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;}
+  .hd-lg img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;}
+  .hd-lg i{font-style:normal;display:none;} .hd-lg.noimg{background:var(--mc,#5E5CE6);} .hd-lg.noimg img{display:none;} .hd-lg.noimg i{display:inline;}
+  .hd-pop{position:absolute;left:10px;right:10px;top:104px;z-index:5;display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:16px;background:#14121f;border:0.5px solid rgba(255,255,255,.12);box-shadow:0 18px 48px rgba(0,0,0,.6);max-height:min(460px,calc(100% - 120px));}
+  .hd-pop[hidden]{display:none;}
+  .hd-pop .row{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
+  .hd-pop .k{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(240,240,248,.4);width:46px;}
+  .hd-chip{padding:4px 10px;border-radius:9999px;font-size:11.5px;border:0.5px solid rgba(255,255,255,.1);background:transparent;color:rgba(240,240,248,.75);cursor:pointer;font-family:inherit;}
+  .hd-chip:hover{background:rgba(255,255,255,.06);color:#fff;}
+  .hd-chip.on{background:rgba(124,92,246,.2);border-color:rgba(124,92,246,.45);color:#fff;}
+  .hd-chip .cur{font-size:9px;color:#34D399;margin-left:4px;font-weight:600;}
+  .hd-pop input{background:rgba(255,255,255,.05);color:#F0F0F8;border:0.5px solid rgba(255,255,255,.1);border-radius:10px;padding:7px 10px;font:inherit;font-size:12px;outline:none;}
+  .hd-pop input:focus{border-color:rgba(124,92,246,.45);}
+  .hd-plist{overflow-y:auto;display:flex;flex-direction:column;gap:2px;min-height:60px;scrollbar-width:thin;}
+  .hd-prow{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:10px;border:none;background:transparent;color:#F0F0F8;font:inherit;font-size:12.5px;cursor:pointer;text-align:left;}
+  .hd-prow:hover{background:rgba(255,255,255,.06);}
+  .hd-prow.on{background:rgba(124,92,246,.18);}
+  .hd-prow .rec{margin-left:auto;font-size:10.5px;color:rgba(240,240,248,.45);font-family:'JetBrains Mono',monospace;}
+  .hd-pop .none{font-size:11.5px;color:rgba(240,240,248,.5);background:none;border:none;cursor:pointer;text-align:left;padding:2px 0;font-family:inherit;}
+  .hd-pop .none:hover{color:#fff;}
   .hd-panel textarea.hd-ta{box-shadow:none;}
   .hd-ctx .pg{color:#B9A6FF;}
   .hd-thread{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:14px;scrollbar-width:thin;}
@@ -116,7 +139,7 @@
   .hd-gate a{color:#E0B47A;font-weight:600;}
   html[data-theme="light"] .hd-panel{background:rgba(250,250,253,.98);color:#14141c;border-color:rgba(0,0,0,.08);}
   html[data-theme="light"] .hd-a{color:#1d1d26;} html[data-theme="light"] .hd-a .md strong{color:#000;}
-  html[data-theme="light"] .hd-form textarea, html[data-theme="light"] .hd-panel select.hd-sel{background:#fff;color:#14141c;border-color:rgba(0,0,0,.12);}
+  html[data-theme="light"] .hd-form textarea{background:#fff;color:#14141c;border-color:rgba(0,0,0,.12);}
   html[data-theme="light"] .hd-sug{background:#fff;color:#1d1d26;border-color:rgba(0,0,0,.08);}
   @media (max-width:600px){
     .hd-panel{top:auto;left:0;right:0;bottom:0;width:auto;max-width:none;height:86vh;border-radius:18px 18px 0 0;transform:translateY(24px);}
@@ -191,7 +214,8 @@
   function scopeOf(team, lgOverride) {
     const lg = lgOverride || leagueOf(team);
     const ss = seasonsOf(lg);
-    const cur = HD.cur[lg] && ss.includes(HD.cur[lg]) ? HD.cur[lg] : ss[0];
+    const ov = HD.seOverride && HD.seOverride.league === lg ? HD.seOverride.season : null;
+    const cur = ov !== null && (ov === '' || ss.includes(ov)) ? ov : (HD.cur[lg] && ss.includes(HD.cur[lg]) ? HD.cur[lg] : ss[0]);
     const seasons = cur ? [cur] : [];
     const inS = m => m.league === lg && (!seasons.length || seasons.includes((m.season || '').trim()));
     const n = () => HD.usable.filter(m => inS(m) && (!team || involves(m, team))).length;
@@ -316,7 +340,14 @@ ${pack.text}`;
         <button class="hd-ib" id="hdNew" type="button" title="New chat" aria-label="New chat"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
         <button class="hd-ib" id="hdClose" type="button" title="Close" aria-label="Close">✕</button>
       </header>
-      <div class="hd-ctx"><span>I'm on</span><select id="hdTeam" class="hd-sel" aria-label="Your team"></select><span class="pg" id="hdPg"></span></div>
+      <div class="hd-ctx"><span>I'm on</span><button class="hd-pick" id="hdPick" type="button" aria-haspopup="true" aria-label="Choose your team"></button><span class="pg" id="hdPg"></span></div>
+      <div class="hd-pop" id="hdPop" hidden>
+        <div class="row"><span class="k">League</span><div class="row" id="hdPopLg"></div></div>
+        <div class="row"><span class="k">Season</span><div class="row" id="hdPopSe"></div></div>
+        <input id="hdPopQ" placeholder="Search teams…" autocomplete="off" aria-label="Search teams">
+        <div class="hd-plist" id="hdPopList"></div>
+        <button class="none" type="button" id="hdPopNone">I'm not on a team</button>
+      </div>
       <div class="hd-thread" id="hdThread" aria-live="polite"></div>
       <form class="hd-form" id="hdForm">
         <textarea id="hdIn" class="hd-ta" rows="1" placeholder="Ask about a team, matchup or hero…" aria-label="Message Heimerdinger"></textarea>
@@ -326,13 +357,17 @@ ${pack.text}`;
     document.body.appendChild($launch);
     document.body.appendChild($panel);
     $thread = $panel.querySelector('#hdThread'); $in = $panel.querySelector('#hdIn'); $send = $panel.querySelector('#hdSend');
-    $team = $panel.querySelector('#hdTeam'); $sub = $panel.querySelector('#hdSub'); $pg = $panel.querySelector('#hdPg');
+    $team = $panel.querySelector('#hdPick'); $sub = $panel.querySelector('#hdSub'); $pg = $panel.querySelector('#hdPg');
+    $team.onclick = () => togglePop();
+    renderPick();
+    $panel.querySelector('#hdPopQ').oninput = () => renderPop();
+    $panel.querySelector('#hdPopNone').onclick = () => chooseTeam('');
+    $panel.addEventListener('click', e => { const pop = $panel.querySelector('#hdPop'); if (!pop.hidden && e.target.isConnected && !pop.contains(e.target) && !$team.contains(e.target)) pop.hidden = true; });   // re-rendered chips are detached — not an outside click
     $panel.querySelector('#hdClose').onclick = () => toggle(false);
     $panel.querySelector('#hdNew').onclick = () => { HD.chat = []; HD.ctxTeams = []; save(); render(); $in.focus(); };
     $panel.querySelector('#hdForm').onsubmit = e => { e.preventDefault(); ask($in.value); };
     $in.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask($in.value); } });
     $in.addEventListener('input', () => { $in.style.height = 'auto'; $in.style.height = Math.min(120, $in.scrollHeight) + 'px'; });
-    $team.onchange = () => { HD.myTeam = $team.value; try { localStorage.setItem(TEAMKEY, HD.myTeam); } catch (_) {} render(); };
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && $panel.classList.contains('open')) toggle(false); });
     try { HD.chat = JSON.parse(localStorage.getItem(KEY()) || '[]'); } catch (_) { HD.chat = []; }
     try { if (sessionStorage.getItem('warr_heimer_open') === '1') toggle(true); } catch (_) {}
@@ -347,11 +382,68 @@ ${pack.text}`;
     if (!HD.ready) { await ensureData(); fillTeams(); render(); }
     setTimeout(() => $in && $in.focus(), 150);
   }
+  function hdLogo(name) {
+    const mg = WDB.teamMonogram ? WDB.teamMonogram(name) : { init: '?', color: '#5E5CE6' };
+    const src = WDB.teamLogo ? WDB.teamLogo(name) : '';
+    return `<span class="hd-lg${src ? '' : ' noimg'}" style="--mc:${mg.color};">${src ? `<img src="${src}" alt="" loading="lazy" onerror="this.parentNode.classList.add('noimg')">` : ''}<i>${esc(mg.init)}</i></span>`;
+  }
   function fillTeams() {
     let saved = ''; try { saved = localStorage.getItem(TEAMKEY) || ''; } catch (_) {}
     let prof = ''; try { const p = WAuth.getProfile(); if (p && p.team_name && p.team_status === 'approved') prof = p.team_name; } catch (_) {}
+    if (saved === '-') saved = '';
     HD.myTeam = HD.myTeam || (HD.teams.includes(saved) ? saved : (HD.teams.includes(prof) ? prof : (pageCtx().blue || '')));
-    $team.innerHTML = `<option value="">— pick your team —</option>` + HD.teams.map(t => `<option value="${esc(t)}"${t === HD.myTeam ? ' selected' : ''}>${esc(t)}</option>`).join('');
+    renderPick();
+  }
+  function renderPick() {
+    if (!$team) return;
+    $team.innerHTML = HD.myTeam ? `${hdLogo(HD.myTeam)}<span class="nm">${esc(HD.myTeam)}</span><span class="car">▾</span>` : `<span class="nm" style="padding-left:5px;">Pick your team</span><span class="car">▾</span>`;
+  }
+  // ── Team picker: league → season (defaults to the active one) → team ──
+  function officialLeagues() {
+    const last = {};
+    HD.usable.forEach(m => { if (isScrim(m) || !m.league) return; const t = Date.parse(m.date || '') || 0; last[m.league] = Math.max(last[m.league] || 0, t); });
+    return Object.keys(last).sort((a, b) => last[b] - last[a]);
+  }
+  const activeSeason = lg => { const ss = seasonsOf(lg); return HD.cur[lg] && ss.includes(HD.cur[lg]) ? HD.cur[lg] : (ss[0] || ''); };
+  function togglePop(force) {
+    const pop = $panel.querySelector('#hdPop');
+    const open = force !== undefined ? force : pop.hidden;
+    if (open) {
+      if (!HD.ready) return;
+      HD.pickLg = HD.pickLg || (HD.myTeam && leagueOf(HD.myTeam)) || officialLeagues()[0] || '';
+      if (HD.pickSe == null) HD.pickSe = activeSeason(HD.pickLg);
+      $panel.querySelector('#hdPopQ').value = '';
+      renderPop();
+    }
+    pop.hidden = !open;
+    if (open) setTimeout(() => $panel.querySelector('#hdPopQ').focus(), 30);
+  }
+  function renderPop() {
+    const lgs = officialLeagues(), ss = seasonsOf(HD.pickLg), act = activeSeason(HD.pickLg);
+    const arg = v => esc(JSON.stringify(String(v)));
+    $panel.querySelector('#hdPopLg').innerHTML = lgs.map(l => `<button type="button" class="hd-chip${l === HD.pickLg ? ' on' : ''}" data-lg="${arg(l)}">${esc(l)}</button>`).join('');
+    $panel.querySelector('#hdPopSe').innerHTML = ss.map(x => `<button type="button" class="hd-chip${x === HD.pickSe ? ' on' : ''}" data-se="${arg(x)}">${esc(x)}${x === act ? '<span class="cur">active</span>' : ''}</button>`).join('')
+      + `<button type="button" class="hd-chip${HD.pickSe === '' ? ' on' : ''}" data-se='""'>All</button>`;
+    const q = ($panel.querySelector('#hdPopQ').value || '').trim().toLowerCase();
+    const pool = HD.usable.filter(m => m.league === HD.pickLg && (!HD.pickSe || (m.season || '').trim() === HD.pickSe));
+    const rec = {};
+    pool.forEach(m => [['blue', m.blueTeam], ['red', m.redTeam]].forEach(([sd, t]) => { const x = rec[t] || (rec[t] = { w: 0, l: 0 }); if (m.winner === sd) x.w++; else x.l++; }));
+    let R = null; try { R = WIntel.ratings(pool); } catch (_) {}
+    let list = Object.keys(rec).filter(t => !locked(t)).sort((a, b) => ((R && R.r[b]) || 0) - ((R && R.r[a]) || 0));
+    if (q) list = list.filter(t => t.toLowerCase().includes(q));
+    $panel.querySelector('#hdPopList').innerHTML = list.length
+      ? list.map(t => `<button type="button" class="hd-prow${t === HD.myTeam ? ' on' : ''}" data-team="${arg(t)}">${hdLogo(t)}<span>${esc(t)}</span><span class="rec">${rec[t].w}-${rec[t].l}</span></button>`).join('')
+      : `<div style="font-size:12px;color:rgba(240,240,248,.45);padding:8px;">${q ? 'No team matches.' : 'No games here yet.'}</div>`;
+    $panel.querySelectorAll('#hdPopLg [data-lg]').forEach(b => b.onclick = () => { HD.pickLg = JSON.parse(b.dataset.lg); HD.pickSe = activeSeason(HD.pickLg); renderPop(); });
+    $panel.querySelectorAll('#hdPopSe [data-se]').forEach(b => b.onclick = () => { HD.pickSe = JSON.parse(b.dataset.se); renderPop(); });
+    $panel.querySelectorAll('#hdPopList [data-team]').forEach(b => b.onclick = () => chooseTeam(JSON.parse(b.dataset.team)));
+  }
+  function chooseTeam(t) {
+    HD.myTeam = t;
+    // a non-active season picked here also becomes the scope of the answers for that league
+    HD.seOverride = (t && HD.pickLg && HD.pickSe !== activeSeason(HD.pickLg)) ? { league: HD.pickLg, season: HD.pickSe } : null;
+    try { localStorage.setItem(TEAMKEY, t || '-'); } catch (_) {}
+    togglePop(false); renderPick(); render();
   }
   function suggestions() {
     const pc = pageCtx();
@@ -399,7 +491,7 @@ ${pack.text}`;
   async function ask(text) {
     const q = String(text || '').trim();
     if (!q || HD.busy || !hasAI()) return;
-    await ensureData(); if (!$team.options.length) fillTeams();
+    await ensureData();
     $in.value = ''; $in.style.height = 'auto';
     const history = HD.chat.filter(m => !m.err).slice(-10).map(m => ({ role: m.role, content: m.content }));
     while (history.length && history[0].role !== 'user') history.shift();

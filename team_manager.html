@@ -224,24 +224,99 @@ body { background: var(--bg); min-height: 100vh; }
 .team-list>*{transition:transform .12s ease;}
 .team-list>*:hover{transform:translateX(2px);}
 </style>
+<style id="tm-v2">
+/* ═══ Teams v2 — tile browser + team profile ═══ */
+.page-wrap{max-width:1120px !important;padding-top:28px !important;}
+.toast-msg:empty{opacity:0;}
+.tm-top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px;}
+.tm-h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0;color:var(--text);}
+.tm-h2{font-size:13px;color:var(--text3);margin-top:3px;}
+.tm-top-r{display:flex;gap:8px;}
+.tm-filters{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+.tm-frow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.tm-frow .k{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);width:52px;flex-shrink:0;}
+.tm-chips{display:flex;gap:6px;flex-wrap:wrap;}
+.tm-chip{padding:5px 12px;border-radius:9999px;font-size:12px;font-weight:500;border:0.5px solid rgba(255,255,255,.09);background:transparent;color:var(--text2);cursor:pointer;font-family:inherit;transition:all .15s;}
+.tm-chip:hover{color:var(--text);background:rgba(255,255,255,.05);}
+.tm-chip.on{background:rgba(124,92,246,.16);border-color:rgba(124,92,246,.4);color:var(--text);}
+.tm-chip .cur{font-size:9.5px;color:var(--neon,#34D399);margin-left:5px;font-weight:600;}
+.tm-search{max-width:320px;margin-top:2px;}
+.tm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;}
+.tm-tile{display:flex;align-items:center;gap:14px;padding:14px;border-radius:16px;background:rgba(16,16,26,.68);border:0.5px solid rgba(255,255,255,.07);cursor:pointer;text-align:left;color:var(--text);font:inherit;transition:background .15s,border-color .15s,transform .15s;position:relative;}
+.tm-tile:hover{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.14);transform:translateY(-1px);}
+.tm-tile .nm{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tm-tile .sub{font-size:11.5px;color:var(--text3);margin-top:2px;}
+.tm-tile .rk{position:absolute;top:10px;right:12px;font-size:10.5px;font-family:var(--font-mono,monospace);color:var(--text3);}
+.tm-tile .lock{font-size:10px;margin-left:4px;}
+.tm-tile .form{display:flex;gap:3px;margin-top:6px;}
+.tm-tile .form i{width:6px;height:6px;border-radius:50%;display:block;}
+.tm-empty{grid-column:1/-1;padding:24px;text-align:center;font-size:12.5px;color:var(--text3);}
+.tm-addform{margin-top:14px;max-width:420px;}
+.tm-logo{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;position:relative;font-weight:800;color:#fff;border-radius:12px;}
+.tm-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35));}
+.tm-logo i{font-style:normal;display:none;}
+.tm-logo.noimg{background:var(--mc,#5E5CE6);} .tm-logo.noimg img{display:none;} .tm-logo.noimg i{display:inline;}
+.tm-back{display:inline-flex;align-items:center;gap:6px;padding:6px 12px 6px 8px;border-radius:9999px;border:0.5px solid rgba(255,255,255,.09);background:transparent;color:var(--text2);cursor:pointer;font:inherit;font-size:12.5px;margin-bottom:12px;}
+.tm-back:hover{color:var(--text);background:rgba(255,255,255,.05);}
+.tm-hero{display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center;padding:20px;border-radius:22px;background:rgba(16,16,26,.68);border:0.5px solid rgba(255,255,255,.07);box-shadow:0 8px 32px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.06);margin-bottom:14px;}
+.tm-hero .name{font-size:26px;font-weight:800;letter-spacing:-.02em;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.tm-hero .scope{font-size:12px;color:var(--text3);margin-top:2px;}
+.tm-stats{display:flex;gap:22px;flex-wrap:wrap;margin-top:12px;}
+.tm-stat .v{font-size:19px;font-weight:800;letter-spacing:-.01em;}
+.tm-stat .l{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-top:1px;}
+.tm-actions{display:flex;flex-direction:column;gap:8px;align-items:stretch;}
+.tm-actions .btn{justify-content:center;}
+.tm-sec{background:rgba(16,16,26,.68);border:0.5px solid rgba(255,255,255,.07);border-radius:18px;padding:16px;margin-bottom:14px;}
+.tm-sec h3{margin:0 0 12px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);display:flex;align-items:center;gap:8px;}
+.tm-sec h3 .n{margin-left:auto;font-weight:500;letter-spacing:0;text-transform:none;color:var(--text3);font-size:11px;font-family:var(--font-mono,monospace);}
+.tm-lineup{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+.tm-lane{border-radius:14px;padding:12px;background:rgba(255,255,255,.025);border:0.5px solid rgba(255,255,255,.06);border-top:2px solid var(--lc);}
+.tm-lane .ln{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--lc);}
+.tm-lane .pl{font-size:14px;font-weight:700;margin:3px 0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tm-lane .hr{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;}
+.tm-lane .hr img{width:26px;height:26px;border-radius:8px;object-fit:cover;background:rgba(255,255,255,.05);}
+.tm-lane .hr .rec{margin-left:auto;font-family:var(--font-mono,monospace);font-size:10.5px;color:var(--text3);}
+.tm-2col{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.tm-lv{display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-bottom:0.5px solid rgba(255,255,255,.05);}
+.tm-lv:last-child{border-bottom:none;}
+.tm-lv img{width:24px;height:24px;border-radius:7px;object-fit:cover;flex-shrink:0;}
+.tm-lv .t{font-size:12.5px;font-weight:700;}
+.tm-lv .w{font-size:11px;color:var(--text3);line-height:1.5;margin-top:1px;}
+.tm-cf{font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border:1px solid currentColor;border-radius:5px;padding:1px 5px;margin-left:5px;opacity:.85;}
+.tm-games .g{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:0.5px solid rgba(255,255,255,.05);}
+.tm-games .g:last-child{border-bottom:none;}
+.tm-wl{font-size:11px;font-weight:800;text-align:center;border-radius:8px;padding:4px 0;}
+.tm-wl.w{color:#34D399;background:rgba(52,211,153,.1);} .tm-wl.l{color:#E58A92;background:rgba(216,120,128,.1);}
+.tm-games .vs{display:flex;align-items:center;gap:8px;min-width:0;font-size:12.5px;font-weight:600;}
+.tm-games .vs span.m{font-size:11px;color:var(--text3);font-weight:400;}
+.tm-games .pk{display:flex;gap:3px;}
+.tm-games .pk img{width:24px;height:24px;border-radius:7px;object-fit:cover;background:rgba(255,255,255,.05);}
+.tm-tempo{display:flex;gap:8px;flex-wrap:wrap;}
+.tm-tempo span{font-size:11.5px;color:var(--text2);padding:5px 10px;border-radius:9999px;background:rgba(255,255,255,.04);border:0.5px solid rgba(255,255,255,.07);}
+.tm-ph{display:flex;gap:4px;margin-left:auto;}
+.tm-ph img{width:22px;height:22px;border-radius:6px;object-fit:cover;background:rgba(255,255,255,.05);}
+.player-row{display:flex;align-items:center;gap:10px;}
+.tm-av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0;}
+@media(max-width:900px){.tm-lineup{grid-template-columns:repeat(2,1fr);} .tm-2col{grid-template-columns:1fr;} .tm-hero{grid-template-columns:auto 1fr;} .tm-actions{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;}}
+@media(max-width:520px){.tm-lineup{grid-template-columns:1fr;} .tm-hero{grid-template-columns:1fr;text-align:left;} .tm-games .pk{display:none;} .tm-ph{display:none;}}
+</style>
 </head>
 <body>
 
 <!-- NAV -->
 <div id="warr-nav-root"></div><div class="page-wrap">
 
-  <!-- HERO HEADER -->
-  <div class="tm-hd">
-    <div class="tm-pill"><span class="tm-dot"></span>ROSTER INTELLIGENCE</div>
-    <div class="tm-title">Teams &amp; <em>Rosters</em></div>
-    <div class="tm-sub">Every scouted organization, every player, every hero pool — the foundation your draft intel is built on.</div>
-  </div>
-
-  <!-- View mode tabs + page actions -->
-  <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
-    <button class="btn btn-accent" id="viewTeamsBtn" onclick="setViewMode('teams')">By Team</button>
-    <button class="btn btn-ghost" id="viewPlayersBtn" onclick="setViewMode('players')" style="display:none;">All Players</button>
-    <button class="btn btn-accent" id="addTeamBtn" onclick="openAddTeam()" style="display:none;margin-left:auto;">+ Add Team</button>
+  <!-- HEADER -->
+  <div class="tm-top">
+    <div>
+      <h1 class="tm-h1">Teams</h1>
+      <div class="tm-h2">Lineups, form and hero pools for every scouted team.</div>
+    </div>
+    <div class="tm-top-r">
+      <button class="btn btn-ghost" id="viewTeamsBtn" onclick="setViewMode('teams')" style="display:none;">By team</button>
+      <button class="btn btn-ghost" id="viewPlayersBtn" onclick="setViewMode('players')" style="display:none;">All players</button>
+      <button class="btn btn-accent" id="addTeamBtn" onclick="openAddTeam()" style="display:none;">+ Add team</button>
+    </div>
   </div>
 
   <!-- All Players view -->
@@ -254,44 +329,27 @@ body { background: var(--bg); min-height: 100vh; }
   </div>
 
   <div id="teamsView">
-  <div class="two-col">
-    <!-- Left: team list -->
-    <div>
-      <div class="card">
-        <div class="card-title">TEAMS</div>
-        <div id="tmLeagueRow" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;"></div>
-        <input class="form-input" id="teamSearch" placeholder="Search teams…" oninput="renderTeamList()" style="margin-bottom:10px;width:100%;box-sizing:border-box;" />
-        <div class="team-list" id="teamList">
-          <div style="color:var(--text3);font-size:12px;padding:8px 0;">Loading…</div>
-        </div>
-
-        <!-- Add team form (admin only) -->
-        <div id="addTeamForm" style="display:none;">
-          <div class="card-title" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">NEW TEAM</div>
-          <div class="form-row">
-            <input class="form-input" id="newTeamName"   placeholder="Team name (e.g. ECHO)" />
-          </div>
-          <div class="form-row">
-            <input class="form-input" id="newTeamRegion" placeholder="Region (optional)" />
-          </div>
-          <div style="display:flex;gap:8px;">
-            <button class="btn btn-green btn-sm" onclick="saveNewTeam()">Save</button>
-            <button class="btn btn-ghost btn-sm" onclick="closeAddTeam()">Cancel</button>
-          </div>
+    <!-- Browse: league → season → team tiles -->
+    <div id="tmBrowse">
+      <div class="tm-filters">
+        <div class="tm-frow"><span class="k">League</span><div id="tmLeagueRow" class="tm-chips"></div></div>
+        <div class="tm-frow"><span class="k">Season</span><div id="tmSeasonRow" class="tm-chips"></div></div>
+        <input class="form-input tm-search" id="teamSearch" placeholder="Search teams…" oninput="renderTeamList()" autocomplete="off" />
+      </div>
+      <div class="tm-grid" id="teamList"><div class="tm-empty">Loading teams…</div></div>
+      <!-- Add team form (admin only) -->
+      <div id="addTeamForm" class="card tm-addform" style="display:none;">
+        <div class="card-title">NEW TEAM</div>
+        <div class="form-row"><input class="form-input" id="newTeamName" placeholder="Team name (e.g. ECHO)" /></div>
+        <div class="form-row"><input class="form-input" id="newTeamRegion" placeholder="Region (optional)" /></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-green btn-sm" onclick="saveNewTeam()">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="closeAddTeam()">Cancel</button>
         </div>
       </div>
     </div>
-
-    <!-- Right: team detail -->
-    <div id="teamDetail">
-      <div class="card">
-        <div class="empty-state">
-          <div class="empty-icon">👥</div>
-          <div>Select a team to view its roster and hero pool.</div>
-        </div>
-      </div>
-    </div>
-  </div>
+    <!-- Profile of the selected team -->
+    <div id="teamDetail" style="display:none;"></div>
   </div><!-- /teamsView -->
 </div>
 
@@ -299,6 +357,7 @@ body { background: var(--bg); min-height: 100vh; }
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="warr-lib.js?v=2"></script>
+<script src="warr-intel.js?v=2"></script>
 <script src="warr-nav.js"></script>
 <script>
 // ── Auth + permission init ────────────────────────────────────
@@ -448,8 +507,8 @@ function viewPlayerDetail(playerId) {
   selectTeam(player.team_name).then(() => {
     poolFilter.playerId = playerId;
     // Switch to pool tab
-    const tabs = document.querySelectorAll('.tab-btn');
-    if (tabs[1]) switchTab('pool', player.team_name, tabs[1]);
+    const poolBtn = document.querySelector('.tab-btn[data-tab="pool"]');
+    if (poolBtn) switchTab('pool', player.team_name, poolBtn);
     // Render pool
     const content = document.getElementById('heroPoolContent');
     if (content) content.innerHTML = renderHeroPool();
@@ -488,15 +547,67 @@ function renderTmLeagueChips() {
   const row = document.getElementById('tmLeagueRow');
   if (!row) return;
   const leagues = (typeof WDB !== 'undefined' && WDB.officialLeagues) ? WDB.officialLeagues() : [];
-  const short = n => n.startsWith('MPL ') ? n.slice(4) : n;
-  const esc2 = n => n.replace(/'/g, "\\'");
-  row.innerHTML = [
-    ...leagues.map(n => `<button class="btn btn-sm ${tmLeagueFilter===n?'btn-accent':'btn-ghost'}" onclick="setTmLeague('${esc2(n)}')" style="padding:3px 10px;font-size:10px;border-radius:999px;">${short(n)}</button>`),
-    `<button class="btn btn-sm ${tmLeagueFilter==='Scrims'?'btn-accent':'btn-ghost'}" onclick="setTmLeague('Scrims')" style="padding:3px 10px;font-size:10px;border-radius:999px;">Scrims</button>`,
-  ].join('');
+  // only leagues that actually have teams in the data (plus the current one)
+  const has = l => !_tmTeamLeagues || Object.values(_tmTeamLeagues).some(set => set.has(l));
+  const list = leagues.filter(l => has(l) || l === tmLeagueFilter);
+  row.innerHTML = list.map(n => `<button class="tm-chip${tmLeagueFilter===n?' on':''}" onclick="setTmLeague(${_tmArg(n)})">${esc(n)}</button>`).join('')
+    + (has('Scrims') ? `<button class="tm-chip${tmLeagueFilter==='Scrims'?' on':''}" onclick="setTmLeague('Scrims')">My scrims</button>` : '')
+    + `<button class="tm-chip${tmLeagueFilter==='all'?' on':''}" onclick="setTmLeague('all')">All teams</button>`;
+  renderTmSeasonChips();
+}
+const _tmArg = v => esc(JSON.stringify(String(v)));
+let tmSeason = null;   // null = this league's current (latest) season
+function _tmSeasons() {
+  if (tmLeagueFilter === 'all' || tmLeagueFilter === 'Scrims') return [];
+  return [...new Set((allMatches||[]).filter(m => m.league === tmLeagueFilter).map(m => (m.season||'').trim()).filter(Boolean))]
+    .sort((a,b) => b.localeCompare(a, undefined, {numeric:true}));
+}
+function _tmCurSeason() { const ss = _tmSeasons(); return tmSeason === null ? (ss[0] || '') : tmSeason; }
+function renderTmSeasonChips() {
+  const row = document.getElementById('tmSeasonRow'); if (!row) return;
+  const ss = _tmSeasons(), cur = _tmCurSeason();
+  row.parentElement.style.display = ss.length ? '' : 'none';
+  row.innerHTML = ss.map((x, i) => `<button class="tm-chip${cur===x?' on':''}" onclick="setTmSeason(${_tmArg(x)})">${esc(x)}${i===0?'<span class="cur">current</span>':''}</button>`).join('')
+    + `<button class="tm-chip${cur===''?' on':''}" onclick="setTmSeason('')">All seasons</button>`;
+}
+function setTmSeason(x) { tmSeason = x; renderTmSeasonChips(); renderTeamList(); }
+// Matches in the chosen league + season (official), or your scrims.
+function _tmPool() {
+  const ms = (allMatches||[]).filter(m => m && m.blueTeam && m.redTeam && (m.winner==='blue'||m.winner==='red'));
+  if (tmLeagueFilter === 'Scrims') return ms.filter(m => m.league === 'Scrims');
+  if (tmLeagueFilter === 'all') return ms.filter(m => m.league !== 'Scrims' && !/ai battle|^other$/i.test(m.league||''));
+  const se = _tmCurSeason();
+  return ms.filter(m => m.league === tmLeagueFilter && (!se || (m.season||'').trim() === se));
+}
+let _tmStatsKey = '', _tmStatsVal = null;
+function _tmStats() {
+  const pool = _tmPool();
+  const key = [tmLeagueFilter, _tmCurSeason(), pool.length].join('|');
+  if (_tmStatsKey === key && _tmStatsVal) return _tmStatsVal;
+  const rec = {};
+  pool.sort((a,b) => (Date.parse(a.date||'')||0) - (Date.parse(b.date||'')||0)).forEach(m => [['blue', m.blueTeam], ['red', m.redTeam]].forEach(([sd, t]) => {
+    const x = rec[t] || (rec[t] = { w: 0, l: 0, form: [] }); const won = m.winner === sd;
+    if (won) x.w++; else x.l++; x.form.push(won ? 'W' : 'L');
+  }));
+  let R = null; try { if (window.WIntel) R = WIntel.ratings(pool); } catch(_) {}
+  const order = Object.keys(rec).sort((a,b) => ((R && R.r[b]) || 0) - ((R && R.r[a]) || 0));
+  order.forEach((t, i) => { rec[t].rank = i + 1; });
+  _tmStatsKey = key; _tmStatsVal = { rec, R, pool, n: order.length };
+  return _tmStatsVal;
+}
+function tmLogo(name, size) {
+  const mg = (WDB.teamMonogram ? WDB.teamMonogram(name) : { init: '?', color: '#5E5CE6' });
+  const src = WDB.teamLogo ? WDB.teamLogo(name) : '';
+  return `<span class="tm-logo${src?'':' noimg'}" style="width:${size}px;height:${size}px;font-size:${Math.round(size*.32)}px;--mc:${mg.color};">${src?`<img src="${src}" alt="" loading="lazy" onerror="this.parentNode.classList.add('noimg')">`:''}<i>${esc(mg.init)}</i></span>`;
+}
+function tmHeroImg(h, cls) {
+  const src = WDB.heroPortrait ? WDB.heroPortrait(h) : '';
+  const png = WDB.heroPortraitPng ? WDB.heroPortraitPng(h) : '';
+  return `<img ${cls?`class="${cls}"`:''} src="${src}" alt="${esc(h)}" title="${esc(h)}" loading="lazy" onerror="if(!this.dataset.f&&'${png}'){this.dataset.f=1;this.src='${png}';}else{this.style.visibility='hidden';}">`;
 }
 function setTmLeague(l) {
   tmLeagueFilter = l;
+  tmSeason = null;
   renderTmLeagueChips();
   renderTeamList();
   if (!_tmTeamLeagues) _loadTmLeagues();
@@ -505,27 +616,47 @@ window.addEventListener('warr-leagues-ready', renderTmLeagueChips);
 
 function renderTeamList() {
   const el = document.getElementById('teamList');
+  if (!el) return;
   const q  = (document.getElementById('teamSearch')?.value || '').toLowerCase();
-  if (!allTeams.length) {
-    el.innerHTML = '<div class="empty-state"><div>No teams yet.</div></div>';
-    return;
-  }
+  if (!allTeams.length) { el.innerHTML = '<div class="tm-empty">No teams yet.</div>'; return; }
   let visible = q ? allTeams.filter(t => t.team_name.toLowerCase().includes(q)) : allTeams;
   if (tmLeagueFilter !== 'all' && _tmTeamLeagues) {
     visible = visible.filter(t => _tmTeamLeagues[t.team_name] && _tmTeamLeagues[t.team_name].has(tmLeagueFilter));
   }
-  if (tmLeagueFilter !== 'all' && !visible.length) {
-    el.innerHTML = '<div class="empty-state"><div>No teams with ' + tmLeagueFilter + ' matches in Scout data.</div></div>';
+  if (!visible.length) {
+    el.innerHTML = `<div class="tm-empty">${q ? `No team matches “${esc(q)}”.` : `No teams with ${esc(tmLeagueFilter)} matches yet.`}</div>`;
     return;
   }
-  el.innerHTML = visible.map(t => `
-    <div class="team-item ${activeTeam === t.team_name ? 'active' : ''}" onclick="selectTeam('${esc(t.team_name)}')">
-      <div>
-        <div class="team-item-name">${esc(t.team_name)}</div>
-        <div class="team-item-meta">${t.player_count} player${t.player_count !== 1 ? 's' : ''}</div>
-      </div>
-      ${WAdmin.canManageTeam(t.team_name) ? '<span style="font-size:10px;color:var(--accent);">✎</span>' : ''}
-    </div>`).join('');
+  const st = _tmStats();
+  visible = [...visible].sort((a, b) => {
+    const ra = st.rec[a.team_name], rb = st.rec[b.team_name];
+    if (ra && rb) return ra.rank - rb.rank;
+    if (ra || rb) return ra ? -1 : 1;
+    return a.team_name.localeCompare(b.team_name);
+  });
+  const scopeTxt = tmLeagueFilter === 'Scrims' ? 'in your scrims' : (tmLeagueFilter === 'all' ? 'all leagues' : (_tmCurSeason() || 'all seasons'));
+  el.innerHTML = visible.map(t => {
+    const r = st.rec[t.team_name];
+    const lockd = (WDB.isTeamLocked && WDB.isTeamLocked(t.team_name));
+    const form = r ? r.form.slice(-5).map(x => `<i style="background:${x==='W'?'#34D399':'#E58A92'};"></i>`).join('') : '';
+    return `<button class="tm-tile" onclick="selectTeam(${_tmArg(t.team_name)})">
+      ${tmLogo(t.team_name, 46)}
+      <span style="min-width:0;flex:1;">
+        <span class="nm" style="display:block;">${esc(t.team_name)}${lockd?'<span class="lock" title="Locked">🔒</span>':''}</span>
+        <span class="sub" style="display:block;">${r ? `${r.w}-${r.l} · ${Math.round(r.w/Math.max(1,r.w+r.l)*100)}% ${esc(scopeTxt)}` : `No games ${esc(scopeTxt)}`}${t.player_count?` · ${t.player_count} players`:''}</span>
+        ${form ? `<span class="form">${form}</span>` : ''}
+      </span>
+      ${r && tmLeagueFilter!=='all' && tmLeagueFilter!=='Scrims' ? `<span class="rk">#${r.rank}</span>` : ''}
+    </button>`;
+  }).join('');
+}
+
+function tmBack() {
+  activeTeam = null;
+  document.getElementById('teamDetail').style.display = 'none';
+  document.getElementById('tmBrowse').style.display = '';
+  renderTeamList();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ── Select team ───────────────────────────────────────────────
@@ -533,7 +664,9 @@ async function selectTeam(teamName) {
   activeTeam = teamName;
   poolFilter = { playerId: null, source: 'all', league: '', season: '' }; // reset on team switch
   _rosterSeason = '';
-  renderTeamList();
+  document.getElementById('tmBrowse').style.display = 'none';
+  document.getElementById('teamDetail').style.display = '';
+  window.scrollTo({ top: 0 });
   try { _teamRoster = await WDB.loadTeamRoster(teamName); } catch(e) { _teamRoster = []; }
   // Default to the most recent season this team has (roster or matches).
   _rosterSeason = _teamRosterSeasons(teamName)[0] || '';
@@ -541,35 +674,116 @@ async function selectTeam(teamName) {
   try { seasons = await WDB.loadSeasons(); } catch(e) {}
 }
 
+// ── Team profile: which matches describe this team right now ──
+function _tmTeamScope(teamName) {
+  const ms = (allMatches||[]).filter(m => m && (m.winner==='blue'||m.winner==='red') && m.league !== 'Scrims' && !/ai battle|^other$/i.test(m.league||''));
+  const mine = ms.filter(m => m.blueTeam===teamName || m.redTeam===teamName).sort((a,b) => (Date.parse(b.date||'')||0) - (Date.parse(a.date||'')||0));
+  let league = (tmLeagueFilter !== 'all' && tmLeagueFilter !== 'Scrims' && mine.some(m => m.league===tmLeagueFilter)) ? tmLeagueFilter : (mine[0]?.league || '');
+  const ss = [...new Set(ms.filter(m => m.league===league).map(m => (m.season||'').trim()).filter(Boolean))].sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
+  let season = (league===tmLeagueFilter && tmSeason !== null) ? tmSeason : (ss[0] || '');
+  const seasons = season ? [season] : [];
+  const inS = m => m.league===league && (!seasons.length || seasons.includes((m.season||'').trim()));
+  if (season && mine.filter(inS).length < 5 && ss[ss.indexOf(season)+1]) seasons.push(ss[ss.indexOf(season)+1]);
+  return { league, seasons, label: `${league}${seasons.length?' '+seasons.join(' + '):''}`, pool: ms.filter(inS) };
+}
+const TM_LANE_C = { EXP:'#5EA0D8', Jungle:'#4CB87A', Mid:'#A78BFA', Gold:'#C89050', Roam:'#D87880' };
+function _tmOverviewHTML(teamName, I, sc) {
+  if (!window.WIntel) return '<div class="tm-empty">Loading…</div>';
+  if (!I || !I.n) return `<div class="tm-sec"><div class="tm-empty">No official games for ${esc(teamName)} in ${esc(sc.label||'the data')} yet. Log matches in Scout to build this profile.</div></div>`;
+  const pc = v => Math.round(v*100);
+  const lanes = WIntel.LANES.filter(l => I.lanes[l]).map(l => {
+    const L = I.lanes[l];
+    return `<div class="tm-lane" style="--lc:${TM_LANE_C[l]};">
+      <div class="ln">${l}</div>
+      <div class="pl" title="Main player">${esc(L.main || '—')}</div>
+      ${L.top.slice(0,3).map(x => `<div class="hr">${tmHeroImg(x.hero)}<span>${esc(x.hero)}</span><span class="rec">${x.w}-${x.g-x.w}</span></div>`).join('')}
+    </div>`;
+  }).join('');
+  const lv = WIntel.levers(I);
+  const cfc = c => c==='strong'?'#34D399':c==='solid'?'#5EA0D8':'var(--text3)';
+  const lvHTML = lv.length ? lv.slice(0,6).map(l => `<div class="tm-lv">${(l.heroes||[])[0]?tmHeroImg(l.heroes[0]):'<span style="width:24px;flex-shrink:0;"></span>'}<div><div class="t">${esc(l.text)}<span class="tm-cf" style="color:${cfc(l.conf)};">${l.conf}</span></div><div class="w">${esc(l.why)}</div></div></div>`).join('')
+    : '<div class="tm-empty" style="padding:8px;">No weakness with enough evidence yet.</div>';
+  const sigNames = new Set(I.signature.slice(0,5).map(x => x.hero));
+  const edges = WIntel.edges(I).filter(e => ![...sigNames].some(h => e.startsWith(h + ' ')));   // signature heroes are already listed
+  const sig = I.signature.slice(0,5).map(x => `<div class="tm-lv">${tmHeroImg(x.hero)}<div><div class="t">${esc(x.hero)}${x.lane?` <span style="font-weight:500;color:var(--text3);">· ${esc(x.lane)}</span>`:''}</div><div class="w">${x.w}-${x.g-x.w} · ${pc(x.wr)}% in ${x.g} games</div></div></div>`).join('');
+  const games = (sc.pool||[]).filter(m => m.blueTeam===teamName || m.redTeam===teamName).sort((a,b)=>(Date.parse(b.date||'')||0)-(Date.parse(a.date||'')||0)).slice(0,8).map(m => {
+    const sd = m.blueTeam===teamName ? 'blue' : 'red', opp = sd==='blue' ? m.redTeam : m.blueTeam, won = m.winner===sd;
+    const d = WIntel.mins(m.duration);
+    return `<div class="g"><span class="tm-wl ${won?'w':'l'}">${won?'W':'L'}</span>
+      <span class="vs">${tmLogo(opp,24)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">vs ${esc(opp)}</span><span class="m">${esc((m.date||'').slice(5,10))}${d?' · '+Math.round(d)+'m':''} · ${sd}</span></span>
+      <span class="pk">${(m[sd+'Picks']||[]).map(p => tmHeroImg(p.name||p)).join('')}</span></div>`;
+  }).join('');
+  const t = [];
+  if (I.dur.avgWin && I.dur.avgLoss) t.push(`Wins avg ${I.dur.avgWin.toFixed(1)} min · losses ${I.dur.avgLoss.toFixed(1)} min`);
+  if (I.ft.g) t.push(`First Turtle ${pc(I.ft.got/I.ft.g)}%`);
+  if (I.fb.g) t.push(`First Blood ${pc(I.fb.got/I.fb.g)}%`);
+  if (I.turtle.all) t.push(`Turtles ${pc(I.turtle.ours/I.turtle.all)}%`);
+  if (I.lord.all) t.push(`Lords ${pc(I.lord.ours/I.lord.all)}%`);
+  const fp = Object.entries(I.firstPicks).sort((a,b)=>b[1]-a[1]).slice(0,4);
+  return `
+    ${lanes ? `<div class="tm-sec"><h3>Lineup <span class="n">main player per lane · most-played heroes</span></h3><div class="tm-lineup">${lanes}</div></div>` : ''}
+    <div class="tm-2col">
+      <div class="tm-sec"><h3 style="color:#E0B47A;">How to beat them <span class="n">${esc(sc.label)}</span></h3>${lvHTML}</div>
+      <div class="tm-sec"><h3>Signature heroes</h3>${sig || '<div class="tm-empty" style="padding:8px;">Not enough games yet.</div>'}
+        ${edges.length?`<h3 style="margin-top:14px;">Strengths</h3>${edges.map(e=>`<div class="w" style="font-size:12px;color:var(--text2);padding:3px 0;">• ${esc(e)}</div>`).join('')}`:''}
+        ${fp.length?`<h3 style="margin-top:14px;">First picks</h3><div class="tm-tempo">${fp.map(([h,c])=>`<span>${esc(h)} ×${c}</span>`).join('')}</div>`:''}
+      </div>
+    </div>
+    <div class="tm-2col">
+      <div class="tm-sec tm-games"><h3>Recent games <span class="n">newest first</span></h3>${games || '<div class="tm-empty">No games.</div>'}</div>
+      <div class="tm-sec"><h3>Tempo</h3>${t.length?`<div class="tm-tempo">${t.map(x=>`<span>${esc(x)}</span>`).join('')}</div>`:'<div class="tm-empty" style="padding:8px;">Log game length, Turtle, Lord and First Blood in Scout to see tempo.</div>'}
+        <h3 style="margin-top:16px;">Sides</h3><div class="tm-tempo"><span>Blue ${I.side.blue.w}-${I.side.blue.g-I.side.blue.w}</span><span>Red ${I.side.red.w}-${I.side.red.g-I.side.red.w}</span></div>
+      </div>
+    </div>`;
+}
+
 function renderTeamDetail(teamName) {
   const canManage = WAdmin.canManageTeam(teamName);
   const players   = allPlayers.filter(p => p.team_name === teamName);
   const active    = players.filter(p => p.is_active !== false);
   const inactive  = players.filter(p => p.is_active === false);
+  const sc = _tmTeamScope(teamName);
+  let I = null, R = null;
+  try { if (window.WIntel && sc.pool.length) { R = WIntel.ratings(sc.pool); I = WIntel.team(sc.pool, teamName, R); } } catch(_) {}
+  const pc = v => Math.round(v*100);
+  const lockd = (typeof WDB!=='undefined'&&WDB.isTeamLocked&&WDB.isTeamLocked(teamName));
+  const formDots = I && I.n ? I.last5.map(x => `<i style="width:8px;height:8px;border-radius:50%;display:inline-block;background:${x==='W'?'#34D399':'#E58A92'};"></i>`).join(' ') : '';
 
   document.getElementById('teamDetail').innerHTML = `
+    <button class="tm-back" onclick="tmBack()">← All teams</button>
+    <div class="tm-hero">
+      ${tmLogo(teamName, 92)}
+      <div style="min-width:0;">
+        <div class="name">${esc(teamName)}${lockd?' <span title="Locked — hidden from public view" style="font-size:10px;font-weight:800;letter-spacing:.06em;color:#FB923C;border:1px solid rgba(251,146,60,.4);border-radius:6px;padding:2px 7px;">LOCKED</span>':''}</div>
+        <div class="scope">${esc(sc.label || 'No official games yet')} · ${active.length} active players${inactive.length?` · ${inactive.length} former`:''}</div>
+        ${I && I.n ? `<div class="tm-stats">
+          <div class="tm-stat"><div class="v">${I.wins}-${I.n-I.wins}</div><div class="l">Record</div></div>
+          <div class="tm-stat"><div class="v" style="color:${I.wr>=.55?'#34D399':I.wr<.45?'#E58A92':'var(--text)'};">${pc(I.wr)}%</div><div class="l">Win rate</div></div>
+          <div class="tm-stat"><div class="v">#${I.rank}<span style="font-size:12px;color:var(--text3);font-weight:600;"> of ${I.teams}</span></div><div class="l">Strength</div></div>
+          <div class="tm-stat"><div class="v" style="display:flex;gap:4px;align-items:center;height:24px;">${formDots}</div><div class="l">Last 5</div></div>
+        </div>` : ''}
+      </div>
+      <div class="tm-actions">
+        <a class="btn btn-accent btn-sm" href="/stats?team=${encodeURIComponent(teamName)}">Analyze a matchup</a>
+        <button class="btn btn-ghost btn-sm" onclick="window.Heimer && Heimer.open(${_tmArg("What's " + teamName + "'s biggest weakness right now?")})">Ask Heimer</button>
+        ${_isLockAdmin() ? (lockd
+          ? `<button class="btn btn-ghost btn-sm" onclick="unlockTeamUI(${_tmArg(teamName)})">🔓 Unlock</button>`
+          : `<button class="btn btn-ghost btn-sm" onclick="lockTeamUI(${_tmArg(teamName)})" title="Hide this team's report/analysis/matchups from everyone except you + shared emails">🔒 Lock team</button>`) : ''}
+        ${canManage ? `<button class="btn btn-red btn-sm" onclick="confirmDeleteTeam(${_tmArg(teamName)})">Delete team</button>` : ''}
+      </div>
+    </div>
+    ${(_isLockAdmin() && lockd) ? `<div id="lockShareBox" class="card" style="margin:0 0 14px;border:1px solid rgba(251,146,60,.3);background:rgba(251,146,60,.05);"></div>` : ''}
     <div class="card">
-      <div class="team-detail-header">
-        <div>
-          <div class="team-detail-name">${esc(teamName)}${(typeof WDB!=='undefined'&&WDB.isTeamLocked&&WDB.isTeamLocked(teamName))?' <span title="Locked — hidden from public view" style="font-size:10px;font-weight:800;letter-spacing:.5px;color:#fb923c;background:rgba(251,146,60,.14);border:1px solid rgba(251,146,60,.4);border-radius:20px;padding:2px 8px;vertical-align:middle;">🔒 LOCKED</span>':''}</div>
-          <div class="team-detail-meta">${active.length} active · ${inactive.length} former</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          ${_isLockAdmin() ? (WDB.isTeamLocked(teamName)
-            ? `<button class="btn btn-ghost btn-sm" onclick="unlockTeamUI('${esc(teamName)}')">🔓 Unlock</button>`
-            : `<button class="btn btn-ghost btn-sm" onclick="lockTeamUI('${esc(teamName)}')" title="Hide this team's report/analysis/matchups from everyone except you + shared emails">🔒 Lock team</button>`) : ''}
-          ${canManage ? `<button class="btn btn-red btn-sm" onclick="confirmDeleteTeam('${esc(teamName)}')">Delete Team</button>` : ''}
-        </div>
-      </div>
-      ${(_isLockAdmin() && WDB.isTeamLocked(teamName)) ? `<div id="lockShareBox" class="card" style="margin:0 0 14px;border:1px solid rgba(251,146,60,.3);background:rgba(251,146,60,.05);"></div>` : ''}
-
       <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('roster','${esc(teamName)}',this)">ROSTER</button>
-        <button class="tab-btn" onclick="switchTab('pool','${esc(teamName)}',this)">HERO POOL</button>
+        <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview',${_tmArg(teamName)},this)">OVERVIEW</button>
+        <button class="tab-btn" data-tab="roster" onclick="switchTab('roster',${_tmArg(teamName)},this)">ROSTER</button>
+        <button class="tab-btn" data-tab="pool" onclick="switchTab('pool',${_tmArg(teamName)},this)">HERO POOL</button>
       </div>
+
+      <div class="tab-panel active" id="tab-overview">${_tmOverviewHTML(teamName, I, sc)}</div>
 
       <!-- ROSTER TAB (per-season, explicit) -->
-      <div class="tab-panel active" id="tab-roster">
+      <div class="tab-panel" id="tab-roster">
         <div id="rosterSeasonBar" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
           ${_rosterSeasonBarHTML(teamName, canManage)}
         </div>
@@ -702,6 +916,19 @@ function _derivedRosterPlayers(teamName, season) {
   return Object.values(map).sort((a,b)=>b.games-a.games);
 }
 
+function _tmAvatar(ign, role) {
+  const c = TM_LANE_C[role] || '#5E5CE6';
+  return `<span class="tm-av" style="background:linear-gradient(135deg,${c},${c}99);">${esc((ign||'?')[0].toUpperCase())}</span>`;
+}
+// A player's three most-played heroes this roster season, with their record.
+function _tmPlayerHeroes(ign) {
+  try {
+    const { total } = WDB.computePlayerHeroPool(allMatches, ign, { season: _rosterSeason });
+    const top = Object.entries(total || {}).sort((a,b) => b[1].games - a[1].games).slice(0, 3);
+    if (!top.length) return '';
+    return `<span class="tm-ph">${top.map(([h, x]) => `<span title="${esc(h)} ${x.wins}-${x.games-x.wins}">${tmHeroImg(h)}</span>`).join('')}</span>`;
+  } catch (_) { return ''; }
+}
 function _rosterSeasonHTML(teamName, canManage) {
   if (!_rosterSeason) return `<div style="font-size:12px;color:var(--text3);padding:10px;">Pick a season above${canManage?', or <b>+ Add Season</b> to start this team\'s roster':''}.</div>`;
   const rows = (_teamRoster||[]).filter(r => r.season === _rosterSeason);
@@ -711,7 +938,9 @@ function _rosterSeasonHTML(teamName, canManage) {
 
   const active = rows.filter(r=>r.is_active!==false), former = rows.filter(r=>r.is_active===false);
   const item = r => `<div class="player-row">
-    <div class="player-info"><div class="player-ign">${esc(r.ign)}</div><div class="player-real">${r.role?esc(r.role):'—'}${r.real_name?' · '+esc(r.real_name):''}</div></div>
+    ${_tmAvatar(r.ign, r.role)}
+    <div class="player-info"><div class="player-ign">${esc(r.ign)}</div><div class="player-real">${r.role?`<span style="color:${TM_LANE_C[r.role]||'var(--text3)'};font-weight:600;">${esc(r.role)}</span>`:'—'}${r.real_name?' · '+esc(r.real_name):''}</div></div>
+    ${_tmPlayerHeroes(r.ign)}
     <span class="player-status ${r.is_active!==false?'active':'inactive'}">${r.is_active!==false?'Active':'Former'}</span>
     ${canManage?`<div class="player-actions"><button class="btn btn-ghost btn-sm" onclick="toggleRosterActive('${r.id}')">${r.is_active!==false?'Bench':'Reactivate'}</button><button class="btn btn-red btn-sm" onclick="removeRosterPlayerUI('${r.id}','${esc(r.ign)}')">✕</button></div>`:''}
   </div>`;

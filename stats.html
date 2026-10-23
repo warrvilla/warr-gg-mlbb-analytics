@@ -988,8 +988,26 @@ function mpInit() {
   if (!lg) lg = leagues.find(_mpIsOfficial) || leagues[0] || 'all';
   mpSetLeague(lg, true);
   if (_mp.myTeam && _mpScopeTeams().some(t => t.name === _mp.myTeam)) { _mp.blue = _mp.myTeam; _mp.active = 'red'; }
+  // Deep link from the Teams page: /stats?team=X → X as the opponent (or as
+  // your team when you have none set), in X's league and current season.
+  const want = new URLSearchParams(location.search).get('team');
+  if (want && !_mpInitDone) {
+    const last = (DB.matches || []).filter(m => (m.blueTeam === want || m.redTeam === want) && _mpIsOfficial(m.league))
+      .sort((a, b) => (Date.parse(b.date || '') || 0) - (Date.parse(a.date || '') || 0))[0];
+    if (last && last.league !== _reportLeagueFilter) {
+      mpSetLeague(last.league, true);
+      if (_mp.blue && !_mpScopeTeams().some(t => t.name === _mp.blue)) _mp.blue = '';
+    }
+    if (_mpScopeTeams().some(t => t.name === want)) {
+      if (_mp.blue && _mp.blue !== want) { _mp.red = want; } else { _mp.blue = want; _mp.red = ''; }
+      _mp.active = _mp.blue && _mp.red ? 'red' : (_mp.blue ? 'red' : 'blue');
+    }
+  }
+  _mpInitDone = true;
+  if (_mp.blue && _mp.red) { mpSync(); return; }
   mpRender();
 }
+let _mpInitDone = false;
 function mpSetLeague(lg, quiet) {
   _reportLeagueFilter = lg || 'all';
   _reportSeasonFilter = _reportLeagueFilter === 'all' ? '' : (_mpSeasons()[0] || '');
