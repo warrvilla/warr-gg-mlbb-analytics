@@ -21,7 +21,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="warr-lib.js?v=2"></script>
-<script src="warr-intel.js?v=1"></script>
+<script src="warr-intel.js?v=3"></script>
 <script src="warr-nav.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <link rel="stylesheet" href="warr-styles.css">
@@ -4329,6 +4329,24 @@ function updateWinProbAB(){
     _wpPrev=wp;
   }catch(_){}
 }
+
+// ═══════ HEIMER — the side-panel coach reads the live draft from here ═══════
+window.heimerContext=function(){
+  try{
+    if(!ST||(!ST.bp.length&&!ST.rp.length&&!ST.bb.length&&!ST.rb.length))return null;
+    const pk=arr=>arr.map(h=>`${h.name} (${effectiveLaneAB(h)})`).join(', ')||'—';
+    const bn=arr=>arr.map(h=>h.name).join(', ')||'—';
+    const who=s=>s===pSide?`${pName||'You'} — the user`:(aiMode==='enemy'&&enemyTeamName?`${enemyTeamName} — AI emulating them`:'the AI');
+    const nx=(!done&&ST.step<20)?DRAFT_ORDER[ST.step]:null;
+    const L=[`AI Battle live draft. The user plays ${pSide.toUpperCase()}${aiMode==='enemy'&&enemyTeamName?` against an AI that drafts like ${enemyTeamName}`:''}.`,
+      `BLUE (${who('blue')}): bans ${bn(ST.bb)} · picks ${pk(ST.bp)}`,
+      `RED (${who('red')}): bans ${bn(ST.rb)} · picks ${pk(ST.rp)}`,
+      nx?`Next: ${nx.team.toUpperCase()} ${nx.type} — ${nx.team===pSide?'the user is on the clock':'the AI is on the clock'}.`:'Draft complete.',
+      `On-screen win meter (AI Battle heuristic): ${liveWinProbAB()}% for the user.`];
+    if(SERIES&&SERIES.len>1)L.push(`Series: BO${SERIES.len}, game ${SERIES.gameNum}, user ${SERIES.me||0}-${SERIES.opp||0}.`);
+    return {text:L.join('\n'),teams:aiMode==='enemy'&&enemyTeamName?[enemyTeamName]:[]};
+  }catch(_){return null;}
+};
 
 // ═══════ SETUP SUBLINE — match count under INITIATE DRAFT ═══════
 function renderSpecsAB(){

@@ -15,6 +15,8 @@
 //   WIntel.edges(intel)                what they are good at (respect list)
 //   WIntel.meta(matches)               hero presence / WR in this pool (meta context)
 //   WIntel.promptBlock(intel, levers)  compact text for an LLM prompt
+//   WIntel.draftOrder(matches, team)   first/last picks, phase 1/2 bans, lane order, flex,
+//                                       series adjustments (after a loss / win)
 //
 // Small samples are shrunk toward a baseline and every number carries its
 // game count, so 2-0 never reads as "100%".
@@ -427,6 +429,113 @@
       bestInto: [...vsList].sort((a, b) => b.adj - a.adj).slice(0, 3).map(v => `${v.hero} ${v.w}-${v.g - v.w}`),
       worstInto: [...vsList].sort((a, b) => a.adj - b.adj).slice(0, 3).map(v => `${v.hero} ${v.w}-${v.g - v.w}`),
     };
+  };
+
+  // ── Draft order intelligence ──────────────────────────────────────────
+  // Scout saves picks/bans in draft order (MPL format):
+  //   bans  B R B R B R | (picks) | R B R B          → each side: [P1,P1,P1,P2,P2]
+  //   picks B1 · R1 R2 · B2 B3 · R3 | R4 · B4 B5 · R5  → global slots below
+  // so blue picks[0] is the first pick of the game and red picks[4] the last.
+  const SLOT = { blue: [1, 4, 5, 8, 9], red: [2, 3, 6, 7, 10] };
+  W.SLOT = SLOT;
+  W.slotLabel = (side, i) => (side === 'blue' ? 'B' : 'R') + (i + 1);
+  const inc = (o, k, win) => { if (!k) return; const x = o[k] || (o[k] = { g: 0, w: 0 }); x.g++; if (win) x.w++; };
+  const top = (o, n, min) => Object.entries(o).filter(([, v]) => v.g >= (min || 1)).sort((a, b) => b[1].g - a[1].g || b[1].w - a[1].w).slice(0, n || 5);
+  W.draftOrder = function (matches, team) {
+    const games = (matches || []).filter(m => sideOf(m, team) && (m.winner === 'blue' || m.winner === 'red'))
+      .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (Number(a.gameNum) || 0) - (Number(b.gameNum) || 0));
+    const D = { team, n: games.length, ordered: 0,
+      first: { blue: {}, red: {} }, firstLane: { blue: {}, red: {} },       // blue B1 · red R1+R2
+      p1picks: { blue: {}, red: {} }, p2picks: { blue: {}, red: {} },
+      last: {}, lastLane: {},                                                // red R5 (the counter-pick)
+      p1bans: { blue: {}, red: {} }, p2bans: { blue: {}, red: {} },          // their bans by phase & side
+      oppP1bans: {}, oppP2bans: {},                                          // what opponents ban vs them
+      lanePos: {}, flex: {}, side: { blue: { g: 0, w: 0 }, red: { g: 0, w: 0 } },
+      g1: { g: 0, w: 0 }, decider: { g: 0, w: 0 }, afterLoss: { g: 0, w: 0 }, afterWin: { g: 0, w: 0 },
+      sideAfterLoss: { blue: 0, red: 0 }, adjust: { g: 0, bannedBeater: 0, keptFirst: 0, sameCore: 0 }, reran: { g: 0, sameCore: 0 } };
+    // Some imports store picks in lane order (EXP, Jungle, Mid…), not draft
+    // order. If one fixed lane sequence dominates, slot stats would be fiction.
+    const seq = {};
+    games.forEach(m => { const p = m[sideOf(m, team) + 'Picks'] || []; if (p.length === 5 && p.every(x => x && x.lane)) { const k = p.map(x => x.lane).join(','); seq[k] = (seq[k] || 0) + 1; } });
+    const seqN = Object.values(seq).reduce((a, b) => a + b, 0), seqTop = Math.max(0, ...Object.values(seq));
+    D.laneOrdered = seqN >= 6 && seqTop / seqN >= 0.7;
+    const bySeries = {};
+    games.forEach(m => {
+      const s = sideOf(m, team), o = other(s), win = m.winner === s;
+      const picks = (m[s + 'Picks'] || []), bans = (m[s + 'Bans'] || []).map(nm), ob = (m[o + 'Bans'] || []).map(nm);
+      D.side[s].g++; if (win) D.side[s].w++;
+      bans.forEach((b, i) => inc(i < 3 ? D.p1bans[s] : D.p2bans[s], b, win));
+      ob.forEach((b, i) => inc(i < 3 ? D.oppP1bans : D.oppP2bans, b, win));
+      picks.forEach(p => { const h = nm(p), ln = p && p.lane; if (h && ln) { const F = D.flex[h] || (D.flex[h] = {}); F[ln] = (F[ln] || 0) + 1; } });
+      if (picks.length === 5 && !D.laneOrdered) {
+        D.ordered++;
+        picks.forEach((p, i) => {
+          const h = nm(p), ln = p && p.lane;
+          inc(i < 3 ? D.p1picks[s] : D.p2picks[s], h, win);
+          if (ln) (D.lanePos[ln] || (D.lanePos[ln] = [])).push(SLOT[s][i]);
+        });
+        const firsts = s === 'blue' ? [picks[0]] : [picks[0], picks[1]];
+        firsts.forEach(p => { inc(D.first[s], nm(p), win); inc(D.firstLane[s], p && p.lane, win); });
+        if (s === 'red') { inc(D.last, nm(picks[4]), win); inc(D.lastLane, picks[4] && picks[4].lane, win); }
+      }
+      const k = W.seriesKey(m);
+      (bySeries[k] || (bySeries[k] = [])).push(m);
+    });
+    Object.values(bySeries).forEach(ss => {
+      ss.sort((a, b) => (Number(a.gameNum) || 0) - (Number(b.gameNum) || 0) || (a.date || '').localeCompare(b.date || ''));
+      const fmt = String(ss[0].seriesFormat || '').toUpperCase(), bo = Number((fmt.match(/BO(\d)/) || [])[1]) || 0;
+      ss.forEach((m, i) => {
+        const s = sideOf(m, team), win = m.winner === s;
+        if (i === 0) { D.g1.g++; if (win) D.g1.w++; }
+        const gn = Number(m.gameNum) || i + 1;
+        if (bo && gn === bo) { D.decider.g++; if (win) D.decider.w++; }
+        if (!i) return;
+        const pv = ss[i - 1], ps = sideOf(pv, team), po = other(ps), pWin = pv.winner === ps;
+        const mine = (m[s + 'Picks'] || []).map(nm), prevMine = (pv[ps + 'Picks'] || []).map(nm);
+        const core = mine.filter(h => prevMine.includes(h)).length;
+        if (pWin) { D.afterWin.g++; if (win) D.afterWin.w++; D.reran.g++; if (core >= 3) D.reran.sameCore++; return; }
+        D.afterLoss.g++; if (win) D.afterLoss.w++;
+        D.sideAfterLoss[s]++;
+        D.adjust.g++;
+        const beaters = (pv[po + 'Picks'] || []).map(nm);
+        if ((m[s + 'Bans'] || []).map(nm).some(b => beaters.includes(b))) D.adjust.bannedBeater++;
+        if (!D.laneOrdered && mine[0] && mine[0] === prevMine[0]) D.adjust.keptFirst++;
+        if (core >= 3) D.adjust.sameCore++;
+      });
+    });
+    D.lanes = W.LANES.filter(l => D.lanePos[l] && D.lanePos[l].length).map(l => ({ lane: l, avg: D.lanePos[l].reduce((a, b) => a + b, 0) / D.lanePos[l].length, n: D.lanePos[l].length }))
+      .sort((a, b) => a.avg - b.avg);
+    D.flexList = Object.entries(D.flex).map(([h, L]) => ({ hero: h, lanes: Object.entries(L).sort((a, b) => b[1] - a[1]) }))
+      .filter(x => x.lanes.length >= 2).sort((a, b) => b.lanes.reduce((s, x) => s + x[1], 0) - a.lanes.reduce((s, x) => s + x[1], 0));
+    return D;
+  };
+  const rec = ([h, v]) => `${h} ${v.g}x (${v.w}-${v.g - v.w})`;
+  W.draftOrderBlock = function (D) {
+    if (!D || !D.n) return '';
+    const L = [];
+    if (D.laneOrdered) L.push(`Draft order: picks for ${D.team} are logged in lane order, not draft order — first/last-pick slots unknown (bans are still in order).`);
+    else L.push(`Draft order (${D.ordered}/${D.n} games with full pick order; slots: blue B1·B2B3·B4B5, red R1R2·R3·R4·R5 — R5 is the last pick of the game):`);
+    if (top(D.first.blue).length) L.push(`- Blue first pick (B1): ${top(D.first.blue, 4).map(rec).join(', ')}${top(D.firstLane.blue).length ? ' · lane: ' + top(D.firstLane.blue, 3).map(([l, v]) => `${l} ${v.g}`).join(', ') : ''}`);
+    if (top(D.first.red).length) L.push(`- Red first two (R1-R2): ${top(D.first.red, 5).map(rec).join(', ')}${top(D.firstLane.red).length ? ' · lanes: ' + top(D.firstLane.red, 3).map(([l, v]) => `${l} ${v.g}`).join(', ') : ''}`);
+    if (top(D.last).length) L.push(`- Red last pick (R5, counter slot): ${top(D.last, 4).map(rec).join(', ')}${top(D.lastLane).length ? ' · lane: ' + top(D.lastLane, 3).map(([l, v]) => `${l} ${v.g}`).join(', ') : ''}`);
+    if (D.lanes.length) L.push(`- Lane draft order (avg global pick slot 1-10, early → late): ${D.lanes.map(x => `${x.lane} ${x.avg.toFixed(1)}`).join(' → ')}`);
+    ['blue', 'red'].forEach(s => {
+      const a = top(D.p1bans[s], 4), b = top(D.p2bans[s], 4);
+      if (a.length || b.length) L.push(`- Their bans on ${s}: phase 1 ${a.map(([h, v]) => `${h} ${v.g}`).join(', ') || '—'} | phase 2 ${b.map(([h, v]) => `${h} ${v.g}`).join(', ') || '—'}`);
+    });
+    const op1 = top(D.oppP1bans, 5), op2 = top(D.oppP2bans, 4);
+    if (op1.length) L.push(`- Opponents ban vs them: phase 1 ${op1.map(([h, v]) => `${h} ${v.g}`).join(', ')}${op2.length ? ' | phase 2 ' + op2.map(([h, v]) => `${h} ${v.g}`).join(', ') : ''}`);
+    if (D.flexList.length) L.push(`- Flex picks (played in 2+ lanes): ${D.flexList.slice(0, 5).map(x => `${x.hero} (${x.lanes.map(([l, c]) => `${l} ${c}`).join('/')})`).join(', ')}`);
+    const r = x => `${x.w}-${x.g - x.w}`;
+    const ser = [];
+    if (D.g1.g) ser.push(`game 1 ${r(D.g1)}`);
+    if (D.afterLoss.g) ser.push(`game after a loss ${r(D.afterLoss)}`);
+    if (D.afterWin.g) ser.push(`game after a win ${r(D.afterWin)}`);
+    if (D.decider.g) ser.push(`deciders ${r(D.decider)}`);
+    if (ser.length) L.push(`- In series: ${ser.join(', ')}`);
+    if (D.adjust.g) L.push(`- After losing a game (${D.adjust.g}x): banned a hero that beat them ${D.adjust.bannedBeater}/${D.adjust.g}, ${D.laneOrdered ? '' : `kept the same first pick ${D.adjust.keptFirst}/${D.adjust.g}, `}kept 3+ of the same heroes ${D.adjust.sameCore}/${D.adjust.g}; side next game: blue ${D.sideAfterLoss.blue}, red ${D.sideAfterLoss.red}`);
+    if (D.reran.g) L.push(`- After winning a game (${D.reran.g}x): re-ran 3+ of the same heroes ${D.reran.sameCore}/${D.reran.g}`);
+    return L.join('\n');
   };
 
   // ── Find teams / heroes mentioned in free text ────────────────────────

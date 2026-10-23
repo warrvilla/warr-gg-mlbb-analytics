@@ -9,6 +9,11 @@
 //   • each team's current-season profile from WIntel (ban impact, heroes
 //     that beat them, tempo, lanes/players, recent drafts)
 //   • matchup model + head-to-head, league meta and standings
+//   • draft order (first/last picks, phase 1/2 bans, series adjustments)
+// …and Heimer can query everything else himself: warr-heimer-tools.js gives
+// Claude tools (query_games, team_report, draft_tendencies, matchup,
+// hero_report, player_report, league_report, list_data) that run HERE over
+// the same data, in a short loop (ask → tool calls → answer).
 // Privacy: the data comes from WDB.loadMatches(), which the database already
 // limits (RLS) to official leagues + the user's own / shared scrims. Another
 // team's scrims never reach this browser, so they can't reach the model.
@@ -183,7 +188,9 @@
     if (HD.ready) return;
     if (HD.loading) return HD.loading;
     HD.loading = (async () => {
-      if (!window.WIntel || !WIntel.findTeams) await loadScript('warr-intel.js?v=2');
+      if (!window.WIntel || !WIntel.draftOrder) await loadScript('warr-intel.js?v=3');
+      if (!window.WDraft) await loadScript('warr-draft-model.js?v=1');
+      if (!window.HeimerTools || !window.HeimerTools.draftModel) await loadScript('warr-heimer-tools.js?v=2');
       let ms = [];
       try { ms = await WDB.loadMatches(); } catch (_) {}
       if (!ms || !ms.length) {   // offline / not synced yet → this browser's scout cache
@@ -278,6 +285,7 @@
         WIntel.promptBlock(I, lv),
         lanes ? `Players by lane (main player, most-played heroes): ${lanes}` : '',
         WIntel.edges(I).length ? `Strengths: ${WIntel.edges(I).join('; ')}` : '',
+        WIntel.draftOrder ? WIntel.draftOrderBlock(WIntel.draftOrder(usePool, t)) : '',
         `Recent official games (newest first, with stage):\n${WIntel.recentGames(usePool, t, 8).join('\n') || 'none'}`,
         scr.length ? `USER'S OWN SCRIMS involving ${t} (private to the user, ${scr.length} games):\n${WIntel.recentGames(scr, t, 6).join('\n')}` : '',
       ].filter(Boolean).join('\n'));
@@ -323,6 +331,8 @@
       if (heroes.length && !teams.length) used.push(heroes.join(', '));
     }
     if (privateAsked.length) parts.push(`PRIVATE TEAMS the user asked about (data locked — say you can't see it): ${privateAsked.join(', ')}`);
+    // Pages can tell Heimer what's on screen (e.g. AI Battle's live draft).
+    try { const pc = typeof window.heimerContext === 'function' ? window.heimerContext() : null; if (pc && pc.text) parts.unshift(`=== ON SCREEN NOW ===\n${pc.text}`); } catch (_) {}
     let text = parts.join('\n\n');
     if (text.length > 55000) text = text.slice(0, 55000) + '\n…(trimmed)';
     return { text, teams, used };
@@ -340,6 +350,18 @@ RULES
 - Answer like a sharp coach: the answer first in 1–2 sentences, then the evidence as bullets, then a concrete plan (bans, picks, win condition, timings) when it fits.
 - Keep it tight — about 200 words unless they ask for depth. Markdown: short headings, bullets, **bold** hero/team names. Small tables are fine.
 - Reply in the user's language (English, Filipino or Taglish).
+
+TOOLS
+- The DATA PACK below is only a starting summary. Your tools query ALL of Warr.GG's data: every league, season, stage, team, player, hero and patch; full drafts in pick order; draft tendencies; head-to-heads; standings; admin coach notes and rosters; curated counters/synergies; solo-queue Top 100.
+- Use a tool whenever the pack doesn't answer directly, the question is specific (a stage, side, game number, patch, player, hero pairing, "what do they do when X is banned"), or before you recommend bans/picks — check it. Don't fetch what the pack already shows.
+- Ask for several things in one turn (parallel tool calls). One or two rounds is usually enough.
+- A tool ERROR saying a team is private means: tell the user you can't see that team's data.
+- evaluate_draft rates a draft (full or partial) with the trained draft model and suggests next picks; predict_draft replicates how a named team drafts (their likely next pick/ban and why). Use them for "is this draft good", "what should we pick/ban now", "what will they pick". The model reports its own back-test — if it says the draft terms add little, present its numbers as hints and lean on game sense.
+- If ON SCREEN NOW shows a live draft, questions like "what should I pick?" are about that draft: pass its picks/bans to the draft tools.
+
+DRAFT THINKING
+- Think like a draft coach: first-pick priority and denial, flex picks that hide lanes, what each side saves for the last pick (R5 is the counter-pick slot), phase 2 bans aimed at the roles the enemy still needs, comfort vs meta, side choice, and how a team adjusts after losing a game.
+- Numbers are one input, not the verdict. Combine them with MLBB game sense — comp identity (dive / poke / teamfight / split push), damage mix, frontline, crowd control, power spikes — and label what is data vs general knowledge.
 
 DATA PACK
 ${pack.text}`;
@@ -374,7 +396,7 @@ ${pack.text}`;
       </div>
       <div class="hd-thread" id="hdThread" aria-live="polite"></div>
       <form class="hd-form" id="hdForm">
-        <textarea id="hdIn" class="hd-ta" rows="1" placeholder="Ask about a team, matchup or hero…" aria-label="Message Heimerdinger"></textarea>
+        <textarea id="hdIn" class="hd-ta" rows="1" placeholder="Ask about a team, player, hero or draft…" aria-label="Message Heimerdinger"></textarea>
         <button class="hd-send" id="hdSend" type="submit" aria-label="Send"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
       </form>
       <div class="hd-note">Uses official matches and your own scrims only — never other teams' scrims.</div>`;
@@ -482,7 +504,7 @@ ${pack.text}`;
     const s = [];
     if (opp) s.push(`What's ${opp}'s biggest weakness right now?`);
     if (opp && HD.myTeam) s.push(`How do we beat ${opp} in a BO5?`);
-    if (opp) s.push(`What does ${opp} first-pick, and what should we ban against them?`);
+    if (opp) s.push(`What does ${opp} first-pick, and what do they take when it's banned?`);
     if (lg) s.push(`Which heroes are most contested in ${lg}${se ? ' ' + se : ''}?`);
     if (!HD.myTeam && lg) s.push(`Who's the strongest team in ${lg} right now, and why?`);
     return s.slice(0, 4);
@@ -498,7 +520,7 @@ ${pack.text}`;
     if (!ai) html += `<div class="hd-gate"><b>Heimerdinger is invite-only for now.</b> Everything else on Warr.GG stays free. Want access for your team? <a href="mailto:wrrenvillapando@gmail.com?subject=Warr.GG%20%E2%80%94%20Heimerdinger%20access">Ask Warr</a>.</div>`;
     if (!HD.chat.length) {
       const sug = HD.ready ? suggestions() : [];
-      html += `<div class="hd-empty"><p>Ask me about any team, matchup or hero. I answer from Warr.GG match data — current season first — and show the numbers behind it.</p>
+      html += `<div class="hd-empty"><p>Ask me about any team, player, matchup, hero or draft. I dig through all of Warr.GG's match data myself — any league, season, stage, side or patch — and show the numbers behind every call.</p>
         ${!HD.ready ? `<div class="hd-think"><span class="hd-dots"><i></i><i></i><i></i></span> Loading match data…</div>` : ''}
         ${sug.map(x => `<button class="hd-sug" type="button" data-q="${esc(x)}"${ai ? '' : ' disabled'}>${esc(x)}</button>`).join('')}</div>`;
     }
@@ -506,7 +528,7 @@ ${pack.text}`;
       if (m.role === 'user') html += `<div class="hd-u">${esc(m.content)}</div>`;
       else html += `<div class="hd-a${m.err ? ' err' : ''}"><div class="who">${bot(16)} Heimerdinger</div><div class="md">${md(m.content)}</div>${m.meta ? `<div class="meta">${esc(m.meta)}</div>` : ''}</div>`;
     });
-    if (HD.busy) html += `<div class="hd-a"><div class="hd-think">${bot(22, 'thinking')} <span id="hdT">Reading the data…</span> <span class="hd-dots"><i></i><i></i><i></i></span></div></div>`;
+    if (HD.busy) html += `<div class="hd-a"><div class="hd-think">${bot(22, 'thinking')} <span id="hdT">${esc(HD.step || 'Reading the data…')}</span> <span class="hd-dots"><i></i><i></i><i></i></span></div></div>`;
     const mk = document.querySelector('#hdMark .hd-bot'); if (mk) mk.classList.toggle('thinking', !!HD.busy);
     $thread.innerHTML = html;
     $thread.querySelectorAll('.hd-sug').forEach(b => b.onclick = () => ask(b.dataset.q));
@@ -520,18 +542,23 @@ ${pack.text}`;
     const history = HD.chat.filter(m => !m.err).slice(-10).map(m => ({ role: m.role, content: m.content }));
     while (history.length && history[0].role !== 'user') history.shift();
     HD.chat.push({ role: 'user', content: q, ts: Date.now() });
-    HD.busy = true; render();
+    HD.busy = true; HD.step = ''; render();
     const t0 = Date.now();
-    const tick = setInterval(() => { const el = document.getElementById('hdT'); if (el) { const s = Math.round((Date.now() - t0) / 1000); el.textContent = s < 4 ? 'Reading the data…' : `Thinking… ${s}s`; } }, 1000);
+    const tick = setInterval(() => {
+      const el = document.getElementById('hdT'); if (!el) return;
+      const s = Math.round((Date.now() - t0) / 1000);
+      el.textContent = HD.step ? `${HD.step} ${s}s` : (s < 4 ? 'Reading the data…' : `Thinking… ${s}s`);
+    }, 1000);
     try {
       if (WDB.canAnalyze && !WDB.canAnalyze()) throw Object.assign(new Error('Monthly AI limit reached for your access level.'), { code: 'LIMIT' });
       const pack = buildPack(q);
       if (pack.teams.length) HD.ctxTeams = pack.teams;
-      const d = await WDB.callClaude({ purpose: 'chat', max_tokens: 1800, system: systemPrompt(pack), messages: [...history, { role: 'user', content: q }] });
+      const { d, checked } = await agentLoop(systemPrompt(pack), [...history, { role: 'user', content: q }]);
       try { WDB.consumeToken && WDB.consumeToken(); } catch (_) {}
       const out = (d.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim() || '(no answer)';
-      const model = /opus/i.test(d.model || '') ? 'Opus 5.5' : /sonnet-5/i.test(d.model || '') ? 'Sonnet 5.5' : (d.model ? 'Claude' : '');
-      HD.chat.push({ role: 'assistant', content: out, ts: Date.now(), meta: `Based on ${pack.used.join(' · ') || 'league data'}${model ? ' · ' + model : ''}` });
+      const mid = d.warr_model || d.model || '';
+      const model = /opus/i.test(mid) ? 'Opus 5.5' : /sonnet-5/i.test(mid) ? 'Sonnet 5.5' : (mid ? 'Claude' : '');
+      HD.chat.push({ role: 'assistant', content: out, ts: Date.now(), meta: `Based on ${pack.used.join(' · ') || 'league data'}${checked.length ? ' · checked: ' + checked.join(', ') : ''}${model ? ' · ' + model : ''}` });
     } catch (e) {
       const c = e && e.code;
       const msg = c === 'USER_DAILY_CAP' || c === 'FREE_PLAN_CAP' || c === 'LIMIT' ? `${e.message} Try again tomorrow.`
@@ -542,8 +569,46 @@ ${pack.text}`;
       HD.chat.push({ role: 'assistant', content: msg, err: true, ts: Date.now() });
     } finally {
       clearInterval(tick);
-      HD.busy = false; save(); render();
+      HD.busy = false; HD.step = ''; save(); render();
     }
+  }
+
+  // Ask → (tool calls → results)* → answer. Tools run in this browser over the
+  // data the user can already see; the last round forbids tools so the loop
+  // always ends with an answer.
+  const MAX_TOOL_ROUNDS = 4;
+  async function agentLoop(system, messages) {
+    const T = window.HeimerTools;
+    const msgs = messages.slice(), checked = [];
+    const ctx = { usable: HD.usable, locked, cur: HD.cur, myTeam: HD.myTeam, heroes: HD.heroes };
+    let d = null, prev = '';
+    for (let round = 0; ; round++) {
+      const lastRound = !T || round >= MAX_TOOL_ROUNDS;
+      d = await WDB.callClaude({
+        purpose: 'chat', max_tokens: 1800, system, messages: msgs,
+        ...(T ? { tools: T.defs, tool_choice: { type: lastRound ? 'none' : 'auto' } } : {}),
+        ...(prev ? { prev_model: prev } : {}),
+      });
+      prev = d.warr_model || d.model || '';
+      const uses = (d.content || []).filter(b => b.type === 'tool_use');
+      if (lastRound || d.stop_reason !== 'tool_use' || !uses.length) break;
+      msgs.push({ role: 'assistant', content: d.content });
+      const results = [];
+      for (const u of uses) {
+        const label = T.describe(u.name, u.input, ctx);
+        setStep(label);
+        checked.push(label.replace(/…$/, '').replace(/^(Pulling|Scouting|Reading|Comparing|Looking up|Checking|Running|Predicting) (the )?/, '').trim());
+        let out = '';
+        try { out = await T.run(u.name, u.input, ctx); } catch (e) { out = 'ERROR: ' + ((e && e.message) || e); }
+        results.push({ type: 'tool_result', tool_use_id: u.id, content: out || '(empty)' });
+      }
+      msgs.push({ role: 'user', content: results });
+    }
+    return { d, checked: [...new Set(checked)].slice(0, 6) };
+  }
+  function setStep(label) {
+    HD.step = label; HD.stepAt = Date.now();
+    const el = document.getElementById('hdT'); if (el) el.textContent = label;
   }
 
   // Public hook (e.g. an "Ask Heimerdinger" button on the Analysis page)

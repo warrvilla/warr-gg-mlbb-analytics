@@ -168,37 +168,68 @@ export default async (req) => {
   const answerMax = Math.min(Math.max(1, Number(body.max_tokens) || 300), 3000);
   const headroom = purpose === 'analysis' ? 6000 : 1500;
 
-  const messages = Array.isArray(body.messages) ? body.messages.slice(isChat ? -16 : 0, isChat ? undefined : 12) : [];
-  while (messages.length && messages[0] && messages[0].role !== 'user') messages.shift();   // API needs a user turn first
+  // Chat = Heimerdinger. It can run a short tool loop (the tools execute in the
+  // browser over data the user can already see), so its history may carry
+  // tool_use / tool_result blocks — keep enough turns for a loop, and never
+  // start on an orphaned tool_result.
+  const messages = Array.isArray(body.messages) ? body.messages.slice(isChat ? -30 : 0, isChat ? undefined : 12) : [];
+  const hasBlock = (m, type) => !!m && Array.isArray(m.content) && m.content.some(b => b && b.type === type);
+  while (messages.length && (!messages[0] || messages[0].role !== 'user' || hasBlock(messages[0], 'tool_result'))) messages.shift();   // API needs a plain user turn first
   if (!messages.length) return _err(400, 'NO_MESSAGES');
+  if (JSON.stringify(messages).length > 300000) return _err(413, 'TOO_LARGE', 'That conversation is too long — start a new chat.');
+  const last = messages[messages.length - 1];
+  const isStep = isChat && last.role === 'user' && hasBlock(last, 'tool_result');   // a tool-loop continuation, not a new question
+
   const base = { messages };
-  if (body.system && typeof body.system === 'string') base.system = body.system.slice(0, isChat ? 60000 : 20000);
+  if (body.system && typeof body.system === 'string') {
+    const sys = body.system.slice(0, isChat ? 60000 : 20000);
+    // Chat re-sends the same big data pack on every tool step → cache it.
+    base.system = isChat ? [{ type: 'text', text: sys, cache_control: { type: 'ephemeral' } }] : sys;
+  }
+  const tools = [];
+  // Heimer's data tools (custom, client-executed): chat only, well-formed only.
+  if (isChat && Array.isArray(body.tools)) {
+    body.tools.filter(t => t && !t.type && typeof t.name === 'string' && /^[a-zA-Z0-9_-]{1,64}$/.test(t.name) && t.input_schema && typeof t.input_schema === 'object')
+      .slice(0, 12).forEach(t => tools.push({ name: t.name, description: String(t.description || '').slice(0, 1500), input_schema: t.input_schema }));
+    if (JSON.stringify(tools).length > 24000) return _err(400, 'TOOLS_TOO_LARGE');
+  }
   // Web search: admin only (it costs $10 per 1,000 searches).
   if (isAdmin && Array.isArray(body.tools)) {
     const ws = body.tools.filter(t => t && typeof t.type === 'string' && t.type.startsWith('web_search'));
-    if (ws.length) base.tools = [{ ...ws[0], max_uses: Math.min(Number(ws[0].max_uses) || 3, 5) }];
+    if (ws.length) tools.push({ ...ws[0], max_uses: Math.min(Number(ws[0].max_uses) || 3, 5) });
   }
+  if (tools.length) {
+    base.tools = tools;
+    const tc = body.tool_choice && body.tool_choice.type;
+    if (tc === 'auto' || tc === 'none') base.tool_choice = { type: tc };
+  }
+  if (isChat) base.messages = _cacheTail(messages);
 
-  const primary = {
-    ...base,
-    model,
-    max_tokens: answerMax + headroom,
-    thinking: { type: 'adaptive' },
-    output_config: { effort },
+  // Thinking blocks must go back unchanged to the SAME model. If this step runs
+  // on a different model than the last one (Opus cap hit, fallback), or the
+  // last tool turn had no thinking block, drop them and run this step plainly.
+  const prevModel = typeof body.prev_model === 'string' ? body.prev_model : '';
+  const lastAsst = [...messages].reverse().find(m => m && m.role === 'assistant');
+  const build = (mdl, eff, maxTok) => {
+    const noThink = !hasBlock(lastAsst, 'thinking') && !hasBlock(lastAsst, 'redacted_thinking');
+    const plain = isStep && (noThink || (prevModel && prevModel !== mdl));
+    if (plain) return { ...base, messages: _stripThinking(base.messages), model: mdl, max_tokens: maxTok };
+    return { ...base, model: mdl, max_tokens: maxTok, thinking: { type: 'adaptive' }, output_config: { effort: eff } };
   };
+
+  const primary = build(model, effort, answerMax + headroom);
 
   let { status, text, usedModel } = await _call(apiKey, primary, left(deep ? DEEP_TIMEOUT_MS : FAST_TIMEOUT_MS));
   let fellBack = '';
   // Opus too slow / rejected → one quick Sonnet retry so the user still gets an answer.
   if (deep && (status === 0 || status >= 400)) {
     fellBack = status === 0 ? 'deep-timeout' : 'deep-' + status;
-    ({ status, text, usedModel } = await _call(apiKey,
-      { ...primary, model: MODEL_FAST, output_config: { effort: 'low' }, max_tokens: answerMax + 1500 }, left(FAST_TIMEOUT_MS)));
+    ({ status, text, usedModel } = await _call(apiKey, build(MODEL_FAST, 'low', answerMax + 1500), left(FAST_TIMEOUT_MS)));
   }
   // New-model params rejected (400/404) → retry once on the proven older model, plain request.
   if (status === 400 || status === 404) {
     fellBack = (fellBack ? fellBack + ',' : '') + 'safe-' + status;
-    ({ status, text, usedModel } = await _call(apiKey, { ...base, model: MODEL_SAFE, max_tokens: Math.min(answerMax, 1200) }, left(FAST_TIMEOUT_MS)));
+    ({ status, text, usedModel } = await _call(apiKey, { ...base, messages: _stripThinking(base.messages), model: MODEL_SAFE, max_tokens: Math.min(answerMax, 1200) }, left(FAST_TIMEOUT_MS)));
   }
   if (status === 0) return _err(504, 'AI_TIMEOUT', 'The AI took too long — the local Draft Brain answered instead.');
 
@@ -210,15 +241,19 @@ export default async (req) => {
       const inTok = (usage.input_tokens || 0) + (usage.cache_creation_input_tokens || 0) * 1.25 + (usage.cache_read_input_tokens || 0) * 0.1;
       const searches = usage.server_tool_use?.web_search_requests || 0;
       const cost = (inTok * pin + (usage.output_tokens || 0) * pout) / 1e6 + searches * WEB_SEARCH_USD;
+      // A tool-loop step is part of one question: it counts as a quarter call.
+      const unit = isStep ? 0.25 : 1;
       const writes = [
         store.set(monthKey, String(spentUSD + cost)),
-        store.set(userKey, String(userCalls + 1)),
+        store.set(userKey, String(userCalls + unit)),
         store.set(userUsdKey, String(userUSD + cost)),
       ];
-      if (usedModel === MODEL_DEEP) writes.push(store.set(opusKey, String(opusCalls + 1)));
+      if (usedModel === MODEL_DEEP) writes.push(store.set(opusKey, String(opusCalls + unit)));
       await Promise.all(writes);
     } catch { /* metering failure must never break the response */ }
   }
+  // Tell the client which model actually answered (a tool loop sends it back as prev_model).
+  if (status >= 200 && status < 300) { try { const j = JSON.parse(text); j.warr_model = usedModel; text = JSON.stringify(j); } catch {} }
   return new Response(text, {
     status,
     headers: {
@@ -230,6 +265,25 @@ export default async (req) => {
     },
   });
 };
+
+// Thinking blocks are model-specific — strip them when a step changes model.
+function _stripThinking(msgs) {
+  return msgs.map(m => (m && Array.isArray(m.content) && m.content.some(b => b && (b.type === 'thinking' || b.type === 'redacted_thinking')))
+    ? { ...m, content: m.content.filter(b => b && b.type !== 'thinking' && b.type !== 'redacted_thinking') } : m);
+}
+// Cache breakpoint on the newest turn, so each tool step re-reads the
+// conversation so far from cache instead of paying for it again.
+function _cacheTail(msgs) {
+  if (!msgs.length) return msgs;
+  const out = msgs.slice(), m = out[out.length - 1];
+  if (typeof m.content === 'string') out[out.length - 1] = { ...m, content: [{ type: 'text', text: m.content, cache_control: { type: 'ephemeral' } }] };
+  else if (Array.isArray(m.content) && m.content.length) {
+    const c = m.content.slice(), b = c[c.length - 1];
+    if (b && (b.type === 'text' || b.type === 'tool_result')) c[c.length - 1] = { ...b, cache_control: { type: 'ephemeral' } };
+    out[out.length - 1] = { ...m, content: c };
+  }
+  return out;
+}
 
 // One Anthropic call with a hard timeout. status 0 = timed out / network error.
 async function _call(apiKey, payload, timeoutMs) {

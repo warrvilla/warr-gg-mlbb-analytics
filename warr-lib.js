@@ -1183,7 +1183,7 @@ WDB.callClaude = async function(body) {
   // Legacy local-dev path: proxy not deployed → admin's own key.
   const key = WDB.getAdminApiKeySync ? WDB.getAdminApiKeySync() : '';
   if (!key) { const e = new Error('NO_API_KEY'); e.code = 'NO_API_KEY'; throw e; }
-  const { purpose, ...direct } = body || {};
+  const { purpose, prev_model, ...direct } = body || {};   // eslint-disable-line no-unused-vars
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
