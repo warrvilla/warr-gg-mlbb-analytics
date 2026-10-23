@@ -253,7 +253,7 @@ body::after {
   font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
   font-size: 11px !important; font-weight: 600 !important;
   letter-spacing: 0.04em !important; text-transform: uppercase !important;
-  color: var(--text4) !important;
+  color: var(--text);
 }
 .report-body { padding: 18px !important; }
 
@@ -364,7 +364,7 @@ select:focus, input:focus {
   font-family: -apple-system,'SF Pro Text','Inter',sans-serif !important;
   font-size: 10px !important; font-weight: 600 !important;
   letter-spacing: 0.06em !important; text-transform: uppercase !important;
-  color: var(--text4) !important;
+  color: var(--text2);   /* no !important — lets the coloured labels (red/blue/gold) show */
 }
 .priority-col-hdr {
   border-bottom: 0.5px solid rgba(255,255,255,0.08) !important;
@@ -561,6 +561,88 @@ select:focus, input:focus {
 /* ═══════════════════════════════════════════════════════ */
 </style>
 <script src="warr-theme.js"></script>
+<style id="analysis-v2">
+/* ═══ Analysis v2 — matchup picker, readable headers, sticky report bar ═══ */
+.toast:not(.show){opacity:0;}
+.mp-card{padding:18px;border-radius:22px;background:rgba(16,16,26,0.68);border:0.5px solid rgba(255,255,255,0.07);box-shadow:0 8px 32px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.07);margin-bottom:16px;}
+.mp-head{display:flex;align-items:baseline;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.mp-title{font-size:17px;font-weight:700;letter-spacing:-.01em;color:var(--text);}
+.mp-sub{font-size:12px;color:var(--text3);}
+.mp-slots{display:grid;grid-template-columns:1fr 40px 1fr;gap:10px;align-items:center;margin-bottom:16px;}
+.mp-slot{display:flex;align-items:center;gap:12px;min-height:66px;padding:12px 14px;border-radius:16px;border:1px dashed rgba(255,255,255,.14);background:rgba(255,255,255,.02);cursor:pointer;text-align:left;color:var(--text);font:inherit;transition:border-color .15s,background .15s,box-shadow .15s;}
+.mp-slot:hover{background:rgba(255,255,255,.04);}
+.mp-slot.filled{border-style:solid;}
+.mp-slot.blue.filled{border-color:var(--blue-border);background:var(--blue-dim);}
+.mp-slot.red.filled{border-color:var(--red-border);background:var(--red-dim);}
+.mp-slot.active{box-shadow:0 0 0 2px rgba(124,92,246,.45);border-color:rgba(124,92,246,.55);}
+.mp-slot .lbl{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
+.mp-slot.blue .lbl{color:var(--blue);} .mp-slot.red .lbl{color:var(--red);}
+.mp-slot .nm{font-size:15px;font-weight:700;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mp-slot .sub{font-size:11px;color:var(--text3);margin-top:1px;}
+.mp-slot .ph{font-size:13px;color:var(--text3);margin-top:2px;}
+.mp-slot .x{margin-left:auto;width:24px;height:24px;border-radius:50%;border:none;background:rgba(255,255,255,.06);color:var(--text2);cursor:pointer;font-size:13px;line-height:24px;flex-shrink:0;}
+.mp-slot .x:hover{background:rgba(255,255,255,.12);color:var(--text);}
+.mp-swap{width:36px;height:36px;border-radius:50%;border:0.5px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--text2);cursor:pointer;font-size:15px;justify-self:center;transition:all .15s;}
+.mp-swap:hover:not(:disabled){color:var(--text);background:rgba(255,255,255,.09);}
+.mp-swap:disabled{opacity:.3;cursor:default;}
+.mp-logo{width:34px;height:34px;border-radius:10px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;position:relative;overflow:hidden;}
+.mp-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:3px;background:rgba(255,255,255,.04);}
+.mp-logo.sm{width:28px;height:28px;border-radius:8px;font-size:10px;}
+.mp-logo.lg{width:52px;height:52px;border-radius:14px;font-size:15px;}
+.mp-scope{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+.mp-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.mp-row .k{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);width:56px;flex-shrink:0;}
+.mp-chip{padding:5px 12px;border-radius:9999px;font-size:12px;font-weight:500;border:0.5px solid rgba(255,255,255,.09);background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;font-family:inherit;}
+.mp-chip:hover{color:var(--text);background:rgba(255,255,255,.05);}
+.mp-chip.on{background:rgba(124,92,246,.16);border-color:rgba(124,92,246,.4);color:var(--text);}
+.mp-chip .cur{font-size:9.5px;color:var(--green);margin-left:5px;font-weight:600;}
+.mp-tools{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.mp-tools input{flex:1;max-width:320px;padding:8px 14px !important;font-size:13px !important;}
+.mp-hint{font-size:12px;color:var(--text3);}
+.mp-hint b{font-weight:600;}
+.mp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;}
+.mp-tile{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:13px;background:rgba(255,255,255,.03);border:0.5px solid rgba(255,255,255,.07);cursor:pointer;text-align:left;color:var(--text);font:inherit;transition:background .15s,border-color .15s,transform .15s;min-width:0;}
+.mp-tile:hover:not(:disabled){background:rgba(255,255,255,.065);border-color:rgba(255,255,255,.14);}
+.mp-tile:active:not(:disabled){transform:scale(.98);}
+.mp-tile:disabled{opacity:.4;cursor:not-allowed;}
+.mp-tile.is-blue{border-color:var(--blue-border);background:var(--blue-dim);box-shadow:inset 0 0 0 1px var(--blue-border);}
+.mp-tile.is-red{border-color:var(--red-border);background:var(--red-dim);box-shadow:inset 0 0 0 1px var(--red-border);}
+.mp-tile .t{min-width:0;flex:1;}
+.mp-tile .n{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mp-tile .r{font-size:10.5px;color:var(--text3);font-family:var(--font-mono);margin-top:1px;}
+.mp-tile .tag{font-size:9px;font-weight:700;letter-spacing:.06em;padding:2px 6px;border-radius:6px;flex-shrink:0;}
+.mp-tile.is-blue .tag{color:var(--blue);background:rgba(94,160,216,.14);}
+.mp-tile.is-red .tag{color:var(--red);background:rgba(216,120,128,.14);}
+.mp-tile .you{font-size:9px;color:var(--gold);font-weight:700;letter-spacing:.05em;}
+.mp-empty{grid-column:1/-1;padding:18px;text-align:center;font-size:12px;color:var(--text3);}
+.rep-bar{position:sticky;top:60px;z-index:30;display:flex;align-items:center;gap:10px;padding:8px 8px 8px 12px;margin:0 0 14px;border-radius:16px;background:rgba(14,14,22,.86);backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);border:0.5px solid rgba(255,255,255,.08);box-shadow:0 6px 24px rgba(0,0,0,.35);}
+.rep-bar .who{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;white-space:nowrap;min-width:0;}
+.rep-bar .who .vs{font-size:10px;color:var(--text3);font-weight:500;}
+.rep-jumps{display:flex;gap:2px;margin-left:auto;overflow-x:auto;scrollbar-width:none;}
+.rep-jumps::-webkit-scrollbar{display:none;}
+.rep-jump{padding:5px 10px;border-radius:9999px;font-size:11.5px;color:var(--text2);background:transparent;border:none;cursor:pointer;white-space:nowrap;font-family:inherit;}
+.rep-jump:hover{color:var(--text);background:rgba(255,255,255,.06);}
+.rep-sec{scroll-margin-top:124px;}
+.mh-grid{display:grid;grid-template-columns:1fr minmax(180px,240px) 1fr;gap:16px;align-items:center;}
+.mh-team{display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;}
+.mh-name{font-size:19px;font-weight:800;letter-spacing:-.01em;}
+.mh-meta{font-size:11.5px;color:var(--text3);}
+.mh-mid{text-align:center;}
+.mh-pct{display:flex;justify-content:space-between;align-items:baseline;font-weight:800;}
+.mh-pct .b{color:var(--blue);font-size:26px;} .mh-pct .r{color:var(--red);font-size:26px;}
+.mh-bar{display:flex;height:6px;border-radius:4px;overflow:hidden;margin:6px 0 5px;background:rgba(255,255,255,.06);}
+.mh-bar .b{background:var(--blue);} .mh-bar .r{background:var(--red);}
+.mh-cap{font-size:10.5px;color:var(--text3);line-height:1.5;}
+.ai-cta{display:flex;flex-direction:column;align-items:center;gap:10px;padding:22px 12px;text-align:center;}
+.ai-cta .btn{padding:10px 22px !important;font-size:13px !important;}
+@media(max-width:720px){
+  .mp-slots{grid-template-columns:1fr;}
+  .mp-swap{transform:rotate(90deg);}
+  .mh-grid{grid-template-columns:1fr;}
+  .rep-bar .who{display:none;}
+  .rep-jumps{margin-left:0;}
+}
+</style>
 </head>
 <body>
 
@@ -622,40 +704,36 @@ select:focus, input:focus {
     <span class="key-status" id="keyStatus" style="color:var(--text3);">Checking…</span>
   </div>
 
-  <!-- SETUP -->
-  <div class="card">
-    <div class="card-hdr">
-      <span></span>
-      <span class="card-hdr-title">Pre-Match Setup</span>
-      <span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:4px;">Select teams for scouting report</span>
-      <select id="reportSeasonFilter" style="margin-left:auto;font-size:11px;padding:5px 10px;height:auto;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);"
-              onchange="onReportSeasonChange()"
-              title="Filter all analytics to a single season — defaults to most-recent so new-season meta-shift doesn't blend old patches into current data">
-        <option value="">All seasons</option>
-      </select>
-      <div id="leagueFilterPills" style="display:flex;gap:5px;flex-wrap:wrap;"></div>
+  <!-- MATCHUP PICKER -->
+  <div class="mp-card" id="mpCard">
+    <div class="mp-head">
+      <span class="mp-title">Pre-match analysis</span>
+      <span class="mp-sub">Pick the league, then your team and the opponent — the report builds itself.</span>
     </div>
-    <div class="card-body">
-      <div class="setup-grid">
-        <div>
-          <div class="form-label" style="color:var(--blue);">Blue Side (Us)</div>
-          <select id="blueTeamSel" style="width:100%;" onchange="onTeamChange()">
-            <option value="">— Select our team —</option>
-          </select>
-        </div>
-        <div>
-          <div class="form-label" style="color:var(--red);">Red Side (Enemy)</div>
-          <select id="redTeamSel" style="width:100%;" onchange="onTeamChange()">
-            <option value="">— Select enemy team —</option>
-          </select>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <button class="btn btn-accent" onclick="generateReport()" id="generateBtn" disabled>Generate</button>
-        </div>
-      </div>
-      <div id="noScoutMsg" style="display:none;margin-top:10px;padding:9px 13px;background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:6px;font-size:12px;color:var(--gold);">
-        No scout data. <a href="/scout" style="color:var(--gold);font-weight:700;">Log matches in Scout →</a>
-      </div>
+    <div class="mp-slots">
+      <div class="mp-slot blue active" id="mpSlotBlue" role="button" tabindex="0" onclick="mpFocus('blue')"></div>
+      <button class="mp-swap" id="mpSwap" onclick="mpSwap()" title="Swap sides" aria-label="Swap sides">⇄</button>
+      <div class="mp-slot red" id="mpSlotRed" role="button" tabindex="0" onclick="mpFocus('red')"></div>
+    </div>
+    <div class="mp-scope">
+      <div class="mp-row"><span class="k">League</span><div class="mp-row" id="mpLeagues"></div></div>
+      <div class="mp-row"><span class="k">Season</span><div class="mp-row" id="mpSeasons"></div></div>
+    </div>
+    <div class="mp-tools">
+      <input type="text" id="mpSearch" placeholder="Search teams…" oninput="mpRenderGrid()" autocomplete="off">
+      <span class="mp-hint" id="mpHint"></span>
+    </div>
+    <div class="mp-grid" id="mpGrid"><div class="mp-empty">Loading teams…</div></div>
+    <div id="noScoutMsg" style="display:none;margin-top:10px;padding:9px 13px;background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:10px;font-size:12px;color:var(--gold);">
+      No scout data. <a href="/scout" style="color:var(--gold);font-weight:700;">Log matches in Scout →</a>
+    </div>
+    <!-- legacy controls: kept (hidden) because the report code reads them -->
+    <div style="display:none;">
+      <select id="reportSeasonFilter" onchange="onReportSeasonChange()"><option value="">All seasons</option></select>
+      <div id="leagueFilterPills"></div>
+      <select id="blueTeamSel" onchange="onTeamChange()"><option value="">—</option></select>
+      <select id="redTeamSel" onchange="onTeamChange()"><option value="">—</option></select>
+      <button id="generateBtn" disabled onclick="generateReport()">Generate</button>
     </div>
   </div>
 
@@ -665,8 +743,8 @@ select:focus, input:focus {
       <div class="big"></div>
       <div style="font-size:14px;font-weight:700;font-family:var(--font-head);color:var(--text2);margin-bottom:8px;">Pre-Match Scouting Report</div>
       <div style="font-size:12px;line-height:1.8;color:var(--text3);">
-        Select both teams and click <span style="color:var(--gold);font-weight:600;">Generate</span><br>
-        to get a full breakdown of tendencies, picks, bans, and AI strategy.
+        Pick your team and the opponent above —<br>
+        the report shows how to beat them, their draft habits, picks and bans.
       </div>
     </div>
   </div>
@@ -784,6 +862,7 @@ WAuth.renderAuthChip('authChip');
 
   if (!teams.length) {
     document.getElementById('noScoutMsg').style.display = 'block';
+    const g = document.getElementById('mpGrid'); if (g) g.innerHTML = '<div class="mp-empty">No teams yet — log matches in Scout first.</div>';
     return;
   }
 
@@ -817,6 +896,10 @@ WAuth.renderAuthChip('authChip');
   }
   // Populate the season dropdown with observed seasons from this match pool.
   populateReportSeasonDropdown();
+  // New picker (league → season → team tiles). The profile may load a bit
+  // after the data, so retry the "your team" pre-fill once if needed.
+  mpInit();
+  setTimeout(() => { if (!_mp.blue && !_mp.red && _mpProfileTeam()) mpInit(); }, 1500);
 }
 
 function updateLeaguePills() {
@@ -835,6 +918,166 @@ function onTeamChange() {
   const b = document.getElementById('blueTeamSel').value;
   const r = document.getElementById('redTeamSel').value;
   document.getElementById('generateBtn').disabled = !(b && r && b !== r);
+}
+
+// ══════ MATCHUP PICKER ══════
+// League → season → team tiles. Only teams with games in the chosen scope are
+// shown (that's what made the old dropdowns unusable: every team from every
+// league and season). Your approved profile team is pre-filled as Blue.
+const _mp = { active: 'blue', blue: '', red: '', myTeam: '' };
+const _mpEsc = x => String(x == null ? '' : x).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const _mpArg = v => _mpEsc(JSON.stringify(String(v)));   // safe JS string inside an HTML attribute
+function _mpLogo(name, cls) {
+  const mg = (typeof WDB !== 'undefined' && WDB.teamMonogram) ? WDB.teamMonogram(name) : { init: '?', color: '#5E5CE6' };
+  const src = (typeof WDB !== 'undefined' && WDB.teamLogo) ? WDB.teamLogo(name) : '';
+  return `<span class="mp-logo ${cls || ''}" style="background:${mg.color};">${_mpEsc(mg.init)}${src ? `<img src="${src}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
+}
+function _mpProfileTeam() {
+  try {
+    const pr = (typeof WAuth !== 'undefined' && WAuth.getProfile) ? WAuth.getProfile() : null;
+    return pr && pr.team_name && pr.team_status === 'approved' ? pr.team_name : '';
+  } catch (_) { return ''; }
+}
+function _mpIsOfficial(l) { return !!l && !/scrim|other|ai battle/i.test(l); }
+function _mpLeagueList() {
+  const last = {};
+  (DB.matches || []).forEach(m => { if (!m.league) return; const t = Date.parse(m.date || '') || 0; last[m.league] = Math.max(last[m.league] || 0, t); });
+  return Object.keys(last).sort((a, b) => (_mpIsOfficial(b) - _mpIsOfficial(a)) || (last[b] - last[a]) || a.localeCompare(b));
+}
+function _mpSeasons() {
+  const pool = _reportLeagueFilter === 'all' ? (DB.matches || []) : (DB.matches || []).filter(m => m.league === _reportLeagueFilter);
+  return [...new Set(pool.map(m => (m.season || '').trim()).filter(Boolean))].sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+}
+function _mpScopeTeams() {
+  const pool = getFilteredMatches();
+  const rec = {};
+  pool.forEach(m => {
+    if (m.winner !== 'blue' && m.winner !== 'red') return;
+    [['blue', m.blueTeam], ['red', m.redTeam]].forEach(([sd, t]) => {
+      if (!t) return; const x = rec[t] || (rec[t] = { w: 0, l: 0 });
+      if (m.winner === sd) x.w++; else x.l++;
+    });
+  });
+  let R = null;
+  try { if (typeof WIntel !== 'undefined') R = WIntel.ratings(pool); } catch (_) {}
+  const list = Object.keys(rec).map(t => ({ name: t, w: rec[t].w, l: rec[t].l, r: R ? (R.r[t] || 0) : (rec[t].w - rec[t].l) }));
+  list.sort((a, b) => (b.name === _mp.myTeam) - (a.name === _mp.myTeam) || b.r - a.r || (b.w - b.l) - (a.w - a.l));
+  list.forEach((x, i) => { x.rank = i + 1; });
+  // rank by strength only (my team pinned first shouldn't change its rank)
+  [...list].sort((a, b) => b.r - a.r).forEach((x, i) => { x.rank = i + 1; });
+  return list;
+}
+function mpInit() {
+  const leagues = _mpLeagueList();
+  _mp.myTeam = _mpProfileTeam();
+  let lg = '';
+  if (_mp.myTeam) {
+    const mine = (DB.matches || []).filter(m => (m.blueTeam === _mp.myTeam || m.redTeam === _mp.myTeam) && _mpIsOfficial(m.league))
+      .sort((a, b) => (Date.parse(b.date || '') || 0) - (Date.parse(a.date || '') || 0))[0];
+    if (mine) lg = mine.league;
+  }
+  if (!lg) lg = leagues.find(_mpIsOfficial) || leagues[0] || 'all';
+  mpSetLeague(lg, true);
+  if (_mp.myTeam && _mpScopeTeams().some(t => t.name === _mp.myTeam)) { _mp.blue = _mp.myTeam; _mp.active = 'red'; }
+  mpRender();
+}
+function mpSetLeague(lg, quiet) {
+  _reportLeagueFilter = lg || 'all';
+  _reportSeasonFilter = _reportLeagueFilter === 'all' ? '' : (_mpSeasons()[0] || '');
+  try { updateLeaguePills(); } catch (_) {}
+  const sel = document.getElementById('reportSeasonFilter');
+  if (sel) { if (![...sel.options].some(o => o.value === _reportSeasonFilter)) sel.add(new Option(_reportSeasonFilter, _reportSeasonFilter)); sel.value = _reportSeasonFilter; }
+  try { onReportSeasonChange(); } catch (_) {}
+  if (!quiet) mpAfterScope();
+}
+function mpSetSeason(se) {
+  const sel = document.getElementById('reportSeasonFilter');
+  if (sel) { if (![...sel.options].some(o => o.value === se)) sel.add(new Option(se, se)); sel.value = se; }
+  onReportSeasonChange();
+  mpAfterScope();
+}
+function mpAfterScope() {
+  const inScope = new Set(_mpScopeTeams().map(t => t.name));
+  ['blue', 'red'].forEach(k => { if (_mp[k] && !inScope.has(_mp[k])) _mp[k] = ''; });
+  if (!_mp.blue) _mp.active = 'blue'; else if (!_mp.red) _mp.active = 'red';
+  mpSync();
+}
+function mpFocus(slot) { _mp.active = slot; mpRender(); }
+function mpClear(slot, ev) { if (ev) ev.stopPropagation(); _mp[slot] = ''; _mp.active = slot; mpSync(); }
+function mpSwap() { if (!_mp.blue && !_mp.red) return; [_mp.blue, _mp.red] = [_mp.red, _mp.blue]; mpSync(); }
+function mpPick(team) {
+  if (_mp.blue === team) { _mp.blue = ''; _mp.active = 'blue'; }
+  else if (_mp.red === team) { _mp.red = ''; _mp.active = 'red'; }
+  else {
+    const slot = _mp.active;
+    _mp[slot] = team;
+    _mp.active = !_mp.blue ? 'blue' : (!_mp.red ? 'red' : slot);
+  }
+  mpSync();
+}
+function mpSync() {
+  const set = (id, v) => { const el = document.getElementById(id); if (!el) return; if (v && ![...el.options].some(o => o.value === v)) el.add(new Option(v, v)); el.value = v || ''; };
+  set('blueTeamSel', _mp.blue); set('redTeamSel', _mp.red);
+  onTeamChange();
+  mpRender();
+  if (_mp.blue && _mp.red && _mp.blue !== _mp.red) {
+    generateReport().then(() => {
+      const out = document.getElementById('reportOutput');
+      if (out && out.getBoundingClientRect().top > window.innerHeight * 0.6) out.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+}
+function mpRender() {
+  const teams = _mpScopeTeams();
+  const byName = Object.fromEntries(teams.map(t => [t.name, t]));
+  const slot = (k, label, ph) => {
+    const el = document.getElementById(k === 'blue' ? 'mpSlotBlue' : 'mpSlotRed'); if (!el) return;
+    const t = _mp[k], x = byName[t];
+    el.className = `mp-slot ${k}${t ? ' filled' : ''}${_mp.active === k ? ' active' : ''}`;
+    el.innerHTML = t
+      ? `${_mpLogo(t, 'lg')}<div style="min-width:0;"><div class="lbl">${label}</div><div class="nm">${_mpEsc(t)}</div>${x ? `<div class="sub">${x.w}-${x.l} · strength #${x.rank} of ${teams.length}</div>` : ''}</div><button class="x" title="Clear" aria-label="Clear" onclick="mpClear('${k}',event)">✕</button>`
+      : `<span class="mp-logo lg" style="background:rgba(255,255,255,.05);border:1px dashed rgba(255,255,255,.14);"></span><div><div class="lbl">${label}</div><div class="ph">${ph}</div></div>`;
+  };
+  slot('blue', 'Your team · Blue', _mp.active === 'blue' ? 'Click a team below' : 'Click to choose');
+  slot('red', 'Opponent · Red', _mp.active === 'red' ? 'Click a team below' : 'Click to choose');
+  const sw = document.getElementById('mpSwap'); if (sw) sw.disabled = !(_mp.blue || _mp.red);
+  // scope chips
+  const lgEl = document.getElementById('mpLeagues');
+  if (lgEl) {
+    const ls = _mpLeagueList();
+    lgEl.innerHTML = ls.map(l => `<button class="mp-chip${_reportLeagueFilter === l ? ' on' : ''}" onclick="mpSetLeague(${_mpArg(l)})">${/scrim/i.test(l) ? 'My scrims' : _mpEsc(l)}</button>`).join('')
+      + (ls.length > 1 ? `<button class="mp-chip${_reportLeagueFilter === 'all' ? ' on' : ''}" onclick="mpSetLeague('all')">All leagues</button>` : '');
+  }
+  const seEl = document.getElementById('mpSeasons');
+  if (seEl) {
+    const ss = _mpSeasons();
+    seEl.innerHTML = ss.map((x, i) => `<button class="mp-chip${_reportSeasonFilter === x ? ' on' : ''}" onclick="mpSetSeason(${_mpArg(x)})">${_mpEsc(x)}${i === 0 && _reportLeagueFilter !== 'all' ? '<span class="cur">current</span>' : ''}</button>`).join('')
+      + `<button class="mp-chip${!_reportSeasonFilter ? ' on' : ''}" onclick="mpSetSeason('')">All seasons</button>`;
+  }
+  const hint = document.getElementById('mpHint');
+  if (hint) hint.innerHTML = _mp.blue && _mp.red
+    ? `Click a team to replace the <b style="color:${_mp.active === 'blue' ? 'var(--blue)' : 'var(--red)'};">${_mp.active === 'blue' ? 'your team' : 'opponent'}</b>`
+    : `Choosing <b style="color:${_mp.active === 'blue' ? 'var(--blue)' : 'var(--red)'};">${_mp.active === 'blue' ? 'your team' : 'the opponent'}</b> · ${teams.length} teams in ${_mpEsc(_reportLeagueFilter === 'all' ? 'all leagues' : _reportLeagueFilter)}${_reportSeasonFilter ? ' ' + _mpEsc(_reportSeasonFilter) : ''}`;
+  mpRenderGrid(teams);
+}
+function mpRenderGrid(teams) {
+  const grid = document.getElementById('mpGrid'); if (!grid) return;
+  teams = teams || _mpScopeTeams();
+  const q = (document.getElementById('mpSearch')?.value || '').trim().toLowerCase();
+  const list = q ? teams.filter(t => t.name.toLowerCase().includes(q)) : teams;
+  if (!list.length) {
+    grid.innerHTML = `<div class="mp-empty">${q ? `No team matches “${_mpEsc(q)}” here.${_reportLeagueFilter !== 'all' ? ' <a href="#" onclick="mpSetLeague(\'all\');return false;" style="color:var(--purple);">Search all leagues</a>' : ''}` : 'No games in this league and season yet.'}</div>`;
+    return;
+  }
+  grid.innerHTML = list.map(t => {
+    const locked = typeof WDB !== 'undefined' && WDB.isTeamLocked && WDB.isTeamLocked(t.name) && !WDB.canViewTeam(t.name);
+    const side = _mp.blue === t.name ? 'blue' : _mp.red === t.name ? 'red' : '';
+    return `<button class="mp-tile${side ? ' is-' + side : ''}" ${locked ? 'disabled title="Private team — ask the admin for access"' : ''} onclick="mpPick(${_mpArg(t.name)})">
+      ${_mpLogo(t.name, 'sm')}
+      <span class="t"><span class="n" style="display:block;">${_mpEsc(t.name)}${locked ? ' 🔒' : ''}</span><span class="r" style="display:block;">${t.w}-${t.l} · #${t.rank}${t.name === _mp.myTeam ? ' · <span class="you">YOUR TEAM</span>' : ''}</span></span>
+      ${side ? `<span class="tag">${side === 'blue' ? 'YOU' : 'OPP'}</span>` : ''}
+    </button>`;
+  }).join('');
 }
 
 // ══════ STATS HELPERS ══════
@@ -969,7 +1212,7 @@ function getTeamStats(name, vsOpponent=null) {
     winCondition: t.winCondition||'',
     coachNotes:   t.coachNotes||'',
     leagues: t.leagues||[],
-    poolDepth: t.poolDepth||0,
+    poolDepth: t.poolDepth || Object.keys(pickC).length,   // distinct heroes they've played in scope
   };
 }
 
@@ -1058,11 +1301,18 @@ async function generateReport() {
   out.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:20px;color:var(--text3);font-size:12px;"><div class="spinner"></div> Building scouting report…</div>`;
 
   out.innerHTML = `
-    <div id="reportToolbar" class="no-print" style="display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;">
-      <span style="font-size:11px;font-weight:700;color:var(--text2);font-family:var(--font-head);letter-spacing:.4px;">SCOUTING REPORT · ${blueName} vs ${redName}</span>
-      <span style="margin-left:auto;display:flex;gap:6px;">
-        <button class="btn btn-accent btn-sm" id="analysisPdfBtn" onclick="exportAnalysisPDF()">Export PDF</button>
-      </span>
+    <div id="reportToolbar" class="no-print rep-bar">
+      <span class="who">${_mpLogo(blueName, 'sm')}<span style="color:var(--blue);">${_mpEsc(blueName)}</span><span class="vs">vs</span><span style="color:var(--red);">${_mpEsc(redName)}</span>${_mpLogo(redName, 'sm')}</span>
+      <nav class="rep-jumps" aria-label="Report sections">
+        <button class="rep-jump" onclick="repJump('sec-overview')">Overview</button>
+        <button class="rep-jump" onclick="repJump('sec-intel')">How to beat</button>
+        <button class="rep-jump" onclick="repJump('sec-book')">Draft book</button>
+        <button class="rep-jump" onclick="repJump('sec-teams')">Team stats</button>
+        <button class="rep-jump" onclick="repJump('sec-targets')">Picks &amp; bans</button>
+        <button class="rep-jump" onclick="repJump('sec-pockets')">Pocket picks</button>
+        <button class="rep-jump" onclick="repJump('aiReportSection')">AI strategy</button>
+      </nav>
+      <button class="btn btn-accent btn-sm" id="analysisPdfBtn" onclick="exportAnalysisPDF()">Export PDF</button>
     </div>
     <div id="reportBody">${buildStaticReport(blueName, redName, blueStats, redStats, h2h)}</div>`;
 
@@ -1079,21 +1329,68 @@ async function generateReport() {
     }
   }, 30);
 
+  // AI strategy runs only when asked — opening a matchup never spends the budget.
+  const aiEl = document.getElementById('aiReportSection');
+  const aiHdr = `<div class="report-hdr"><span class="report-hdr-title" style="color:var(--purple);">AI Draft Strategy</span></div>`;
   const _aiOK = typeof WDB!=='undefined' && WDB.hasAIAccess && WDB.hasAIAccess();
+  if (!aiEl) return;
   if (!_aiOK) {
-    const aiEl = document.getElementById('aiReportSection');
-    if (aiEl) aiEl.innerHTML = `
-      <div class="report-hdr"><span class="report-hdr-title">AI Draft Strategy</span></div>
-      <div class="report-body" style="text-align:center;padding:24px;">
-        
-        <div style="font-size:12px;color:var(--text3);">AI Draft Strategy is invite-only — the stats report above is free for everyone. Ask Warr for AI access.</div>
-      </div>`;
+    aiEl.innerHTML = `${aiHdr}<div class="ai-cta"><div style="font-size:12.5px;color:var(--text2);max-width:460px;line-height:1.6;">AI Draft Strategy is invite-only. Everything above is free and built from the same data.</div></div>`;
     return;
   }
-  await runAIReport(blueName, redName, blueStats, redStats, h2h);
+  _aiArgs = [blueName, redName, blueStats, redStats, h2h];
+  const cached = _aiCache[_aiKey()];
+  if (cached) { renderAIReport(cached, aiEl); return; }
+  const deep = WDB._isAdminUser() || (WDB.getSubscription().plan === 'team');
+  aiEl.innerHTML = `${aiHdr}<div class="ai-cta">
+      <div style="font-size:12.5px;color:var(--text2);max-width:460px;line-height:1.6;">Claude reads the numbers above and turns them into a ban and pick plan, with the stat behind every call.</div>
+      <button class="btn btn-accent" onclick="runAIReportNow()">✦ Generate AI strategy</button>
+      <div style="font-size:10.5px;color:var(--text3);">${deep ? 'Claude Opus 5.5' : 'Claude Sonnet 5.5'} · counts toward your daily AI limit</div>
+    </div>`;
+}
+
+let _aiArgs = null, _aiCache = {};
+function _aiKey() { return [_reportContext.blueName, _reportContext.redName, _reportLeagueFilter, _reportSeasonFilter, (DB.matches||[]).length].join('|'); }
+function repJump(id) { const el = document.getElementById(id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+async function runAIReportNow() {
+  if (!_aiArgs) return;
+  const aiEl = document.getElementById('aiReportSection');
+  if (aiEl) aiEl.innerHTML = `<div class="report-hdr"><div class="spinner"></div><span class="report-hdr-title" style="color:var(--purple);">AI Draft Strategy</span><span style="font-size:10px;color:var(--text3);margin-left:4px;">Thinking…</span></div><div class="report-body"><div class="loading-bar"><div class="loading-bar-fill"></div></div></div>`;
+  await runAIReport(..._aiArgs);
 }
 
 // ══════ STATIC REPORT ══════
+function buildOverviewSection(blueName, redName, blueStats, redStats, h2h) {
+  const X = getMatchupIntel(blueName, redName);
+  const pc = v => Math.round(v * 100);
+  const p = X ? pc(X.p) : 50;
+  const side = (st, I, k, name) => {
+    const col = k === 'blue' ? 'var(--blue)' : 'var(--red)';
+    return `<div class="mh-team">
+      ${_mpLogo(name, 'lg')}
+      <div class="mh-name" style="color:${col};">${_mpEsc(name)}</div>
+      <div class="mh-meta">${st ? `${st.wins}-${st.losses} · ${st.wr}% WR` : 'No games in scope'}${I && I.n ? ` · strength #${I.rank} of ${I.teams}` : ''}</div>
+      ${st ? `<div style="display:flex;justify-content:center;margin-top:2px;">${formDotsHtml(st.form)}</div>` : ''}
+      <div style="font-size:10.5px;color:var(--text3);">${k === 'blue' ? 'Your team · Blue side' : 'Opponent · Red side'}</div>
+    </div>`;
+  };
+  const thin = X && Math.min(X.blue.n, X.red.n) < 8;
+  return `<div class="report-section"><div class="report-body">
+    <div class="mh-grid">
+      ${side(blueStats, X && X.blue, 'blue', blueName)}
+      <div class="mh-mid">
+        <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);font-weight:700;margin-bottom:4px;">Win chance per game</div>
+        <div class="mh-pct"><span class="b">${p}%</span><span class="r">${100 - p}%</span></div>
+        <div class="mh-bar"><div class="b" style="flex:${p};"></div><div class="r" style="flex:${100 - p};"></div></div>
+        <div class="mh-cap">${X ? `BO3 ${pc(X.p3)}% · BO5 ${pc(X.p5)}%<br>` : ''}Head-to-head ${h2h.total ? `${h2h.blueWins}-${h2h.redWins}` : 'none yet'}${X ? ` · ${X.n} games · ${_mpEsc(X.scope)}` : ''}</div>
+        ${thin ? `<div style="font-size:10.5px;color:var(--gold);margin-top:6px;">Under 8 games for a team — treat as rough</div>` : ''}
+        <div style="font-size:10px;color:var(--text3);margin-top:6px;opacity:.8;">Based on season results, adjusted for opponent strength</div>
+      </div>
+      ${side(redStats, X && X.red, 'red', redName)}
+    </div>
+  </div></div>`;
+}
+
 function buildStaticReport(blueName, redName, blueStats, redStats, h2h) {
   const blueWR = blueStats?.wr??50;
   const redWR  = redStats?.wr??50;
@@ -1114,68 +1411,15 @@ function buildStaticReport(blueName, redName, blueStats, redStats, h2h) {
     `<div style="font-size:11px;color:var(--text3);text-align:center;padding:8px 0;">No previous head-to-head on record</div>`;
 
   return `
-    <!-- MATCHUP HEADER -->
-    <div class="report-section">
-      <div class="report-hdr">
-        
-        <span class="report-hdr-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
-          <span style="color:var(--blue);">${blueName}</span>
-          <span style="color:var(--text3);font-weight:400;font-size:10px;">vs</span>
-          <span style="color:var(--red);">${redName}</span>
-          ${h2h.total>0 ? `<span style="padding:2px 9px;background:var(--surface3);border:1px solid var(--border2);border-radius:10px;font-size:10px;font-weight:400;margin-left:4px;font-family:var(--font-mono);"><span style="color:var(--blue);">${h2h.blueWins}</span> – <span style="color:var(--red);">${h2h.redWins}</span> <span style="color:var(--text3);font-size:9px;">H2H</span></span>` : ''}
-        </span>
-        ${_reportLeagueFilter!=='all'?`<span style="margin-left:auto;font-size:9px;color:var(--text3);font-family:var(--font-head);letter-spacing:.5px;">${_reportLeagueFilter} ONLY</span>`:''}
-      </div>
-      <div class="report-body">
-        <div style="display:grid;grid-template-columns:1fr 60px 1fr;gap:12px;align-items:center;">
-          <div style="text-align:center;">
-            <div style="font-size:22px;font-weight:800;font-family:var(--font-head);color:var(--blue);">${blueName}</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:2px;">Blue Side</div>
-            <div style="font-size:24px;font-weight:800;font-family:var(--font-head);color:${wrColor(blueStats?.wr??null)};margin-top:4px;">${blueStats?blueStats.wr+'%':'—'}</div>
-            <div style="font-size:9px;color:var(--text3);margin-top:1px;">WIN RATE</div>
-            ${blueStats?`<div style="display:flex;justify-content:center;margin-top:6px;">${formDotsHtml(blueStats.form)}</div>`:''}
-          </div>
-          <div style="text-align:center;">
-            <div style="font-size:12px;font-weight:700;font-family:var(--font-head);color:var(--text3);letter-spacing:2px;">VS</div>
-            <div style="margin-top:8px;">${h2hBar}</div>
-          </div>
-          <div style="text-align:center;">
-            <div style="font-size:22px;font-weight:800;font-family:var(--font-head);color:var(--red);">${redName}</div>
-            <div style="font-size:11px;color:var(--text3);margin-top:2px;">Red Side</div>
-            <div style="font-size:24px;font-weight:800;font-family:var(--font-head);color:${wrColor(redStats?.wr??null)};margin-top:4px;">${redStats?redStats.wr+'%':'—'}</div>
-            <div style="font-size:9px;color:var(--text3);margin-top:1px;">WIN RATE</div>
-            ${redStats?`<div style="display:flex;justify-content:center;margin-top:6px;">${formDotsHtml(redStats.form)}</div>`:''}
-          </div>
-        </div>
-        ${blueStats&&redStats?`
-          <div class="divider"></div>
-          <div style="font-size:9px;color:var(--text3);margin-bottom:4px;font-family:var(--font-head);letter-spacing:1px;text-transform:uppercase;">Form WR Balance</div>
-          <div class="pred-bar-wrap">
-            <div class="pred-bar-blue" style="flex:${blueFlexPct};"></div>
-            <div class="pred-bar-red" style="flex:${redFlexPct};"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:10px;margin-top:3px;">
-            <span style="color:var(--blue);">${blueFlexPct}%</span>
-            <span style="color:var(--red);">${redFlexPct}%</span>
-          </div>`:''}
-      </div>
-    </div>
+    <!-- OVERVIEW -->
+    <div id="sec-overview" class="rep-sec">${buildOverviewSection(blueName, redName, blueStats, redStats, h2h)}</div>
 
-    <!-- TEAM CARDS -->
-    <div class="team-grid-2">
-      ${buildTeamCard(blueStats, 'blue', blueName)}
-      ${buildTeamCard(redStats, 'red', redName)}
-    </div>
-
+    <div id="sec-intel" class="rep-sec">
     <!-- MATCHUP INTEL — opponent-adjusted model + data levers (free, no AI) -->
     ${buildIntelSection(blueName, redName)}
+    </div>
 
-    <!-- PRIORITY TARGETS -->
-    ${buildPrioritySection(blueName, redName, blueStats, redStats)}
-
-    <!-- POCKET PICKS — heroes the opponent has rarely faced -->
-    ${buildPocketPickSection(blueName, redName, blueStats, redStats)}
-
+    <div id="sec-book" class="rep-sec">
     <!-- ENEMY DRAFT BOOK (top compositions per team) — rendered async so
          the static report appears immediately; this placeholder fills in after. -->
     <div id="draftPlanMount">
@@ -1190,9 +1434,28 @@ function buildStaticReport(blueName, redName, blueStats, redStats, h2h) {
         </div>
       </div>
     </div>
+    </div>
+
+    <div id="sec-teams" class="rep-sec">
+    <!-- TEAM CARDS -->
+    <div class="team-grid-2">
+      ${buildTeamCard(blueStats, 'blue', blueName)}
+      ${buildTeamCard(redStats, 'red', redName)}
+    </div>
+    </div>
+
+    <div id="sec-targets" class="rep-sec">
+    <!-- PRIORITY TARGETS -->
+    ${buildPrioritySection(blueName, redName, blueStats, redStats)}
+    </div>
+
+    <div id="sec-pockets" class="rep-sec">
+    <!-- POCKET PICKS — heroes the opponent has rarely faced -->
+    ${buildPocketPickSection(blueName, redName, blueStats, redStats)}
+    </div>
 
     <!-- AI REPORT PLACEHOLDER -->
-    <div class="report-section" id="aiReportSection">
+    <div class="report-section rep-sec" id="aiReportSection">
       <div class="report-hdr">
         <div class="spinner"></div>
         <span class="report-hdr-title" style="color:var(--blue);">AI Draft Strategy</span>
@@ -1217,10 +1480,10 @@ function buildTeamCard(stats, side, name) {
 
   return `<div class="report-section">
     <div class="report-hdr" style="background:${side==='blue'?'rgba(79,142,247,.06)':'rgba(240,82,82,.06)'};border-bottom-color:${side==='blue'?'rgba(79,142,247,.2)':'rgba(240,82,82,.2)'};">
-      <span style="font-size:15px;">${side==='blue'?'B':'R'}</span>
+      ${_mpLogo(stats.name, 'sm')}
       <div>
-        <div style="font-size:13px;font-weight:700;font-family:var(--font-head);">${stats.name}</div>
-        <div style="font-size:10px;color:var(--text3);">${side==='blue'?'Blue Side — Us':'Red Side — Enemy'}</div>
+        <div style="font-size:13px;font-weight:700;font-family:var(--font-head);">${_mpEsc(stats.name)}</div>
+        <div style="font-size:10px;color:var(--text3);">${side==='blue'?'Your team · Blue side':'Opponent · Red side'}</div>
       </div>
       <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
         ${formDotsHtml(stats.form)}
@@ -1301,21 +1564,12 @@ function buildIntelSection(blueName, redName) {
       ${edges.length ? `<div class="section-label" style="margin-top:12px;">Respect</div>${edges.map(e => `<div style="font-size:11px;color:var(--text2);padding:3px 0;">• ${escHtmlS(e)}</div>`).join('')}` : ''}
       ${_tempoLine(I)}
     </div>`;
-  const rk = I => I.n ? `#${I.rank}/${I.teams}` : '—';
-  const thin = Math.min(X.blue.n, X.red.n) < 8;
   return `<div class="report-section">
     <div class="report-hdr">
       <span class="report-hdr-title" style="color:var(--gold);">Matchup Intel · How to beat them</span>
       <span style="font-size:10px;color:var(--text3);margin-left:auto;font-family:var(--font-mono);">${X.n} games · ${escHtmlS(X.scope)}</span>
     </div>
     <div class="report-body">
-      <div style="display:flex;flex-wrap:wrap;gap:8px 18px;align-items:baseline;padding:10px 12px;margin-bottom:14px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;">
-        <span style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase;">Opponent-adjusted model</span>
-        <span style="font-size:13px;font-weight:800;color:var(--blue);">${escHtmlS(blueName)} ${pc(X.p)}%</span>
-        <span style="font-size:11px;color:var(--text2);">per game · BO3 ${pc(X.p3)}% · BO5 ${pc(X.p5)}%</span>
-        <span style="font-size:11px;color:var(--text3);">strength ${escHtmlS(blueName)} ${rk(X.blue)} · ${escHtmlS(redName)} ${rk(X.red)}</span>
-        ${thin ? `<span style="font-size:10px;color:var(--gold);">thin data — under 8 games for a team, treat as rough</span>` : ''}
-      </div>
       <div class="two-col">
         ${col(X.red, X.beatRed, X.edgesRed, `How to beat ${escHtmlS(redName)}`, 'No lever with enough evidence yet — play the meta.')}
         ${col(X.blue, X.beatBlue, X.edgesBlue, `How teams beat ${escHtmlS(blueName)} — your risks`, 'No clear weakness in the data.')}
@@ -1326,7 +1580,7 @@ function buildIntelSection(blueName, redName) {
 
 function buildPrioritySection(blueName, redName, blueStats, redStats) {
   if (!redStats) return '';
-  const vsGames = redStats.vsData?.games||0;
+  const vsGames = (redStats.vsData?.games||0) >= 5 ? redStats.vsData.games : 0;   // under 5 H2H games is noise — use their overall data
   const vsLabel = vsGames>0?`<span style="font-size:9px;color:var(--cyan);margin-left:6px;font-family:var(--font-mono);">${vsGames}g H2H</span>`:`<span style="font-size:9px;color:var(--text3);margin-left:6px;font-style:italic;">overall</span>`;
   const enemyPicks = vsGames>0 ? redStats.vsData.topPicks : redStats.topPicks;
   const enemyBans  = vsGames>0 ? redStats.vsData.topBans  : redStats.topBans;
@@ -1340,14 +1594,14 @@ function buildPrioritySection(blueName, redName, blueStats, redStats) {
   return `<div class="report-section">
     <div class="report-hdr">
       <span></span>
-      <span class="report-hdr-title">Priority Targets</span>
+      <span class="report-hdr-title">Picks &amp; bans</span>
       ${vsLabel}
     </div>
     <div class="report-body">
       <div class="three-col">
         <!-- BAN TARGETS -->
         <div>
-          <div class="section-label" style="color:var(--red);">Must Ban</div>
+          <div class="section-label" style="color:var(--red);">${vsGames ? 'Their picks vs you' : 'Their most-picked'}</div>
           ${mustBan.length ? mustBan.map(p => heroRowHtml(
             {id:nameToId(p.name),name:p.name},
             p.wr+'%WR', p.count+'g', wrColor(p.wr)
@@ -2185,6 +2439,7 @@ Respond ONLY with JSON matching this exact schema:
     const m = raw.match(/\{[\s\S]*\}/);
     if (!m) throw new Error('No JSON');
     const r = JSON.parse(m[0]);
+    _aiCache[_aiKey()] = r;
     renderAIReport(r, aiSection);
   } catch(e) {
     const msg = (e.code==='NO_AI_ACCESS'||e.message==='NO_API_KEY') ? WDB.NO_AI_MSG : `AI analysis failed: ${e.message}`;

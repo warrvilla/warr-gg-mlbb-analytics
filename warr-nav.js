@@ -160,6 +160,14 @@
       nav.topnav .nav-links { display: none; }
       nav.topnav .mobile-menu-btn { display: inline-flex; }
     }
+    /* Phones: the right side (theme switch + name + sign out) was wider than
+       the screen and pushed the whole page sideways. */
+    @media (max-width: 560px) {
+      nav.topnav { padding: 0 12px; }
+      nav.topnav .nav-brand { margin-right: 6px; }
+      nav.topnav .theme-switcher, nav.topnav .wauth-name, nav.topnav .wauth-team { display: none !important; }
+      nav.topnav .nav-right { gap: 8px; min-width: 0; }
+    }
   `;
 
   function injectBaseline() {
@@ -240,7 +248,7 @@
         <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z"/></svg>
       </button>
     </div>
-    <a class="nav-profile-btn" href="/profile" title="Profile & plan" aria-label="Profile">
+    <a class="nav-profile-btn" href="/profile" title="Profile & access" aria-label="Profile">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
     </a>
     <div id="authChip"></div>
