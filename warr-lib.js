@@ -1620,7 +1620,7 @@ WDB.uploadSlideBackground = async function(file) {
 // Portraits are cached "immutable" for a year, so re-uploading a file under the
 // SAME name won't refresh on its own. Bump PORTRAIT_VER whenever you replace any
 // portrait image — the ?v= changes the URL and forces every browser to refetch.
-WDB.PORTRAIT_VER = '3';
+WDB.PORTRAIT_VER = '4';   // bumped for the Oct 23 portrait refresh
 WDB.heroPortrait = function(name, variant) {
   variant = WDB.PORTRAIT_VARIANTS.includes(variant) ? variant : 'icon';
   const overrides = WDB._portraitOverrides && WDB._portraitOverrides[name];

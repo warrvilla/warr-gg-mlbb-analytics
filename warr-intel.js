@@ -337,8 +337,71 @@
         const d = W.mins(m.duration);
         const obj = m.objectives || {};
         const ft = Array.isArray(obj.turtle) && obj.turtle[0] ? (obj.turtle[0] === s ? 'got 1st turtle' : 'lost 1st turtle') : '';
-        return `${(m.date || '').slice(0, 10)} ${win ? 'WIN' : 'LOSS'} vs ${opp} [${s}${m.league === 'Scrims' ? ', SCRIM' : ''}${d ? ', ' + Math.round(d) + 'm' : ''}${ft ? ', ' + ft : ''}] picks: ${pk} | vs: ${op} | their bans: ${(m[s + 'Bans'] || []).map(nm).join(', ')} | banned vs them: ${(m[o + 'Bans'] || []).map(nm).join(', ')}`;
+        const where = [W.stageGroup(m) === 'Scrims' ? 'SCRIM' : (m.stage || W.stageGroup(m)), m.week, m.seriesFormat ? m.seriesFormat + (m.gameNum ? ' G' + m.gameNum : '') : ''].filter(Boolean).join(' · ');
+        return `${(m.date || '').slice(0, 10)} ${win ? 'WIN' : 'LOSS'} vs ${opp} [${where}${where ? ' · ' : ''}${s}${d ? ', ' + Math.round(d) + 'm' : ''}${ft ? ', ' + ft : ''}] picks: ${pk} | vs: ${op} | their bans: ${(m[s + 'Bans'] || []).map(nm).join(', ')} | banned vs them: ${(m[o + 'Bans'] || []).map(nm).join(', ')}`;
       });
+  };
+
+  // ── Stages & series ───────────────────────────────────────────────────
+  // Scout stores stage ('Regular Season', 'Playoffs', 'Grand Finals', …),
+  // week ('Week 8 Day 1', 'Playoffs Day 2') and series (seriesId, BO3/BO5,
+  // gameNum). Regular season and playoffs are different contexts — standings
+  // are a regular-season series table, playoffs are knockout series.
+  W.stageGroup = function (m) {
+    const st = String((m && m.stage) || '').toLowerCase(), wk = String((m && m.week) || '').toLowerCase();
+    if ((m && m.league) === 'Scrims' || /scrim/.test(st)) return 'Scrims';
+    if (/play-?off|knock|bracket|elimin|final|semi|quarter|upper|lower/.test(st + ' ' + wk)) return 'Playoffs';
+    if (/group|swiss/.test(st)) return 'Group Stage';
+    if (!st || /regular|week|season/.test(st)) return 'Regular Season';
+    return String(m.stage).trim();
+  };
+  W.seriesKey = m => m.seriesId || [m.league, m.season, m.stage, (m.week || m.date), [m.blueTeam, m.redTeam].sort().join('|'), m.seriesFormat || ''].join('|');
+  // Series for one team (newest first): opponent, stage, format, score.
+  W.series = function (matches, team) {
+    const g = {};
+    (matches || []).filter(m => sideOf(m, team) && (m.winner === 'blue' || m.winner === 'red')).forEach(m => {
+      const k = W.seriesKey(m), s = sideOf(m, team);
+      const x = g[k] || (g[k] = { opp: s === 'blue' ? m.redTeam : m.blueTeam, stage: W.stageGroup(m), stageRaw: m.stage || '', week: m.week || '', format: m.seriesFormat || '', date: m.date || '', w: 0, l: 0 });
+      if (m.winner === s) x.w++; else x.l++;
+      if ((m.date || '') > x.date) x.date = m.date;
+    });
+    return Object.values(g).map(x => ({ ...x, result: x.w > x.l ? 'W' : x.w < x.l ? 'L' : 'D' }))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  };
+  // Games and series record per stage for one team.
+  W.stageSplit = function (matches, team) {
+    const out = {};
+    (matches || []).filter(m => sideOf(m, team) && (m.winner === 'blue' || m.winner === 'red')).forEach(m => {
+      const st = W.stageGroup(m), x = out[st] || (out[st] = { gw: 0, gl: 0, sw: 0, sl: 0, sd: 0 });
+      if (m.winner === sideOf(m, team)) x.gw++; else x.gl++;
+    });
+    W.series(matches, team).forEach(sr => { const x = out[sr.stage]; if (!x) return; if (sr.result === 'W') x.sw++; else if (sr.result === 'L') x.sl++; else x.sd++; });
+    return out;
+  };
+  // Regular-season table: series wins, then game difference.
+  W.standings = function (matches) {
+    const reg = (matches || []).filter(m => W.stageGroup(m) === 'Regular Season' && (m.winner === 'blue' || m.winner === 'red'));
+    const t = {};
+    const add = n => t[n] || (t[n] = { team: n, sw: 0, sl: 0, sd: 0, gw: 0, gl: 0 });
+    reg.forEach(m => { add(m.blueTeam); add(m.redTeam); const w = m.winner === 'blue' ? m.blueTeam : m.redTeam, l = m.winner === 'blue' ? m.redTeam : m.blueTeam; t[w].gw++; t[l].gl++; });
+    const seen = new Set();
+    Object.keys(t).forEach(n => W.series(reg, n).forEach(sr => {
+      const k = [n, sr.opp, sr.date, sr.week].join('|'); if (seen.has(k)) return; seen.add(k);
+      if (sr.result === 'W') t[n].sw++; else if (sr.result === 'L') t[n].sl++; else t[n].sd++;
+    }));
+    return Object.values(t).sort((a, b) => (b.sw - a.sw) || ((b.gw - b.gl) - (a.gw - a.gl)) || (a.sl - b.sl));
+  };
+  // All playoff series in a pool, oldest first: "date · stage (BO5): A 3-1 B".
+  W.playoffSeries = function (matches) {
+    const g = {};
+    (matches || []).filter(m => W.stageGroup(m) === 'Playoffs' && (m.winner === 'blue' || m.winner === 'red')).forEach(m => {
+      const k = W.seriesKey(m), a = [m.blueTeam, m.redTeam].sort()[0], b = a === m.blueTeam ? m.redTeam : m.blueTeam;
+      const x = g[k] || (g[k] = { a, b, aw: 0, bw: 0, stage: m.stage || 'Playoffs', week: m.week || '', format: m.seriesFormat || '', date: m.date || '' });
+      const winner = m.winner === 'blue' ? m.blueTeam : m.redTeam;
+      if (winner === a) x.aw++; else x.bw++;
+      if ((m.date || '') > x.date) x.date = m.date;
+    });
+    return Object.values(g).sort((x, y) => (x.date || '').localeCompare(y.date || ''));
   };
 
   // ── One hero in this pool: presence, WR, who plays it, lanes ──────────

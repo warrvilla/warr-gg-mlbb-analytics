@@ -247,25 +247,38 @@
     if (!teams.length) teams = pageTeams().filter(t => !locked(t));                    // whatever's on screen
     teams = teams.slice(0, 3);
     const heroes = WIntel.findHeroes(q, HD.heroes);
+    // Stage the question is about: playoffs vs regular season (else: whole season, split shown).
+    const stageQ = /\b(play-?offs?|knock-?outs?|brackets?|upper bracket|lower bracket|elimination|grand ?finals?|finals?|semi-?finals?|semis|quarter-?finals?)\b/i.test(q) ? 'Playoffs'
+      : /\b(regular season|reg(?:ular)?\.? season|group stage|groups|swiss|week \d+|weeks)\b/i.test(q) ? 'Regular Season' : '';
     const parts = [], used = [];
     const today = new Date().toISOString().slice(0, 10);
     const u = user();
     parts.push(`TODAY: ${today}. USER: ${(u && (u.user_metadata?.name || u.email || '').split('@')[0]) || 'coach'}. USER'S TEAM: ${HD.myTeam || 'not set'}.`);
     const scopes = {};
+    const splitTxt = sp => Object.entries(sp).filter(([k]) => k !== 'Scrims').map(([k, x]) => `${k}: games ${x.gw}-${x.gl}, series ${x.sw}-${x.sl}${x.sd ? ` (${x.sd} unfinished/drawn)` : ''}`).join(' | ');
     teams.forEach(t => {
       const sc = scopeOf(t); scopes[t] = sc;
       const R = WIntel.ratings(sc.pool);
-      const I = WIntel.team(sc.pool, t, R);
+      // Profile on the stage asked about (if the team has games there), else the season.
+      const stPool = stageQ ? sc.pool.filter(m => WIntel.stageGroup(m) === stageQ) : sc.pool;
+      const stN = stPool.filter(m => involves(m, t)).length;
+      const usePool = stageQ && stN >= 2 ? stPool : sc.pool;
+      const scopeLbl = `${sc.label}${stageQ && stN >= 2 ? ' · ' + stageQ + ' only' : ' · all stages'}`;
+      const I = WIntel.team(usePool, t, R);
       const lv = WIntel.levers(I);
-      used.push(`${t} (${sc.label}, ${I.n}g)`);
+      used.push(`${t} (${scopeLbl}, ${I.n}g)`);
       const lanes = WIntel.LANES.filter(l => I.lanes[l]).map(l => `${l}: ${I.lanes[l].main || '?'} (${I.lanes[l].top.map(x => x.hero).join(', ')})`).join(' | ');
       const scr = HD.usable.filter(m => isScrim(m) && involves(m, t));
+      const series = WIntel.series(sc.pool, t).slice(0, 10).map(x => `${(x.date || '').slice(0, 10)} ${x.stageRaw || x.stage}${x.week ? ' · ' + x.week : ''}${x.format ? ' · ' + x.format : ''}: ${x.result === 'W' ? 'WON' : x.result === 'L' ? 'LOST' : 'unfinished/drawn'} ${x.w}-${x.l} vs ${x.opp}`);
       parts.push([
-        `=== TEAM: ${t} — ${sc.label}, ${I.n} official games ===`,
+        `=== TEAM: ${t} — ${scopeLbl}, ${I.n} official games ===`,
+        `Record by stage (${sc.label}): ${splitTxt(WIntel.stageSplit(sc.pool, t)) || 'n/a'}`,
+        stageQ && stN < 2 ? `NOTE: only ${stN} ${stageQ.toLowerCase()} game(s) for ${t} in ${sc.label} — the profile below uses the whole season.` : '',
+        series.length ? `Series results (newest first):\n${series.join('\n')}` : '',
         WIntel.promptBlock(I, lv),
         lanes ? `Players by lane (main player, most-played heroes): ${lanes}` : '',
         WIntel.edges(I).length ? `Strengths: ${WIntel.edges(I).join('; ')}` : '',
-        `Recent official games (newest first):\n${WIntel.recentGames(sc.pool, t, 8).join('\n') || 'none'}`,
+        `Recent official games (newest first, with stage):\n${WIntel.recentGames(usePool, t, 8).join('\n') || 'none'}`,
         scr.length ? `USER'S OWN SCRIMS involving ${t} (private to the user, ${scr.length} games):\n${WIntel.recentGames(scr, t, 6).join('\n')}` : '',
       ].filter(Boolean).join('\n'));
     });
@@ -278,7 +291,7 @@
       parts.push([
         `=== MATCHUP: ${a} vs ${b} ===`,
         same ? `Opponent-adjusted model (${sc.label}): ${a} ${pct(R.pGame(a, b))}% per game, BO3 ${pct(R.pSeries(a, b, 3))}%, BO5 ${pct(R.pSeries(a, b, 5))}%. Strength rank: ${a} #${R.rank(a)}, ${b} #${R.rank(b)} of ${R.teams}.` : `Different leagues/seasons — no shared model.`,
-        `Head-to-head (official, all seasons): ${a} ${aw}-${h2h.length - aw} in ${h2h.length} games.`,
+        `Head-to-head (official, all seasons): ${a} ${aw}-${h2h.length - aw} in ${h2h.length} games; series: ${(() => { const ss = WIntel.series(h2h, a); return `${ss.filter(x => x.result === 'W').length}-${ss.filter(x => x.result === 'L').length}` + (ss.length ? ` (${ss.slice(0, 5).map(x => `${(x.date || '').slice(0, 10)} ${x.stageRaw || x.stage} ${x.w}-${x.l}`).join('; ')})` : ''); })()}.`,
         h2h.length ? `Last H2H games:\n${WIntel.recentGames(h2h, a, 5).join('\n')}` : '',
       ].filter(Boolean).join('\n'));
     }
@@ -289,9 +302,19 @@
       const sc = scopeOf('', lg);
       const R = WIntel.ratings(sc.pool);
       const rec = {}; sc.pool.forEach(m => [['blue', m.blueTeam], ['red', m.redTeam]].forEach(([s, t]) => { const x = rec[t] || (rec[t] = { w: 0, l: 0 }); if (m.winner === s) x.w++; else x.l++; }));
-      const stand = Object.keys(rec).sort((x, y) => (R.r[y] || 0) - (R.r[x] || 0)).slice(0, 12).map((t, i) => `${i + 1}. ${t} ${rec[t].w}-${rec[t].l}`).join(' | ');
-      const meta = WIntel.meta(sc.pool).slice(0, 16).map(m => `${m.hero} ${pct(m.pres)}% pres (${m.picks}p/${m.bans}b${m.picks >= 4 ? `, ${pct(m.adjWR)}% WR` : ''})`).join(', ');
-      parts.push(`=== LEAGUE: ${sc.label} (${sc.pool.length} games) ===\nStandings by opponent-adjusted strength: ${stand}\nMeta (presence = picked or banned per game): ${meta}`);
+      const strength = Object.keys(rec).sort((x, y) => (R.r[y] || 0) - (R.r[x] || 0)).slice(0, 12).map((t, i) => `${i + 1}. ${t}`).join(' | ');
+      const table = WIntel.standings(sc.pool).map((r, i) => `${i + 1}. ${r.team} ${r.sw}-${r.sl} (games ${r.gw}-${r.gl}, ${r.gw - r.gl >= 0 ? '+' : ''}${r.gw - r.gl})`).join(' | ');
+      const po = WIntel.playoffSeries(sc.pool).map(x => `${(x.date || '').slice(0, 10)} ${x.stage}${x.week ? ' · ' + x.week : ''}${x.format ? ' (' + x.format + ')' : ''}: ${x.a} ${x.aw}-${x.bw} ${x.b}`);
+      const latest = sc.pool.slice().sort(byDateDesc)[0];
+      const meta = WIntel.meta(stageQ ? sc.pool.filter(m => WIntel.stageGroup(m) === stageQ) : sc.pool).slice(0, 16).map(m => `${m.hero} ${pct(m.pres)}% pres (${m.picks}p/${m.bans}b${m.picks >= 4 ? `, ${pct(m.adjWR)}% WR` : ''})`).join(', ');
+      parts.push([
+        `=== LEAGUE: ${sc.label} (${sc.pool.length} games) ===`,
+        latest ? `Latest stage played: ${latest.stage || WIntel.stageGroup(latest)}${latest.week ? ' · ' + latest.week : ''} (${(latest.date || '').slice(0, 10)}).` : '',
+        table ? `REGULAR SEASON STANDINGS (series W-L, then game difference): ${table}` : 'No regular-season games logged.',
+        po.length ? `PLAYOFF SERIES (oldest first):\n${po.join('\n')}` : 'No playoff games logged yet.',
+        `Opponent-adjusted strength ranking (all stages, NOT the standings): ${strength}`,
+        `Meta${stageQ ? ' (' + stageQ + ' only)' : ''} (presence = picked or banned per game): ${meta}`,
+      ].filter(Boolean).join('\n'));
       if (!teams.length) used.push(`${sc.label} (${sc.pool.length}g)`);
       heroes.forEach(h => {
         const x = WIntel.hero(sc.pool, h);
@@ -312,6 +335,7 @@ RULES
 - Every stat you state must come from the DATA PACK, with its game count (e.g. "Chou 8-0 in 8 games"). Never invent stats, results, players or patch notes.
 - If the data doesn't cover the question, say so in one line, then help from general MLBB knowledge and label it as general knowledge.
 - Under ~5 games is an early signal — say so. Prefer the current season.
+- Stages matter: regular season and playoffs are different contexts. "Standings" = the regular-season table (series record, then game difference) — not the strength ranking. Playoffs are knockout series (BO5/BO7). Always say which stage a number is from, and whether it's a game record or a series record. If asked about playoffs, use playoff data first and note when the sample is small.
 - Privacy: you only see official matches plus the user's own scrims. You cannot see other teams' scrims. If asked, say that plainly.
 - Answer like a sharp coach: the answer first in 1–2 sentences, then the evidence as bullets, then a concrete plan (bans, picks, win condition, timings) when it fits.
 - Keep it tight — about 200 words unless they ask for depth. Markdown: short headings, bullets, **bold** hero/team names. Small tables are fine.
