@@ -1857,6 +1857,32 @@ const LANE_ICONS_AB  = { Gold:'GLD', Mid:'MID', Roam:'RMG', Jungle:'JGL', EXP:'E
 // Populated at startup from WDB.computeHeroLaneSets in the boot block below.
 const SCOUT_CONFIRMED_LANES = {};
 
+// Lanes a hero is REALLY played in this season (≥2 games and ≥20% of its
+// games, primary lane always kept). Used for "is this ban wasted?" — the full
+// lane set counts every lane a hero was ever logged in, so one odd EXP game
+// made a pure jungler look bannable after the jungle was already taken.
+let _rlCacheAB=null,_rlKeyAB='';
+function realLanesAB(h){
+  let mt=0;try{const r=localStorage.getItem(SCOUT_KEY_AB);mt=r?r.length:0;}catch(_){}
+  try{_abSeasonIndex();}catch(_){}
+  const key=mt+'|'+(typeof _abSeasonKey!=='undefined'?_abSeasonKey:'')+'|'+_useMyScrims;
+  if(_rlKeyAB!==key){
+    _rlKeyAB=key;_rlCacheAB={};
+    try{
+      const pool=abScoped(_learnMatches(loadScoutAB().matches||[]));
+      const c={};
+      pool.forEach(m=>[...(m.bluePicks||[]),...(m.redPicks||[])].forEach(p=>{if(!p||!p.name||!p.lane)return;const x=c[p.name]||(c[p.name]={});x[p.lane]=(x[p.lane]||0)+1;}));
+      Object.entries(c).forEach(([n,lc])=>{
+        const tot=Object.values(lc).reduce((a,b)=>a+b,0);
+        const lanes=Object.entries(lc).sort((a,b)=>b[1]-a[1]).filter(([,k],i)=>i===0||(k>=2&&k/tot>=0.2)).map(([l])=>l);
+        _rlCacheAB[n]={lanes,tot};
+      });
+    }catch(_){}
+  }
+  const r=_rlCacheAB[h.name];
+  if(r&&r.tot>=3)return r.lanes;
+  return getHeroLanesAB(h).filter(l=>l!=='Flex');
+}
 function getHeroLanesAB(h, ctx) {
   // 0. TEAM IDENTITY (ctx) wins over everything: lane is team-specific. When the
   //    AI emulates a scouted team, that team's own recent lanes for this hero are
@@ -3332,11 +3358,10 @@ function computeCoachSuggestions(step){
     const scored=avail.map(h=>{
       const t=getEffectiveTier(h.name);
       const tierScore={S:100,A:75,B:50,C:25}[t]||20;
-      const heroLns=getHeroLanesAB(h);
-      const playableLns=heroLns.filter(L=>L!=='Flex');
+      const playableLns=realLanesAB(h);
       const oppCannotPick=playableLns.length>0&&playableLns.every(L=>!oppNeeded.includes(L));
       const isMustBan=h.mp==='mustban';
-      if(oppCannotPick && !isMustBan) return null;
+      if(oppCannotPick) return null;   // even a must-ban: they can't play it any more
       // SANDWICH: ban hits opp's predicted next pick OR its synergy partner
       const sandwichBonus = (h.name === predictedOppPick) ? 45
                           : (predictedSynergyPartners.includes(h.name) ? 22 : 0);
@@ -3939,11 +3964,13 @@ function draftBrainAB(step,opts){
     const favs=forHuman?(oppFavs||[]):_FAVS();
     const combos=forHuman?[]:_COMBOS(); // combo data tracks the human only
 
-    // LEGAL — hard waste filters: never bypassed except literal must-ban
+    // LEGAL — hard waste filters. A must-ban is NOT exempt from "opponent
+    // can't play it any more": banning a hero whose lanes they've filled is a
+    // wasted ban, however strong the hero is.
     const legal=avail.filter(h=>{
-      const lns=getHeroLanesAB(h).filter(l=>l!=='Flex');
+      const lns=realLanesAB(h);
       const oppCannot=lns.length>0&&lns.every(L=>!oppNeeded.includes(L));
-      if(oppCannot&&h.mp!=='mustban')return false;            // opp literally can't pick it
+      if(oppCannot)return false;                              // opp literally can't pick it
       const wasteSelf=lns.some(L=>myNeeded.includes(L)&&!oppNeeded.includes(L));
       if(wasteSelf&&h.mp!=='mustban')return false;            // only shrinks OUR pool
       return true;
@@ -4427,9 +4454,9 @@ Return ONLY JSON: {"hero":"ExactNameFromList","reason":"<22 words, name the stra
     if(usedIds.has(h.id))return{ok:false,reason:`${h.name} is already picked or banned`};
     if(step.type==='pick'&&!laneFeasibleAB(myP,h))return{ok:false,reason:`${h.name} cannot fit any open lane (needed: ${myNeeded.join('/')})`};
     if(step.type==='ban'){
-      const lns=getHeroLanesAB(h).filter(l=>l!=='Flex');
+      const lns=realLanesAB(h);
       const oppCannot=lns.length>0&&lns.every(L=>!oppNeeded.includes(L));
-      if(oppCannot&&h.mp!=='mustban')return{ok:false,reason:`wasted ban — opponent has no lane left for ${h.name}`};
+      if(oppCannot)return{ok:false,reason:`wasted ban — opponent has no lane left for ${h.name}`};
       const wasteSelf=lns.some(L=>myNeeded.includes(L)&&!oppNeeded.includes(L));
       if(wasteSelf&&h.mp!=='mustban')return{ok:false,reason:`${h.name} only shrinks our own pool`};
     }

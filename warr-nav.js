@@ -104,6 +104,23 @@
       color: #F0F0F8;
       box-shadow: inset 0 0 0 0.5px rgba(124,92,246,0.24);
     }
+    /* Gliding hover pill: one shared highlight that slides between links
+       instead of each link fading its own background in and out. */
+    nav.topnav .nav-links { position: relative; }
+    nav.topnav .nav-links.has-glide .nav-link { position: relative; z-index: 1; }
+    nav.topnav .nav-links.has-glide .nav-link:hover { background: transparent; }
+    nav.topnav .nav-links.has-glide .nav-link.active:hover { background: rgba(124,92,246,0.13); }
+    nav.topnav .nav-glide {
+      position: absolute; left: 0; top: 0; width: 0; height: 0; z-index: 0;
+      border-radius: 9999px; background: rgba(255,255,255,0.07);
+      opacity: 0; pointer-events: none; will-change: transform, width;
+      transition: transform .3s cubic-bezier(.22,1,.36,1), width .3s cubic-bezier(.22,1,.36,1), opacity .18s ease;
+    }
+    nav.topnav .nav-glide.on { opacity: 1; }
+    html[data-theme="light"] nav.topnav .nav-glide { background: rgba(0,0,0,0.06); }
+    @media (prefers-reduced-motion: reduce) {
+      nav.topnav .nav-glide { transition: opacity .12s ease; }
+    }
     nav.topnav .nav-right { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-shrink: 0; }
     nav.topnav .nav-profile-btn {
       display: inline-flex; align-items: center; justify-content: center;
@@ -223,7 +240,7 @@
         <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z"/></svg>
       </button>
     </div>
-    <a class="nav-profile-btn" href="/profile" title="Profile & access" aria-label="Profile">
+    <a class="nav-profile-btn" href="/profile" title="Profile & plan" aria-label="Profile">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
     </a>
     <div id="authChip"></div>
@@ -260,6 +277,43 @@
       if (href === here) a.classList.add('active');
       else a.classList.remove('active');
     });
+  }
+
+  // ── Gliding hover pill ───────────────────────────────────────────
+  // A single highlight follows the pointer across the links. It snaps into
+  // place (no slide) when it first appears, slides between links while the
+  // pointer moves along the bar, and steps aside on the active link, which
+  // already has its own purple pill.
+  function wireGlide() {
+    const bar = document.querySelector('nav.topnav .nav-links');
+    if (!bar || bar.querySelector('.nav-glide')) return;
+    const pill = document.createElement('span');
+    pill.className = 'nav-glide';
+    pill.setAttribute('aria-hidden', 'true');
+    bar.insertBefore(pill, bar.firstChild);
+    bar.classList.add('has-glide');
+    let positioned = false;   // pill is already somewhere on the bar → slide, don't snap
+    const place = (a, animate) => {
+      const x = a.offsetLeft, y = a.offsetTop, w = a.offsetWidth, h = a.offsetHeight;
+      if (!animate) pill.style.transition = 'opacity .18s ease';
+      pill.style.width = w + 'px';
+      pill.style.height = h + 'px';
+      pill.style.transform = `translate(${x}px, ${y}px)`;
+      if (!animate) { void pill.offsetWidth; pill.style.transition = ''; }
+    };
+    const show = a => {
+      place(a, positioned);
+      positioned = true;
+      pill.classList.toggle('on', !a.classList.contains('active'));
+    };
+    const hide = () => { pill.classList.remove('on'); positioned = false; };
+    bar.querySelectorAll('.nav-link').forEach(a => {
+      a.addEventListener('mouseenter', () => show(a));
+      a.addEventListener('focus', () => show(a));
+      a.addEventListener('blur', hide);
+    });
+    bar.addEventListener('mouseleave', hide);
+    window.addEventListener('resize', hide);
   }
 
   // ── Wire mobile menu toggle ──────────────────────────────────────
@@ -334,6 +388,7 @@
     }
     wireMobile();
     wireTheme();
+    try { wireGlide(); } catch (_) {}
     postMount();
   }
 
