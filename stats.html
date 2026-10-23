@@ -585,10 +585,16 @@ select:focus, input:focus {
 .mp-swap{width:36px;height:36px;border-radius:50%;border:0.5px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--text2);cursor:pointer;font-size:15px;justify-self:center;transition:all .15s;}
 .mp-swap:hover:not(:disabled){color:var(--text);background:rgba(255,255,255,.09);}
 .mp-swap:disabled{opacity:.3;cursor:default;}
-.mp-logo{width:34px;height:34px;border-radius:10px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;position:relative;overflow:hidden;}
-.mp-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:3px;background:rgba(255,255,255,.04);}
-.mp-logo.sm{width:28px;height:28px;border-radius:8px;font-size:10px;}
-.mp-logo.lg{width:52px;height:52px;border-radius:14px;font-size:15px;}
+/* Official logos sit on nothing — the coloured monogram only appears when a team has no logo file. */
+.mp-logo{width:36px;height:36px;border-radius:10px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;position:relative;background:transparent;}
+.mp-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35));}
+.mp-logo i{font-style:normal;display:none;}
+.mp-logo.noimg{background:var(--mc,#5E5CE6);}
+.mp-logo.noimg img{display:none;}
+.mp-logo.noimg i{display:inline;}
+.mp-logo.sm{width:30px;height:30px;border-radius:8px;font-size:10px;}
+.mp-logo.lg{width:56px;height:56px;border-radius:14px;font-size:16px;}
+.mp-logo.xl{width:76px;height:76px;border-radius:18px;font-size:20px;}
 .mp-scope{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
 .mp-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .mp-row .k{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);width:56px;flex-shrink:0;}
@@ -930,7 +936,7 @@ const _mpArg = v => _mpEsc(JSON.stringify(String(v)));   // safe JS string insid
 function _mpLogo(name, cls) {
   const mg = (typeof WDB !== 'undefined' && WDB.teamMonogram) ? WDB.teamMonogram(name) : { init: '?', color: '#5E5CE6' };
   const src = (typeof WDB !== 'undefined' && WDB.teamLogo) ? WDB.teamLogo(name) : '';
-  return `<span class="mp-logo ${cls || ''}" style="background:${mg.color};">${_mpEsc(mg.init)}${src ? `<img src="${src}" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>`;
+  return `<span class="mp-logo ${cls || ''}${src ? '' : ' noimg'}" style="--mc:${mg.color};">${src ? `<img src="${src}" alt="" loading="lazy" onerror="this.parentNode.classList.add('noimg')">` : ''}<i>${_mpEsc(mg.init)}</i></span>`;
 }
 function _mpProfileTeam() {
   try {
@@ -1367,7 +1373,7 @@ function buildOverviewSection(blueName, redName, blueStats, redStats, h2h) {
   const side = (st, I, k, name) => {
     const col = k === 'blue' ? 'var(--blue)' : 'var(--red)';
     return `<div class="mh-team">
-      ${_mpLogo(name, 'lg')}
+      ${_mpLogo(name, 'xl')}
       <div class="mh-name" style="color:${col};">${_mpEsc(name)}</div>
       <div class="mh-meta">${st ? `${st.wins}-${st.losses} · ${st.wr}% WR` : 'No games in scope'}${I && I.n ? ` · strength #${I.rank} of ${I.teams}` : ''}</div>
       ${st ? `<div style="display:flex;justify-content:center;margin-top:2px;">${formDotsHtml(st.form)}</div>` : ''}
@@ -2666,6 +2672,14 @@ function applyPatchTiers() {
 async function exportAnalysisPDF() {
   const btn = document.getElementById('analysisPdfBtn');
   if (btn) { btn.textContent = 'Generating…'; btn.disabled = true; }
+  // html2canvas turns CSS gradients/backgrounds into canvas patterns; any that
+  // end up 0px wide or tall make Chrome throw "createPattern … width or height
+  // of 0" and kill the whole export. Skip those (draw nothing) instead.
+  const _cp = CanvasRenderingContext2D.prototype.createPattern;
+  CanvasRenderingContext2D.prototype.createPattern = function (img, rep) {
+    if (img && (img.width === 0 || img.height === 0)) { const c = document.createElement('canvas'); c.width = c.height = 1; return _cp.call(this, c, rep); }
+    return _cp.call(this, img, rep);
+  };
   try {
     // 1. Lazy-load html2canvas + jsPDF
     if (!window.html2canvas) {
@@ -2746,7 +2760,10 @@ async function exportAnalysisPDF() {
     const contentH = canvas.height / pxPerMm;
     const pageH    = contentH + margin * 2;
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [pageW, pageH] });
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margin, margin, usableW, contentH);
+    pdf.setFillColor(7, 7, 12); pdf.rect(0, 0, pageW, pageH, 'F');   // dark page, no white border
+    // JPEG, not PNG: a full report at 2x is ~60 MB as PNG vs a few MB as JPEG
+    // with no visible difference on the dark UI.
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.9), 'JPEG', margin, margin, usableW, contentH, undefined, 'FAST');
 
     const safe = s => (s||'').replace(/[^a-z0-9]/gi, '_');
     pdf.save(`Warr.GG_Analysis_${safe(_reportContext.blueName)}_vs_${safe(_reportContext.redName)}.pdf`);
@@ -2754,6 +2771,8 @@ async function exportAnalysisPDF() {
     console.error('Analysis export error:', e);
     // Show the actual reason so it's debuggable, not just "failed"
     toast('Export failed: ' + (e?.message || e || 'unknown error'));
+  } finally {
+    CanvasRenderingContext2D.prototype.createPattern = _cp;
   }
   if (btn) { btn.textContent = 'Export PDF'; btn.disabled = false; }
 }
