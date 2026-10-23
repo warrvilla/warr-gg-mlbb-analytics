@@ -1118,13 +1118,79 @@ WDB.saveTeamMeta = async function(name, d) {
 };
 
 // ═══════════════════════════════════════════════════════════════
-// ── SUBSCRIPTION / TOKEN SYSTEM ──
-// 3-tier: free (10 tokens/mo) / pro (50/mo) / team (200/mo)
+// ── ACCESS LEVELS (Warr.GG is free — Claude AI is invite-only) ──
+// The stored values stay 'free' | 'pro' | 'team' (DB + server compatibility);
+// only the names changed. The admin grants a level in Admin → Users, for N
+// months or open-ended. The server (/api/claude) enforces everything below;
+// these numbers only drive the UI.
+//   Member   — whole site + the local Draft Brain, unlimited. No Claude AI.
+//   Analyst  — Claude AI (Sonnet 5.5), ~30 calls/day
+//   Pro Team — Claude AI; full-draft analysis on Opus 5.5, ~60 calls/day
 // ═══════════════════════════════════════════════════════════════
 WDB.PLANS = {
-  free: { label: 'Free', tokensPerMonth: 3,    price: 0,    currency: '₱' },
-  pro:  { label: 'Pro',  tokensPerMonth: 100,  price: 199,  currency: '₱' },
-  team: { label: 'Team', tokensPerMonth: 1000, price: 4999, currency: '₱' },
+  free: { label: 'Member',   ai: false, opus: false, tokensPerMonth: 0,    perDay: 0,  price: 0, currency: '₱',
+          blurb: 'Every page and tool, plus the local Draft Brain — unlimited.' },
+  pro:  { label: 'Analyst',  ai: true,  opus: false, tokensPerMonth: 900,  perDay: 30, price: 0, currency: '₱',
+          blurb: 'Claude AI draft reasoning and analysis (Sonnet 5.5).' },
+  team: { label: 'Pro Team', ai: true,  opus: true,  tokensPerMonth: 1800, perDay: 60, price: 0, currency: '₱',
+          blurb: 'Claude AI with deep Opus 5.5 draft analysis for pro rosters.' },
+};
+WDB.levelLabel = function(plan) { return (WDB.PLANS[plan] || WDB.PLANS.free).label; };
+// Short status chip text for the AI pages ("⚡ Analyst · Claude AI").
+WDB.aiBadge = function() {
+  if (WDB._isAdminUser()) return { text: '⚡ Admin · Claude AI + Opus', color: '#7ecfff' };
+  const p = WDB.PLANS[WDB.getSubscription().plan] || WDB.PLANS.free;
+  if (!p.ai) return { text: '⚡ Free Draft Brain', color: '#9aa4b8' };
+  return { text: `⚡ ${p.label} · Claude AI${p.opus ? ' + Opus' : ''}`, color: '#7ecfff' };
+};
+WDB.NO_AI_MSG = 'Claude AI is invite-only — the free Draft Brain still works. Ask Warr for AI access.';
+WDB._isAdminUser = function() {
+  try { return typeof WAdmin !== 'undefined' && WAdmin.isAdmin && WAdmin.isAdmin(); } catch (e) { return false; }
+};
+// True when this account may use Claude AI at all (admin, Analyst, Pro Team).
+WDB.hasAIAccess = function() {
+  if (WDB._isAdminUser()) return true;
+  const sub = WDB.getSubscription();
+  return !!(WDB.PLANS[sub.plan] || WDB.PLANS.free).ai;
+};
+
+// One Claude helper for every page: goes through the server proxy, which
+// holds the API key and picks the model from the account's access level.
+// body.purpose = 'analysis' for one-shot deep analyses; anything else is a
+// fast pick. Falls back to a locally stored key ONLY when the proxy isn't
+// deployed (local dev).
+WDB.callClaude = async function(body) {
+  try {
+    const sess = await _sbClient.auth.getSession();
+    const token = sess?.data?.session?.access_token || '';
+    if (token) {
+      const pr = await fetch('/api/claude', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, 'x-supabase-anon': WARR_CONFIG.supabaseAnonKey },
+        body: JSON.stringify(body),
+      });
+      if (pr.ok) return await pr.json();
+      if (pr.status !== 503 && pr.status !== 404) {
+        const j = await pr.json().catch(() => ({}));
+        const e = new Error(j.detail || j.error || ('PROXY_' + pr.status));
+        e.code = j.error || ('PROXY_' + pr.status); e.status = pr.status;
+        throw e;
+      }
+    } else if (!WDB._isAdminUser()) {
+      const e = new Error('Sign in to use Claude AI.'); e.code = 'AUTH_REQUIRED'; throw e;
+    }
+  } catch (e) { if (e && e.code) throw e; }
+  // Legacy local-dev path: proxy not deployed → admin's own key.
+  const key = WDB.getAdminApiKeySync ? WDB.getAdminApiKeySync() : '';
+  if (!key) { const e = new Error('NO_API_KEY'); e.code = 'NO_API_KEY'; throw e; }
+  const { purpose, ...direct } = body || {};
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+    body: JSON.stringify(direct),
+  });
+  if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error(e.error?.message || 'HTTP ' + resp.status); }
+  return resp.json();
 };
 
 WDB.getSubscription = function() {
@@ -1171,12 +1237,14 @@ WDB.saveSubscription = function(sub) {
 };
 
 WDB.getTokensRemaining = function() {
+  if (WDB._isAdminUser()) return 9999;
   const sub = WDB.getSubscription();
   const plan = WDB.PLANS[sub.plan] || WDB.PLANS.free;
   return Math.max(0, plan.tokensPerMonth - (sub.tokensUsed || 0));
 };
 
 WDB.consumeToken = function() {
+  if (WDB._isAdminUser()) return true;
   const sub = WDB.getSubscription();
   const plan = WDB.PLANS[sub.plan] || WDB.PLANS.free;
   if ((sub.tokensUsed || 0) >= plan.tokensPerMonth) return false;

@@ -422,7 +422,7 @@ body { background: var(--bg); min-height: 100vh; }
         <div class="profile-meta">
           <div class="profile-name-row">
             <span id="displayNameLabel" class="profile-displayname">Your Name</span>
-            <span id="planBadge" class="plan-badge free">Free</span>
+            <span id="planBadge" class="plan-badge free">Member</span>
           </div>
           <div id="emailLabel" class="profile-email">—</div>
           <span id="teamChip" class="profile-team-chip none">No team selected</span>
@@ -514,57 +514,57 @@ body { background: var(--bg); min-height: 100vh; }
       <div id="scrimShareList" style="margin-top:14px;"></div>
     </div>
 
-    <!-- TOKEN & SUBSCRIPTION PANEL -->
+    <!-- AI ACCESS PANEL -->
     <div class="tokens-panel" id="tokensPanel">
       <div class="tokens-header">
-        <span class="tokens-title">AI Analysis Tokens</span>
-        <span class="tokens-reset" id="tokenResetLabel">Resets monthly</span>
+        <span class="tokens-title">Claude AI access</span>
+        <span class="tokens-reset" id="tokenResetLabel">—</span>
       </div>
-      <div class="tokens-bar-wrap">
-        <div class="tokens-bar-track">
-          <div class="tokens-bar-fill" id="tokenBar" style="width:100%"></div>
-        </div>
-        <div class="tokens-count">
-          <strong id="tokensRemLabel">—</strong>
-          <span id="tokensTotalLabel"> / — tokens remaining this month</span>
-        </div>
-      </div>
+      <div class="tokens-count" id="aiAccessText" style="line-height:1.55;">—</div>
     </div>
 
-    <!-- PLAN CARDS -->
-    <div class="section-label" id="plansLabel" style="margin-bottom:14px;">Access</div>
+    <!-- ACCESS LEVELS -->
+    <div class="section-label" id="plansLabel" style="margin-bottom:14px;">Access levels</div>
     <div class="plans-grid" id="plansGrid">
       <div class="plan-card" id="planCard-free">
-        <div class="plan-popular">EARLY ACCESS</div>
-        <div class="plan-name" style="color:var(--text2);">Free for everyone</div>
-        <div class="plan-price" style="color:var(--text);">Free</div>
+        <div class="plan-name" style="color:var(--text2);">Member</div>
+        <div class="plan-price" style="color:var(--text);font-size:18px;">Free for everyone</div>
         <ul class="plan-features">
-          <li>Scout, Heroes, Scrims &amp; AI Battle — unlimited</li>
-          <li>AI deep analyses included <span style="color:var(--text3);">(fair-use monthly cap)</span></li>
+          <li>Scout, Heroes, Stats, Scrims &amp; Draft tools</li>
+          <li>AI Battle on the local Draft Brain — unlimited</li>
           <li>Series mode (BO3 / BO5 / BO7)</li>
-          <li>MPL PH data now — more leagues coming</li>
         </ul>
-        <button class="plan-cta" onclick="event.stopPropagation()">Your Plan</button>
+        <button class="plan-cta" onclick="event.stopPropagation()">Everyone</button>
       </div>
 
       <div class="plan-card" id="planCard-pro">
-        <div class="plan-name" style="color:var(--purple);">For Pro Teams &amp; Orgs</div>
-        <div class="plan-price" style="color:var(--purple);font-size:22px;">Let's talk</div>
+        <div class="plan-name" style="color:var(--purple);">Analyst</div>
+        <div class="plan-price" style="color:var(--purple);font-size:18px;">By invite</div>
         <ul class="plan-features">
-          <li>Higher / unlimited AI analysis volume</li>
-          <li>Dedicated scouting &amp; data support</li>
-          <li>Priority feature requests — built around your workflow</li>
-          <li>Direct line to the developer</li>
+          <li>Everything in Member</li>
+          <li>Claude AI draft reasoning (Sonnet 5.5)</li>
+          <li>AI draft analysis &amp; strategy reports</li>
         </ul>
-        <a class="plan-cta" href="mailto:wrrenvillapando@gmail.com?subject=Warr.GG%20%E2%80%94%20Pro%20Team%20Inquiry" style="display:block;text-align:center;text-decoration:none;">✉ Get in touch</a>
+        <a class="plan-cta" href="mailto:wrrenvillapando@gmail.com?subject=Warr.GG%20%E2%80%94%20AI%20access%20request" style="display:block;text-align:center;text-decoration:none;">Request access</a>
+      </div>
+
+      <div class="plan-card" id="planCard-team">
+        <div class="plan-name" style="color:var(--gold);">Pro Team</div>
+        <div class="plan-price" style="color:var(--gold);font-size:18px;">For pro rosters</div>
+        <ul class="plan-features">
+          <li>Everything in Analyst</li>
+          <li>Deep draft analysis on Claude Opus 5.5</li>
+          <li>Higher daily AI limits &amp; direct support</li>
+        </ul>
+        <a class="plan-cta" href="mailto:wrrenvillapando@gmail.com?subject=Warr.GG%20%E2%80%94%20AI%20access%20request" style="display:block;text-align:center;text-decoration:none;">Request access</a>
       </div>
     </div>
 
-    <!-- CONTACT / ACTIVATION STRIP -->
+    <!-- CONTACT / SPONSOR STRIP -->
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:4px 0 24px;padding:12px 16px;border:0.5px solid var(--glass-border,rgba(255,255,255,.08));border-radius:14px;background:rgba(124,92,246,.05);">
-      <span style="font-size:11.5px;color:var(--text2);flex:1;min-width:220px;line-height:1.5;">Warr.GG is free during early access. If you're a pro team or org that needs higher AI limits or dedicated support, message me and we'll sort it out.</span>
-      <a href="mailto:wrrenvillapando@gmail.com?subject=Warr.GG%20%E2%80%94%20Pro%20Team%20Inquiry" style="padding:9px 18px;border-radius:10px;background:linear-gradient(135deg,#7C5CF6,#5E5CE6);color:#fff;font-size:12px;font-weight:700;text-decoration:none;flex-shrink:0;">✉ Email Me</a>
-      <span style="font-size:10px;color:var(--text3);flex-shrink:0;">IG &amp; TikTok soon</span>
+      <span style="font-size:11.5px;color:var(--text2);flex:1;min-width:220px;line-height:1.5;">Warr.GG is free for everyone. Claude AI is invite-only so it stays fast and the lights stay on — teams and analysts who need it, message me. Brands who want to reach MLBB coaches and players: sponsorship slots are open.</span>
+      <a href="mailto:wrrenvillapando@gmail.com?subject=Warr.GG%20%E2%80%94%20AI%20access%20request" style="padding:9px 18px;border-radius:10px;background:linear-gradient(135deg,#7C5CF6,#5E5CE6);color:#fff;font-size:12px;font-weight:700;text-decoration:none;flex-shrink:0;">✉ Request AI access</a>
+      <a href="mailto:wrrenvillapando@gmail.com?subject=Warr.GG%20%E2%80%94%20Sponsorship" style="padding:9px 18px;border-radius:10px;border:1px solid var(--glass-border2);color:var(--text);font-size:12px;font-weight:700;text-decoration:none;flex-shrink:0;">Sponsor Warr.GG</a>
     </div>
 
     <!-- HERO POOL CARD -->
@@ -682,7 +682,7 @@ body { background: var(--bg); min-height: 100vh; }
     <!-- ADMIN PANEL CARD (only visible for wrrenvillapando@gmail.com) -->
     <div class="admin-access-card" id="adminAccessCard">
       <h4>⚙ Admin Panel</h4>
-      <p>Approve team affiliations, assign subscription plans, manage users, and handle hard-delete requests.</p>
+      <p>Approve team affiliations, set access levels and AI limits, manage users, and handle hard-delete requests.</p>
       <a href="/admin" class="admin-go-btn">Open Admin Panel →</a>
     </div>
 
@@ -1381,8 +1381,9 @@ function renderProfile() {
 
   // Plan badge
   const planBadge = document.getElementById('planBadge');
-  planBadge.textContent = { free: 'Free', pro: 'Pro', team: 'Team' }[plan] || 'Free';
-  planBadge.className = `plan-badge ${plan}`;
+  const _isAdm = typeof WAdmin !== 'undefined' && WAdmin.isAdmin && WAdmin.isAdmin();
+  planBadge.textContent = _isAdm ? 'Admin' : ({ free: 'Member', pro: 'Analyst', team: 'Pro Team' }[plan] || 'Member');
+  planBadge.className = `plan-badge ${_isAdm ? 'team' : plan}`;
 
   // Plan cards highlight
   ['free','pro','team'].forEach(pl => {
@@ -1390,7 +1391,7 @@ function renderProfile() {
     if (!card) return;
     card.className = 'plan-card' + (pl === plan ? (pl === 'team' ? ' active-team' : ' active') : '');
     const cta = card.querySelector('.plan-cta');
-    if (cta) cta.textContent = pl === plan ? 'Current Plan' : (pl === 'free' ? 'Downgrade' : `Upgrade to ${pl.charAt(0).toUpperCase()+pl.slice(1)}`);
+    if (cta) cta.textContent = pl === plan ? 'Your access' : (pl === 'free' ? 'Everyone' : 'Request access');
   });
 
   // Team chip
@@ -1440,21 +1441,25 @@ function renderProfile() {
 }
 
 function renderTokens(sub, plan) {
-  if (typeof WDB === 'undefined' || !WDB.PLANS) return;
-  const planData = WDB.PLANS[plan] || WDB.PLANS.free;
-  const rem   = (typeof WDB.getTokensRemaining === 'function') ? WDB.getTokensRemaining() : planData.tokensPerMonth;
-  const total = planData.tokensPerMonth;
-  const pct   = Math.max(0, Math.min(100, (rem / total) * 100));
-
-  document.getElementById('tokensRemLabel').textContent = rem;
-  document.getElementById('tokensTotalLabel').textContent = ` / ${total} tokens remaining this month`;
-  document.getElementById('tokenBar').style.width = pct + '%';
-
-  if (sub && sub.resetDate) {
-    const rd = new Date(sub.resetDate);
-    document.getElementById('tokenResetLabel').textContent =
-      `Resets ${rd.toLocaleDateString('en', { month: 'short', day: 'numeric' })}`;
+  const txt = document.getElementById('aiAccessText');
+  const tag = document.getElementById('tokenResetLabel');
+  if (!txt) return;
+  const sp = _sbProfile || {};
+  const isAdm = typeof WAdmin !== 'undefined' && WAdmin.isAdmin && WAdmin.isAdmin();
+  let eff = plan || 'free';
+  if (eff !== 'free' && sp.plan_expires_at && new Date(sp.plan_expires_at) < new Date()) eff = 'free';
+  if (isAdm) {
+    txt.innerHTML = '<strong style="font-size:15px;">Admin</strong> — Claude AI everywhere, Opus 5.5 for deep analysis.';
+    if (tag) tag.textContent = 'No limit';
+    return;
   }
+  const lines = {
+    free: '<strong style="font-size:15px;">Member</strong> — every tool is free, and AI Battle runs on the local Draft Brain. Claude AI is invite-only.',
+    pro:  '<strong style="font-size:15px;">Analyst</strong> — Claude AI is on for draft reasoning and analysis (Sonnet 5.5).',
+    team: '<strong style="font-size:15px;">Pro Team</strong> — Claude AI is on, with deep draft analysis on Opus 5.5.',
+  };
+  txt.innerHTML = lines[eff] || lines.free;
+  if (tag) tag.textContent = eff === 'free' ? 'Free' : (sp.plan_expires_at ? 'Until ' + new Date(sp.plan_expires_at).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No end date');
 }
 
 // ── Generate default avatar from initials ──

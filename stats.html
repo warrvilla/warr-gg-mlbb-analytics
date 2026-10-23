@@ -8,6 +8,7 @@
 <title>Analysis — Warr.GG</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="warr-lib.js?v=2"></script>
+<script src="warr-intel.js?v=1"></script>
 <script src="warr-nav.js"></script>
 <link rel="stylesheet" href="warr-styles.css">
 <style>
@@ -698,20 +699,8 @@ function nameToId(name) {
 
 // ══════ API HELPERS ══════
 async function callClaude(body) {
-  const key = (typeof WDB!=='undefined'&&WDB.getAdminApiKeySync)?WDB.getAdminApiKeySync():'';
-  if (!key) throw new Error('NO_API_KEY');
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify(body),
-  });
-  if (!resp.ok) { const e = await resp.json().catch(()=>({})); throw new Error(e.error?.message||'HTTP '+resp.status); }
-  return resp.json();
+  // Shared helper (warr-lib.js): server proxy, model picked by access level.
+  return WDB.callClaude(body);
 }
 
 function toast(msg, type='') {
@@ -1090,14 +1079,14 @@ async function generateReport() {
     }
   }, 30);
 
-  const key = (typeof WDB!=='undefined'&&WDB.getAdminApiKeySync)?WDB.getAdminApiKeySync():'';
-  if (!key) {
+  const _aiOK = typeof WDB!=='undefined' && WDB.hasAIAccess && WDB.hasAIAccess();
+  if (!_aiOK) {
     const aiEl = document.getElementById('aiReportSection');
     if (aiEl) aiEl.innerHTML = `
       <div class="report-hdr"><span class="report-hdr-title">AI Draft Strategy</span></div>
       <div class="report-body" style="text-align:center;padding:24px;">
         
-        <div style="font-size:12px;color:var(--text3);">Add your Anthropic API key to unlock AI-powered strategy.</div>
+        <div style="font-size:12px;color:var(--text3);">AI Draft Strategy is invite-only — the stats report above is free for everyone. Ask Warr for AI access.</div>
       </div>`;
     return;
   }
@@ -1178,6 +1167,9 @@ function buildStaticReport(blueName, redName, blueStats, redStats, h2h) {
       ${buildTeamCard(redStats, 'red', redName)}
     </div>
 
+    <!-- MATCHUP INTEL — opponent-adjusted model + data levers (free, no AI) -->
+    ${buildIntelSection(blueName, redName)}
+
     <!-- PRIORITY TARGETS -->
     ${buildPrioritySection(blueName, redName, blueStats, redStats)}
 
@@ -1251,6 +1243,83 @@ function buildTeamCard(stats, side, name) {
         ${stats.topBans.slice(0,5).map(b => statBar(b.name, b.count, maxBan, 'var(--red)')).join('')}
       </div>
       ${stats.coachNotes?`<div style="margin-top:10px;padding:8px 10px;background:var(--gold-dim);border:1px solid var(--gold-border);border-radius:6px;font-size:11px;color:var(--text2);line-height:1.55;"> ${stats.coachNotes}</div>`:''}
+    </div>
+  </div>`;
+}
+
+// ══════ MATCHUP INTEL (warr-intel.js) ══════
+// Opponent-adjusted strength model + "how to beat them" levers computed from
+// the matches in the current league/season scope. Free for everyone; the
+// same numbers are handed to Claude as the evidence it must cite.
+let _intelCache = null;
+function getMatchupIntel(blueName, redName) {
+  if (typeof WIntel === 'undefined') return null;
+  const pool = getFilteredMatches();
+  const key = [pool.length, blueName, redName, _reportLeagueFilter, _reportSeasonFilter, (DB.matches||[]).length].join('|');
+  if (_intelCache && _intelCache.key === key) return _intelCache;
+  const R = WIntel.ratings(pool);
+  const blue = WIntel.team(pool, blueName, R), red = WIntel.team(pool, redName, R);
+  _intelCache = {
+    key, R, blue, red, n: pool.length,
+    scope: `${_reportLeagueFilter === 'all' ? 'all leagues' : _reportLeagueFilter} · ${_reportSeasonFilter || 'all seasons'}`,
+    beatRed: WIntel.levers(red), beatBlue: WIntel.levers(blue),
+    edgesRed: WIntel.edges(red), edgesBlue: WIntel.edges(blue),
+    meta: WIntel.meta(pool),
+    p: R.pGame(blueName, redName), p3: R.pSeries(blueName, redName, 3), p5: R.pSeries(blueName, redName, 5),
+  };
+  return _intelCache;
+}
+function _leverRow(l) {
+  const c = l.conf === 'strong' ? 'var(--green)' : l.conf === 'solid' ? 'var(--blue)' : 'var(--text3)';
+  const icons = (l.heroes || []).slice(0, 2).map(h => heroImg(h, 22)).join('');
+  return `<div style="display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);">
+    <div style="display:flex;gap:3px;min-width:${(l.heroes||[]).length ? 25 * Math.min(2, l.heroes.length) : 0}px;">${icons}</div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:12px;font-weight:700;color:var(--text);">${escHtmlS(l.text)} <span style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:${c};border:1px solid ${c};border-radius:5px;padding:1px 5px;margin-left:4px;opacity:.85;">${l.conf}</span></div>
+      <div style="font-size:10.5px;color:var(--text3);line-height:1.5;margin-top:2px;">${escHtmlS(l.why)}</div>
+    </div></div>`;
+}
+function escHtmlS(x) { return String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function _tempoLine(I) {
+  if (!I || !I.n) return '';
+  const bits = [];
+  if (I.dur.avgWin && I.dur.avgLoss) bits.push(`wins avg ${I.dur.avgWin.toFixed(1)}m · losses ${I.dur.avgLoss.toFixed(1)}m`);
+  if (I.ft.g) bits.push(`first Turtle ${Math.round(I.ft.got / I.ft.g * 100)}%`);
+  if (I.fb.g) bits.push(`First Blood ${Math.round(I.fb.got / I.fb.g * 100)}%`);
+  if (I.lord.all) bits.push(`Lords ${Math.round(I.lord.ours / I.lord.all * 100)}%`);
+  return bits.length ? `<div style="font-size:10px;color:var(--text3);margin-top:8px;font-family:var(--font-mono);">${bits.join(' · ')}</div>` : '';
+}
+function buildIntelSection(blueName, redName) {
+  const X = getMatchupIntel(blueName, redName);
+  if (!X) return '';
+  const pc = v => Math.round(v * 100);
+  const col = (I, levers, edges, title, empty) => `
+    <div>
+      <div class="section-label" style="color:var(--gold);">${title}</div>
+      ${I.n ? (levers.length ? levers.map(_leverRow).join('') : `<div style="font-size:11px;color:var(--text3);padding:6px 0;">${empty}</div>`)
+            : `<div style="font-size:11px;color:var(--text3);padding:6px 0;">No games in this scope.</div>`}
+      ${edges.length ? `<div class="section-label" style="margin-top:12px;">Respect</div>${edges.map(e => `<div style="font-size:11px;color:var(--text2);padding:3px 0;">• ${escHtmlS(e)}</div>`).join('')}` : ''}
+      ${_tempoLine(I)}
+    </div>`;
+  const rk = I => I.n ? `#${I.rank}/${I.teams}` : '—';
+  const thin = Math.min(X.blue.n, X.red.n) < 8;
+  return `<div class="report-section">
+    <div class="report-hdr">
+      <span class="report-hdr-title" style="color:var(--gold);">Matchup Intel · How to beat them</span>
+      <span style="font-size:10px;color:var(--text3);margin-left:auto;font-family:var(--font-mono);">${X.n} games · ${escHtmlS(X.scope)}</span>
+    </div>
+    <div class="report-body">
+      <div style="display:flex;flex-wrap:wrap;gap:8px 18px;align-items:baseline;padding:10px 12px;margin-bottom:14px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;">
+        <span style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--text3);text-transform:uppercase;">Opponent-adjusted model</span>
+        <span style="font-size:13px;font-weight:800;color:var(--blue);">${escHtmlS(blueName)} ${pc(X.p)}%</span>
+        <span style="font-size:11px;color:var(--text2);">per game · BO3 ${pc(X.p3)}% · BO5 ${pc(X.p5)}%</span>
+        <span style="font-size:11px;color:var(--text3);">strength ${escHtmlS(blueName)} ${rk(X.blue)} · ${escHtmlS(redName)} ${rk(X.red)}</span>
+        ${thin ? `<span style="font-size:10px;color:var(--gold);">thin data — under 8 games for a team, treat as rough</span>` : ''}
+      </div>
+      <div class="two-col">
+        ${col(X.red, X.beatRed, X.edgesRed, `How to beat ${escHtmlS(redName)}`, 'No lever with enough evidence yet — play the meta.')}
+        ${col(X.blue, X.beatBlue, X.edgesBlue, `How teams beat ${escHtmlS(blueName)} — your risks`, 'No clear weakness in the data.')}
+      </div>
     </div>
   </div>`;
 }
@@ -2049,7 +2118,18 @@ First picks: ${stats.topFirstPick?.map(p=>`${p.name}(${p.count}x)`).join(', ')||
 Win Condition: ${stats.winCondition||'unknown'}\nCoach Notes: ${stats.coachNotes||'none'}${vs}`;
   };
 
-  const prompt = `You are a professional MLBB draft coach. Generate a pre-match scouting report in JSON only (no markdown).
+  // Evidence pack — the same numbers the Matchup Intel section shows.
+  const X = getMatchupIntel(blueName, redName);
+  const pc = v => Math.round(v * 100);
+  const intelBlock = X ? `
+DATA PACK (${X.n} games in scope: ${X.scope}) — computed, trust these numbers:
+MODEL: opponent-adjusted strength gives ${blueName} ${pc(X.p)}% per game (BO3 ${pc(X.p3)}%, BO5 ${pc(X.p5)}%).
+RED INTEL — ${WIntel.promptBlock(X.red, X.beatRed)}
+BLUE INTEL (our risks = how teams beat us) — ${WIntel.promptBlock(X.blue, X.beatBlue)}
+SEASON META (presence = picked or banned per game): ${X.meta.slice(0, 16).map(m => `${m.hero} ${pc(m.pres)}%${m.picks >= 4 ? ` (${pc(m.adjWR)}% WR)` : ''}`).join(', ')}
+` : '';
+
+  const prompt = `You are a professional MLBB draft coach and analyst. Generate a pre-match scouting report in JSON only (no markdown).
 
 BLUE SIDE (OUR TEAM):
 ${profile(blueStats,'blue')}
@@ -2058,6 +2138,13 @@ RED SIDE (ENEMY):
 ${profile(redStats,'red')}
 
 HEAD TO HEAD: ${h2h.total}g — Blue: ${h2h.blueWins}W, Red: ${h2h.redWins}W
+${intelBlock}
+RULES — this is what makes the report useful:
+- Ground every recommendation in the data above and put the supporting stat in parentheses, e.g. "Ban Hilda (their WR 64%→31% when banned, 7g)". No stat = don't claim it.
+- Bans: prefer RED's data levers (ban impact, comfort picks, thin lane pools) and high-presence meta heroes. Never ban a hero with no presence this season and no team evidence. Also cover OUR risks (heroes opponents beat us with).
+- First picks: high-presence meta heroes that are likely open after our bans and fit our lane pool — say which lane.
+- "early signal" items are tentative; say so if you rely on one. Under 8 games for a team = say the data is thin in confidenceReason and lean on the meta.
+- Keep confidence consistent with the model win %, or explain the gap.
 
 Respond ONLY with JSON matching this exact schema:
 {
@@ -2087,20 +2174,20 @@ Respond ONLY with JSON matching this exact schema:
   "confidenceReason": "max 12 words"
 }`;
 
-  const _hasKey=typeof WDB!=='undefined'&&WDB.getAdminApiKeySync?!!WDB.getAdminApiKeySync():!!localStorage.getItem('warr_api_key');
-  if(!_hasKey){
-    aiSection.innerHTML=`<div class="report-hdr"><span class="report-hdr-title">AI Draft Strategy</span></div><div class="report-body"><div style="font-size:12px;color:var(--text3);">AI analysis requires an API key — contact admin to enable.</div></div>`;
+  const _aiOK=typeof WDB!=='undefined'&&WDB.hasAIAccess&&WDB.hasAIAccess();
+  if(!_aiOK){
+    aiSection.innerHTML=`<div class="report-hdr"><span class="report-hdr-title">AI Draft Strategy</span></div><div class="report-body"><div style="font-size:12px;color:var(--text3);">${WDB.NO_AI_MSG}</div></div>`;
     return;
   }
   try {
-    const d = await callClaude({model:'claude-sonnet-4-6', max_tokens:900, messages:[{role:'user',content:prompt}]});
+    const d = await callClaude({purpose:'analysis', max_tokens:1400, messages:[{role:'user',content:prompt}]});
     const raw = (d.content||[]).map(x=>x.text||'').join('');
     const m = raw.match(/\{[\s\S]*\}/);
     if (!m) throw new Error('No JSON');
     const r = JSON.parse(m[0]);
     renderAIReport(r, aiSection);
   } catch(e) {
-    const msg = e.message==='NO_API_KEY' ? 'AI features require an API key — contact your admin.' : `AI analysis failed: ${e.message}`;
+    const msg = (e.code==='NO_AI_ACCESS'||e.message==='NO_API_KEY') ? WDB.NO_AI_MSG : `AI analysis failed: ${e.message}`;
     aiSection.innerHTML = `
       <div class="report-hdr"><span class="report-hdr-title">AI Draft Strategy</span></div>
       <div class="report-body"><div style="font-size:12px;color:var(--text3);">${msg}</div></div>`;
@@ -2210,10 +2297,10 @@ async function runPatchAnalysis() {
   statusEl.style.display='block'; resultsEl.style.display='none'; errorEl.style.display='none';
   document.getElementById('patchStatusText').textContent='Claude searching for latest MLBB patch…';
 
-  const key = (typeof WDB!=='undefined'&&WDB.getAdminApiKeySync)?WDB.getAdminApiKeySync():'';
-  if (!key) {
+  // Patch tier analysis uses web search ($) — admin only.
+  if (!(typeof WAdmin!=='undefined' && WAdmin.isAdmin && WAdmin.isAdmin())) {
     statusEl.style.display='none'; errorEl.style.display='block';
-    document.getElementById('patchErrorText').textContent='No API key saved — add your key above.';
+    document.getElementById('patchErrorText').textContent='AI patch analysis is admin-only.';
     return;
   }
 
@@ -2237,7 +2324,7 @@ S=must ban/pick, A=high priority, B=situational, C=niche, D=off-meta. Include al
 
   try {
     const d = await callClaude({
-      model:'claude-sonnet-4-6',
+      purpose:'analysis',
       max_tokens:2500,
       tools:[{type:'web_search_20250305',name:'web_search'}],
       messages:[{role:'user',content:prompt}]
@@ -2256,7 +2343,7 @@ S=must ban/pick, A=high priority, B=situational, C=niche, D=off-meta. Include al
     resultsEl.style.display='block';
   } catch(e) {
     statusEl.style.display='none'; errorEl.style.display='block';
-    document.getElementById('patchErrorText').textContent = e.message==='NO_API_KEY'?'AI patch analysis requires an API key — contact admin.':'Error: '+e.message;
+    document.getElementById('patchErrorText').textContent = (e.code==='NO_AI_ACCESS'||e.message==='NO_API_KEY')?WDB.NO_AI_MSG:'Error: '+e.message;
   }
 }
 

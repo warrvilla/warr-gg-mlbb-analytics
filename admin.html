@@ -249,7 +249,7 @@ table.users-table {
     <div class="admin-header">
       <div>
         <div class="admin-title">Admin Panel</div>
-        <div class="admin-subtitle">Warr.GG — User & Subscription Management</div>
+        <div class="admin-subtitle">Warr.GG — Users &amp; Access Levels</div>
       </div>
       <button onclick="refreshAll()" style="padding:9px 20px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:12px;cursor:pointer;font-weight:600;">
         Refresh
@@ -268,7 +268,7 @@ table.users-table {
       </div>
       <div class="stat-chip">
         <div class="stat-chip-val" id="statPro" style="color:var(--purple);">—</div>
-        <div class="stat-chip-label">Pro / Team</div>
+        <div class="stat-chip-label">With Claude AI</div>
       </div>
       <div class="stat-chip">
         <div class="stat-chip-val" id="statBanned" style="color:var(--red);">—</div>
@@ -301,10 +301,10 @@ table.users-table {
       <div class="users-toolbar">
         <input type="text" id="userSearch" class="search-input" placeholder="Search by email or name…" oninput="filterUsers()">
         <select class="filter-select" id="planFilter" onchange="filterUsers()">
-          <option value="">All Plans</option>
-          <option value="free">Free</option>
-          <option value="pro">Pro</option>
-          <option value="team">Team</option>
+          <option value="">All Access Levels</option>
+          <option value="free">Member</option>
+          <option value="pro">Analyst</option>
+          <option value="team">Pro Team</option>
         </select>
         <select class="filter-select" id="statusFilter" onchange="filterUsers()">
           <option value="">All Status</option>
@@ -321,7 +321,7 @@ table.users-table {
               <th>Name</th>
               <th>Team</th>
               <th>Status</th>
-              <th>Plan — click to grant</th>
+              <th>Access — click to change</th>
               <th>Tokens Used</th>
               <th>Joined</th>
               <th>Notes</th>
@@ -434,26 +434,26 @@ DELETE FROM auth.users WHERE id = 'USER_UUID';</div>
   </div>
 </div>
 
-<!-- GRANT PLAN MODAL -->
+<!-- ACCESS LEVEL MODAL -->
 <div id="grantPlanModal" class="modal-overlay" style="display:none;">
   <div class="modal-box" style="max-width:400px;">
-    <div class="modal-title" style="margin-bottom:6px;">Grant Subscription Plan</div>
+    <div class="modal-title" style="margin-bottom:6px;">Set Access Level</div>
     <p id="grantPlanEmail" style="font-size:12px;color:var(--text3);margin-bottom:20px;"></p>
     <div style="display:flex;flex-direction:column;gap:10px;">
       <button onclick="confirmGrantPlan('free')"
         style="padding:14px 20px;border-radius:12px;text-align:left;border:1px solid var(--border2);background:var(--surface3);color:var(--text2);cursor:pointer;font-size:13px;">
-        <div style="font-weight:700;margin-bottom:2px;">Free</div>
-        <div style="font-size:11px;opacity:.6;">10 AI analyses / month · No charge</div>
+        <div style="font-weight:700;margin-bottom:2px;">Member</div>
+        <div style="font-size:11px;opacity:.6;">Whole site + free Draft Brain · no Claude AI</div>
       </button>
       <button onclick="confirmGrantPlan('pro')"
         style="padding:14px 20px;border-radius:12px;text-align:left;border:1px solid var(--purple-border);background:rgba(124,92,246,.08);color:var(--purple);cursor:pointer;font-size:13px;">
-        <div style="font-weight:700;margin-bottom:2px;">Pro</div>
-        <div style="font-size:11px;opacity:.7;">50 AI analyses / month · $9.99/mo</div>
+        <div style="font-weight:700;margin-bottom:2px;">Analyst</div>
+        <div style="font-size:11px;opacity:.7;">Claude AI on Sonnet 5.5 · 30 AI calls / day</div>
       </button>
       <button onclick="confirmGrantPlan('team')"
         style="padding:14px 20px;border-radius:12px;text-align:left;border:1px solid var(--gold-border);background:rgba(200,144,80,.08);color:var(--gold);cursor:pointer;font-size:13px;">
-        <div style="font-weight:700;margin-bottom:2px;">Team</div>
-        <div style="font-size:11px;opacity:.7;">200 AI analyses / month · $29.99/mo</div>
+        <div style="font-weight:700;margin-bottom:2px;">Pro Team</div>
+        <div style="font-size:11px;opacity:.7;">Claude AI · Opus 5.5 deep analysis (15/day) · 60 AI calls / day</div>
       </button>
     </div>
     <div class="modal-actions" style="margin-top:16px;">
@@ -557,7 +557,7 @@ async function changePlan(userId, newPlan) {
       sel.className = 'plan-select plan-' + newPlan;
     }
     updateStats();
-    toast(`Plan updated to ${newPlan} ✓`, 'success');
+    toast(`Access set: ${{free:'Member',pro:'Analyst',team:'Pro Team'}[newPlan] || newPlan} ✓`, 'success');
   } catch(e) {
     toast('Error: ' + (e.message || e), 'error');
   }
@@ -685,7 +685,7 @@ function renderUsersTable() {
 
   tbody.innerHTML = page.map(u => {
     const plan = u.plan || 'free';
-    const planLabel = {free:'Free',pro:'Pro',team:'Team'}[plan] || plan;
+    const planLabel = {free:'Member',pro:'Analyst',team:'Pro Team'}[plan] || plan;
     const planColor = plan==='pro'?'var(--purple)':plan==='team'?'var(--gold)':'var(--text3)';
     const statusCls = u.team_status || 'none';
     const isBanned = u.is_banned;
@@ -696,7 +696,7 @@ function renderUsersTable() {
       <td class="team-cell">${escHtml(u.team_name || '—')}</td>
       <td><span class="status-chip ${statusCls}">${statusCls}</span></td>
       <td>
-        <button onclick="openGrantPlanModal('${u.id}')" style="padding:5px 12px;border-radius:7px;font-size:11px;font-weight:700;border:1px solid ${planColor}44;background:transparent;color:${planColor};cursor:pointer;white-space:nowrap;" title="Click to grant a plan">
+        <button onclick="openGrantPlanModal('${u.id}')" style="padding:5px 12px;border-radius:7px;font-size:11px;font-weight:700;border:1px solid ${planColor}44;background:transparent;color:${planColor};cursor:pointer;white-space:nowrap;" title="Click to change access level">
           ${planLabel}
         </button>
         ${u.plan_expires_at && plan !== 'free' ? `<div style="font-size:8.5px;color:${new Date(u.plan_expires_at) < new Date() ? 'var(--red)' : 'var(--text3)'};margin-top:2px;">${new Date(u.plan_expires_at) < new Date() ? 'EXPIRED' : 'until ' + fmtDate(u.plan_expires_at)}</div>` : ''}
@@ -778,10 +778,9 @@ function _analyticsData() {
   const active7  = users.filter(u => inDays(u.last_seen_at, 7)).length;
   const active30 = users.filter(u => inDays(u.last_seen_at, 30)).length;
   const new30    = users.filter(u => inDays(u.created_at, 30)).length;
-  const activePaidPlan = u => (u.plan === 'pro' || u.plan === 'team') && !(u.plan_expires_at && new Date(u.plan_expires_at) < new Date());
-  const paidUsers = users.filter(u => activePaidPlan(u) && !u.is_comp);   // real money only
-  const compUsers = users.filter(u => activePaidPlan(u) && u.is_comp);    // free grants
-  const mrr = paidUsers.reduce((s, u) => s + (u.plan === 'team' ? 4999 : 199), 0);
+  const activeLevel = (u, lv) => u.plan === lv && !(u.plan_expires_at && new Date(u.plan_expires_at) < new Date());
+  const analysts = users.filter(u => activeLevel(u, 'pro')).length;
+  const proTeams = users.filter(u => activeLevel(u, 'team')).length;
   const ages = users.map(u => _ageOf(u.birthday)).filter(a => a !== null);
   const buckets = { '13–17': 0, '18–24': 0, '25–34': 0, '35+': 0 };
   ages.forEach(a => { if (a < 18) buckets['13–17']++; else if (a < 25) buckets['18–24']++; else if (a < 35) buckets['25–34']++; else buckets['35+']++; });
@@ -793,7 +792,7 @@ function _analyticsData() {
     const age = (now - new Date(u.created_at).getTime()) / DAY;
     return age >= i * 7 && age < (i + 1) * 7;
   }).length).reverse();
-  return { users: users.length, active7, active30, new30, paid: paidUsers.length, comp: compUsers.length, mrr, buckets, ages: ages.length, medianAge, analyses, weeks };
+  return { users: users.length, active7, active30, new30, analysts, proTeams, buckets, ages: ages.length, medianAge, analyses, weeks };
 }
 function renderAnalytics() {
   const el = document.getElementById('analyticsBoard');
@@ -808,11 +807,11 @@ function renderAnalytics() {
       ${chip(d.active7, 'Active · 7 days', 'var(--green)')}
       ${chip(d.active30, 'Active · 30 days')}
       ${chip(d.new30, 'New · 30 days', 'var(--blue)')}
-      ${chip(d.paid, 'Paying users', 'var(--purple)')}
-      ${chip(d.comp, 'Comped (free)', 'var(--text2)')}
-      ${chip('₱' + d.mrr.toLocaleString(), 'MRR (paid only)', 'var(--gold)')}
+      ${chip(d.analysts, 'Analysts', 'var(--purple)')}
+      ${chip(d.proTeams, 'Pro Teams', 'var(--gold)')}
       ${chip(d.analyses.toLocaleString(), 'AI analyses run')}
     </div>
+    <div id="aiUsageBox" style="margin-bottom:14px;padding:12px 14px;border:1px solid var(--border2);border-radius:12px;font-size:12px;color:var(--text3);">Loading Claude AI spend…</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
       <div>
         <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);margin-bottom:6px;">AGE DEMOGRAPHICS${d.medianAge ? ` · median ${d.medianAge}` : ''} · ${d.ages}/${d.users} provided</div>
@@ -826,6 +825,26 @@ function renderAnalytics() {
       </div>
     </div>
     <button class="btn-approve" style="margin-top:12px;" onclick="copySponsorSnapshot()">📋 Copy Sponsor Snapshot</button>`;
+  loadAIUsage();
+}
+// ── Claude AI spend this month (metered by /api/claude) ──
+async function loadAIUsage() {
+  const box = document.getElementById('aiUsageBox');
+  if (!box) return;
+  const r = await _adminApi({ action: 'ai_usage' });
+  if (!r || !r.ok) { box.textContent = 'Claude AI spend unavailable (deploy the updated admin function).'; return; }
+  const pct = r.budgetUSD > 0 ? Math.min(100, r.spentUSD / r.budgetUSD * 100) : 0;
+  const col = pct >= 90 ? 'var(--red)' : pct >= 70 ? 'var(--gold)' : 'var(--green)';
+  const who = id => { const u = _allUsers.find(x => x.id === id); return u ? escHtml(u.email || u.display_name || id) : escHtml(id.slice(0, 8)); };
+  const lvl = id => { const u = _allUsers.find(x => x.id === id); return u ? ({free:'Member',pro:'Analyst',team:'Pro Team'}[u.plan] || 'Member') : ''; };
+  box.innerHTML = `
+    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
+      <span style="font-size:10px;font-weight:700;letter-spacing:.08em;">CLAUDE AI SPEND · ${escHtml(r.month)}</span>
+      <span style="margin-left:auto;color:var(--text);font-weight:700;">$${r.spentUSD.toFixed(2)} <span style="color:var(--text3);font-weight:400;">of $${r.budgetUSD.toFixed(2)} budget · ≈₱${Math.round(r.spentUSD * 59).toLocaleString()}</span></span>
+    </div>
+    <div style="height:6px;border-radius:4px;background:var(--surface3);overflow:hidden;margin-bottom:8px;"><div style="height:100%;width:${pct}%;background:${col};"></div></div>
+    ${r.users.length ? r.users.slice(0, 8).map(x => `<div style="display:flex;gap:8px;padding:3px 0;"><span style="color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${who(x.userId)}</span><span>${lvl(x.userId)}</span><span style="width:60px;text-align:right;color:var(--text);">$${x.usd.toFixed(2)}</span></div>`).join('') : '<div>No AI usage yet this month.</div>'}
+    <div style="margin-top:6px;font-size:10.5px;">When the budget is reached everyone falls back to the free Draft Brain. Raise it with the MONTHLY_BUDGET_USD env var in Netlify.</div>`;
 }
 function copySponsorSnapshot() {
   const d = _analyticsData();
@@ -834,7 +853,7 @@ function copySponsorSnapshot() {
     '',
     `Registered users: ${d.users}`,
     `Active (7d / 30d): ${d.active7} / ${d.active30}`,
-    `Paying: ${d.paid} · Comped: ${d.comp} · MRR: ₱${d.mrr.toLocaleString()}`,
+    `Analysts: ${d.analysts} · Pro Teams: ${d.proTeams}`,
     `New users (30d): ${d.new30}`,
     `AI draft analyses run: ${d.analyses.toLocaleString()}`,
     d.medianAge ? `Median age: ${d.medianAge} (${Object.entries(d.buckets).map(([l, n]) => l + ': ' + n).join(', ')})` : 'Age data: collecting',
@@ -987,7 +1006,7 @@ async function init() {
   try { initDefaultMeta(); } catch(_){}
 }
 
-// ── Grant plan modal ──
+// ── Access level modal ──
 let _grantPlanUserId = null;
 // ── USER DETAILS MODAL — contact info, age, and every action in one place ──
 function _ageFrom(b) {
@@ -1023,13 +1042,12 @@ function openUserDetails(userId) {
       ${row('Mobile', u.phone ? `<a href="tel:${escHtml(u.phone)}" style="color:var(--blue);">${escHtml(u.phone)}</a>` : '—')}
       ${row('Birthday', u.birthday ? `${escHtml(u.birthday)}${age !== null ? ` <span style="color:var(--text3);">(${age} yrs)</span>` : ''}` : '—')}
       ${row('Team', escHtml(u.team_name || '—') + ' · ' + escHtml(u.team_status || 'none'))}
-      ${row('Plan', `${(u.plan || 'free').toUpperCase()}${u.is_comp && u.plan !== 'free' ? ' <span style="color:var(--text3);font-size:10px;">(comp)</span>' : ''}${u.plan_expires_at && u.plan !== 'free' ? (expired ? ' · <span style="color:var(--red);">EXPIRED</span>' : ' · until ' + fmtDate(u.plan_expires_at)) : ''}`)}
+      ${row('Access', `${({free:'Member',pro:'Analyst',team:'Pro Team'}[u.plan] || 'Member')}${u.plan_expires_at && u.plan !== 'free' ? (expired ? ' · <span style="color:var(--red);">EXPIRED</span>' : ' · until ' + fmtDate(u.plan_expires_at)) : ''}`)}
       ${row('Analyses used', String(u.tokens_used || 0))}
       ${row('Joined', fmtDate(u.created_at))}
       ${u.admin_notes ? row('Notes', escHtml(u.admin_notes)) : ''}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
-        <button class="btn-approve" onclick="document.getElementById('userDetailsModal').style.display='none';openGrantPlanModal('${u.id}')">Grant Plan</button>
-        ${(u.plan === 'pro' || u.plan === 'team') ? `<button class="btn-ban" onclick="toggleComp('${u.id}')">${u.is_comp ? 'Mark as PAID' : 'Mark as COMP'}</button>` : ''}
+        <button class="btn-approve" onclick="document.getElementById('userDetailsModal').style.display='none';openGrantPlanModal('${u.id}')">Set Access</button>
         <button class="btn-ban${u.is_banned ? ' is-banned' : ''}" onclick="document.getElementById('userDetailsModal').style.display='none';toggleBan('${u.id}')">${u.is_banned ? 'Unban' : 'Ban'}</button>
         <button class="btn-delete" onclick="document.getElementById('userDetailsModal').style.display='none';deleteUserProfile('${u.id}')">Delete Account</button>
         <button class="btn-ban" onclick="document.getElementById('userDetailsModal').style.display='none';openNotesModal('${u.id}')">Notes</button>
@@ -1042,7 +1060,7 @@ function openGrantPlanModal(userId) {
   const u = _allUsers.find(x => x.id === userId);
   _grantPlanUserId = userId;
   const emailEl = document.getElementById('grantPlanEmail');
-  if (emailEl) emailEl.textContent = u ? `${escHtml(u.email || u.id)} — currently on ${(u.plan||'free')} plan` : userId;
+  if (emailEl) emailEl.textContent = u ? `${u.email || u.id} — currently ${({free:'Member',pro:'Analyst',team:'Pro Team'}[u.plan] || 'Member')}` : userId;
   document.getElementById('grantPlanModal').style.display = 'flex';
 }
 function closeGrantPlanModal() {
@@ -1052,13 +1070,13 @@ function closeGrantPlanModal() {
 async function confirmGrantPlan(plan) {
   if (!_grantPlanUserId) return;
   const userId = _grantPlanUserId;
-  let months = 0, isComp = false;
+  const label = {free:'Member',pro:'Analyst',team:'Pro Team'}[plan] || plan;
+  let months = 0;
+  const isComp = plan !== 'free';   // Warr.GG is free — no paid grants any more
   if (plan !== 'free') {
-    const inp = prompt('Grant ' + plan.toUpperCase() + ' for how many months? (auto-downgrades to Free when it lapses)', '1');
+    const inp = prompt('Give ' + label + ' access for how many months?\n(It drops back to Member when it ends. 0 = no end date.)', '1');
     if (inp === null) return; // cancelled
-    months = Math.max(1, Math.min(24, parseInt(inp, 10) || 1));
-    // Complimentary = free access you're giving out; excluded from MRR/revenue.
-    isComp = confirm('Is this a COMPLIMENTARY (free) grant?\n\nOK = Complimentary (NOT counted as revenue)\nCancel = Paid customer (counts toward MRR)');
+    months = Math.max(0, Math.min(24, parseInt(inp, 10) || 0));
   }
   closeGrantPlanModal();
   const viaApi = await _adminApi({ action: 'set_plan', userId, plan, months, isComp });
@@ -1066,17 +1084,17 @@ async function confirmGrantPlan(plan) {
     const u = _allUsers.find(x => x.id === userId);
     if (u) { u.plan = plan; u.plan_expires_at = viaApi.plan_expires_at; u.is_comp = isComp; }
     updateStats(); renderUsersTable();
-    toast(`${isComp?'Comp ':''}Plan set: ${plan}${viaApi.plan_expires_at ? ' until ' + fmtDate(viaApi.plan_expires_at) : ''} ✓`, 'success');
+    toast(`Access set: ${label}${viaApi.plan_expires_at ? ' until ' + fmtDate(viaApi.plan_expires_at) : ''} ✓`, 'success');
     return;
   }
   // Fallback (no service key yet): direct update
-  const expires = plan === 'free' ? null : new Date(Date.now() + months * 30 * 864e5).toISOString();
+  const expires = (plan === 'free' || months === 0) ? null : new Date(Date.now() + months * 30 * 864e5).toISOString();
   try {
     await WAuth.adminUpdateProfile(userId, { plan, plan_expires_at: expires, is_comp: isComp });
     const u = _allUsers.find(x => x.id === userId);
     if (u) { u.plan = plan; u.plan_expires_at = expires; u.is_comp = isComp; }
     updateStats(); renderUsersTable();
-    toast(`${isComp?'Comp ':''}Plan set: ${plan}${expires ? ' until ' + fmtDate(expires) : ''} ✓`, 'success');
+    toast(`Access set: ${label}${expires ? ' until ' + fmtDate(expires) : ''} ✓`, 'success');
   } catch(e) { toast('Error: ' + (e.message || e), 'error'); }
 }
 

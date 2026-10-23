@@ -21,6 +21,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="warr-lib.js?v=2"></script>
+<script src="warr-intel.js?v=1"></script>
 <script src="warr-nav.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <link rel="stylesheet" href="warr-styles.css">
@@ -1153,6 +1154,9 @@ body.in-battle .page-body{overflow:hidden !important;}
             <button class="scout-lb active" onclick="setScoutLB('all')">All Pro Leagues</button>
           </div>
           <div id="scoutStatusAB" style="margin-top:10px;font-size:11px;color:var(--text3);"></div>
+          <label class="ab-lbl" style="margin-top:14px;display:block;">Season</label>
+          <div class="ab-chips" id="abSeasonChips"><button class="scout-lb active">Active season</button></div>
+          <div id="abSeasonInfo" style="margin-top:8px;font-size:11px;line-height:1.6;color:var(--text3);"></div>
           <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:11px;color:var(--text2);cursor:pointer;">
             <input type="checkbox" id="useMyScrims" onchange="setUseMyScrims(this.checked)" style="width:14px;height:14px;cursor:pointer;accent-color:var(--accent);">
             Also learn from my own scrims <span style="color:var(--text3);">(private — only yours, never other users')</span>
@@ -1305,44 +1309,9 @@ body.in-battle .page-body{overflow:hidden !important;}
 
 // ═══════ API HELPER ═══════
 async function callClaude(body){
-  // 1) Server-side proxy — the API key lives in a Netlify env var and never
-  //    reaches the browser. Requires a logged-in session.
-  try{
-    const sess=await _sbClient.auth.getSession();
-    const token=sess?.data?.session?.access_token||'';
-    if(token){
-      const pr=await fetch('/api/claude',{
-        method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token,'x-supabase-anon':WARR_CONFIG.supabaseAnonKey},
-        body:JSON.stringify(body),
-      });
-      if(pr.ok)return await pr.json();
-      if(pr.status===429){
-        const j=await pr.json().catch(()=>({}));
-        throw new Error(j.detail||'AI limit reached — the local Draft Brain takes over.');
-      }
-      if(pr.status!==503&&pr.status!==404)throw new Error('PROXY_'+pr.status);
-      // 503/404 → proxy not deployed/configured yet → legacy fallback below
-    }
-  }catch(e){if(String(e&&e.message||'').startsWith('PROXY_'))throw e;}
-  // 2) LEGACY fallback: locally stored key. Kept for local dev only — once
-  //    the Netlify env var is set, this path never runs.
-  const key = (typeof WDB !== 'undefined' && WDB.getAdminApiKeySync)
-    ? WDB.getAdminApiKeySync()
-    : localStorage.getItem('warr_api_key') || '';
-  if(!key) throw new Error('NO_API_KEY');
-  const resp=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'x-api-key':key,
-      'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true',
-    },
-    body:JSON.stringify(body),
-  });
-  if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.error?.message||'HTTP '+resp.status);}
-  return resp.json();
+  // Shared helper (warr-lib.js): server proxy picks the model from the
+  // account's access level; the API key never reaches the browser.
+  return WDB.callClaude(body);
 }
 async function updateApiKeyCard(){
   const card=document.getElementById('apiKeyCard');
@@ -1562,21 +1531,44 @@ try{
 // Override hardcoded tiers with actual scouted presence/WR data
 // Priority: Scout data > Excel import > hardcoded default
 let _scoutTierCache = null;
-(function applyDynamicTiers() {
-  if (typeof WDB === 'undefined' || !WDB.computeDynamicTiers) return;
-  const dt = WDB.computeDynamicTiers(2);
-  if (!dt) return;
-  _scoutTierCache = dt;
-  const tp = {S:'highpick', A:'highpick', B:'situational', C:'situational', D:'off'};
-  HEROES.forEach(h => {
-    const d = dt[h.name];
-    if (!d) return;
-    // Always apply scout data — overrides Excel import too
-    h.tier = d.tier;
-    if (h.mp !== 'mustban') h.mp = d.mp || tp[d.tier] || h.mp;
+// Season-scoped tiers. Priority in pro drafts = PRESENCE (picked OR banned): the
+// strongest heroes are banned most, so a pick-rate-only tier would rank the
+// season's #1 hero as B-tier. Win rate (shrunk toward 50%) nudges within that.
+function abComputeTiers(){
+  try{
+    const ms=_learnMatches(loadScoutAB().matches||[]);
+    let G=0; const P={},B={},W={};
+    ms.forEach(m=>{ const w=abSeasonWeight(m); if(w<=0) return; G+=w;
+      [['blue',m.bluePicks],['red',m.redPicks]].forEach(([sd,arr])=>(arr||[]).forEach(p=>{ const n=p&&(p.name||p); if(!n||typeof n!=='string') return; P[n]=(P[n]||0)+w; if(m.winner===sd) W[n]=(W[n]||0)+w; }));
+      [...(m.blueBans||[]),...(m.redBans||[])].forEach(b=>{ const n=typeof b==='string'?b:(b&&b.name); if(n) B[n]=(B[n]||0)+w; });
+    });
+    if(G<5) return null;
+    const names=[...new Set([...Object.keys(P),...Object.keys(B)])];
+    const rows=names.map(n=>{ const p=P[n]||0,b=B[n]||0,pres=Math.min(1,(p+b)/G),avail=Math.max(0.0001,G-b),pwa=Math.min(1,p/avail),wr=((W[n]||0)+2.5)/(p+5);
+      return {n,p,b,pres,wr,score:pres*0.65+pwa*0.35+(wr-0.5)*0.6*Math.min(1,p/6)}; }).sort((a,b)=>b.score-a.score);
+    const N=HEROES.length||130, out={};
+    rows.forEach((r,i)=>{
+      let tier=i<N*0.08?'S':i<N*0.22?'A':i<N*0.47?'B':'C';
+      if(tier==='S'&&r.pres<0.3) tier='A';
+      if(tier==='A'&&r.pres<0.12) tier='B';
+      const mp=(r.pres>=0.75&&G>=10)?'mustban':r.pres>=0.45?'highpick':r.pres>=0.15?'situational':'off';
+      out[r.n]={tier,mp,presence:Math.round(r.pres*1000)/10,winRate:Math.round(r.wr*1000)/10,picks:Math.round(r.p*10)/10,bans:Math.round(r.b*10)/10,games:Math.round(G*10)/10,seen:r.p+r.b};
+    });
+    return out;
+  }catch(e){ console.warn('[AI Battle] tiers failed',e); return null; }
+}
+function applySeasonTiersAB(){
+  const dt=abComputeTiers();
+  _scoutTierCache=dt;
+  HEROES.forEach(h=>{
+    if(h._t0===undefined){ h._t0=h.tier; h._mp0=h.mp; }
+    const d=dt&&dt[h.name];
+    if(d&&d.seen>=1){ h.tier=d.tier; h.mp=d.mp; }
+    else if(dt){ h.tier=h._t0==='S'?'A':h._t0; h.mp=h._mp0==='mustban'?'highpick':(h._mp0||'off'); }   // no games this season: keep the sheet value, but never a stale must-ban
+    else { h.tier=h._t0; h.mp=h._mp0; }
   });
-  console.log('[AI Battle] Scout tiers applied:', Object.keys(dt).length, 'heroes');
-})();
+  if(dt) console.log('[AI Battle] Season tiers applied:', Object.keys(dt).length, 'heroes');
+}
 try{setTimeout(renderSpecsAB,300);}catch(_){}
 try{renderLeagueChipsAB();if(typeof WDB!=='undefined'&&WDB.initLeagues)WDB.initLeagues();}catch(_){}
 
@@ -1659,13 +1651,96 @@ async function _loadABCurrentSeasons(){
   }catch(_){}
 }
 function _curSeasonFor(league){ return _ABCurrentSeason[(league||'').trim()] || ''; }
-// True if a match is in its league's current season. Leagues with no current
-// season set (and non-official buckets like Scrims) pass through so nothing that
-// lacks a season mark gets silently dropped.
-function _seasonOK(m){
-  const cs=_curSeasonFor(m && m.league);
-  if(!cs) return true;
-  return String((m&&m.season)||'').trim()===cs;
+
+// ── SEASON SCOPE ─────────────────────────────────────────────────────────────
+// Every signal (tiers, presence, ban rates, counters, synergies, team habits)
+// reads the ACTIVE season of each league first. Active = the admin-marked current
+// season, or — when none is marked — the league's most recent season in the data.
+// Older seasons only fill in while the active season is still thin, and fade out
+// completely once it has AB_SEASON_FULL games. Season picker: Active / a specific
+// season / All seasons.
+const AB_SEASON_FULL = 30;
+let abSeasonMode = (()=>{ try{ return localStorage.getItem('warr_ab_season')||'active'; }catch(_){ return 'active'; } })();
+let _abSeasonIdx = null, _abSeasonKey = '';
+let _abSeasonChecked = 0;
+function _abSeasonIndex(){
+  // Called once per match in hot loops — re-check the scout cache at most every 2s.
+  if(_abSeasonIdx&&performance.now()-_abSeasonChecked<2000) return _abSeasonIdx;
+  _abSeasonChecked=performance.now();
+  let raw=0; try{ const r=localStorage.getItem(SCOUT_KEY_AB); raw=r?r.length:0; }catch(_){}
+  const key=raw+'|'+JSON.stringify(_ABCurrentSeason)+'|'+abSeasonMode;
+  if(_abSeasonIdx&&_abSeasonKey===key) return _abSeasonIdx;
+  const per=Object.create(null);
+  (loadScoutAB().matches||[]).forEach(m=>{
+    if(!m) return; const lg=(m.league||'').trim(); if(!lg) return;
+    const sn=String(m.season||'').trim(), L=per[lg]||(per[lg]={}), S=L[sn]||(L[sn]={n:0,last:0});
+    S.n++; const t=Date.parse(m.date||'')||0; if(t>S.last) S.last=t;
+  });
+  const idx=Object.create(null);
+  Object.entries(per).forEach(([lg,L])=>{
+    const order=Object.keys(L).filter(Boolean).sort((a,b)=>(L[b].last-L[a].last)||b.localeCompare(a,undefined,{numeric:true}));
+    let active=_curSeasonFor(lg)||order[0]||'';
+    if(abSeasonMode!=='active'&&abSeasonMode!=='all') active=L[abSeasonMode]?abSeasonMode:'';
+    idx[lg]={order,active,nAct:(active&&L[active])?L[active].n:0,auto:!_curSeasonFor(lg),counts:Object.fromEntries(Object.entries(L).map(([k,v])=>[k,v.n]))};
+  });
+  _abSeasonIdx=idx; _abSeasonKey=key; return idx;
+}
+function abActiveSeason(league){ const i=_abSeasonIndex()[(league||'').trim()]; return i?i.active:''; }
+// How much a match counts: 1 in its league's active season; older seasons fade in
+// only while the active season is thin (0 once it has AB_SEASON_FULL games).
+function abSeasonWeight(m){
+  if(!m) return 0;
+  if(abSeasonMode==='all') return 1;
+  const lg=(m.league||'').trim(), i=_abSeasonIndex()[lg];
+  if(abSeasonMode!=='active'){ if(!i) return 0; return (i.active&&String(m.season||'').trim()===i.active)?1:0; }   // one specific season
+  if(!i||!i.active) return 1;                       // league without season labels: nothing to scope by
+  const sn=String(m.season||'').trim();
+  if(sn===i.active) return 1;
+  if(i.nAct>=AB_SEASON_FULL) return 0;
+  // Backup budget: older games may add up to (FULL − active games) × thinness worth of
+  // games — the whole 30 when the season just started, ~0 when it's nearly there —
+  // and an old game never counts more than 60% of a current one.
+  const thin=1-i.nAct/AB_SEASON_FULL, budget=(AB_SEASON_FULL-i.nAct)*thin;
+  const a=i.order.indexOf(i.active), b=i.order.indexOf(sn), dist=b<0?2:Math.max(1,Math.abs(b-a));
+  const prev=i.order[a+1], nPrev=(prev&&i.counts[prev])||1;
+  return +(Math.min(0.6,budget/nPrev)*Math.pow(0.4,dist-1)).toFixed(3);
+}
+// Strictly the active season (used where a team's CURRENT form matters).
+function _seasonOK(m){ return abSeasonWeight(m)>=1; }
+// Active season plus whatever backup seasons are currently allowed in.
+function abScoped(arr){ return (arr||[]).filter(m=>abSeasonWeight(m)>0); }
+function abSeasonSummary(league){
+  const idx=_abSeasonIndex(), lgs=league&&league!=='all'?[league]:Object.keys(idx).filter(l=>_isOfficialLeague(l));
+  return lgs.filter(l=>idx[l]).map(l=>{ const i=idx[l], prev=i.order[i.order.indexOf(i.active)+1];
+    const thin=abSeasonMode==='active'&&i.active&&i.nAct<AB_SEASON_FULL&&prev;
+    const budget=thin?Math.round((AB_SEASON_FULL-i.nAct)*(1-i.nAct/AB_SEASON_FULL)):0;
+    return {league:l,season:i.active||'(no season label)',games:i.nAct,auto:i.auto,backup:thin&&budget>0?prev:'',backupGames:budget}; });
+}
+function refreshSeasonScopeAB(){
+  _abSeasonIdx=null; _abSeasonChecked=0;
+  try{ invalidateScoutIntel(); }catch(_){}
+  try{ _evCacheAB2=null; }catch(_){}
+  try{ applySeasonTiersAB(); }catch(_){}
+  try{ if(typeof enemyTeamName!=='undefined'&&enemyTeamName){ buildEnemyProfileCache(enemyTeamName); if(typeof renderEnemyProfileCard==='function') renderEnemyProfileCard(enemyTeamName); } }catch(_){}
+  try{ renderSeasonChipsAB(); }catch(_){}
+  try{ renderSpecsAB(); }catch(_){}
+  try{ if(typeof updateSummary==='function') updateSummary(); }catch(_){}
+}
+// First pass at load (auto-detected seasons); refreshed again once admin-marked seasons arrive.
+try{ applySeasonTiersAB(); }catch(e){ console.warn('[AI Battle] season tiers',e); }
+function setSeasonAB(mode){ abSeasonMode=mode||'active'; try{ localStorage.setItem('warr_ab_season',abSeasonMode); }catch(_){} refreshSeasonScopeAB(); }
+function renderSeasonChipsAB(){
+  const wrap=document.getElementById('abSeasonChips'), info=document.getElementById('abSeasonInfo'); if(!wrap) return;
+  const idx=_abSeasonIndex(), lgs=scoutLeagueAB!=='all'&&idx[scoutLeagueAB]?[scoutLeagueAB]:Object.keys(idx).filter(l=>_isOfficialLeague(l));
+  const labels=[...new Set(lgs.flatMap(l=>idx[l].order))].slice(0,6);
+  const e=x=>String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  wrap.innerHTML=[`<button class="scout-lb${abSeasonMode==='active'?' active':''}" onclick="setSeasonAB('active')">Active season</button>`,
+    ...labels.map(l=>`<button class="scout-lb${abSeasonMode===l?' active':''}" onclick="setSeasonAB(this.dataset.s)" data-s="${e(l)}">${e(l)}</button>`),
+    `<button class="scout-lb${abSeasonMode==='all'?' active':''}" onclick="setSeasonAB('all')">All seasons</button>`].join('');
+  if(!info) return;
+  if(abSeasonMode==='all'){ info.textContent='Every season counts the same — older metas and rosters mixed in.'; return; }
+  const sm=abSeasonSummary(scoutLeagueAB).filter(x=>x.games>0||abSeasonMode!=='active');
+  info.innerHTML=sm.length?sm.slice(0,4).map(x=>`<b style="color:var(--text2)">${e(x.league)} ${e(x.season)}</b> · ${x.games} game${x.games===1?'':'s'}${x.auto&&abSeasonMode==='active'?' (latest)':''}${x.backup?` — older seasons (${e(x.backup)}…) fill in for ~${x.backupGames} games until this season has ${AB_SEASON_FULL}`:''}`).join('<br>'):'No official games logged yet.';
 }
 
 function getScoutProfileAB(teamName) {
@@ -1736,6 +1811,7 @@ function setScoutLB(l) {
   setTimeout(renderSpecsAB,0);
   scoutLeagueAB = l;
   renderLeagueChipsAB();
+  try{ renderSeasonChipsAB(); }catch(_){}
   // Show how many games available for this filter
   const db = loadScoutAB();
   const count = l==='all' ? (db.matches||[]).length : (db.matches||[]).filter(m=>m.league===l).length;
@@ -1887,6 +1963,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
   if(typeof WDB!=='undefined'&&WDB.getAdminApiKey) await WDB.getAdminApiKey();
   // Load each league's admin-marked current season so AI Battle scopes to it.
   await _loadABCurrentSeasons();
+  refreshSeasonScopeAB();
   updateApiKeyCard();
   updateTokenDisplay();
   // Default opponent mode to VS MPL Team and auto-pick the most-scouted team
@@ -1975,11 +2052,13 @@ function buildEnemyProfileCache(name){
     const _allTeam=(db.matches||[]).filter(m=>(m.blueTeam===name||m.redTeam===name) && _isLearnLeague(m.league));
     // Scope to the current season. If the team has no current-season games yet,
     // fall back to their most recent season so scouting still works.
-    let matches=_allTeam.filter(_seasonOK);
-    if(!matches.length && _allTeam.length){
-      const seasons=[...new Set(_allTeam.map(m=>String(m.season||'').trim()).filter(Boolean))]
-        .sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
-      matches = seasons[0] ? _allTeam.filter(m=>String(m.season||'').trim()===seasons[0]) : _allTeam;
+    let matches=abSeasonMode==='all'?_allTeam:_allTeam.filter(_seasonOK);
+    if(matches.length<5 && _allTeam.length>matches.length && abSeasonMode!=='all'){
+      // Thin this season: top up with their most recent older seasons (newest first) until ~5 games.
+      const lg=(_allTeam[0]&&_allTeam[0].league)||'', order=(_abSeasonIndex()[lg]||{}).order||[];
+      const seasons=[...new Set(_allTeam.map(m=>String(m.season||'').trim()))].filter(sn=>!matches.some(m=>String(m.season||'').trim()===sn))
+        .sort((a,b)=>((order.indexOf(a)<0?99:order.indexOf(a))-(order.indexOf(b)<0?99:order.indexOf(b)))||b.localeCompare(a,undefined,{numeric:true}));
+      for(const sn of seasons){ if(matches.length>=5) break; matches=matches.concat(_allTeam.filter(m=>String(m.season||'').trim()===sn)); }
     }
     const bm=matches.filter(m=>m.blueTeam===name);
     const rm=matches.filter(m=>m.redTeam===name);
@@ -2412,11 +2491,8 @@ function fb(h){const c=encodeURIComponent(h.color||'#3b82f6'),t=encodeURICompone
 function toast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className=`toast show ${type}`;setTimeout(()=>t.className='toast',2500);}
 function updateTokenDisplay(){
   if(typeof WDB==='undefined'||!WDB.getTokensRemaining)return;
-  const rem=WDB.getTokensRemaining();
-  const sub=WDB.getSubscription();
-  const plan=WDB.PLANS[sub.plan]||WDB.PLANS.free;
   const el=document.getElementById('tokenDisplay');
-  if(el){el.textContent=`⚡ ${rem}/${plan.tokensPerMonth} tokens`;el.style.color=rem<=2?'#ff6b6b':rem<=5?'#ffaa44':'#7ecfff';}
+  if(el&&WDB.aiBadge){const b=WDB.aiBadge();el.textContent=b.text;el.style.color=b.color;}
 }
 function isMyTurn(){if(aiMode==='pvp')return true;return DRAFT_ORDER[ST.step]?.team===pSide;}
 function updateMemChip(){const m=loadMem();const c=Object.keys(m).length;const el=document.getElementById('memChip');if(el)el.textContent=c>0?`AI Memory: ${c} heroes`:'AI Memory: empty';}
@@ -2662,12 +2738,9 @@ async function aiTurn(){
   const s=DRAFT_ORDER[ST.step];if(s.team!==aiSide)return;
   aiThink=true;showThink(true,s);renderPool();
   try{
-    // Cost control: per-turn Claude reasoning is a paid/admin perk. Free
-    // accounts get the full local Draft Brain (same pipeline, no API cost).
-    const hasKey=typeof WDB!=='undefined'&&WDB.getAdminApiKeySync?!!WDB.getAdminApiKeySync():!!localStorage.getItem('warr_api_key');
-    const _sub=(typeof WDB!=='undefined'&&WDB.getSubscription)?WDB.getSubscription():{plan:'free'};
-    const _isAdm=typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin();
-    const cloudOK=hasKey&&(_isAdm||_sub.plan!=='free');
+    // Claude AI is invite-only: Analyst / Pro Team / admin. Members get the
+    // full local Draft Brain (same pipeline, no API cost).
+    const cloudOK=typeof WDB!=='undefined'&&WDB.hasAIAccess&&WDB.hasAIAccess();
     const hero=(!cloudOK||diff==='normal')?localAI(s):await claudeAI(s);
     // Compress the "thinking" beat — was 350ms, now 150ms. The compute itself
     // (localAI/claudeAI) already takes time so the indicator still flashes.
@@ -2715,50 +2788,52 @@ function getHumanTendencies(){
     merged[name]={name,wr:0.5,count:d.humanPc,wins:0,score:d.humanPc*0.5,source:'battle'};
   });
 
-  // Merge scout data — pName must match a team name in warr_scout_data
+  // Merge the human's REAL team data (current season, opponent-adjusted):
+  // their per-hero record, boosted when banning that hero has hurt them before.
+  // This is what lets the AI ban like a team that scouted you.
   try{
-    const db=loadScoutAB();
-    const t=db.teams?.[pName];
-    if(t&&t.gamesPlayed>0){
-      // Team win rate as proxy (scout doesn't track per-hero win rates)
-      const teamWR=(t.winRate||50)/100;
-      // topPicks: [{name, count}] — frequency only, no per-hero WR
-      (t.topPicks||[]).forEach(p=>{
-        if(!p.name)return;
-        if(merged[p.name]){
-          // Already in battle memory — boost count, blend WR
-          merged[p.name].count+=p.count;
-          merged[p.name].score+=p.count*teamWR;
-          merged[p.name].source='battle+scout';
-        } else {
-          merged[p.name]={name:p.name,wr:teamWR,count:p.count,wins:Math.round(p.count*teamWR),score:p.count*teamWR,source:'scout'};
-        }
-      });
-      // Also scan raw match history for per-match win tracking (more accurate)
-      const humanMatches=(db.matches||[]).filter(mx=>(mx.blueTeam===pName||mx.redTeam===pName) && _isLearnLeague(mx.league));
-      humanMatches.forEach(mx=>{
-        const isBlue=mx.blueTeam===pName;
-        const won=(mx.winner==='blue')===isBlue;
-        // picks are {name, lane} objects
-        const myPicks=(isBlue?mx.bluePicks:mx.redPicks)||[];
-        myPicks.forEach(p=>{
-          const name=p.name;if(!name)return;
-          if(merged[name]){
-            // Raw match data is more precise — update win rate from actual outcomes
-            merged[name].wins+=(won?1:0);
-            // count already added from topPicks — don't double-count
-            merged[name].wr=merged[name].wins/merged[name].count;
-            merged[name].score=merged[name].count*merged[name].wr;
-            merged[name].source='battle+scout';
-          } else {
-            merged[name]={name,wr:won?1:0,count:1,wins:won?1:0,score:won?0.8:0.2,source:'scout'};
-          }
-        });
+    const HI=_humanIntelAB();
+    if(HI){
+      const T=HI.I;
+      Object.entries(T.heroes).forEach(([name,x])=>{
+        const adj=(x.w+T.wr*3)/(x.g+3);
+        const bi=(T.banImpact||[]).find(b=>b.hero===name);
+        const score=x.g*adj*(1+(bi&&bi.impact>0?Math.min(1,bi.impact*2):0));
+        if(merged[name]){merged[name].count+=x.g;merged[name].wins+=x.w;merged[name].wr=adj;merged[name].score+=score;merged[name].source='battle+scout';}
+        else merged[name]={name,wr:adj,count:x.g,wins:x.w,score,source:'scout',team:HI.team};
       });
     }
   }catch(e){console.warn('Scout load error',e);}
 
   return Object.values(merged).sort((a,b)=>b.score-a.score);
+}
+
+// The human's real team (if any): the name typed in setup, else the approved
+// team on their profile — whichever has games in the current-season pool.
+let _hiCacheAB=null,_hiKeyAB='';
+function _humanIntelAB(){
+  if(typeof WIntel==='undefined')return null;
+  let mt=0;try{const r=localStorage.getItem(SCOUT_KEY_AB);mt=r?r.length:0;}catch(_){}
+  let prof=null;try{prof=(typeof WAuth!=='undefined'&&WAuth.getProfile)?WAuth.getProfile():null;}catch(_){}
+  const profTeam=prof&&prof.team_name&&prof.team_status==='approved'?prof.team_name:'';
+  _abSeasonIndex();
+  const key=[mt,pName,profTeam,_abSeasonKey,_useMyScrims].join('|');
+  if(_hiKeyAB===key)return _hiCacheAB;
+  _hiKeyAB=key;_hiCacheAB=null;
+  try{
+    const pool=abScoped(_learnMatches(loadScoutAB().matches||[]));
+    const has=t=>t&&pool.some(m=>m.blueTeam===t||m.redTeam===t);
+    const team=has(pName)?pName:(has(profTeam)?profTeam:'');
+    if(!team)return null;
+    const R=WIntel.ratings(pool);
+    const I=WIntel.team(pool,team,R);
+    if(I.n<3)return null;
+    const levers=WIntel.levers(I);
+    const exploit={};
+    levers.filter(l=>l.kind==='pick').forEach(l=>{exploit[l.heroes[0]]=l;});
+    _hiCacheAB={team,I,levers,exploit};
+  }catch(e){console.warn('[AI Battle] human intel',e);}
+  return _hiCacheAB;
 }
 
 // ═══════ SCOUT INTEL LAYER (the brain) ═══════
@@ -2777,18 +2852,16 @@ function _buildScoutIntel(){
     // Scope the meta read to the current season. Fallback: if current-season data
     // is too thin to model counters/tiers reliably, widen to all official data so
     // the engine isn't crippled early in a season.
-    const curLearn = allLearn.filter(_seasonOK);
-    const matches = curLearn.length >= 20 ? curLearn : allLearn;
+    const matches = abScoped(allLearn);   // active season, + older seasons only while it's thin
     if (!matches.length || typeof WDB === 'undefined') {
       return { counters:{}, synergies:{}, draftedAgainst:{}, laneCounters:{}, dynamicTiers:{}, n:0 };
     }
     // We've already filtered to the allowed leagues, so includeAll:true just means
     // "count every match I pass in".
     const opts = { includeAll:true };
-    let dynamicTiers = {};
-    try { dynamicTiers = WDB.computeDynamicTiers ? (WDB.computeDynamicTiers(2,{includeScrims:_useMyScrims}) || {}) : {}; } catch(_) {}
+    const dynamicTiers = abComputeTiers() || {};
     return {
-      counters:        WDB.computeScoutCountersFromMatches(matches, 2, opts) || {},
+      counters:        abMatchupCounters(allLearn),
       synergies:       WDB.computeScoutSynergiesFromMatches(matches, 2, opts) || {},
       draftedAgainst:  WDB.computeDraftedAgainstFromMatches(matches, 2, opts) || {},
       laneCounters:    WDB.computeLaneAwareCountersFromMatches ? (WDB.computeLaneAwareCountersFromMatches(matches, 2, opts) || {}) : {},
@@ -2814,12 +2887,39 @@ function scoutIntel(){
   return _scoutIntel;
 }
 
-// Heroes that beat `heroName` in scout matches (primary signal).
+// Matchups, corrected for hero strength. "H beat X" in raw data mostly means H's
+// TEAM was better, or H is simply strong this season. So each pair is compared
+// with what the two heroes' own season win rates predict, shrunk toward that
+// expectation on small samples; only the edge left over counts as a counter.
+// Same-lane meetings (EXP vs EXP…) add extra weight. Season-weighted.
+function abMatchupCounters(allLearn){
+  const vs={}, ln={}, P={}, W={};
+  const add=(o,a,b,w,win)=>{ const r=(o[a]||(o[a]={})), c=(r[b]||(r[b]={w:0,n:0})); c.n+=w; if(win) c.w+=w; };
+  (allLearn||[]).forEach(m=>{ const wgt=abSeasonWeight(m); if(wgt<=0||!m.winner) return;
+    const side=arr=>(arr||[]).map(p=>p&&{name:p.name||p,lane:p.lane||null}).filter(p=>p&&typeof p.name==='string');
+    const blue=side(m.bluePicks), red=side(m.redPicks);
+    [[blue,'blue'],[red,'red']].forEach(([a,sd])=>a.forEach(h=>{ P[h.name]=(P[h.name]||0)+wgt; if(m.winner===sd) W[h.name]=(W[h.name]||0)+wgt; }));
+    blue.forEach(b=>red.forEach(r=>{ const bw=m.winner==='blue';
+      add(vs,b.name,r.name,wgt,bw); add(vs,r.name,b.name,wgt,!bw);
+      if(b.lane&&r.lane&&b.lane===r.lane){ add(ln,b.name,r.name,wgt,bw); add(ln,r.name,b.name,wgt,!bw); } }));
+  });
+  const wr=n=>((W[n]||0)+2.5)/((P[n]||0)+5);
+  const exp=(a,b)=>{ const x=wr(a),y=wr(b); return x*(1-y)/(x*(1-y)+y*(1-x)); };
+  const out={};
+  Object.entries(vs).forEach(([H,row])=>Object.entries(row).forEach(([X,c])=>{
+    if(c.n<1.5) return;
+    const e=exp(H,X), adj=(c.w+e*4)/(c.n+4); let edge=adj-e;
+    const l=ln[H]&&ln[H][X]; if(l&&l.n>=1){ const la=(l.w+e*3)/(l.n+3); edge+=(la-e)*0.6*Math.min(1,l.n/4); }
+    if(edge<0.04) return;
+    (out[X]||(out[X]=[])).push({name:H,wr:Math.round((0.5+edge)*1000)/1000,count:Math.round(c.n*10)/10,lane:!!l});
+  }));
+  Object.values(out).forEach(a=>a.sort((p,q)=>q.wr-p.wr));
+  return out;
+}
+// Heroes that beat `heroName` (strength-corrected matchup edge ≥ 4 points).
 function getScoutCounters(heroName){
   const c = scoutIntel().counters[heroName] || [];
-  // Only surface meaningful counters: ≥60% counter WR with ≥2 games.
-  // (Compute uses minMatches=2; we keep the WR floor.)
-  return c.filter(x => x.wr >= 0.6);
+  return c.filter(x => x.wr >= 0.54);
 }
 
 // Heroes that pair well with `heroName` on the same team (primary signal).
@@ -2850,11 +2950,9 @@ function getLaneAwareCounter(heroName, heroLane, candidateName, candidateLane){
 function getEffectiveTier(heroName){
   const intel = scoutIntel();
   const dyn = intel.dynamicTiers[heroName];
-  if (dyn){
-    const minPicks = Math.max(2, Math.min(5, Math.floor((intel.n || 0) / 12)));
-    if (dyn.picks >= minPicks) return dyn.tier;
-  }
-  return _scoutTierCache?.[heroName]?.tier || TIER_LIST[heroName]?.tier || (HEROES.find(h=>h.name===heroName)?.tier) || 'B';
+  if (dyn && dyn.seen >= 1) return dyn.tier;                    // season-scoped presence tier
+  if (intel.dynamicTiers && Object.keys(intel.dynamicTiers).length) return 'C';   // in-scope data exists but this hero never showed up
+  return TIER_LIST[heroName]?.tier || (HEROES.find(h=>h.name===heroName)?.tier) || 'B';
 }
 
 function getLearnedCounters(heroName){
@@ -2867,8 +2965,9 @@ function getLearnedCounters(heroName){
   getScoutCounters(heroName).forEach(x=>{
     out[x.name] = { name:x.name, wr:x.wr, count:x.count, source:'scout' };
   });
-  // Source 2: battle memory (secondary — covers AI-vs-human play)
-  const m=loadMem();
+  // Battle memory is NOT a matchup source: an AI Battle "result" is this app's own
+  // prediction, so feeding it back in would let the engine learn from its guesses.
+  const m={};
   Object.entries(m).forEach(([name,d])=>{
     if(!d.vsRecord||!d.vsRecord[heroName])return;
     const vr=d.vsRecord[heroName];
@@ -3600,12 +3699,15 @@ let _evCacheAB2=null,_evKeyAB2='';
 function evidenceAB(){
   const enemyName=(aiMode==='enemy'&&enemyProfile)?enemyProfile.name:'';
   let mt=0;try{const r=localStorage.getItem(SCOUT_KEY_AB);mt=r?r.length:0;}catch(_){}
-  const key=mt+'|'+scoutLeagueAB+'|'+enemyName;
+  _abSeasonIndex();
+  const key=mt+'|'+scoutLeagueAB+'|'+enemyName+'|'+_abSeasonKey+'|'+_useMyScrims;
   if(_evCacheAB2&&_evKeyAB2===key)return _evCacheAB2;
   const db=loadScoutAB();
-  const all=(db.matches||[]).filter(m=>m.league!=='AI Battle'); // self-play never pollutes evidence
-  const now=Date.now();
-  const wOf=m=>{const t=Date.parse(m.date||'');if(!t)return 0.7;return Math.pow(0.5,Math.max(0,(now-t)/864e5)/90);};
+  // Official tournament data (+ your own scrims if you opted in) — never AI-Battle
+  // self-play or the "Other" bucket — weighted by the season scope.
+  const all=_learnMatches(db.matches||[]).filter(m=>abSeasonWeight(m)>0);
+  const newest=all.reduce((x,m)=>Math.max(x,Date.parse(m.date||'')||0),0);
+  const wOf=m=>{const sw=abSeasonWeight(m),t=Date.parse(m.date||'');if(!t||!newest)return sw;return sw*Math.pow(0.5,Math.max(0,(newest-t)/864e5)/150);};
   const mkScope=()=>({g:0,pick:{},ban:{},win:{},pickN:{}});
   const ov=mkScope(),lg=mkScope(),tm=mkScope(),tmB=mkScope(),tmR=mkScope();
   // League scope: explicit selector wins, else the enemy team's dominant league
@@ -4075,6 +4177,11 @@ function draftBrainAB(step,opts){
         if(gateFix)notes.push(`also fixes ${gateFix}`);
         break;
     }
+    // Exploit the human's real team: heroes opponents have beaten them with.
+    if(!forHuman&&intent!=='FIRST'){
+      const HI=_humanIntelAB(),ex=HI&&HI.exploit[h.name];
+      if(ex){s+=18+Math.min(2.5,ex.z)*10;notes.push(`${ex.why}`);}
+    }
     // Shared layers
     if(wr>0.55)s+=(wr-0.5)*60;
     if(teamRate!==null&&teamRate!==undefined){s+=teamRate*260;if(teamRate>=0.4)notes.unshift(`${ep.name} runs this ${Math.round(teamRate*100)}% of ${side}-side games`);}
@@ -4167,6 +4274,11 @@ let _wpPrev=50;
 function liveWinProbAB(){
   const my=pSide==='blue'?ST.bp:ST.rp, ai=pSide==='blue'?ST.rp:ST.bp;
   if(!my.length&&!ai.length)return 50;
+  return winProbForAB(my,ai);
+}
+// Draft-only win probability for `my` vs `ai` (hero strength, counters,
+// duos, comp gaps) — shared by the live meter and the post-draft analysis.
+function winProbForAB(my,ai){
   _btc=null;
   const myN=my.map(h=>h.name),aiN=ai.map(h=>h.name);
   const tierSum=t=>t.reduce((a,h)=>a+_dbTierScore(h.name),0);
@@ -4197,8 +4309,10 @@ function renderSpecsAB(){
     const db=loadScoutAB();
     const real=(db.matches||[]).filter(m=>m.league!=='AI Battle');
     const scoped=scoutLeagueAB==='all'?real:real.filter(m=>m.league===scoutLeagueAB);
+    const act=scoped.filter(m=>abSeasonWeight(m)>=1).length;
     const sg=document.getElementById('startSubGames');
-    if(sg)sg.textContent=`${scoped.length} match${scoped.length===1?'':'es'} loaded`;
+    if(sg)sg.textContent=abSeasonMode==='all'?`${scoped.length} match${scoped.length===1?'':'es'} loaded · all seasons`
+      :`${act} match${act===1?'':'es'} this season${scoped.length>act?` · ${scoped.length-act} older as backup`:''}`;
   }catch(_){}
 }
 
@@ -4284,8 +4398,10 @@ YOU ARE EMULATING "${ep.name}" (scouted team — draft like THEM, not like a gen
 Win condition: ${ep.winCondition||'unknown'} | Their ${step.team}-side core: ${(step.team==='blue'?ep.blueSideCore:ep.redSideCore||[]).slice(0,6).join(', ')||'see candidates'}
 Candidates already carry their pick/ban frequencies — when in doubt, choose what THEY historically do.`:'';
 
+  const _scope=(()=>{ try{ return abSeasonMode==='all'?'all seasons':abSeasonSummary(scoutLeagueAB).filter(x=>x.games>0).slice(0,3).map(x=>`${x.league} ${x.season} (${x.games}g${x.backup?`, ${x.backup} as backup`:''})`).join('; '); }catch(_){ return ''; } })();
   const prompt=`You are a Grandmaster MPL coach drafting in MLBB tournament mode. ${step.team.toUpperCase()} side, turn ${slotLabel} (${step.type.toUpperCase()}).
-
+${_scope?`DATA SCOPE: tiers, ban rates and matchups below come from ${_scope} — the CURRENT meta. Do not draft from older-season habits.
+`:''}
 SLOT QUESTION (this is the ONLY question this turn answers): ${ctx.question}
 
 BOARD:
@@ -4323,7 +4439,7 @@ Return ONLY JSON: {"hero":"ExactNameFromList","reason":"<22 words, name the stra
 
   const askOnce=async(hint)=>{
     const finalPrompt=hint?`${prompt}\n\nCORRECTION: ${hint} Choose again, strictly from the candidate list.`:prompt;
-    const d=await callClaude({model:'claude-sonnet-4-6',max_tokens:180,messages:[{role:'user',content:finalPrompt}]});
+    const d=await callClaude({purpose:'pick',max_tokens:180,messages:[{role:'user',content:finalPrompt}]});
     const raw=(d.content||[]).map(x=>x.text||'').join('');
     const m=raw.match(/\{[\s\S]*?\}/);if(!m)return{ok:false,reason:'no JSON in reply'};
     let p;try{p=JSON.parse(m[0]);}catch(_){return{ok:false,reason:'malformed JSON'};}
@@ -4574,148 +4690,199 @@ function _getMapWR(teamName,map){
   }catch(e){return null;}
 }
 
-function localAnalysis(bp,rp,bb,rb,bt,rt){
-  const tierScore={S:10,A:8,B:6,C:4,D:2};
-  const scoreTeam=picks=>picks.reduce((s,h)=>{
-    const t=_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier||'C';
-    return s+(Number(h.ms)||tierScore[t]||5)+(h.mp==='mustban'?2:h.mp==='highpick'?1:0);
-  },0)/Math.max(picks.length,1);
-  const bs=scoreTeam(bp),rs=scoreTeam(rp),tot=bs+rs||1;
-  let bWR=Math.round(Math.min(72,Math.max(28,38+(bs/tot)*24)));
-  // Map WR adjustment: if we have scout data for either team on this map, nudge the win %
-  if(_battleMap){
-    const bMapS=_getMapWR(bt,_battleMap);
-    const rMapS=_getMapWR(rt,_battleMap);
-    if(bMapS&&bMapS.games>=3){
-      const mapAdv=Math.round((bMapS.wr-50)*0.15); // max ~±10 pts
-      bWR=Math.min(75,Math.max(25,bWR+mapAdv));
-    } else if(rMapS&&rMapS.games>=3){
-      const mapAdv=Math.round((rMapS.wr-50)*0.15);
-      bWR=Math.min(75,Math.max(25,bWR-mapAdv));
+// ═══════ DRAFT SCORECARD — the numbers behind the post-draft analysis ═══════
+// Everything here comes from the season-scoped official data the draft brain
+// uses (abScoped). The local analysis is written from it, and Claude is
+// handed it as evidence it must cite.
+const LANES_AB=['EXP','Jungle','Mid','Gold','Roam'];
+function laneMapAB(picks){
+  const assigned={},used=new Set();
+  picks.forEach(h=>{const a=laneAssignmentsAB[h.id];if(a&&LANES_AB.includes(a)&&!assigned[a]){assigned[a]=h;used.add(h.id);}});
+  picks.forEach(h=>{if(used.has(h.id))return;const p=lane(h);if(p!=='Flex'&&LANES_AB.includes(p)&&!assigned[p]){assigned[p]=h;used.add(h.id);}});
+  picks.forEach(h=>{if(used.has(h.id))return;const opts=getHeroLanesAB(h);const slot=opts.find(l=>LANES_AB.includes(l)&&!assigned[l])||LANES_AB.find(l=>!assigned[l]);if(slot){assigned[slot]=h;used.add(h.id);}});
+  return assigned;
+}
+function _teamNameForIntelAB(side,label){
+  if(side===aiSide&&aiMode==='enemy'&&enemyProfile&&enemyProfile.name)return enemyProfile.name;
+  return label;
+}
+function draftScorecardAB(bp,rp,bt,rt){
+  _btc=null;
+  const db=loadScoutAB();
+  const pool=abScoped(_learnMatches(db.matches||[]));
+  const intel=scoutIntel();
+  const H={};let G=0;
+  pool.forEach(m=>{const w=abSeasonWeight(m);if(w<=0||!m.winner)return;G+=w;
+    ['blue','red'].forEach(sd=>{
+      (m[sd+'Picks']||[]).forEach(p=>{const h=p&&(p.name||p);if(!h)return;const x=H[h]||(H[h]={g:0,w:0,b:0,n:0});x.g+=w;x.n++;if(m.winner===sd)x.w+=w;});
+      (m[sd+'Bans']||[]).forEach(b=>{const h=typeof b==='string'?b:b?.name;if(!h)return;const x=H[h]||(H[h]={g:0,w:0,b:0,n:0});x.b+=w;});
+    });});
+  const stat=name=>{const x=H[name];if(!x)return{n:0,wr:null,adj:0.5,pres:0};return{n:x.n,wr:x.g?x.w/x.g:null,adj:(x.w+2.5)/(x.g+5),pres:G?(x.g+x.b)/G:0};};
+  // + = a is favoured over b, from the strength-corrected matchup table
+  const pairEdge=(a,b)=>{
+    const ca=(intel.counters[b]||[]).find(x=>x.name===a), cb=(intel.counters[a]||[]).find(x=>x.name===b);
+    if(ca&&(!cb||ca.count>=cb.count))return{edge:ca.wr-0.5,count:ca.count,sameLane:ca.lane};
+    if(cb)return{edge:-(cb.wr-0.5),count:cb.count,sameLane:cb.lane};
+    return null;
+  };
+  const bL=laneMapAB(bp),rL=laneMapAB(rp);
+  const duels=LANES_AB.map(l=>{
+    const a=bL[l],b=rL[l];
+    const d={lane:l,a:a?.name||'',b:b?.name||'',sa:a?stat(a.name):null,sb:b?stat(b.name):null,edge:null,count:0};
+    if(a&&b){const pe=pairEdge(a.name,b.name);if(pe){d.edge=pe.edge;d.count=pe.count;}}
+    return d;
+  });
+  const threats={blue:[],red:[]};
+  const duelPair=new Set(duels.filter(d=>d.a&&d.b).map(d=>d.a+'|'+d.b));   // lane duels are reported once, not twice
+  bp.forEach(a=>rp.forEach(b=>{if(duelPair.has(a.name+'|'+b.name))return;const pe=pairEdge(a.name,b.name);if(!pe||pe.count<2||Math.abs(pe.edge)<0.06)return;
+    if(pe.edge>0)threats.blue.push({hero:a.name,vs:b.name,edge:pe.edge,count:pe.count});else threats.red.push({hero:b.name,vs:a.name,edge:-pe.edge,count:pe.count});}));
+  ['blue','red'].forEach(k=>threats[k].sort((x,y)=>y.edge*Math.sqrt(y.count)-x.edge*Math.sqrt(x.count)));
+  const duos=picks=>{const out=[];for(let i=0;i<picks.length;i++)for(let j=i+1;j<picks.length;j++){const a=picks[i].name,b=picks[j].name;
+    const sy=(intel.synergies[a]||[]).find(x=>x.name===b)||(intel.synergies[b]||[]).find(x=>x.name===a);
+    if(sy&&(sy.count||0)>=3)out.push({a,b,wr:sy.wr,count:sy.count,adj:(sy.wr*sy.count+1.5)/(sy.count+3)});}
+    return out.sort((x,y)=>(y.adj-0.5)*Math.sqrt(y.count)-(x.adj-0.5)*Math.sqrt(x.count));};
+  const wpBlue=winProbForAB(bp,rp);
+  // Team context when a side is a real team with games in scope
+  let teams={blue:null,red:null},teamP=null;
+  try{
+    if(typeof WIntel!=='undefined'&&pool.length){
+      const R=WIntel.ratings(pool);
+      const nb=_teamNameForIntelAB('blue',bt),nr=_teamNameForIntelAB('red',rt);
+      if(R.games[nb]>=3)teams.blue=WIntel.team(pool,nb,R);
+      if(R.games[nr]>=3)teams.red=WIntel.team(pool,nr,R);
+      if(teams.blue&&teams.red)teamP=R.pGame(nb,nr,'blue');
     }
-  }
-  const rWR=100-bWR;
-  const archetype=picks=>{
-    const r=picks.map(h=>h.role||'');
-    if(r.some(x=>x.includes('MM'))&&r.some(x=>x.includes('Support'))&&r.some(x=>x.includes('Tank')))return'Protect the Carry';
-    if(picks.filter(h=>(h.role||'').includes('Assassin')).length>=2)return'Dive & Burst';
-    if(r.some(x=>x.includes('Tank'))&&r.some(x=>x.includes('Fighter'))&&!r.some(x=>x.includes('MM')))return'Brawl Teamfight';
-    if(r.some(x=>x.includes('Mage'))&&r.some(x=>x.includes('Tank'))&&r.some(x=>x.includes('Support')))return'Poke & Control';
-    if(picks.filter(h=>['Fighter','Tank'].some(x=>(h.role||'').includes(x))).length>=3)return'Frontline Heavy';
-    return'Flexible Mixed';
+  }catch(_){}
+  const comfort=(T,picks,oppBans)=>{
+    if(!T)return{got:[],denied:[]};
+    const got=picks.map(h=>({h:h.name,x:T.heroes[h.name]})).filter(o=>o.x&&o.x.g>=3&&o.x.w/o.x.g>=T.wr+0.05).map(o=>({hero:o.h,w:o.x.w,g:o.x.g}));
+    const denied=(T.banImpact||[]).filter(b=>oppBans.some(x=>x.name===b.hero)&&b.impact>=0.08).map(b=>({hero:b.hero,open:b.availWR,banned:b.bannedWR,g:b.bannedG}));
+    return{got,denied};
   };
-  // STRICT 1-hero-per-lane assignment. Three passes: explicit assignment → concrete primary → flex.
-  // Prevents two heroes from silently mapping to the same lane (which hid comp errors before).
-  const lanesOf=picks=>{
-    const order=['EXP','Gold','Mid','Jungle','Roam'];
-    const assigned={};const used=new Set();
-    picks.forEach(h=>{
-      const a=laneAssignmentsAB[h.id];
-      if(a&&order.includes(a)&&!assigned[a]){assigned[a]=h;used.add(h.id);}
-    });
-    picks.forEach(h=>{
-      if(used.has(h.id))return;
-      const p=lane(h);
-      if(p!=='Flex'&&order.includes(p)&&!assigned[p]){assigned[p]=h;used.add(h.id);}
-    });
-    picks.forEach(h=>{
-      if(used.has(h.id))return;
-      const opts=getHeroLanesAB(h);
-      const slot=opts.find(l=>order.includes(l)&&!assigned[l])||order.find(l=>!assigned[l]);
-      if(slot){assigned[slot]=h;used.add(h.id);}
-    });
-    return order.map(l=>({lane:l,hero:assigned[l]||null}));
+  return{n:pool.length,G,stat,duels,threats,
+    duos:{blue:duos(bp),red:duos(rp)},
+    audit:{blue:needsAuditAB(bp),red:needsAuditAB(rp)},
+    wpBlue,teams,teamP,
+    comfort:{blue:comfort(teams.blue,bp,ST.rb||[]),red:comfort(teams.red,rp,ST.bb||[])},
+    season:(()=>{try{const sm=abSeasonSummary(scoutLeagueAB!=='all'?scoutLeagueAB:'');return sm&&sm.season?`${sm.league?sm.league+' ':''}${sm.season}`:'';}catch(_){return'';}})()};
+}
+const _pctAB=x=>Math.round(x*100);
+function _heroFormAB(st){return st&&st.n?`${_pctAB(st.wr)}% in ${st.n}g`:'no games this season';}
+function scorecardPromptAB(sc,bt,rt){
+  const L=[];
+  L.push(`DRAFT DATA (${sc.n} official games${sc.season?' · '+sc.season:''}; WR = this season, shrunk for small samples):`);
+  L.push(`Draft model: ${bt} ${sc.wpBlue}% / ${rt} ${100-sc.wpBlue}% (hero strength, counters, duos, comp gaps).`);
+  if(sc.teamP!=null)L.push(`Team form model (opponent-adjusted results): ${sc.teams.blue.team} ${_pctAB(sc.teamP)}% per game vs ${sc.teams.red.team}.`);
+  L.push('Lane duels — '+sc.duels.map(d=>`${d.lane}: ${d.a||'—'} (${_heroFormAB(d.sa)}) vs ${d.b||'—'} (${_heroFormAB(d.sb)})${d.edge!=null?` → ${d.edge>0?d.a:d.b} favoured +${_pctAB(Math.abs(d.edge))}% head-to-head (${d.count}g)`:' → no head-to-head data'}`).join(' | '));
+  const th=k=>sc.threats[k].slice(0,3).map(t=>`${t.hero} beats ${t.vs} +${_pctAB(t.edge)}% (${t.count}g)`).join(', ')||'none with data';
+  L.push(`Counter edges — ${bt}: ${th('blue')} | ${rt}: ${th('red')}`);
+  const du=k=>sc.duos[k].slice(0,3).map(d=>`${d.a}+${d.b} ${_pctAB(d.wr)}% together (${d.count}g)`).join(', ')||'none with data';
+  L.push(`Duos — ${bt}: ${du('blue')} | ${rt}: ${du('red')}`);
+  const gp=k=>sc.audit[k].gates.length?'missing '+sc.audit[k].gates.join(', '):'complete';
+  L.push(`Comp check — ${bt}: ${gp('blue')} | ${rt}: ${gp('red')}`);
+  ['blue','red'].forEach(k=>{const T=sc.teams[k];if(!T)return;const c=sc.comfort[k];
+    const lv=WIntel.levers(T).slice(0,3).map(l=>`${l.text} (${l.why})`).join('; ');
+    L.push(`${T.team} (${T.wins}-${T.n-T.wins} this season): ${c.got.length?'got comfort '+c.got.map(x=>`${x.hero} ${x.w}-${x.g-x.w}`).join(', ')+'. ':''}${c.denied.length?'denied '+c.denied.map(x=>`${x.hero} (${_pctAB(x.open)}%→${_pctAB(x.banned)}% when banned)`).join(', ')+'. ':''}${lv?'Known weaknesses: '+lv:''}`);});
+  return L.join('\n');
+}
+function localAnalysis(bp,rp,bb,rb,bt,rt,sc){
+  sc=sc||draftScorecardAB(bp,rp,bt,rt);
+  const bWR=sc.wpBlue, rWR=100-bWR, winner=bWR>=rWR?'blue':'red';
+  const nameOf=k=>k==='blue'?bt:rt, picksOf=k=>k==='blue'?bp:rp, opp=k=>k==='blue'?'red':'blue';
+  const verb=n=>(/^you$/i.test(n)?'win':'wins');
+  const tierOf=n=>getEffectiveTier(n)||'B';
+  const strengths=k=>{
+    const out=[];
+    sc.duels.forEach(d=>{const mine=k==='blue'?d.a:d.b,their=k==='blue'?d.b:d.a;if(d.edge==null||!mine||!their)return;const e=k==='blue'?d.edge:-d.edge;
+      if(e>=0.05&&d.count>=2)out.push({s:e*Math.sqrt(d.count),t:`Wins ${d.lane}: ${mine} over ${their} (+${_pctAB(e)}% head-to-head, ${d.count}g)`});});
+    sc.threats[k].slice(0,2).forEach(t=>out.push({s:t.edge*Math.sqrt(t.count)*0.9,t:`${t.hero} counters ${t.vs} (+${_pctAB(t.edge)}%, ${t.count}g)`}));
+    sc.duos[k].slice(0,2).forEach(d=>{if(d.adj>=0.56)out.push({s:(d.adj-0.5)*Math.sqrt(d.count),t:`${d.a} + ${d.b} duo: ${_pctAB(d.wr)}% together (${d.count}g)`});});
+    picksOf(k).forEach(h=>{const st=sc.stat(h.name);if(st.n>=5&&st.adj>=0.56)out.push({s:(st.adj-0.5)*Math.sqrt(st.n)*0.8,t:`${h.name} is in form: ${_pctAB(st.wr)}% this season (${st.n}g)`});});
+    (sc.comfort[k].got||[]).forEach(c=>out.push({s:1.2,t:`${sc.teams[k].team} got their comfort ${c.hero} (${c.w}-${c.g-c.w} this season)`}));
+    if(!sc.audit[k].gates.length)out.push({s:0.25,t:'Complete comp: frontline, initiator, physical + magic damage'});
+    const hi=picksOf(k).filter(h=>['S','A'].includes(tierOf(h.name)));
+    if(hi.length>=2)out.push({s:0.2,t:`${hi.slice(0,3).map(h=>h.name).join(', ')} are current-season top-tier picks`});
+    return out.sort((a,b)=>b.s-a.s).map(x=>x.t).filter((t,i,arr)=>arr.indexOf(t)===i).slice(0,3);
   };
-  const laneStr=ls=>{
-    const keys=['exp','gold','mid','jungle','roam'],lanes=['EXP','Gold','Mid','Jungle','Roam'],obj={};
-    keys.forEach((k,i)=>{const h=ls.find(l=>l.lane===lanes[i])?.hero;obj[k]=h?`${h.name} (${(h.role||'').split('/')[0]}) — ${({S:'Strong',A:'Good',B:'Decent',C:'Weak'}[_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier]||'Decent')} tier`:`No clear ${lanes[i]} laner`;});
-    return obj;
+  const weaknesses=k=>{
+    const out=[];
+    sc.audit[k].gates.forEach(g=>out.push({s:1.5,t:`No ${g} — ${g==='magic damage'?'enemy can stack physical defence':g==='physical damage'?'enemy can stack magic defence':g==='frontline'?'nothing to absorb the first engage':'no reliable way to start fights'}`}));
+    sc.duels.forEach(d=>{const mine=k==='blue'?d.a:d.b,their=k==='blue'?d.b:d.a;if(d.edge==null||!mine||!their)return;const e=k==='blue'?-d.edge:d.edge;
+      if(e>=0.05&&d.count>=2)out.push({s:e*Math.sqrt(d.count),t:`Loses ${d.lane}: ${mine} into ${their} (−${_pctAB(e)}%, ${d.count}g)`});});
+    sc.threats[opp(k)].slice(0,2).forEach(t=>out.push({s:t.edge*Math.sqrt(t.count)*0.9,t:`${t.vs} is countered by ${t.hero} (−${_pctAB(t.edge)}%, ${t.count}g)`}));
+    picksOf(k).forEach(h=>{const st=sc.stat(h.name);if(st.n>=5&&st.adj<=0.44)out.push({s:(0.5-st.adj)*Math.sqrt(st.n)*0.8,t:`${h.name} is struggling: ${_pctAB(st.wr)}% this season (${st.n}g)`});
+      else if(st.n===0&&sc.n>=20)out.push({s:0.15,t:`${h.name} hasn't been played this season — untested in the current meta`});});
+    (sc.comfort[k].denied||[]).forEach(c=>out.push({s:1.1,t:`${sc.teams[k].team} lost ${c.hero} to bans (${_pctAB(c.open)}% with it open → ${_pctAB(c.banned)}% when banned)`}));
+    return out.sort((a,b)=>b.s-a.s).map(x=>x.t).filter((t,i,arr)=>arr.indexOf(t)===i).slice(0,3);
   };
-  const strengths=picks=>{
-    const s=[],r=picks.map(h=>h.role||'');
-    const hi=picks.filter(h=>['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));
-    if(hi.length>=2)s.push(`${hi.slice(0,3).map(h=>h.name).join(', ')} are high-tier picks — strong meta power`);
-    const mb=picks.filter(h=>h.mp==='mustban');
-    if(mb.length)s.push(`Secured ${mb.map(h=>h.name).join(' + ')} — must-ban priority heroes`);
-    if(r.some(x=>x.includes('Tank')||x.includes('Fighter'))&&r.some(x=>x.includes('Mage')||x.includes('MM')))s.push('Good engage-damage balance — can initiate and follow up');
-    const cov=[...new Set(picks.map(h=>laneAssignmentsAB[h.id]||lane(h)).filter(l=>l!=='Flex'))];
-    if(cov.length>=4)s.push(`${cov.length}/5 lane coverage — no glaring weaknesses`);
-    if(s.length<3){const extras=[`${picks.filter(h=>h.mp==='highpick').map(h=>h.name).join('+')||picks[0]?.name} gives strong lane priority`,`${picks.map(h=>h.name).slice(0,2).join(' and ')} create pick threat in mid-game`];extras.forEach(e=>{if(s.length<3)s.push(e);});}
-    return s.slice(0,3);
-  };
-  const weaknesses=picks=>{
-    const w=[],r=picks.map(h=>h.role||'');
-    if(!r.some(x=>x.includes('Tank')))w.push('No dedicated tank — vulnerable to burst dives');
-    if(!r.some(x=>x.includes('Support')))w.push('No support — limited peel and sustain in teamfights');
-    if(!r.some(x=>x.includes('MM'))&&!r.some(x=>x.includes('Mage')))w.push('Low sustained damage — struggles in extended fights');
-    const cov=picks.map(h=>laneAssignmentsAB[h.id]||lane(h));
-    ['Gold','Roam','Jungle'].forEach(l=>{if(!cov.includes(l))w.push(`No clear ${l} laner — lane gap`);});
-    const low=picks.filter(h=>['C','D'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));
-    if(low.length>=2)w.push(`${low.map(h=>h.name).join(', ')} are below meta — reliability risk`);
-    if(w.length<2){const nm=picks.filter(h=>h.mp!=='mustban'&&!['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));if(nm.length)w.push(`${nm[0].name} is below peak meta — needs to outplay to win lane`);else w.push(`Protect ${picks[0]?.name} — losing this carry makes the comp toothless`);}if(w.length<2)w.push('Engage timing critical — never force without all 5 in position');
-    return w.slice(0,2);
-  };
-  const keys=picks=>{
+  const keys=k=>{
+    const ks=[];const picks=picksOf(k);
+    const best=sc.duels.map(d=>({d,e:(k==='blue'?1:-1)*(d.edge||0)})).filter(x=>x.e>=0.05&&x.d.count>=2).sort((a,b)=>b.e-a.e)[0];
+    if(best)ks.push(`Play through ${best.d.lane} — ${k==='blue'?best.d.a:best.d.b} has the lane edge; rotate there for the 2:00 Turtle setup`);
+    const oT=sc.teams[opp(k)];
+    if(oT&&typeof WIntel!=='undefined'){WIntel.levers(oT).filter(l=>['tempo','objective','side'].includes(l.kind)).slice(0,1).forEach(l=>ks.push(`${l.text} — ${l.why}`));}
     const jg=picks.find(h=>(laneAssignmentsAB[h.id]||lane(h))==='Jungle');
     const mm=picks.find(h=>(h.role||'').includes('MM'));
-    const tk=picks.find(h=>(h.role||'').includes('Tank'));
-    const mage=picks.find(h=>(h.role||'').includes('Mage'));
-    const high=picks.filter(h=>['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));
-    const k1=jg?`${jg.name} controls crab+turtle timing — must secure vision before 4:00 to enable picks`:`Secure early crab at 2:30 for vision — jungler sets tempo for the whole comp`;
-    const k2=mm?`${mm.name} must reach full build before Lord — avoid risky trades until 2 core items`:(mage?`${mage.name} rotates mid after clearing wave — don't overstay, poke then reset`:`${high[0]?.name||picks[0]?.name} carries the late game — deny farm from opponent's carry`);
-    const k3=tk?`${tk.name} initiates only when all 5 are in position — no solo dives into collapsed enemies`:`No dedicated tank — win through poke and picks, avoid straight 5v5 brawls`;
-    return[k1,k2,k3];
+    if(jg)ks.push(`${jg.name} paths for the first Turtle (2:00) and the 4:00 contest — that's where this draft gets its lead`);
+    if(mm)ks.push(`Keep ${mm.name} safe to 2 core items before forcing Lord at 9:00`);
+    const dz=sc.duos[k][0];if(dz&&dz.adj>=0.55&&ks.length<3)ks.push(`Fight where ${dz.a} and ${dz.b} can link up — ${_pctAB(dz.wr)}% when paired`);
+    if(ks.length<3)ks.push(sc.audit[k].gates.includes('frontline')?'No frontline — poke and pick, never take a straight 5v5':'Group for the 4:00 Turtle — the comp is built to win set-piece fights');
+    return ks.slice(0,3);
   };
-  const mvpH=[...bp,...rp].filter(h=>['S'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier)||h.mp==='mustban').sort((a,b)=>(Number(b.ms)||8)-(Number(a.ms)||8))[0]||bp[0];
-  const bLanes=lanesOf(bp),rLanes=lanesOf(rp);
-  const winner=bWR>=rWR?'blue':'red';
-  const wPct=Math.max(bWR,rWR),lPct=100-wPct;
-  const wTeam=winner==='blue'?bt:rt,lTeam=winner==='blue'?rt:bt;
-  const wPicks=winner==='blue'?bp:rp;
-  const wHighTier=wPicks.filter(h=>['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));
-  const lPicks=winner==='blue'?rp:bp;
-  const lHighTier=lPicks.filter(h=>['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));
-  const wMustBan=wPicks.filter(h=>h.mp==='mustban');
-  const keyWinner=wHighTier[0]||wPicks[0];const keyLoser=lHighTier[0]||lPicks[0];
-  const verdict=`${wTeam} wins the draft ${wPct}-${lPct}%. ${wMustBan.length?wMustBan.map(h=>h.name).join('+')+' secured as must-ban priority — massive advantage. ':''}${keyWinner?.name} is the game-changer; ${keyLoser?.name} must be shutdown before ${wTeam} snowballs.`;
-  const banText=`Blue targeted ${bb.slice(0,2).map(h=>h.name).join('+')||'threats'}, Red banned ${rb.slice(0,2).map(h=>h.name).join('+')||'threats'}. ${bb.length+rb.length<8?'Priority heroes remain open — exploit in draft.':'Bans well-targeted across both sides.'}`;
+  const km=sc.duels.filter(d=>d.edge!=null).sort((a,b)=>Math.abs(b.edge)*Math.sqrt(b.count)-Math.abs(a.edge)*Math.sqrt(a.count))[0];
+  const keyMatchup=km?`${km.a} vs ${km.b} (${km.lane}): ${km.edge>0?km.a:km.b} favoured by ${_pctAB(Math.abs(km.edge))}% over ${km.count} season games`
+    :(sc.threats.blue[0]?`${sc.threats.blue[0].hero} vs ${sc.threats.blue[0].vs}: +${_pctAB(sc.threats.blue[0].edge)}% for ${bt}`:sc.threats.red[0]?`${sc.threats.red[0].hero} vs ${sc.threats.red[0].vs}: +${_pctAB(sc.threats.red[0].edge)}% for ${rt}`:'No head-to-head data for this draft\'s matchups yet');
+  const mvpPool=[...bp.map(h=>({h,k:'blue'})),...rp.map(h=>({h,k:'red'}))].map(o=>{const st=sc.stat(o.h.name);return{...o,st,score:(st.adj-0.5)*Math.sqrt(st.n+1)+st.pres*0.6+(o.k===winner?0.15:0)};}).sort((a,b)=>b.score-a.score);
+  const mvp=mvpPool[0];
+  const wName=nameOf(winner),lName=nameOf(opp(winner));
+  const wS=strengths(winner),lW=weaknesses(opp(winner));
+  const wp=Math.max(bWR,rWR);
+  const verdict=wp<=52?`Even draft (${bWR}–${rWR}) — neither side has a clear data edge; execution decides it.${wS[0]?' '+wName+': '+wS[0]+'.':''}`
+    :`${wName} ${verb(wName)} the draft ${wp}–${100-wp}.${wS[0]?' '+wS[0]+'.':''}${lW[0]?' '+lName+': '+lW[0]+'.':''}`;
+  const presBans=(arr)=>arr.map(h=>({h:h.name,p:sc.stat(h.name).pres})).sort((a,b)=>b.p-a.p);
+  const bB=presBans(bb),rB=presBans(rb);
+  const banText=`${bt} banned ${bB.slice(0,3).map(x=>`${x.h} (${_pctAB(x.p)}% presence)`).join(', ')||'—'}; ${rt} banned ${rB.slice(0,3).map(x=>`${x.h} (${_pctAB(x.p)}%)`).join(', ')||'—'}.`;
+  const archetype=picks=>{try{const a=inferArchetype(picks.map(h=>h.name));return(ARCH_DEFS[a]&&ARCH_DEFS[a].label)||a||'Mixed';}catch(_){return'Mixed';}};
+  const laning=k=>{const o={};sc.duels.forEach(d=>{const mine=k==='blue'?d.a:d.b;const st=k==='blue'?d.sa:d.sb;o[d.lane.toLowerCase()]=mine?`${mine} — ${_heroFormAB(st)}`:'—';});return o;};
   return{blueWinrate:bWR,redWinrate:rWR,winner,
     blueCompArchetype:archetype(bp),redCompArchetype:archetype(rp),
-    blueLaning:laneStr(bLanes),redLaning:laneStr(rLanes),
-    blueStrengths:strengths(bp),blueWeaknesses:weaknesses(bp),
-    redStrengths:strengths(rp),redWeaknesses:weaknesses(rp),
-    blueKeysToVictory:keys(bp),redKeysToVictory:keys(rp),
-    blueComposition:(()=>{const jg=bp.find(h=>(laneAssignmentsAB[h.id]||lane(h))==='Jungle');const carry=bp.find(h=>(h.role||'').includes('MM'))||bp.find(h=>['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));const wc=bWR>50?`Win: ${carry?.name||bp[0]?.name} must be protected to 2 items then fight for Lord`:`Win: Scale through ${jg?.name||'jungler'} vision control, avoid even trades early`;return`${archetype(bp)} — ${bp.map(h=>h.name).join(', ')}. ${wc}.`;})(),
-    redComposition:(()=>{const jg=rp.find(h=>(laneAssignmentsAB[h.id]||lane(h))==='Jungle');const carry=rp.find(h=>(h.role||'').includes('MM'))||rp.find(h=>['S','A'].includes(_scoutTierCache?.[h.name]?.tier||_scoutTierCache?.[h.name]?.tier||TIER_LIST[h.name]?.tier||h.tier));const wc=rWR>50?`Win: ${carry?.name||rp[0]?.name} must be protected to 2 items then fight for Lord`:`Win: Scale through ${jg?.name||'jungler'} vision control, avoid even trades early`;return`${archetype(rp)} — ${rp.map(h=>h.name).join(', ')}. ${wc}.`;})(),
-    keyMatchup:(()=>{const bKey=bp.find(h=>h.mp==='mustban')||bp.find(h=>h.tier==='S')||bp[0];const rKey=rp.find(h=>h.mp==='mustban')||rp.find(h=>h.tier==='S')||rp[0];const rel=scoutCounters(rKey?.name,bKey?.name)?`${rKey?.name} counters ${bKey?.name} — red has matchup advantage`:scoutCounters(bKey?.name,rKey?.name)?`${bKey?.name} counters ${rKey?.name} — blue has matchup advantage`:`${bKey?.name} vs ${rKey?.name} — whichever wins lane sets the pace`;return rel;})(),
-    criticalTiming:'3:50–4:30 first Turtle contest decides the draft winner',
+    blueLaning:laning('blue'),redLaning:laning('red'),
+    blueStrengths:strengths('blue'),blueWeaknesses:weaknesses('blue'),
+    redStrengths:strengths('red'),redWeaknesses:weaknesses('red'),
+    blueKeysToVictory:keys('blue'),redKeysToVictory:keys('red'),
+    keyMatchup,
+    criticalTiming:'2:00 first Turtle and the 4:00 contest set the lead; 9:00 Lord decides it',
     banAnalysis:banText,draftVerdict:verdict,
-    mvpHero:mvpH?.name||'—',
-    mvpReason:`${mvpH?.mp==='mustban'?'Must-ban priority that went unpicked':'Highest meta-impact hero in this draft'} — demands resources and respect`
-  };
+    mvpHero:mvp?.h?.name||'—',
+    mvpReason:mvp?(mvp.st.n?`${_pctAB(mvp.st.wr)}% this season (${mvp.st.n}g), ${_pctAB(mvp.st.pres)}% presence`:'highest-impact pick in this draft'):'',
+    _local:true};
 }
-
 async function runAnalysis(){
   if(ST.bp.length<3||ST.rp.length<3){toast('Need more picks','error');return;}
-  // Token gate
-  if(typeof WDB!=='undefined'&&WDB.canAnalyze){
-    if(!WDB.canAnalyze()){
-      const sub=WDB.getSubscription();
-      const plan=WDB.PLANS[sub.plan]||WDB.PLANS.free;
-      toast(`No tokens left (${plan.label} plan: ${plan.tokensPerMonth}/mo). Upgrade in Profile.`,'error');
-      return;
-    }
-    WDB.consumeToken();
-    updateTokenDisplay();
+  // Access gate — Claude analysis is invite-only; everyone else gets the
+  // local breakdown (same screen, no API cost).
+  let aiOK=typeof WDB!=='undefined'&&WDB.hasAIAccess&&WDB.hasAIAccess();
+  if(aiOK&&WDB.canAnalyze&&!WDB.canAnalyze()){
+    toast(`Monthly AI limit reached for your ${WDB.levelLabel(WDB.getSubscription().plan)} access — showing the local analysis.`,'error');
+    aiOK=false;
   }
+  if(aiOK&&WDB.consumeToken){WDB.consumeToken();updateTokenDisplay();}
   const resultEl=document.getElementById('result');
   const wasShowing=resultEl.classList.contains('show');
   if(wasShowing) resultEl.classList.remove('show');
   document.getElementById('lo').classList.add('show');
   const bt=pSide==='blue'?pName:'Claude AI', rt=pSide==='red'?pName:'Claude AI';
 
-  // Build local analysis immediately as guaranteed fallback
-  const local=localAnalysis(ST.bp,ST.rp,ST.bb,ST.rb,bt,rt);
+  // Scorecard first (season data), then the local analysis built from it —
+  // the guaranteed fallback and the evidence Claude has to cite.
+  let sc=null;try{sc=draftScorecardAB(ST.bp,ST.rp,bt,rt);}catch(e){console.warn('scorecard',e);}
+  const local=localAnalysis(ST.bp,ST.rp,ST.bb,ST.rb,bt,rt,sc||undefined);
+  local._sc=sc;
+  if(!aiOK){
+    renderAnalysis(local,bt,rt);
+    document.getElementById('lo').classList.remove('show');
+    return;
+  }
 
   try{
     const bB=ST.bb.map(h=>h.name).join(',')||'None', rB=ST.rb.map(h=>h.name).join(',')||'None';
@@ -4748,7 +4915,12 @@ ${meta}${mapCtx}${poolCtx}
 BLUE SIDE (${bt}): bans=[${bB}] picks=[${bP}]
 RED SIDE (${rt}): bans=[${rB}] picks=[${rP}]
 
+${sc?scorecardPromptAB(sc,bt,rt):''}
+
 Requirements:
+- Use the DRAFT DATA: every strength, weakness and the keyMatchup should cite a number from it when one exists (e.g. "Hilda beats Fredrinn in EXP, +9% over 11 games"). Where it says "no head-to-head data", reason from kits — don't invent stats.
+- blueWinrate/redWinrate: start from the draft model; move more than 10 points away only if you explain why in draftVerdict.
+- If a team's comfort pick or ban impact is listed, mention it — that's what coaches care about.
 - Reference actual hero names from this draft in every field
 - Strengths/weaknesses must be specific to THESE heroes (e.g. "Chou dives onto Kimmy who has no escape" not "good engage")
 - Keys to victory must name specific heroes AND the exact objective/timing they spike at
@@ -4759,11 +4931,12 @@ Requirements:
 
 JSON only (no markdown):
 {"blueWinrate":<0-100>,"redWinrate":<0-100>,"winner":"blue|red","blueCompArchetype":"<archetype label>","redCompArchetype":"<archetype label>","blueStrengths":["specific strength 1","specific strength 2","specific strength 3"],"blueWeaknesses":["specific weakness 1","specific weakness 2"],"redStrengths":["specific strength 1","specific strength 2","specific strength 3"],"redWeaknesses":["specific weakness 1","specific weakness 2"],"blueKeysToVictory":["hero-specific key 1","hero-specific key 2","hero-specific key 3"],"redKeysToVictory":["hero-specific key 1","hero-specific key 2","hero-specific key 3"],"blueComposition":"describe their full comp and win condition naming heroes","redComposition":"describe their full comp and win condition naming heroes","keyMatchup":"Name vs Name — why this matchup decides the game","criticalTiming":"when does the winning team spike and why","draftVerdict":"2-3 sentence verdict naming the heroes that win or lose this draft","mvpHero":"hero name","mvpReason":"why this specific hero is the game-changer"}`;
-    const d=await callClaude({model:'claude-sonnet-4-6',max_tokens:800,messages:[{role:'user',content:prompt}]});
+    const d=await callClaude({purpose:'analysis',max_tokens:1000,messages:[{role:'user',content:prompt}]});
     const raw=(d.content||[]).map(x=>x.text||'').join('');
     const mj=raw.match(/\{[\s\S]*\}/);
     if(!mj) throw new Error('no json');
-    renderAnalysis(JSON.parse(mj[0]),bt,rt);
+    const A=JSON.parse(mj[0]);A._sc=sc;
+    renderAnalysis(A,bt,rt);
   }catch(e){
     console.error('Analysis error:',e);
     renderAnalysis(local,bt,rt);
@@ -4772,24 +4945,54 @@ JSON only (no markdown):
   }
 }
 function renderAnalysis(a,bt,rt){
-  document.getElementById('rspct').textContent=a.blueWinrate+'%';
-  document.getElementById('raipct').textContent=a.redWinrate+'%';
-  const pw=(pSide==='blue'&&a.winner==='blue')||(pSide==='red'&&a.winner==='red');
+  const esc=x=>String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const mySide=aiMode==='pvp'?'blue':pSide, aiS=mySide==='blue'?'red':'blue';
+  const wr=k=>k==='blue'?a.blueWinrate:a.redWinrate;
+  document.getElementById('rspct').textContent=wr(mySide)+'%';
+  document.getElementById('raipct').textContent=wr(aiS)+'%';
+  const pw=a.winner===mySide;
   document.getElementById('rverdict').textContent=pw?'YOU WIN THE DRAFT':'AI WINS THE DRAFT';
   document.getElementById('rverdict').style.color=pw?'var(--blue)':'var(--ai)';
-  document.getElementById('rsub').textContent='';
+  document.getElementById('rsub').textContent=a._local?'Free Draft Brain analysis · from season data':'Claude analysis · checked against season data';
   const col=a.winner==='blue'?'var(--blue)':'var(--red)';
-  const li=arr=>(arr||[]).map(s=>`<li style="padding:2px 0;font-size:10px;">${s}</li>`).join('');
+  const li=arr=>(arr||[]).map(s=>`<li style="padding:2px 0;font-size:10px;">${esc(s)}</li>`).join('');
+  const lbl=(t,c)=>`<div style="font-size:8px;font-weight:700;color:${c};text-transform:uppercase;letter-spacing:1px;margin:7px 0 3px;">${t}</div>`;
+  const sc=a._sc;
+  let data='';
+  if(sc){
+    const f=st=>st&&st.n?`${_pctAB(st.wr)}% · ${st.n}g`:'no games';
+    const rows=sc.duels.map(d=>{
+      const e=d.edge, w=e==null?0:Math.min(50,Math.abs(e)*250);
+      const bar=e==null?`<span style="color:var(--text3);font-size:8px;">no h2h data</span>`
+        :`<div style="position:relative;height:6px;background:var(--surface3,rgba(255,255,255,.06));border-radius:3px;"><div style="position:absolute;top:0;bottom:0;${e>0?'right:50%':'left:50%'};width:${w}%;background:${e>0?'var(--blue)':'var(--red)'};border-radius:3px;"></div><div style="position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--text3);"></div></div><div style="font-size:8px;color:var(--text3);text-align:center;margin-top:1px;">${e>0?'+':'−'}${_pctAB(Math.abs(e))}% · ${d.count}g</div>`;
+      return `<div style="display:grid;grid-template-columns:44px 1fr 90px 1fr;gap:6px;align-items:center;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:10px;">
+        <span style="font-size:8px;font-weight:700;color:var(--text3);letter-spacing:.5px;">${d.lane.toUpperCase()}</span>
+        <span style="text-align:right;"><b>${esc(d.a||'—')}</b> <span style="color:var(--text3);font-size:8.5px;">${d.a?f(d.sa):''}</span></span>
+        <span>${d.a&&d.b?bar:''}</span>
+        <span><b>${esc(d.b||'—')}</b> <span style="color:var(--text3);font-size:8.5px;">${d.b?f(d.sb):''}</span></span></div>`;}).join('');
+    const duo=k=>sc.duos[k].filter(d=>d.adj>=0.5).slice(0,2).map(d=>`${esc(d.a)}+${esc(d.b)} ${_pctAB(d.wr)}% (${d.count}g)`).join(' · ')||'—';
+    data=`<div style="margin-top:10px;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.015);">
+      <div style="display:flex;gap:8px;align-items:baseline;margin-bottom:5px;"><span style="font-size:8px;font-weight:700;letter-spacing:1px;color:var(--gold);">DRAFT DATA</span>
+        <span style="font-size:9px;color:var(--text2);">model ${esc(bt)} ${sc.wpBlue}% · ${esc(rt)} ${100-sc.wpBlue}%${sc.teamP!=null?` · team form ${esc(sc.teams.blue.team)} ${_pctAB(sc.teamP)}%`:''}</span>
+        <span style="margin-left:auto;font-size:8.5px;color:var(--text3);">${sc.n} official games${sc.season?' · '+esc(sc.season):''}</span></div>
+      ${rows}
+      <div style="font-size:9px;color:var(--text3);margin-top:5px;">Duos — <span style="color:var(--blue);">${duo('blue')}</span> | <span style="color:var(--red);">${duo('red')}</span></div>
+    </div>`;
+  }
+  const myKeys=a[mySide+'KeysToVictory']||[];
   const ra=document.getElementById('rasummary');ra.style.display='block';
-  ra.innerHTML=`<div style="font-weight:700;color:${col};margin-bottom:8px;font-size:11px;">${a.draftVerdict||''}</div>
+  ra.innerHTML=`<div style="font-weight:700;color:${col};margin-bottom:8px;font-size:11px;">${esc(a.draftVerdict||'')}</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;">
-    <div><div style="font-size:8px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">${bt} — ${a.blueCompArchetype||''}</div><ul style="list-style:none;padding:0;">${li(a.blueStrengths)}</ul><div style="font-size:8px;color:var(--red);font-weight:700;margin:5px 0 2px;">Weaknesses</div><ul style="list-style:none;padding:0;color:var(--text2);">${li(a.blueWeaknesses)}</ul></div>
-    <div><div style="font-size:8px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">${rt} — ${a.redCompArchetype||''}</div><ul style="list-style:none;padding:0;">${li(a.redStrengths)}</ul><div style="font-size:8px;color:var(--red);font-weight:700;margin:5px 0 2px;">Weaknesses</div><ul style="list-style:none;padding:0;color:var(--text2);">${li(a.redWeaknesses)}</ul></div>
+    <div>${lbl(esc(bt)+' — '+esc(a.blueCompArchetype||''),'var(--blue)')}<ul style="list-style:none;padding:0;margin:0;">${li(a.blueStrengths)}</ul>${lbl('Weaknesses','var(--red)')}<ul style="list-style:none;padding:0;margin:0;color:var(--text2);">${li(a.blueWeaknesses)}</ul></div>
+    <div>${lbl(esc(rt)+' — '+esc(a.redCompArchetype||''),'var(--red)')}<ul style="list-style:none;padding:0;margin:0;">${li(a.redStrengths)}</ul>${lbl('Weaknesses','var(--red)')}<ul style="list-style:none;padding:0;margin:0;color:var(--text2);">${li(a.redWeaknesses)}</ul></div>
   </div>
-  <div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border);font-size:9px;color:var(--text2);">
-    <strong style="color:var(--gold);">⏱ Timing:</strong> ${a.criticalTiming||'—'}<br>
-    <strong style="color:var(--purple);">MVP:</strong> ${a.mvpHero||'—'} — ${a.mvpReason||''}
-  </div>`;
+  ${myKeys.length?`${lbl('Your keys to victory','var(--green,#4ade80)')}<ul style="list-style:none;padding:0;margin:0;">${li(myKeys)}</ul>`:''}
+  <div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border);font-size:9px;color:var(--text2);line-height:1.6;">
+    ${a.keyMatchup?`<strong style="color:var(--blue);">Key matchup:</strong> ${esc(a.keyMatchup)}<br>`:''}
+    <strong style="color:var(--gold);">⏱ Timing:</strong> ${esc(a.criticalTiming||'—')}<br>
+    <strong style="color:var(--purple);">MVP:</strong> ${esc(a.mvpHero||'—')} — ${esc(a.mvpReason||'')}
+    ${a.banAnalysis?`<br><strong style="color:var(--text);">Bans:</strong> ${esc(a.banAnalysis)}`:''}
+  </div>${data}`;
   document.getElementById('result').classList.add('show');
   // Scroll rcard to show the analysis
   setTimeout(()=>{

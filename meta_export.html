@@ -752,6 +752,19 @@ function fullRoleName(role) {
     Rows×10   : 750 px  (75px each)
     Footer    :  70 px
     Total     : 1000 px ✓                                                    */
+// Accent line as a pre-drawn image, not a CSS gradient: html2canvas turns a gradient into a
+// pattern tile the size of the element, and at browser zoom like 90% this 1px line measures
+// 0.89px → a 0-height tile → Chrome throws "createPattern … width or height of 0".
+const _accentCache = {};
+function accentLineSrc(color) {
+  if (_accentCache[color]) return _accentCache[color];
+  const c = document.createElement('canvas'); c.width = 1000; c.height = 2;
+  const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 1000, 0);
+  g.addColorStop(0, color + '90'); g.addColorStop(0.55, color + '28'); g.addColorStop(1, color + '00');
+  x.fillStyle = g; x.fillRect(0, 0, 1000, 2);
+  return (_accentCache[color] = c.toDataURL('image/png'));
+}
+
 function buildCard(lane) {
   const cfg         = LANE_CONFIG[lane];
   const heroes      = getTopForLane(lane).slice(0, 10);
@@ -851,7 +864,7 @@ function buildCard(lane) {
     </div>
 
     <!-- ── Accent line (1px) ── -->
-    <div style="height:1px;background:linear-gradient(90deg,${cfg.color}90 0%,${cfg.color}28 55%,transparent 100%);flex-shrink:0;"></div>
+    <img src="${accentLineSrc(cfg.color)}" alt="" style="display:block;width:100%;height:1px;flex-shrink:0;">
 
     <!-- ── Column headers (27px) ── -->
     <div style="display:flex;align-items:center;height:27px;padding:0 36px;flex-shrink:0;box-sizing:border-box;border-bottom:1px solid rgba(255,255,255,.04);">
@@ -889,10 +902,17 @@ async function downloadCard(lane) {
   if (!el) return;
   const btn = document.querySelector(`[data-dl="${lane}"]`);
   if (btn) { btn.textContent = '⏳ Exporting…'; btn.disabled = true; }
+  // Safety net while capturing: any other sub-pixel gradient gets skipped instead of failing the whole export
+  const _cp = CanvasRenderingContext2D.prototype.createPattern;
+  CanvasRenderingContext2D.prototype.createPattern = function (img, rep) {
+    if (img && (img.width === 0 || img.height === 0)) { const b = document.createElement('canvas'); b.width = b.height = 1; return _cp.call(this, b, rep); }
+    return _cp.call(this, img, rep);
+  };
+  let wrapper = null;
   try {
     // Clone card into an off-screen container with NO zoom/transform so
     // html2canvas always captures the clean full-size 1000×1000px card.
-    const wrapper = document.createElement('div');
+    wrapper = document.createElement('div');
     wrapper.style.cssText = 'position:fixed;top:-9999px;left:-9999px;z-index:-9999;pointer-events:none;';
     const clone = el.cloneNode(true);
     clone.removeAttribute('id');
@@ -919,8 +939,6 @@ async function downloadCard(lane) {
       logging: false,
     });
 
-    document.body.removeChild(wrapper);
-
     const link = document.createElement('a');
     const _seasonTag = metaSeason==='all' ? 'all_seasons' : (_metaSeasonUsed || metaSeason || '').replace(/\s/g,'_');
     link.download = `warr_meta_${lane.toLowerCase()}_${currentFilter.replace(/\s/g,'_')}${_seasonTag?'_'+_seasonTag:''}.png`;
@@ -928,6 +946,9 @@ async function downloadCard(lane) {
     link.click();
   } catch(e) {
     alert('Export failed: ' + e.message);
+  } finally {
+    CanvasRenderingContext2D.prototype.createPattern = _cp;
+    if (wrapper && wrapper.parentNode) wrapper.parentNode.removeChild(wrapper);
   }
   if (btn) { btn.textContent = '⬇ Download PNG'; btn.disabled = false; }
 }
