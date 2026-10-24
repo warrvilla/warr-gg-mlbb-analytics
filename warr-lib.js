@@ -295,7 +295,7 @@ const WDB = {
   // pages (which are full page reloads in this app) doesn't refetch the
   // entire match library each time. TTL is 5 min — saveMatch / deleteMatch
   // invalidate the cache immediately so your own edits never go stale.
-  _MATCH_CACHE_KEY: 'warr_loadmatches_cache_v2',
+  _MATCH_CACHE_KEY: 'warr_loadmatches_cache_v3',
   _matchCacheTTL: 5 * 60_000,
   _invalidateMatchCache() {
     try { sessionStorage.removeItem(this._MATCH_CACHE_KEY); } catch(e) {}
@@ -390,11 +390,21 @@ const WDB = {
       const cached = this._readMatchCache();
       if (cached) return cached;
     }
-    const { data, error } = await _sbClient
-      .from('scout_matches')
-      .select('id, data, created_by')
-      .order('created_at', { ascending: false });
-    if (error) throw error;
+    // Page through ALL rows: the database returns at most 1,000 per request, so a single
+    // select silently drops the oldest games once the library passes 1,000 (it did with the
+    // Liquipedia import). Stable order (created_at, then id) so pages never overlap or skip.
+    const data = [];
+    for (let from = 0, PAGE = 1000; ; from += PAGE) {
+      const { data: part, error } = await _sbClient
+        .from('scout_matches')
+        .select('id, data, created_by')
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (error) throw error;
+      data.push(...(part || []));
+      if (!part || part.length < PAGE || from > 200000) break;
+    }
     const userId = WAuth.getUser()?.id || null;
     // Honor tombstones: never surface a deleted match, and retry any cloud delete
     // that previously failed (the row is still there → delete it again).

@@ -386,7 +386,7 @@
       const fallback = () => { if (done) return; done = true; setTimeout(() => resolve(B.build(ms, opts)), 0); };
       try {
         if (typeof Worker === 'undefined' || opts.noWorker) return fallback();
-        const w = new Worker('warr-brain-worker.js?v=3');
+        const w = new Worker('warr-brain-worker.js?v=4');
         const timer = setTimeout(() => { try { w.terminate(); } catch (_) {} fallback(); }, 45000);
         w.onmessage = e => {
           if (done) return; clearTimeout(timer); try { w.terminate(); } catch (_) {}

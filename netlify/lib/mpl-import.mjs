@@ -5,7 +5,8 @@
 // KH) — the season list is discovered, so Season 19 is picked up by itself.
 // Each finished game brings: teams, side, winner, length, date, game number,
 // stage/week, map pick, VOD, bans and picks with lanes. Draft ORDER is not
-// trusted: picks are listed in lane order and ban order isn't confirmed either.
+// trusted: picks are listed in lane order. Ban order IS the real order (matched
+// 266/268 team ban lists in VOD-logged MPL PH S17 games).
 //
 // Liquipedia lists picks in LANE order (EXP, Jungle, Mid, Gold, Roam), not pick
 // order, so imported games carry  pickOrder: 'lane'  until you fix and save them
@@ -132,7 +133,7 @@ export function parseSeasonPage(raw, { league, season, page, heroName }) {
         blueBans: t1Blue ? bans(1) : bans(2), redBans: t1Blue ? bans(2) : bans(1),
         bluePicks: picks(t1Blue ? t1p : t2p), redPicks: picks(t1Blue ? t2p : t1p),
         objectives: { turtle: [], lord: [] },
-        pickOrder: 'lane', banOrder: 'unconfirmed', ...(sideUnknown ? { sideUnknown: true } : {}),   // draft order unconfirmed until you verify it
+        pickOrder: 'lane', ...(sideUnknown ? { sideUnknown: true } : {}),   // pick order unconfirmed until you arrange it
         lp: { src: 'liquipedia', page, key: `${key}#${gn}`, team1: o1, team2: o2, ...(P.mvp ? { mvp: plain(P.mvp) } : {}) },
       };
       games.push(g);
@@ -203,7 +204,8 @@ async function discover(call) {
 function sb() {
   const url = process.env.SUPABASE_URL || 'https://nqqlmzdyyhbyvsbybdem.supabase.co', key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!key) { const e = new Error('NOT_CONFIGURED: add SUPABASE_SERVICE_ROLE_KEY in Netlify env vars'); e.cfg = true; throw e; }
-  const h = { apikey: key, authorization: `Bearer ${key}`, 'content-type': 'application/json' };
+  // legacy service_role key is a JWT (apikey + Bearer); new "sb_secret_…" keys go in apikey only
+  const h = /^sb_secret_/.test(key) ? { apikey: key, 'content-type': 'application/json' } : { apikey: key, authorization: `Bearer ${key}`, 'content-type': 'application/json' };
   return {
     async rows(leagues, seasons) {
       const out = []; const q = a => encodeURIComponent(a.map(l => `"${l}"`).join(','));
@@ -326,6 +328,12 @@ export async function run(opts = {}) {
 async function runInner({ apply = false, budgetMs = 22000, fetchImpl = fetch, now = () => Date.now(), store, db, heroTitles } = {}) {
   const st = (await store.get('state', { type: 'json' })) || { pages: {}, teamMap: {}, auto: false };
   st.pages = st.pages || {}; st.teamMap = st.teamMap || {};
+  if (!db) {                                  // no database key → stop before asking Liquipedia for anything
+    try { db = sb(); } catch (e) {
+      const res = { at: new Date(now()).toISOString(), error: String(e.message || e), requests: 0, auto: !!st.auto };
+      await store.setJSON('status', res); return res;
+    }
+  }
   const C = client({ budgetMs, fetchImpl, now });
   let partial = false, error = null;
   try {

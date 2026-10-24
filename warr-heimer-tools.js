@@ -144,7 +144,7 @@
       const t = s === 'blue' ? m.blueTeam : m.redTeam, b = (m[s + 'Bans'] || []).map(nm), p = m[s + 'Picks'] || [];
       const ordered = p.length === 5 && p.map(x => x && x.lane).join(',') !== LANE_SEQ;
       const pk = p.map((x, i) => `${ordered ? W.slotLabel(s, i) + ' ' : ''}${nm(x)}${x && (x.lane || x.player) ? '(' + [x.lane, x.player].filter(Boolean).join(' ') + ')' : ''}`).join(', ');
-      return `${s.toUpperCase()} ${t}${m.winner === s ? ' (WIN)' : ''} — bans ${m.pickOrder === 'lane' ? (b.join(', ') || '—') + ' (order not confirmed)' : (b.slice(0, 3).join(', ') || '—') + (b.length > 3 ? ' / P2: ' + b.slice(3).join(', ') : '')} — picks${ordered ? '' : ' (lane order)'} ${pk || '—'}`;
+      return `${s.toUpperCase()} ${t}${m.winner === s ? ' (WIN)' : ''} — bans ${(b.slice(0, 3).join(', ') || '—') + (b.length > 3 ? ' / P2: ' + b.slice(3).join(', ') : '')} — picks${ordered ? '' : ' (lane order)'} ${pk || '—'}`;
     };
     const ex = [], ob = m.objectives || {};
     if (Array.isArray(ob.turtle) && ob.turtle.filter(Boolean).length) ex.push('turtles ' + ob.turtle.filter(Boolean).join('/'));
@@ -491,7 +491,7 @@
     out.push(`${x.picks} picks, ${x.bans} bans → ${pct(x.pres)}% presence${x.wr != null ? `, ${pct(x.wr)}% WR (${wl(x.wins, x.picks)})` : ''}. Lanes: ${x.lanes.join(', ') || '—'}. Teams: ${x.teams.join(', ') || '—'}.`);
     const pl = [], slot = [], duo = [], lane = [], patch = [], banP = { p1: 0, p2: 0 };
     pool.forEach(m => ['blue', 'red'].forEach(s => {
-      const bans = (m[s + 'Bans'] || []).map(nm), bi = bans.indexOf(h); if (bi >= 0 && m.pickOrder !== 'lane') banP[bi < 3 ? 'p1' : 'p2']++;
+      const bans = (m[s + 'Bans'] || []).map(nm), bi = bans.indexOf(h); if (bi >= 0) banP[bi < 3 ? 'p1' : 'p2']++;
       const picks = m[s + 'Picks'] || [], i = picks.findIndex(p => nm(p) === h); if (i < 0) return;
       const win = m.winner === s, me = picks[i], t = s === 'blue' ? m.blueTeam : m.redTeam;
       if (me && me.player && !C.locked(t)) pl.push([`${me.player} (${t})`, win]);
@@ -661,7 +661,7 @@
     pool.forEach(m => {
       const bp = m.bluePicks || [], rp = m.redPicks || [];
       if (bp.length === 5 && bp.map(p => p && p.lane).join(',') !== LANE_SEQ) fp.push([nm(bp[0]), m.winner === 'blue']);
-      if (m.pickOrder !== 'lane') ['blue', 'red'].forEach(s => (m[s + 'Bans'] || []).slice(0, 3).forEach(b => p1.push([nm(b), false])));
+      ['blue', 'red'].forEach(s => (m[s + 'Bans'] || []).slice(0, 3).forEach(b => p1.push([nm(b), false])));
       void rp;
     });
     if (fp.length) out.push(`Most common blue first picks (B1): ${topTxt(count(fp), 8)}`);

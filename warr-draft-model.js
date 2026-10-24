@@ -370,7 +370,7 @@
     (matches || []).forEach(m => {
       const s = m.blueTeam === team ? 'blue' : m.redTeam === team ? 'red' : null; if (!s) return;
       P.n++;
-      (m[s + 'Bans'] || []).forEach((b, i) => { if (i < 5 && m.pickOrder !== 'lane') inc(P.ban[s][i], nm(b)); inc(P.banAny, nm(b)); });
+      (m[s + 'Bans'] || []).forEach((b, i) => { if (i < 5) inc(P.ban[s][i], nm(b)); inc(P.banAny, nm(b)); });
       const picks = m[s + 'Picks'] || [];
       const laneOrdered = m.pickOrder === 'lane' || (picks.length === 5 && picks.map(p => p && p.lane).join(',') === LANES.join(','));
       picks.forEach((p, i) => {

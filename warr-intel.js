@@ -126,7 +126,7 @@
         }
         if (i === 0) I.firstPicks[h] = (I.firstPicks[h] || 0) + 1;
       });
-      if (m.pickOrder !== 'lane') myBans.slice(0, 3).forEach(b => { if (b) I.p1bans[b] = (I.p1bans[b] || 0) + 1; });   // unverified imports: ban order unknown
+      myBans.slice(0, 3).forEach(b => { if (b) I.p1bans[b] = (I.p1bans[b] || 0) + 1; });   // ban order is real in imports too
       oppBans.forEach(b => { if (!b) return; const B = I.bannedBy[b] || (I.bannedBy[b] = { g: 0, w: 0 }); B.g++; if (win) B.w++; });
       // availability record for every hero this team has ever picked (filled below)
       I._games = I._games || [];
@@ -464,7 +464,7 @@
       const s = sideOf(m, team), o = other(s), win = m.winner === s;
       const picks = (m[s + 'Picks'] || []), bans = (m[s + 'Bans'] || []).map(nm), ob = (m[o + 'Bans'] || []).map(nm);
       D.side[s].g++; if (win) D.side[s].w++;
-      if (m.pickOrder !== 'lane') {           // phase 1 / phase 2 bans need the real ban order (not in unverified imports)
+      if (!m.sideUnknown) {                   // ban order is real in imports too; only skip games whose side Liquipedia left blank
         bans.forEach((b, i) => inc(i < 3 ? D.p1bans[s] : D.p2bans[s], b, win));
         ob.forEach((b, i) => inc(i < 3 ? D.oppP1bans : D.oppP2bans, b, win));
       }

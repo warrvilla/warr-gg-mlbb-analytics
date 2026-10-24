@@ -188,13 +188,13 @@
     if (HD.ready) return;
     if (HD.loading) return HD.loading;
     HD.loading = (async () => {
-      if (!window.WIntel || !WIntel.draftOrder) await loadScript('warr-intel.js?v=5');
-      if (!window.WDraft || !window.WDraft.prob) await loadScript('warr-draft-model.js?v=4');
+      if (!window.WIntel || !WIntel.draftOrder) await loadScript('warr-intel.js?v=6');
+      if (!window.WDraft || !window.WDraft.prob) await loadScript('warr-draft-model.js?v=5');
       if (!window.WBan || !window.WBan.v2) await loadScript('warr-ban.js?v=2');
       if (!window.WHeroProfile || !window.WHeroProfile.addFromKit) await loadScript('warr-hero-profiles.js?v=2');
-      if (!window.WBrain || !window.WBrain.setCalendar) await loadScript('warr-draft-brain.js?v=3');
+      if (!window.WBrain || !window.WBrain.setCalendar) await loadScript('warr-draft-brain.js?v=4');
       if (!window.WHeroData) await loadScript('warr-hero-data.js?v=2');
-      if (!window.HeimerTools || !window.HeimerTools.lite || !window.HeimerTools.defs.some(d => d.name === 'patch_report')) await loadScript('warr-heimer-tools.js?v=9');
+      if (!window.HeimerTools || !window.HeimerTools.lite || !window.HeimerTools.defs.some(d => d.name === 'patch_report')) await loadScript('warr-heimer-tools.js?v=10');
       // Hero kits + patch notes (Liquipedia, refreshed by the server every 6 h). Never blocks Heimer for long.
       try {
         const hdP = WHeroData.load({ full: true }).then(() => {
