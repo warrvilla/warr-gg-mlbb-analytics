@@ -3089,7 +3089,7 @@ function renderMatchList() {
            <select class="form-select" style="width:auto;font-size:11px;" onchange="matchSort=this.value;renderMatchListBody()"><option value="date">Sort by Date</option><option value="league">League</option><option value="blue">Blue Team</option><option value="red">Red Team</option></select>
            <select id="seasonFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="setSeasonFilter(this.value)"><option value="all">All Seasons</option></select>
            <select id="weekFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="setWeekFilter(this.value)"><option value="all">All Weeks</option></select>
-           <button class="btn btn-ghost" onclick="openAuditPanel()" style="padding:7px 12px;font-size:11px;" title="Liquipedia imports whose draft order you haven't arranged yet, and your games that differ from Liquipedia">⚑ To arrange</button>
+           <button class="btn btn-ghost" onclick="openAuditPanel()" style="padding:7px 12px;font-size:11px;" title="Liquipedia imports whose draft order you haven't arranged yet, and your games that differ from Liquipedia">⚑ To be verified</button>
            <button class="btn btn-accent" onclick="openNewMatch()" style="padding:7px 14px;font-size:11px;">+ New Match</button>
          </div>
          <div id="matchListBody"></div>
@@ -3111,12 +3111,12 @@ function onMatchSearch(val) {
 
 // ── Data verification ────────────────────────────────────────────────
 // Complete = you entered it, or you opened a Liquipedia import and saved it.
-// Order pending = imported from Liquipedia, not arranged yet (results/heroes right; picks in lane order).
+// To be verified = imported from Liquipedia, not arranged yet (results/heroes right; picks in lane order).
 var _lpStatus, _lpConflict;      // var: the list can render before this line runs
 function _vState(g) { return (g && g.lp && g.lp.src === 'liquipedia' && !g.lp.edited) ? 'unverified' : 'verified'; }
 function _vEsc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function _vBadge(g) {
-  if (_vState(g) === 'unverified') return `<span class="vb vb-u" title="${_vEsc('From Liquipedia — result and heroes are right. Not arranged yet: picks are in lane order (EXP → Roam)' + (g.sideUnknown ? '; side not confirmed' : '') + '. Open ✎, arrange, then Save.')}">◐ Order pending</span>`;
+  if (_vState(g) === 'unverified') return `<span class="vb vb-u" title="${_vEsc('From Liquipedia — result and heroes are right. Not arranged yet: picks are in lane order (EXP → Roam)' + (g.sideUnknown ? '; side not confirmed' : '') + '. Open ✎, arrange, then Save.')}">◐ Draft phase order to be verified</span>`;
   const c = (_lpConflict || {})[g.id];
   if (c) return `<span class="vb vb-c" title="${_vEsc('Differs from Liquipedia: ' + c.issues.join('; ') + '. Check it — re-save to keep yours.')}">⚠ Differs from Liquipedia</span>`;
   return `<span class="vb vb-v" title="Full draft order — entered or arranged by you">✓ Complete</span>`;
@@ -3143,13 +3143,13 @@ async function openAuditPanel() {
   const sec = (title, sub, inner) => `<div style="margin:14px 0 4px;font-weight:800;font-size:12px;">${title}</div><div style="color:var(--text3);font-size:11px;margin-bottom:4px;">${sub}</div>${inner}`;
   const html = `<div id="auditModal" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">
     <div style="background:var(--surface,#16161c);border:1px solid var(--border2);border-radius:14px;max-width:640px;width:100%;max-height:85vh;overflow:auto;padding:18px 20px;">
-      <div style="display:flex;align-items:center;gap:8px;"><div style="font-size:16px;font-weight:800;">⚑ To arrange</div><button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="document.getElementById('auditModal').remove()">Close</button></div>
-      <div style="color:var(--text3);font-size:11.5px;margin-top:4px;">Open a game, arrange it, press Save — it becomes ✓ Complete. Your own games are never changed by the import.</div>
+      <div style="display:flex;align-items:center;gap:8px;"><div style="font-size:16px;font-weight:800;">⚑ To be verified</div><button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="document.getElementById('auditModal').remove()">Close</button></div>
+      <div style="color:var(--text3);font-size:11.5px;margin-top:4px;">Open a game, put the picks in draft phase order, press Save — it becomes ✓ Complete. Your own games are never changed by the import.</div>
       ${conf.length ? sec(`Differs from Liquipedia (${conf.length})`, 'Your games where the winner, sides, bans or date don\'t match Liquipedia. One of the two is wrong — check the VOD.', conf.map(x => row(x.m, x.c.issues.join(' · '))).join('')) : ''}
       ${side.length ? sec(`Side not confirmed (${side.length})`, 'Liquipedia left the side blank — imported as team 1 = blue. Use ⇄ Swap sides if wrong.', side.map(m => row(m)).join('')) : ''}
-      ${un.length ? sec(`Order pending (${un.length})`, 'Imported from Liquipedia — results and heroes are right, and so is the ban order — only the picks are in lane order (EXP → Jungle → Mid → Gold → Roam). Use ⇅ in the editor to put the picks in the real order. Until then they count for everything except pick-order habits (first pick, phase-1 / phase-2 picks).',
+      ${un.length ? sec(`Draft phase order to be verified (${un.length})`, 'Imported from Liquipedia — results and heroes are right, and so is the ban order — only the picks are in lane order (EXP → Jungle → Mid → Gold → Roam). Use ⇅ in the editor to put the picks in the real order. Until then they count for everything except pick-order habits (first pick, phase-1 / phase-2 picks).',
         Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0])).map(([k, list]) => `<details style="margin:4px 0;"><summary style="cursor:pointer;font-size:12px;font-weight:700;">${_vEsc(k)} · ${list.length} game${list.length > 1 ? 's' : ''}</summary>${list.sort((a, b) => (b.date || '').localeCompare(a.date || '')).map(m => row(m)).join('')}</details>`).join('')) : ''}
-      ${!conf.length && !un.length ? '<div style="margin-top:14px;">Nothing to arrange — every game is ✓ complete.</div>' : ''}
+      ${!conf.length && !un.length ? '<div style="margin-top:14px;">Nothing to verify — every game is ✓ complete.</div>' : ''}
     </div></div>`;
   document.body.insertAdjacentHTML('beforeend', html);
 }
@@ -3316,7 +3316,7 @@ function renderMatchListBody() {
     const gameTabs = s.games.map((g,gi)=>{
       const wc=g.winner==='blue'?'var(--blue)':'var(--red)';
       const wl=(g.winner==='blue'?g.blueTeam:g.redTeam)||'';
-      return `<button class="gtab${gi===0?' active':''}" onclick="_pickGame(this)">G${g.gameNum||1}<span class="gtab-res" style="background:${wc}22;color:${wc};">${wl}</span>${_vState(g)==='unverified'||(_lpConflict || {})[g.id]?'<span class="gtab-u" title="Order pending or differs from Liquipedia"></span>':''}</button>`;
+      return `<button class="gtab${gi===0?' active':''}" onclick="_pickGame(this)">G${g.gameNum||1}<span class="gtab-res" style="background:${wc}22;color:${wc};">${wl}</span>${_vState(g)==='unverified'||(_lpConflict || {})[g.id]?'<span class="gtab-u" title="Draft phase order to be verified, or differs from Liquipedia"></span>':''}</button>`;
     }).join('');
 
     const _mono=n=>(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(n||'?'):{init:(n||'?')[0]||'?',color:'#7C5CF6'};
@@ -3326,7 +3326,7 @@ function renderMatchListBody() {
     // Scrim shared with you by another coach (not logged by you).
     const _isShared = s.games.some(g => g._shared);
     const _sharedBadge = (_isShared ? `<span class="ml-shared" title="Shared with you by another coach — you can view it but not edit">↗ shared</span>` : '')
-      + (s.games.some(g => _vState(g) === 'unverified') ? `<span class="vb vb-u" style="margin-left:6px;" title="Imported from Liquipedia — draft order not arranged yet">◐ ${s.games.filter(g => _vState(g) === 'unverified').length} order pending</span>`
+      + (s.games.some(g => _vState(g) === 'unverified') ? `<span class="vb vb-u" style="margin-left:6px;" title="Imported from Liquipedia — draft order not arranged yet">◐ ${s.games.filter(g => _vState(g) === 'unverified').length} to be verified</span>`
         : s.games.some(g => (_lpConflict || {})[g.id]) ? `<span class="vb vb-c" style="margin-left:6px;">⚠ differs</span>` : '');
     return groupHdr + `<div class="ml-card">
       <div class="ml-row" onclick="mlToggle(this)" style="cursor:pointer;">
@@ -3551,7 +3551,7 @@ function _openMatchModal(m) {
       <div class="modal-body">
         ${m && m.lp && m.lp.src === 'liquipedia' ? `<div style="margin:0 0 12px;padding:10px 14px;border-radius:10px;font-size:12px;line-height:1.5;${m.lp.edited ? 'border:1px solid rgba(52,199,89,.35);background:rgba(52,199,89,.06);' : 'border:1px solid rgba(245,166,35,.4);background:rgba(245,166,35,.07);'}">
           ${m.lp.edited ? '✓ <b>Complete</b> — imported from Liquipedia, then arranged by you. Liquipedia changes will not overwrite it.'
-            : `◐ <b>Imported from Liquipedia — order pending.</b> Result, heroes and ban order are right; only the picks are in <b>lane order (EXP → Jungle → Mid → Gold → Roam)</b>: tap <b>⇅</b> on a pick, then ⇅ on the one it swaps with, until the picks match the VOD.${m.sideUnknown ? ' <b>Side not confirmed</b> — use ⇄ Swap sides if wrong.' : ''} Add turtles / Lords if you have them, then <b>Save</b> → ✓ Complete.`}
+            : `◐ <b>Imported from Liquipedia — draft phase order to be verified.</b> Result, heroes and ban order are right; only the picks are in <b>lane order (EXP → Jungle → Mid → Gold → Roam)</b>: tap <b>⇅</b> on a pick, then ⇅ on the one it swaps with, until the picks match the VOD.${m.sideUnknown ? ' <b>Side not confirmed</b> — use ⇄ Swap sides if wrong.' : ''} Add turtles / Lords if you have them, then <b>Save</b> → ✓ Complete.`}
           ${m.vodLink ? ` <a href="${m.vodLink}" target="_blank" style="color:var(--blue);">▶ VOD</a>` : ''}</div>` : ''}
         <div class="entry-grid">
 
