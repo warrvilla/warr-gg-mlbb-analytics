@@ -170,16 +170,22 @@ export function parseSeasonPage(raw, { league, season, page, heroName }) {
     });
     return date;
   };
+  // section headings ("==={{HiddenSort|RS: Week 3}}===" → "Week 3") with their position, for match lists that have no title
+  const heads = [...wt.matchAll(/^(=+)\s*(.+?)\s*\1\s*$/gm)].map(h => {
+    const hs = /\{\{\s*HiddenSort\s*\|([^}]*)\}\}/i.exec(h[2]);
+    return { at: h.index, text: (hs ? hs[1] : plain(h[2])).replace(/^[A-Z]{1,4}:\s*/, '').trim() };
+  }).filter(h => h.text && !/^(detailed results|results|format|standings|participants|prize|broadcast|notes?|references?|group [a-z])$/i.test(h.text));
+  const headingAt = pos => { let t = ''; for (const h of heads) { if (h.at < pos) t = h.text; else break; } return t; };
   const walk = (list, ctx) => list.forEach(t => {
     const nm = t.name.toLowerCase(), P = t.params;
     if (nm === 'matchlist') {
-      const title = plain(P.title || '').trim();
+      const title = plain(P.title || '').trim() || (t.start != null ? headingAt(t.start) : '');   // no title → the heading above it
       let header = '', dayDate = '';
       Object.keys(P).filter(k => /^m\d+$/i.test(k)).sort((a, b) => Number(a.slice(1)) - Number(b.slice(1))).forEach(k => {
         const n = Number(k.slice(1));
         if (P[`m${n}header`]) { header = plain(P[`m${n}header`]).trim(); dayDate = ''; }
         const mt = templates(String(P[k] || ''))[0];
-        if (mt && /^match$/i.test(mt.name)) dayDate = readMatch(mt.params, `${P.id || title}:${k.toUpperCase()}`, [title, header].filter(Boolean).join(' ') || ctx.week, pageStage, dayDate) || dayDate;
+        if (mt && /^match$/i.test(mt.name)) dayDate = readMatch(mt.params, `${P.id || plain(P.title || '').trim()}:${k.toUpperCase()}`, [title, header].filter(Boolean).join(' ') || ctx.week || pageStage, pageStage, dayDate) || dayDate;
       });
       return;
     }

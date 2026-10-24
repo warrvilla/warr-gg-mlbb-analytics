@@ -437,6 +437,10 @@ body {
 .swap-on { outline:2px solid var(--gold,#F5A623); outline-offset:1px; border-radius:8px; }
 .swap-btn { background:transparent; border:1px solid var(--border); color:var(--text3); border-radius:6px; font-size:10px; padding:0 4px; cursor:pointer; line-height:16px; flex-shrink:0; }
 .audit-row { display:flex; gap:8px; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); font-size:11.5px; }
+.pager-btn { min-width:30px; height:28px; padding:0 10px; border-radius:8px; border:1px solid var(--border2,rgba(255,255,255,.12)); background:var(--surface2,#161620); color:var(--text,#F0F0F8); font-size:11.5px; font-weight:700; font-family:inherit; cursor:pointer; transition:border-color .15s, background .15s, color .15s; }
+.pager-btn:hover:not(:disabled) { border-color:var(--accent,#7C5CF6); }
+.pager-btn.active { background:var(--accent,#7C5CF6); border-color:var(--accent,#7C5CF6); color:#fff; }
+.pager-btn:disabled { opacity:.35; cursor:default; }
 .audit-row .t { flex:1; min-width:0; }
 .lp-iss { margin-top:3px; font-size:11px; color:var(--text2); line-height:1.45; }
 .lp-iss .k { display:inline-block; min-width:62px; font-size:9.5px; font-weight:800; letter-spacing:.3px; text-transform:uppercase; color:var(--text3); margin-right:4px; }
@@ -2414,14 +2418,14 @@ function _renderPager(total, pageSize, current, onPage) {
   const pages = Math.ceil(total / pageSize);
   if (pages <= 1) return '';
   const btn = (p, label, dis, active) =>
-    `<button class="mode-btn${active?' active':''}" ${dis?'disabled style="opacity:.4;cursor:default;"':''} onclick="${dis?'':onPage+'('+p+')'}" style="padding:4px 11px;font-size:11px;">${label}</button>`;
+    `<button type="button" class="pager-btn${active?' active':''}" ${dis?'disabled':`onclick="${onPage}(${p})"`}${active?' aria-current="page"':''}>${label}</button>`;
   let nums = '';
   for (let i=1;i<=pages;i++){
     if (pages>7 && i>2 && i<pages-1 && Math.abs(i-current)>1){ if(i===3||i===pages-2) nums+='<span style="color:var(--text4);padding:0 3px;">…</span>'; continue; }
     nums += btn(i, i, false, i===current);
   }
   return `<div style="display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;padding:18px 0 8px;margin-top:8px;border-top:1px solid var(--border);">
-    <span style="font-size:10px;color:var(--text3);margin-right:4px;">Page ${current}/${pages}</span>
+    <span style="font-size:11px;color:var(--text2);margin-right:4px;">Page ${current} of ${pages}</span>
     ${btn(current-1,'‹ Prev',current===1,false)}${nums}${btn(current+1,'Next ›',current===pages,false)}
   </div>`;
 }
@@ -3328,7 +3332,7 @@ function renderMatchListBody() {
     if (seasonFilter !== 'all') pool = pool.filter(m => (m.season||'') === seasonFilter);
     const hasUnlabeled = pool.some(m => !_weekGroup(m.week));
     const weeks = _sortWeeks(pool);
-    if (weekFilter === 'all' && !_weekAutoPicked && weeks.length > 1) { weekFilter = weeks[0]; }
+    // (opening a league shows All Weeks — newest first, paginated — instead of jumping to the latest week)
     _weekAutoPicked = true;
     if (weekFilter !== 'all' && weekFilter !== _UNLABELED_WEEK && !weeks.includes(weekFilter)) weekFilter = 'all';
     weekSel.innerHTML = `<option value="all">All Weeks</option>`
