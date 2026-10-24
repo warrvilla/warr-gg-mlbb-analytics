@@ -126,7 +126,7 @@
         }
         if (i === 0) I.firstPicks[h] = (I.firstPicks[h] || 0) + 1;
       });
-      myBans.slice(0, 3).forEach(b => { if (b) I.p1bans[b] = (I.p1bans[b] || 0) + 1; });
+      if (m.pickOrder !== 'lane') myBans.slice(0, 3).forEach(b => { if (b) I.p1bans[b] = (I.p1bans[b] || 0) + 1; });   // unverified imports: ban order unknown
       oppBans.forEach(b => { if (!b) return; const B = I.bannedBy[b] || (I.bannedBy[b] = { g: 0, w: 0 }); B.g++; if (win) B.w++; });
       // availability record for every hero this team has ever picked (filled below)
       I._games = I._games || [];
@@ -456,7 +456,7 @@
     // Some imports store picks in lane order (EXP, Jungle, Mid…), not draft
     // order. If one fixed lane sequence dominates, slot stats would be fiction.
     const seq = {};
-    games.forEach(m => { const p = m[sideOf(m, team) + 'Picks'] || []; if (p.length === 5 && p.every(x => x && x.lane)) { const k = p.map(x => x.lane).join(','); seq[k] = (seq[k] || 0) + 1; } });
+    games.forEach(m => { const p = m[sideOf(m, team) + 'Picks'] || []; if (m.pickOrder !== 'lane' && p.length === 5 && p.every(x => x && x.lane)) { const k = p.map(x => x.lane).join(','); seq[k] = (seq[k] || 0) + 1; } });
     const seqN = Object.values(seq).reduce((a, b) => a + b, 0), seqTop = Math.max(0, ...Object.values(seq));
     D.laneOrdered = seqN >= 6 && seqTop / seqN >= 0.7;
     const bySeries = {};
@@ -464,10 +464,12 @@
       const s = sideOf(m, team), o = other(s), win = m.winner === s;
       const picks = (m[s + 'Picks'] || []), bans = (m[s + 'Bans'] || []).map(nm), ob = (m[o + 'Bans'] || []).map(nm);
       D.side[s].g++; if (win) D.side[s].w++;
-      bans.forEach((b, i) => inc(i < 3 ? D.p1bans[s] : D.p2bans[s], b, win));
-      ob.forEach((b, i) => inc(i < 3 ? D.oppP1bans : D.oppP2bans, b, win));
+      if (m.pickOrder !== 'lane') {           // phase 1 / phase 2 bans need the real ban order (not in unverified imports)
+        bans.forEach((b, i) => inc(i < 3 ? D.p1bans[s] : D.p2bans[s], b, win));
+        ob.forEach((b, i) => inc(i < 3 ? D.oppP1bans : D.oppP2bans, b, win));
+      }
       picks.forEach(p => { const h = nm(p), ln = p && p.lane; if (h && ln) { const F = D.flex[h] || (D.flex[h] = {}); F[ln] = (F[ln] || 0) + 1; } });
-      if (picks.length === 5 && !D.laneOrdered) {
+      if (picks.length === 5 && !D.laneOrdered && m.pickOrder !== 'lane') {     // Liquipedia imports not yet verified: lane order, not pick order
         D.ordered++;
         picks.forEach((p, i) => {
           const h = nm(p), ln = p && p.lane;
@@ -499,7 +501,7 @@
         D.adjust.g++;
         const beaters = (pv[po + 'Picks'] || []).map(nm);
         if ((m[s + 'Bans'] || []).map(nm).some(b => beaters.includes(b))) D.adjust.bannedBeater++;
-        if (!D.laneOrdered && mine[0] && mine[0] === prevMine[0]) D.adjust.keptFirst++;
+        if (!D.laneOrdered && m.pickOrder !== 'lane' && pv.pickOrder !== 'lane' && mine[0] && mine[0] === prevMine[0]) D.adjust.keptFirst++;
         if (core >= 3) D.adjust.sameCore++;
       });
     });

@@ -144,7 +144,7 @@
       const t = s === 'blue' ? m.blueTeam : m.redTeam, b = (m[s + 'Bans'] || []).map(nm), p = m[s + 'Picks'] || [];
       const ordered = p.length === 5 && p.map(x => x && x.lane).join(',') !== LANE_SEQ;
       const pk = p.map((x, i) => `${ordered ? W.slotLabel(s, i) + ' ' : ''}${nm(x)}${x && (x.lane || x.player) ? '(' + [x.lane, x.player].filter(Boolean).join(' ') + ')' : ''}`).join(', ');
-      return `${s.toUpperCase()} ${t}${m.winner === s ? ' (WIN)' : ''} — bans ${b.slice(0, 3).join(', ') || '—'}${b.length > 3 ? ' / P2: ' + b.slice(3).join(', ') : ''} — picks${ordered ? '' : ' (lane order)'} ${pk || '—'}`;
+      return `${s.toUpperCase()} ${t}${m.winner === s ? ' (WIN)' : ''} — bans ${m.pickOrder === 'lane' ? (b.join(', ') || '—') + ' (order not confirmed)' : (b.slice(0, 3).join(', ') || '—') + (b.length > 3 ? ' / P2: ' + b.slice(3).join(', ') : '')} — picks${ordered ? '' : ' (lane order)'} ${pk || '—'}`;
     };
     const ex = [], ob = m.objectives || {};
     if (Array.isArray(ob.turtle) && ob.turtle.filter(Boolean).length) ex.push('turtles ' + ob.turtle.filter(Boolean).join('/'));
@@ -491,7 +491,7 @@
     out.push(`${x.picks} picks, ${x.bans} bans → ${pct(x.pres)}% presence${x.wr != null ? `, ${pct(x.wr)}% WR (${wl(x.wins, x.picks)})` : ''}. Lanes: ${x.lanes.join(', ') || '—'}. Teams: ${x.teams.join(', ') || '—'}.`);
     const pl = [], slot = [], duo = [], lane = [], patch = [], banP = { p1: 0, p2: 0 };
     pool.forEach(m => ['blue', 'red'].forEach(s => {
-      const bans = (m[s + 'Bans'] || []).map(nm), bi = bans.indexOf(h); if (bi >= 0) banP[bi < 3 ? 'p1' : 'p2']++;
+      const bans = (m[s + 'Bans'] || []).map(nm), bi = bans.indexOf(h); if (bi >= 0 && m.pickOrder !== 'lane') banP[bi < 3 ? 'p1' : 'p2']++;
       const picks = m[s + 'Picks'] || [], i = picks.findIndex(p => nm(p) === h); if (i < 0) return;
       const win = m.winner === s, me = picks[i], t = s === 'blue' ? m.blueTeam : m.redTeam;
       if (me && me.player && !C.locked(t)) pl.push([`${me.player} (${t})`, win]);
@@ -543,12 +543,18 @@
   // ── Hero kits + patch notes (Liquipedia via /api/hero-data) ─────────────
   async function heroData() {
     const H = root.WHeroData; if (!H) return null;
-    if (!H.ready()) { try { await Promise.race([H.load({ full: true }), new Promise(r => setTimeout(r, 6000))]); } catch (_) {} }
+    if (!H.ready()) { try { await Promise.race([H.load({ full: true }), new Promise(r => setTimeout(r, 22000))]); } catch (_) {} }
     return H.ready() ? H : null;
   }
+  const heroDataMissing = () => {
+    const st = root.WHeroData && root.WHeroData.state;
+    return st === 'empty' || st === 'loading'
+      ? 'Patch notes and hero kits are still loading on Warr.GG for the first time — they fill in from Liquipedia within a minute or two (Liquipedia itself is fine). Showing pro play only for now.'
+      : 'Couldn\'t reach Warr.GG\'s hero-data service just now (a Warr.GG connection issue, not Liquipedia). Showing pro play only for now.';
+  };
   IMPL.patch_report = async (a) => {
     const H = await heroData();
-    if (!H) throw fail('Hero and patch data (Liquipedia) is not available right now — use hero_report / league_report for pro stats instead.');
+    if (!H) throw fail(heroDataMissing() + ' (For pro stats: league_report / hero_report.)');
     const games = C.usable.filter(m => !isScrim(m) && visible(m));
     let mm = null; try { mm = root.WDraft ? draftModel() : null; } catch (_) { mm = null; }
     const x = await extras();
@@ -655,7 +661,7 @@
     pool.forEach(m => {
       const bp = m.bluePicks || [], rp = m.redPicks || [];
       if (bp.length === 5 && bp.map(p => p && p.lane).join(',') !== LANE_SEQ) fp.push([nm(bp[0]), m.winner === 'blue']);
-      ['blue', 'red'].forEach(s => (m[s + 'Bans'] || []).slice(0, 3).forEach(b => p1.push([nm(b), false])));
+      if (m.pickOrder !== 'lane') ['blue', 'red'].forEach(s => (m[s + 'Bans'] || []).slice(0, 3).forEach(b => p1.push([nm(b), false])));
       void rp;
     });
     if (fp.length) out.push(`Most common blue first picks (B1): ${topTxt(count(fp), 8)}`);
@@ -1029,6 +1035,11 @@
     if (!calls.length) return { text: liteHelp(), looked: '' };
     const outs = [];
     for (const [n, a] of calls) outs.push({ n, label: T.describe(n, a, C).replace(/…$/, ''), text: await T.run(n, a, C) });
+    if (outs.length === 1 && outs[0].n === 'patch_report' && /^ERROR/.test(outs[0].text)) {   // no patch data yet → still answer from pro play
+      const a2 = calls[0][1].hero ? { hero: calls[0][1].hero } : {};
+      const n2 = a2.hero ? 'hero_report' : 'league_report';
+      outs.push({ n: n2, label: T.describe(n2, a2, C).replace(/…$/, ''), text: await T.run(n2, a2, C) });
+    }
     const take = [];
     outs.forEach(o => (KEYLINE[o.n] || []).forEach(rx => { const m = o.text.match(rx); if (m && take.length < 4) take.push(m[0].replace(/^- /, '').trim()); }));
     const looked = outs.map(o => o.label).join(' · ');

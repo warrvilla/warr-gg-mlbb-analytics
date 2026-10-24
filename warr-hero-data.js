@@ -21,7 +21,8 @@
   const KEY = 'warr_herodata_v1', TTL = 3 * 3600e3;
   const norm = s => String((s && (s.name || s)) || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
   H.norm = norm;
-  let D = null, IDX = {}, FULL = false, pending = null;
+  let D = null, IDX = {}, FULL = false, pending = null, pendingFull = false;
+  H.state = 'idle';             // idle · loading · ok · empty (server still filling it) · error (couldn't reach /api/hero-data)
 
   function index(d) {
     D = d && d.heroes ? d : { heroes: {}, patches: [], calendar: [] };
@@ -30,26 +31,28 @@
     return D;
   }
   H.set = function (d, full) { FULL = !!full; return index(d); };
-  H.ready = () => !!(D && Object.keys(D.heroes).length);
+  H.ready = () => !!(D && (Object.keys(D.heroes).length || (D.patches || []).length));
   H.data = () => D;
 
   H.load = function (opts) {
     opts = opts || {};
     if (D && (FULL || !opts.full) && H.ready()) return Promise.resolve(D);
-    if (pending && !opts.full) return pending;
+    if (pending && (pendingFull || !opts.full)) return pending;
     let cached = null;
     if (!opts.full) {
       try { cached = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (_) {}
       if (cached && cached.at && Date.now() - cached.at < TTL && cached.d && cached.d.heroes) return Promise.resolve(index(cached.d));
     }
     const url = '/api/hero-data' + (opts.full ? '?full=1' : '');
+    H.state = 'loading'; pendingFull = !!opts.full;
     pending = fetch(url).then(r => r.ok ? r.json() : Promise.reject(new Error('HTTP ' + r.status))).then(d => {
-      if (d && d.heroes && Object.keys(d.heroes).length) {
+      if (d && d.heroes && (Object.keys(d.heroes).length || (d.patches || []).length)) {
         if (!opts.full) { try { localStorage.setItem(KEY, JSON.stringify({ at: Date.now(), d })); } catch (_) {} }
-        FULL = !!opts.full; return index(d);
+        FULL = !!opts.full; H.state = 'ok'; return index(d);
       }
+      H.state = cached && cached.d ? 'ok' : 'empty';
       return index((cached && cached.d) || d);
-    }).catch(() => index((cached && cached.d) || D || null)).finally(() => { pending = null; });
+    }).catch(() => { H.state = cached && cached.d ? 'ok' : 'error'; return index((cached && cached.d) || D || null); }).finally(() => { pending = null; pendingFull = false; });
     return pending;
   };
 

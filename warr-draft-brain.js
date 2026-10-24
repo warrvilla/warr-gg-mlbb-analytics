@@ -80,7 +80,7 @@
   const other = s => (s === 'blue' ? 'red' : 'blue');
   const laneOrdered = ps => ps.length === 5 && ps.map(p => p && p.lane).join(',') === LANES.join(',');
   const usable = m => m && m.blueTeam && m.redTeam && (m.winner === 'blue' || m.winner === 'red') && (m.bluePicks || []).length === 5 && (m.redPicks || []).length === 5
-    && (m.blueBans || []).length >= 3 && (m.redBans || []).length >= 3 && !laneOrdered(m.bluePicks) && !laneOrdered(m.redPicks) && m.league !== 'Scrims';
+    && (m.blueBans || []).length >= 3 && (m.redBans || []).length >= 3 && !laneOrdered(m.bluePicks) && !laneOrdered(m.redPicks) && m.pickOrder !== 'lane' && m.league !== 'Scrims';
 
   // ── Rolling world state: everything known BEFORE a given draft ──
   function World(opts) {
@@ -386,7 +386,7 @@
       const fallback = () => { if (done) return; done = true; setTimeout(() => resolve(B.build(ms, opts)), 0); };
       try {
         if (typeof Worker === 'undefined' || opts.noWorker) return fallback();
-        const w = new Worker('warr-brain-worker.js?v=2');
+        const w = new Worker('warr-brain-worker.js?v=3');
         const timer = setTimeout(() => { try { w.terminate(); } catch (_) {} fallback(); }, 45000);
         w.onmessage = e => {
           if (done) return; clearTimeout(timer); try { w.terminate(); } catch (_) {}

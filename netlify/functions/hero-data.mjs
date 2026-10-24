@@ -12,6 +12,18 @@ const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nqqlmzdyyhbyvsbybdem.s
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'wrrenvillapando@gmail.com').toLowerCase();
 const cors = () => ({ 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type, authorization, x-supabase-anon' });
 
+// Self-healing: if the data was never loaded (fresh deploy) or the 6-hourly job
+// stopped running, the first visitor's request loads it (one at a time, locked).
+async function heal(store, stale) {
+  if (!stale) return false;
+  const lock = await store.get('lock', { type: 'json' });
+  if (lock && Date.now() - lock.at < 90e3) return false;            // someone else is refreshing
+  await store.setJSON('lock', { at: Date.now() });
+  try { await refresh({ store, budgetMs: 19000 }); } catch (e) { console.error('hero-data heal', e); }
+  await store.setJSON('lock', { at: 0 });
+  return true;
+}
+
 export default async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() });
   const store = await openStore();
@@ -20,8 +32,16 @@ export default async (req) => {
     if (url.searchParams.get('status')) {
       return Response.json((await store.get('status', { type: 'json' })) || { never: true }, { headers: { ...cors(), 'cache-control': 'no-store' } });
     }
-    const body = await store.get(url.searchParams.get('full') ? 'payload' : 'payload-lite');
-    if (!body) return Response.json({ v: 1, empty: true, heroes: {}, patches: [], calendar: [] }, { headers: { ...cors(), 'cache-control': 'public, max-age=300' } });
+    const key = url.searchParams.get('full') ? 'payload' : 'payload-lite';
+    let body = await store.get(key);
+    const st = await store.get('status', { type: 'json' });
+    const age = st && st.at ? Date.now() - Date.parse(st.at) : Infinity;
+    const stale = !body || age > 12 * 3600e3 || (st && st.partial && age > 60e3) || (st && !st.ok && age > 15 * 60e3);
+    if (await heal(store, stale)) body = await store.get(key);
+    if (!body) {
+      const s2 = await store.get('status', { type: 'json' });
+      return Response.json({ v: 1, empty: true, loading: true, error: (s2 && s2.error) || null, heroes: {}, patches: [], calendar: [] }, { headers: { ...cors(), 'cache-control': 'no-store' } });
+    }
     return new Response(body, { headers: { ...cors(), 'content-type': 'application/json; charset=utf-8',
       'cache-control': 'public, max-age=900', 'netlify-vary': 'query=full', 'netlify-cdn-cache-control': 'public, s-maxage=900, stale-while-revalidate=86400' } });
   }

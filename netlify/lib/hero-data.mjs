@@ -23,6 +23,7 @@ class OutOfTime extends Error {}
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 export async function openStore() {
+  if (globalThis.__warrHeroStore) return globalThis.__warrHeroStore;      // tests only
   const { getStore } = await import('@netlify/blobs');
   return getStore({ name: STORE, consistency: 'strong' });
 }
@@ -83,10 +84,11 @@ export async function refresh({ store, budgetMs = 22000, fetchImpl = fetch, forc
           changed = true; log.push((bucket === st.heroes ? 'hero ' : 'patch ') + p.title);
         });
         await store.setJSON('state', st);                       // keep progress even if time runs out
+        await savePayload(store, st, now);                       // …and publish it right away
       }
     };
     if (force || !st.checked || now() - st.checked > 3 * 3600e3 || patchTitles.some(t => !st.patches[t]) || heroTitles.some(t => !st.heroes[t])) {
-      await need(patchTitles, st.patches, 8);
+      await need(patchTitles, st.patches, 18);
       await need(heroTitles, st.heroes, 50);
       st.checked = now();
     }

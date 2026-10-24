@@ -428,6 +428,16 @@ body {
 .gtab:hover { color:var(--text); border-color:var(--border3); }
 .gtab.active { color:var(--text); background:var(--blue-dim); border-color:var(--blue-border); }
 .gtab .gtab-res { font-size:8px; font-weight:800; padding:1px 5px; border-radius:5px; }
+/* data verification (Liquipedia imports vs games you entered / checked) */
+.vb { font-size:9px; font-weight:800; letter-spacing:.3px; padding:2px 7px; border-radius:8px; border:1px solid; white-space:nowrap; cursor:default; }
+.vb-v { color:var(--green,#34C759); border-color:rgba(52,199,89,.35); background:rgba(52,199,89,.08); }
+.vb-u { color:var(--gold,#F5A623); border-color:rgba(245,166,35,.4); background:rgba(245,166,35,.08); }
+.vb-c { color:var(--red,#FF453A); border-color:rgba(255,69,58,.4); background:rgba(255,69,58,.08); }
+.gtab .gtab-u { width:6px; height:6px; border-radius:50%; background:var(--gold,#F5A623); display:inline-block; }
+.swap-on { outline:2px solid var(--gold,#F5A623); outline-offset:1px; border-radius:8px; }
+.swap-btn { background:transparent; border:1px solid var(--border); color:var(--text3); border-radius:6px; font-size:10px; padding:0 4px; cursor:pointer; line-height:16px; flex-shrink:0; }
+.audit-row { display:flex; gap:8px; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); font-size:11.5px; }
+.audit-row .t { flex:1; min-width:0; }
 .game-panel { display:none; }
 .game-panel.active { display:block; }
 .gp-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; font-size:10px; }
@@ -2227,7 +2237,7 @@ const DB_MODULE = (() => {
       games.forEach(m => {
         const ours = m.blueTeam===name;
         const picks = ours?(m.bluePicks||[]):(m.redPicks||[]);
-        if (picks[0]) { const n=picks[0].name||picks[0]; fpC[n]=(fpC[n]||0)+1; }
+        if (picks[0] && m.pickOrder!=='lane') { const n=picks[0].name||picks[0]; fpC[n]=(fpC[n]||0)+1; }
       });
       t.topFirstPick = Object.entries(fpC).sort((a,b)=>b[1]-a[1]).slice(0,5)
         .map(([n,c])=>({name:n,count:c}));
@@ -2957,7 +2967,7 @@ function computeFocusStats(name, matches){
   t.blueSideWR = t.blueSideGames?Math.round(t.blueWins/t.blueSideGames*100):null;
   t.redSideWR  = t.redSideGames ?Math.round(t.redWins/t.redSideGames*100):null;
   const pickC={},banC={},pickW={},banRecC={};
-  let ftG=0,ftO=0,flG=0,flO=0, tk=0,ta=0,td=0;
+  let ftG=0,ftO=0,flG=0,flO=0, tk=0,ta=0,td=0, kdaG=0;   // kdaG: games where K/D/A was entered (Liquipedia imports have none)
   let turtleTot=0,turtleOurs=0, lordTot=0,lordOurs=0;     // objective WIN RATE (% secured)
   let fbG=0,fbO=0;                                         // first blood
   let towerSum=0,towerG=0;                                 // towers pushed per game
@@ -2967,6 +2977,7 @@ function computeFocusStats(name, matches){
     const picks=ours?(m.bluePicks||[]):(m.redPicks||[]);
     const bans =ours?(m.blueBans||[]):(m.redBans||[]);
     const oppBans=ours?(m.redBans||[]):(m.blueBans||[]);
+    if(picks.some(p=>p&&p.kda)) kdaG++;
     picks.forEach(p=>{const n=p.name||p; pickC[n]=(pickC[n]||0)+1; if(won)pickW[n]=(pickW[n]||0)+1;
       if(p&&p.kda){tk+=Number(p.kda.k)||0; ta+=Number(p.kda.a)||0; td+=Number(p.kda.d)||0;}});
     bans.forEach(b=>{const n=b.name||b; banC[n]=(banC[n]||0)+1;});
@@ -2995,8 +3006,8 @@ function computeFocusStats(name, matches){
   t.lordWR     = lordTot  ?Math.round(lordOurs/lordTot*100):null;       // Lord Win Rate
   t.fbRate     = fbG?Math.round(fbO/fbG*100):null;                      // First Blood %
   t.avgTowers  = towerG?(towerSum/towerG).toFixed(1):null;              // Avg Towers Pushed
-  t.avgKills   = t.gamesPlayed?(tk/t.gamesPlayed).toFixed(1):null;      // Avg Kills / game
-  t.avgDeaths  = t.gamesPlayed?(td/t.gamesPlayed).toFixed(1):null;      // Avg Death / game
+  t.avgKills   = kdaG?(tk/kdaG).toFixed(1):null;      // Avg Kills / game (games with K/D/A only)
+  t.avgDeaths  = kdaG?(td/kdaG).toFixed(1):null;      // Avg Death / game
   return t;
 }
 function cycleFocusTeam(dir){
@@ -3078,6 +3089,7 @@ function renderMatchList() {
            <select class="form-select" style="width:auto;font-size:11px;" onchange="matchSort=this.value;renderMatchListBody()"><option value="date">Sort by Date</option><option value="league">League</option><option value="blue">Blue Team</option><option value="red">Red Team</option></select>
            <select id="seasonFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="setSeasonFilter(this.value)"><option value="all">All Seasons</option></select>
            <select id="weekFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="setWeekFilter(this.value)"><option value="all">All Weeks</option></select>
+           <button class="btn btn-ghost" onclick="openAuditPanel()" style="padding:7px 12px;font-size:11px;" title="Games to check: Liquipedia imports not verified yet, and your games that differ from Liquipedia">⚑ Needs review</button>
            <button class="btn btn-accent" onclick="openNewMatch()" style="padding:7px 14px;font-size:11px;">+ New Match</button>
          </div>
          <div id="matchListBody"></div>
@@ -3095,6 +3107,51 @@ function renderMatchList() {
 function onMatchSearch(val) {
   clearTimeout(_searchDebounce);
   _searchDebounce = setTimeout(() => { matchSearch = val; _matchPage = 1; renderMatchListBody(); }, 150);
+}
+
+// ── Data verification ────────────────────────────────────────────────
+// Verified = you entered it, or you opened a Liquipedia import and saved it.
+// Not verified = imported from Liquipedia and not checked yet (picks in lane order).
+var _lpStatus, _lpConflict;      // var: the list can render before this line runs
+function _vState(g) { return (g && g.lp && g.lp.src === 'liquipedia' && !g.lp.edited) ? 'unverified' : 'verified'; }
+function _vEsc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function _vBadge(g) {
+  if (_vState(g) === 'unverified') return `<span class="vb vb-u" title="${_vEsc('From Liquipedia, not checked yet: picks are in lane order (EXP → Roam) and the ban order is not confirmed' + (g.sideUnknown ? '; side not confirmed' : '') + '. Open ✎, fix, then Save to verify.')}">⚠ Not verified</span>`;
+  const c = (_lpConflict || {})[g.id];
+  if (c) return `<span class="vb vb-c" title="${_vEsc('Differs from Liquipedia: ' + c.issues.join('; ') + '. Check it — re-save to keep yours.')}">⚠ Differs from Liquipedia</span>`;
+  return `<span class="vb vb-v" title="Entered or checked by you">✓ Verified</span>`;
+}
+async function _loadLpStatus(force) {
+  if (_lpStatus && !force) return _lpStatus;
+  try { const r = await fetch('/api/mpl-import?status=1', { cache: 'no-store' }); _lpStatus = r.ok ? await r.json() : {}; } catch (_) { _lpStatus = {}; }
+  _lpConflict = {};
+  (_lpStatus.conflicts || []).forEach(c => {
+    const m = DB_MODULE.getMatches().find(x => x.id === c.id);
+    if (m && !(m._verifiedAt && m._verifiedAt > Date.parse(_lpStatus.at || 0))) _lpConflict[c.id] = c;   // re-saved since → cleared
+  });
+  return _lpStatus;
+}
+setTimeout(() => _loadLpStatus().then(() => { try { if (Object.keys(_lpConflict || {}).length) renderMatchListBody(); } catch (_) {} }), 1500);
+async function openAuditPanel() {
+  await _loadLpStatus(true);
+  const ms = DB_MODULE.getMatches();
+  const un = ms.filter(m => _vState(m) === 'unverified');
+  const side = un.filter(m => m.sideUnknown);
+  const conf = Object.values(_lpConflict || {}).map(c => ({ c, m: ms.find(x => x.id === c.id) })).filter(x => x.m);
+  const groups = {}; un.forEach(m => { const k = `${m.league} ${m.season || ''}`.trim(); (groups[k] = groups[k] || []).push(m); });
+  const row = (m, note) => `<div class="audit-row"><span class="t">${_vEsc(m.date || '')} · ${_vEsc(m.blueTeam)} vs ${_vEsc(m.redTeam)} G${m.gameNum || 1}${m.week ? ' · ' + _vEsc(m.week) : ''}${note ? `<div style="color:var(--text3);font-size:10.5px;">${_vEsc(note)}</div>` : ''}</span><button class="btn btn-ghost btn-sm" onclick="document.getElementById('auditModal').remove();openEditMatch('${m.id}')">Open ✎</button></div>`;
+  const sec = (title, sub, inner) => `<div style="margin:14px 0 4px;font-weight:800;font-size:12px;">${title}</div><div style="color:var(--text3);font-size:11px;margin-bottom:4px;">${sub}</div>${inner}`;
+  const html = `<div id="auditModal" style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;" onclick="if(event.target===this)this.remove()">
+    <div style="background:var(--surface,#16161c);border:1px solid var(--border2);border-radius:14px;max-width:640px;width:100%;max-height:85vh;overflow:auto;padding:18px 20px;">
+      <div style="display:flex;align-items:center;gap:8px;"><div style="font-size:16px;font-weight:800;">⚑ Needs review</div><button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="document.getElementById('auditModal').remove()">Close</button></div>
+      <div style="color:var(--text3);font-size:11.5px;margin-top:4px;">Open a game, fix it, press Save — it becomes ✓ Verified. Your own games are never changed by the import.</div>
+      ${conf.length ? sec(`Differs from Liquipedia (${conf.length})`, 'Your games where the winner, sides, bans or date don\'t match Liquipedia. One of the two is wrong — check the VOD.', conf.map(x => row(x.m, x.c.issues.join(' · '))).join('')) : ''}
+      ${side.length ? sec(`Side not confirmed (${side.length})`, 'Liquipedia left the side blank — imported as team 1 = blue. Use ⇄ Swap sides if wrong.', side.map(m => row(m)).join('')) : ''}
+      ${un.length ? sec(`Draft order not confirmed (${un.length})`, 'Imported from Liquipedia: picks in lane order (EXP → Jungle → Mid → Gold → Roam), ban order not confirmed. Use ⇅ in the editor to put picks and bans in the real order. Until then they count for results, heroes, lanes and how often heroes are banned — not for first-pick, phase-1 / phase-2 pick or ban habits.',
+        Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0])).map(([k, list]) => `<details style="margin:4px 0;"><summary style="cursor:pointer;font-size:12px;font-weight:700;">${_vEsc(k)} · ${list.length} game${list.length > 1 ? 's' : ''}</summary>${list.sort((a, b) => (b.date || '').localeCompare(a.date || '')).map(m => row(m)).join('')}</details>`).join('')) : ''}
+      ${!conf.length && !un.length ? '<div style="margin-top:14px;">Nothing to review — every game is ✓ verified.</div>' : ''}
+    </div></div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
 }
 
 function renderMatchListBody() {
@@ -3230,6 +3287,7 @@ function renderMatchListBody() {
       return `<div class="game-panel${gi===0?' active':''}">
         <div class="gp-bar">
           <span class="gp-win" style="background:${wColor}18;color:${wColor};border:1px solid ${wColor}44;">▲ ${wTeam}</span>
+          ${_vBadge(g)}
           ${turtles.length?`<span class="gp-obj">🐢 <b style="color:var(--blue)">${_cnt(turtles,'blue')}</b>–<b style="color:var(--red)">${_cnt(turtles,'red')}</b></span>`:''}
           ${lords.length?`<span class="gp-obj">✦ <b style="color:var(--blue)">${_cnt(lords,'blue')}</b>–<b style="color:var(--red)">${_cnt(lords,'red')}</b></span>`:''}
           ${_fb?`<span class="gp-obj">FB <b>${_fb}</b></span>`:''}
@@ -3258,7 +3316,7 @@ function renderMatchListBody() {
     const gameTabs = s.games.map((g,gi)=>{
       const wc=g.winner==='blue'?'var(--blue)':'var(--red)';
       const wl=(g.winner==='blue'?g.blueTeam:g.redTeam)||'';
-      return `<button class="gtab${gi===0?' active':''}" onclick="_pickGame(this)">G${g.gameNum||1}<span class="gtab-res" style="background:${wc}22;color:${wc};">${wl}</span></button>`;
+      return `<button class="gtab${gi===0?' active':''}" onclick="_pickGame(this)">G${g.gameNum||1}<span class="gtab-res" style="background:${wc}22;color:${wc};">${wl}</span>${_vState(g)==='unverified'||(_lpConflict || {})[g.id]?'<span class="gtab-u" title="Needs review"></span>':''}</button>`;
     }).join('');
 
     const _mono=n=>(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(n||'?'):{init:(n||'?')[0]||'?',color:'#7C5CF6'};
@@ -3267,7 +3325,9 @@ function renderMatchListBody() {
     const _res = seriesWinner===s.blueTeam ? 'WIN' : (seriesWinner===s.redTeam ? 'LOSS' : '');
     // Scrim shared with you by another coach (not logged by you).
     const _isShared = s.games.some(g => g._shared);
-    const _sharedBadge = _isShared ? `<span class="ml-shared" title="Shared with you by another coach — you can view it but not edit">↗ shared</span>` : '';
+    const _sharedBadge = (_isShared ? `<span class="ml-shared" title="Shared with you by another coach — you can view it but not edit">↗ shared</span>` : '')
+      + (s.games.some(g => _vState(g) === 'unverified') ? `<span class="vb vb-u" style="margin-left:6px;" title="Imported from Liquipedia — not verified yet">⚠ ${s.games.filter(g => _vState(g) === 'unverified').length} not verified</span>`
+        : s.games.some(g => (_lpConflict || {})[g.id]) ? `<span class="vb vb-c" style="margin-left:6px;">⚠ differs</span>` : '');
     return groupHdr + `<div class="ml-card">
       <div class="ml-row" onclick="mlToggle(this)" style="cursor:pointer;">
         <div class="ml-date"><div class="ml-day">${day}</div><div class="ml-mon">${(mon||'').toUpperCase()}</div></div>
@@ -3489,6 +3549,10 @@ function _openMatchModal(m) {
         <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="closeMatchModal()">✕ Close</button>
       </div>
       <div class="modal-body">
+        ${m && m.lp && m.lp.src === 'liquipedia' ? `<div style="margin:0 0 12px;padding:10px 14px;border-radius:10px;font-size:12px;line-height:1.5;${m.lp.edited ? 'border:1px solid rgba(52,199,89,.35);background:rgba(52,199,89,.06);' : 'border:1px solid rgba(245,166,35,.4);background:rgba(245,166,35,.07);'}">
+          ${m.lp.edited ? '✓ <b>Verified by you</b> — imported from Liquipedia, then checked. Liquipedia changes will not overwrite it.'
+            : `⚠ <b>Imported from Liquipedia — not verified.</b> Picks are in <b>lane order (EXP → Jungle → Mid → Gold → Roam)</b> and the <b>ban order is not confirmed</b>: tap <b>⇅</b> on a pick or ban, then ⇅ on the one it swaps with, until the draft matches the VOD.${m.sideUnknown ? ' <b>Side not confirmed</b> — use ⇄ Swap sides if wrong.' : ''} Add turtles / Lords if you have them, then <b>Save</b> → ✓ Verified.`}
+          ${m.vodLink ? ` <a href="${m.vodLink}" target="_blank" style="color:var(--blue);">▶ VOD</a>` : ''}</div>` : ''}
         <div class="entry-grid">
 
         <!-- MATCH INFORMATION -->
@@ -3735,13 +3799,14 @@ function renderDraftBoard() {
         <span class="kda-sep">/</span>
         <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" class="a" data-kda-slot="${i}" data-kda-key="a" value="${kda.a ?? ''}" placeholder="A" onchange="setKda(${i},'a',this.value)" title="Assists">
       </span>` : '';
-      return `<div class="${cls}" data-step="${i}">
+      return `<div class="${cls}${_swapSel===i?' swap-on':''}" data-step="${i}">
         ${label}
         <img src="${_heroIcon(sl.heroName)}" onerror="${_heroIconErr(sl.heroName)}" style="width:26px;height:26px;border-radius:8px;object-fit:cover;flex-shrink:0;">
         <span class="step-name">${sl.heroName}</span>
         ${laneBtn}
         ${playerBtn}
         ${kdaInputs}
+        <button class="swap-btn" onclick="swapPickSlot(${i})" title="Swap with another ${isBan ? 'ban' : 'pick'} of the same team (fix the draft order)">⇅</button>
         <button onclick="clearDraftSlot(${i})" style="background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:10px;padding:0 2px;flex-shrink:0;line-height:1;">✕</button>
       </div>`;
     }
@@ -3923,6 +3988,16 @@ function _defaultPlayerForLane(team, lane) {
 }
 
 function setDraftStep(i)  { draftStepIndex = i; renderDraftBoard(); }
+// ⇅ Fix the draft order: tap ⇅ on one pick (or ban), then ⇅ on another of the same team and
+// kind — they swap (hero, lane, player and K/D/A move together).
+let _swapSel = null;
+function swapPickSlot(i) {
+  if (_swapSel == null) { _swapSel = i; renderDraftBoard(); toast('Now tap ⇅ on the slot it should swap with'); return; }
+  if (_swapSel === i) { _swapSel = null; renderDraftBoard(); return; }
+  if (DRAFT_STEPS[_swapSel].team !== DRAFT_STEPS[i].team || DRAFT_STEPS[_swapSel].type !== DRAFT_STEPS[i].type) { _swapSel = i; renderDraftBoard(); toast('Swap a pick with a pick (or a ban with a ban) of the same team'); return; }
+  const t = draftSlots[_swapSel]; draftSlots[_swapSel] = draftSlots[i]; draftSlots[i] = t;
+  _swapSel = null; renderDraftBoard();
+}
 function undoDraftStep()  { if (draftStepIndex <= 0) return; draftStepIndex--; draftSlots[draftStepIndex] = null; renderDraftBoard(); }
 function clearDraftSlot(i){ draftSlots[i] = null; if (draftStepIndex > i) draftStepIndex = i; renderDraftBoard(); }
 function resetDraft()     { if (!confirm('Reset entire draft?')) return; draftStepIndex=0; draftSlots=Array(DRAFT_STEPS.length).fill(null); renderDraftBoard(); }
@@ -4246,6 +4321,10 @@ function saveMatch(next) {
     ...(phaseWinners ? { phaseWinners } : {}),
     _createdBy,
     savedAt: Date.now(),
+    // Saving = verified by you. A Liquipedia import keeps its link (so it's never re-imported)
+    // and is marked edited, so later Liquipedia changes never overwrite your corrections.
+    ...(_existingMatch && _existingMatch.lp ? { lp: { ..._existingMatch.lp, edited: true, editedAt: Date.now() } } : {}),
+    _verifiedAt: Date.now(),
   };
 
   DB_MODULE.upsertMatch(match);

@@ -813,6 +813,7 @@ function renderAnalytics() {
     </div>
     <div id="aiUsageBox" style="margin-bottom:14px;padding:12px 14px;border:1px solid var(--border2);border-radius:12px;font-size:12px;color:var(--text3);">Loading Claude AI spend…</div>
     <div id="heroDataBox" style="margin-bottom:14px;padding:12px 14px;border:1px solid var(--border2);border-radius:12px;font-size:12px;color:var(--text3);">Loading hero data status…</div>
+    <div id="mplImportBox" style="margin-bottom:14px;padding:12px 14px;border:1px solid var(--border2);border-radius:12px;font-size:12px;color:var(--text3);">Loading MPL import…</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
       <div>
         <div style="font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);margin-bottom:6px;">AGE DEMOGRAPHICS${d.medianAge ? ` · median ${d.medianAge}` : ''} · ${d.ages}/${d.users} provided</div>
@@ -828,6 +829,59 @@ function renderAnalytics() {
     <button class="btn-approve" style="margin-top:12px;" onclick="copySponsorSnapshot()">📋 Copy Sponsor Snapshot</button>`;
   loadAIUsage();
   loadHeroDataStatus();
+  loadMplImport();
+}
+// ── MPL games from Liquipedia → scout database (never doubles your games) ──
+async function _mplApi(payload) {
+  const sess = await WAuth._sb().auth.getSession();
+  const token = sess?.data?.session?.access_token || '';
+  const r = await fetch('/api/mpl-import', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, 'x-supabase-anon': WARR_CONFIG.supabaseAnonKey }, body: JSON.stringify(payload) });
+  return r.json();
+}
+let _mplLast = null;
+async function loadMplImport(res, msg) {
+  const box = document.getElementById('mplImportBox'); if (!box) return;
+  let st = res;
+  if (!st) { try { st = await (await fetch('/api/mpl-import?status=1', { cache: 'no-store' })).json(); } catch (_) { st = { never: true }; } }
+  _mplLast = st;
+  const E = escHtml, when = t => t ? new Date(t).toLocaleString('en-PH', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
+  const per = st.perSeason ? Object.entries(st.perSeason).sort((a, b) => b[0].localeCompare(a[0])).map(([k, v]) => `<div style="display:flex;gap:8px;padding:2px 0;"><span style="flex:1;color:var(--text);">${E(k)}</span><span>${v.add ? `<b style="color:var(--gold)">+${v.add} new</b>` : '0 new'}</span><span style="width:120px;text-align:right;">${v.already} already on Warr.GG</span></div>`).join('') : '';
+  const teams = (st.newTeams || []).map((t, i) => `<div style="display:flex;gap:6px;align-items:center;padding:2px 0;"><span style="width:58px;">${E(t.league)}</span><span style="flex:1;color:var(--text);">${E(t.liquipedia)}</span>→<input id="mplTeam${i}" value="${E(t.saved_as)}" style="width:170px;font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);"><button class="btn-approve" style="padding:3px 8px;" onclick="saveMplTeam(${i})">Save</button></div>`).join('');
+  box.innerHTML = `
+    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
+      <span style="font-size:10px;font-weight:700;letter-spacing:.08em;">MPL GAMES · LIQUIPEDIA → SCOUT DATA</span>
+      <span style="margin-left:auto;color:var(--text);">${st.never ? 'not checked yet' : 'checked ' + when(st.at)}${st.error ? ' · <span style="color:var(--red)">' + E(st.error) + '</span>' : ''}${st.partial ? ' · partly read (press again)' : ''}</span>
+    </div>
+    <div>PH, ID, MY, SG, KH — current + previous season (new seasons are picked up by themselves). Games you already logged are <b>never re-added or changed</b>; new ones come in as <b style="color:var(--gold)">⚠ Not verified</b> (picks in lane order) until you fix and save them in Scout entry.</div>
+    ${per ? `<div style="margin-top:8px;">${per}</div>` : ''}
+    ${st.add ? `<div style="margin-top:6px;color:var(--text);"><b>${st.add}</b> games to add${st.update ? `, ${st.update} imported games Liquipedia corrected` : ''}.</div>` : (st.at && !st.never ? '<div style="margin-top:6px;">Nothing new to add.</div>' : '')}
+    ${(st.preview || []).length ? `<details style="margin-top:4px;"><summary style="cursor:pointer;">Preview the new games</summary><div style="max-height:180px;overflow:auto;font-size:11px;">${st.preview.map(E).join('<br>')}${st.add > st.preview.length ? `<br>… and ${st.add - st.preview.length} more` : ''}</div></details>` : ''}
+    ${(st.conflicts || []).length ? `<div style="margin-top:6px;"><b style="color:var(--red)">${st.conflicts.length}</b> of your games differ from Liquipedia (winner / sides / bans / date) — see <a href="scout.html" style="color:var(--blue)">Scout entry → ⚑ Needs review</a>.</div>` : ''}
+    ${(st.unknownHeroes || []).length ? `<div style="margin-top:6px;color:var(--red);">Hero names not recognised: ${E(st.unknownHeroes.join(', '))}</div>` : ''}
+    ${teams ? `<details style="margin-top:6px;"${(st.newTeams || []).length ? ' open' : ''}><summary style="cursor:pointer;">New team names (${st.newTeams.length}) — check how they'll be saved</summary>${teams}</details>` : ''}
+    ${st.nextMatch ? `<div style="margin-top:6px;">Next / ongoing match on the schedule: <b style="color:var(--text)">${when(st.nextMatch)}</b>${st.auto ? ' — checks every 5 min from 15 min before until 4 h after' : ''}</div>` : ''}
+    ${msg ? `<div style="margin-top:6px;color:var(--text);">${E(msg)}</div>` : ''}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+      <button class="btn-approve" onclick="mplAction('preview', this)">🔍 Check Liquipedia (preview)</button>
+      ${st.add ? `<button class="btn-approve" style="background:var(--gold);color:#000;" onclick="mplAction('import', this)">⬇ Import ${st.add} new games</button>` : ''}
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" ${st.auto ? 'checked' : ''} onchange="mplAuto(this.checked)"> Auto-import (live on match days)</label>
+    </div>
+    <div style="margin-top:6px;font-size:10.5px;">Content: Liquipedia (CC-BY-SA). Polite: one request every 2 s, only changed pages are downloaded.</div>`;
+}
+async function mplAction(action, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = action === 'import' ? 'Importing… (up to 25 s)' : 'Reading Liquipedia… (up to 25 s)'; }
+  let r, msg = '';
+  try { r = await _mplApi({ action }); if (r.error && !r.at) msg = 'Failed: ' + r.error; else if (r.busy) msg = 'Another check is running — try again in a minute.'; else if (action === 'import') msg = r.applied ? `Imported ${r.add} new games${r.update ? ` and updated ${r.update}` : ''}. They show as ⚠ Not verified in Scout entry.` : (r.error ? 'Import failed: ' + r.error : 'Nothing to import.'); }
+  catch (e) { msg = 'Failed: ' + (e.message || e); }
+  try { sessionStorage.removeItem('warr_loadmatches_cache_v2'); } catch (_) {}
+  loadMplImport(r && !r.busy && r.at ? r : null, msg);
+}
+async function mplAuto(on) { try { await _mplApi({ action: 'auto', on }); } catch (_) {} loadMplImport(null, on ? 'Auto-import on: new MPL games come in by themselves (every 5 min during matches, hourly otherwise).' : 'Auto-import off.'); }
+async function saveMplTeam(i) {
+  const t = (_mplLast && _mplLast.newTeams || [])[i]; if (!t) return;
+  const v = (document.getElementById('mplTeam' + i) || {}).value || '';
+  try { await _mplApi({ action: 'team', league: t.league, liquipedia: t.liquipedia, site: v.trim() }); } catch (_) {}
+  loadMplImport(_mplLast, `Saved: ${t.liquipedia} → ${v.trim()} (applies to the next check / import).`);
 }
 // ── Hero kits + patch notes from Liquipedia (server refreshes every 6 h) ──
 async function loadHeroDataStatus(msg) {

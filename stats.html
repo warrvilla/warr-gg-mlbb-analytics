@@ -8,7 +8,7 @@
 <title>Analysis — Warr.GG</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="warr-lib.js?v=2"></script>
-<script src="warr-intel.js?v=3"></script>
+<script src="warr-intel.js?v=5"></script>
 <script src="warr-nav.js"></script>
 <link rel="stylesheet" href="warr-styles.css">
 <style>
@@ -1191,7 +1191,7 @@ function getTeamStats(name, vsOpponent=null) {
   const fpC={};
   allMatches.forEach(m => {
     const ours=m.blueTeam===name, picks=ours?(m.bluePicks||[]):(m.redPicks||[]);
-    if (picks[0]){const n=picks[0].name||picks[0];fpC[n]=(fpC[n]||0)+1;}
+    if (picks[0]&&m.pickOrder!=='lane'){const n=picks[0].name||picks[0];fpC[n]=(fpC[n]||0)+1;}
   });
 
   const topPicks = Object.entries(pickC).sort((a,b)=>b[1]-a[1]).slice(0,10)
@@ -1818,6 +1818,7 @@ function _teamDrafts(name) {
       won:   m.winner === (ours ? 'blue' : 'red'),
       side:  ours ? 'blue' : 'red',
       date:  m.date || '',
+      laneOrder: m.pickOrder === 'lane',          // Liquipedia import not verified yet: lane order, not pick order
     };
   }).filter(d => d.picks.length >= 5);
 }
@@ -1883,7 +1884,7 @@ function mineTopComps(name, maxComps = 3) {
 
 function _phase1Openers(name) {
   const counts = {};
-  _teamDrafts(name).forEach(d => d.picks.slice(0, 3).forEach(p => {
+  _teamDrafts(name).filter(d => !d.laneOrder).forEach(d => d.picks.slice(0, 3).forEach(p => {
     const n = p.name || p; if (n) counts[n] = (counts[n] || 0) + 1;
   }));
   const total = Math.max(1, _teamDrafts(name).length);

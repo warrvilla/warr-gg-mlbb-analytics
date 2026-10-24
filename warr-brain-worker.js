@@ -3,7 +3,7 @@
 /* global importScripts, WBrain */
 self.onmessage = function (e) {
   try {
-    importScripts('warr-intel.js?v=3', 'warr-hero-profiles.js?v=2', 'warr-draft-brain.js?v=2');
+    importScripts('warr-intel.js?v=5', 'warr-hero-profiles.js?v=2', 'warr-draft-brain.js?v=3');
     if (e.data.opts && e.data.opts.calendar) WBrain.setCalendar(e.data.opts.calendar);
     if (e.data.opts && e.data.opts.kitProfiles && WHeroProfile.addFromKit) Object.entries(e.data.opts.kitProfiles).forEach(([n, h]) => WHeroProfile.addFromKit(n, h));
     const brain = WBrain.build(e.data.matches || [], e.data.opts || {});

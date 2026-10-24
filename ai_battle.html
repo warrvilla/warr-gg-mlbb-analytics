@@ -21,10 +21,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="warr-lib.js?v=2"></script>
-<script src="warr-intel.js?v=3"></script>
-<script src="warr-draft-model.js?v=2"></script>
+<script src="warr-intel.js?v=5"></script>
+<script src="warr-draft-model.js?v=4"></script>
 <script src="warr-ban.js?v=2"></script>
-<script src="warr-hero-data.js?v=1"></script>
+<script src="warr-hero-data.js?v=2"></script>
 <script src="warr-nav.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <link rel="stylesheet" href="warr-styles.css">
@@ -2203,8 +2203,11 @@ function buildEnemyProfileCache(name){
       });
       return out;
     }
-    const bPhased=phasedCore(bm,true),rPhased=phasedCore(rm,false);
-    const bBans=phasedBans(bm,true),rBans=phasedBans(rm,false);
+    // Pick / ban ORDER habits need a real draft order — Liquipedia imports not verified yet don't have one.
+    const bmO=bm.filter(m=>m.pickOrder!=='lane'), rmO=rm.filter(m=>m.pickOrder!=='lane');
+    const bPhased=phasedCore(bmO,true),rPhased=phasedCore(rmO,false);
+    const bBans=phasedBans(bmO,true),rBans=phasedBans(rmO,false);
+    bBans.freq=phasedBans(bm,true).freq; rBans.freq=phasedBans(rm,false).freq;   // how often they ban a hero: every game counts
     // Recompute headline aggregates from the SEASON-SCOPED matches (t is the
     // all-time team aggregate, so using it directly would leak old seasons into
     // games played / win rate / top picks / top bans).
@@ -2225,8 +2228,8 @@ function buildEnemyProfileCache(name){
       // Phase-aware pick data
       bluePhase1:bPhased.phase1, bluePhase2:bPhased.phase2,
       redPhase1:rPhased.phase1,  redPhase2:rPhased.phase2,
-      bluePickPos:teamPickPositions(bm,true),
-      redPickPos:teamPickPositions(rm,false),
+      bluePickPos:teamPickPositions(bmO,true),
+      redPickPos:teamPickPositions(rmO,false),
       // Pick frequency: rate each hero actually appears in this team's picks
       bluePickFreq:pickFrequency(bm,true),
       redPickFreq:pickFrequency(rm,false),

@@ -188,17 +188,19 @@
     if (HD.ready) return;
     if (HD.loading) return HD.loading;
     HD.loading = (async () => {
-      if (!window.WIntel || !WIntel.draftOrder) await loadScript('warr-intel.js?v=3');
-      if (!window.WDraft || !window.WDraft.prob) await loadScript('warr-draft-model.js?v=2');
+      if (!window.WIntel || !WIntel.draftOrder) await loadScript('warr-intel.js?v=5');
+      if (!window.WDraft || !window.WDraft.prob) await loadScript('warr-draft-model.js?v=4');
       if (!window.WBan || !window.WBan.v2) await loadScript('warr-ban.js?v=2');
       if (!window.WHeroProfile || !window.WHeroProfile.addFromKit) await loadScript('warr-hero-profiles.js?v=2');
-      if (!window.WBrain || !window.WBrain.setCalendar) await loadScript('warr-draft-brain.js?v=2');
-      if (!window.WHeroData) await loadScript('warr-hero-data.js?v=1');
-      if (!window.HeimerTools || !window.HeimerTools.lite || !window.HeimerTools.defs.some(d => d.name === 'patch_report')) await loadScript('warr-heimer-tools.js?v=7');
+      if (!window.WBrain || !window.WBrain.setCalendar) await loadScript('warr-draft-brain.js?v=3');
+      if (!window.WHeroData) await loadScript('warr-hero-data.js?v=2');
+      if (!window.HeimerTools || !window.HeimerTools.lite || !window.HeimerTools.defs.some(d => d.name === 'patch_report')) await loadScript('warr-heimer-tools.js?v=9');
       // Hero kits + patch notes (Liquipedia, refreshed by the server every 6 h). Never blocks Heimer for long.
       try {
-        await Promise.race([WHeroData.load({ full: true }), new Promise(r => setTimeout(r, 5000))]);
-        if (WHeroData.ready()) { WHeroData.augmentProfiles(window.WHeroProfile); if (window.WBrain) WBrain.setCalendar(WHeroData.calendar()); }
+        const hdP = WHeroData.load({ full: true }).then(() => {
+          if (WHeroData.ready()) { WHeroData.augmentProfiles(window.WHeroProfile); if (window.WBrain) WBrain.setCalendar(WHeroData.calendar()); }
+        });
+        await Promise.race([hdP, new Promise(r => setTimeout(r, 5000))]);
       } catch (_) {}
       let ms = [];
       try { ms = await WDB.loadMatches(); } catch (_) {}
@@ -368,7 +370,7 @@ TOOLS
 - evaluate_draft rates a draft (full or partial) with the trained draft model and suggests next picks; predict_draft replicates how a named team drafts (their likely next pick/ban and why). Use them for "is this draft good", "what should we pick/ban now", "what will they pick". The model reports its own back-test — if it says the draft terms add little, present its numbers as hints and lean on game sense.
 - If ON SCREEN NOW shows a live draft, questions like "what should I pick?" are about that draft: pass its picks/bans to the draft tools.
 - TEAM THINKING: for "how does X draft / think / what's their style", call team_brain — it is learned from every pick and ban the team made against the options that were open, compared with the league. For "why did they pick/ban that" in a real game, call explain_game. Explain the reasons in coach language (power picks, comfort, counters, synergy, comp fixes, denies, flex, lane plans, habits, pocket picks; meta / target / protect / role / lane-lock bans) and quote the engine-check accuracy when you rely on predictions.
-- PATCH & KITS: for "who is strongest / OP this patch", "what got buffed or nerfed", tier lists, or what a hero's skills do (CC, cooldowns, damage numbers), call patch_report (optionally with a hero or lane). It combines the patch notes (exact old → new numbers from Liquipedia), pro picks/bans/wins on this patch vs the last, the draft model and solo-queue Top 100, and says how many games back it. Quote skill numbers and patch changes ONLY from patch_report — never from memory. Credit "Liquipedia" when you quote kit or patch-note numbers.
+- PATCH & KITS: for "who is strongest / OP this patch", "what got buffed or nerfed", tier lists, or what a hero's skills do (CC, cooldowns, damage numbers), call patch_report (optionally with a hero or lane). It combines the patch notes (exact old → new numbers from Liquipedia), pro picks/bans/wins on this patch vs the last, the draft model and solo-queue Top 100, and says how many games back it. Quote skill numbers and patch changes ONLY from patch_report — never from memory. Credit "Liquipedia" when you quote kit or patch-note numbers. If a tool says data isn't available, repeat its reason as given — never claim an outside site (Liquipedia, etc.) is down.
 - BANS: for any ban question call ban_plan (opponent, the user's team, the user's side if known, the draft so far, the map, and earlier games of this series if the user mentions them). A real ban plan mixes meta/OP bans (what pros ban this season, rising heroes, tier lists) with opponent-specific ones (comfort, ban impact, first picks, a one-trick lane pool) and threats to the user's comp — never recommend bans from one team's stats alone. The "Ban …" lines in the DATA PACK levers are team-only evidence, not a ban plan. Present bans phase by phase with the reason for each.
 
 DRAFT THINKING
