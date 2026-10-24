@@ -391,8 +391,11 @@ export function plan(lpGames, existing, opts) {
       const log = { at: now, changes };
       out.fix.push({ id: row.id, row: { ...R, ...set, lpRef: { page: g.lp.page, key: g.lp.key }, lpFix: [...(R.lpFix || []), log].slice(-10) }, by: row.by, changes, game: label(R, g) });
     }
-    if (issues.length) out.conflicts.push({ id: row.id, game: label(R, g), vod: R.vodLink || g.vodLink || '', issues,
-      ack: { picks: pickSig, teams: pickSig, bans: banSig, winner: g.winner, sides: sw ? 'swapped' : '' } });
+    if (issues.length) out.conflicts.push({ id: row.id, game: label(R, g), vod: R.vodLink || g.vodLink || '', issues, page: g.lp.page,
+      ack: { picks: pickSig, teams: pickSig, bans: banSig, winner: g.winner, sides: sw ? 'swapped' : '' },
+      // Liquipedia's version of the game, for Scout's "Liquipedia is right" (team names in your naming)
+      lp: { blue: { team: g.blueTeam, picks: g.bluePicks.map(p => p.name), bans: [...g.blueBans] }, red: { team: g.redTeam, picks: g.redPicks.map(p => p.name), bans: [...g.redBans] },
+        winner: g.winner, sideUnknown: !!g.sideUnknown, banOk: !banBad && banOk(g.blueBans) && banOk(g.redBans), sure: confident } });
   };
   // pass 2: classify
   lpGames.forEach(g0 => {

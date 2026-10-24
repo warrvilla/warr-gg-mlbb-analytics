@@ -3150,10 +3150,50 @@ function _lpIssueHtml(i) {
   if (i.kind === 'bans') return `<div class="lp-iss"><span class="k">Bans</span>${_vEsc(String(i.text || '').replace(/^bans — /, ''))}</div>`;
   return `<div class="lp-iss">${_vEsc(i.text || '')}</div>`;
 }
+function _lpPageUrl(page, edit) { return page ? 'https://liquipedia.net/mobilelegends/' + String(page).split('/').map(encodeURIComponent).join('/') + (edit ? '?action=edit' : '') : ''; }
+// "Liquipedia is right": make this game match Liquipedia — sides, team names, heroes, bans, winner.
+// Each draft moves as a block, so your pick order, lanes, players, KDA and objectives stay with it.
+function _lpCanUseLp(c) {
+  const k = new Set((c.issues || []).map(i => i && i.kind));
+  return !!(c.lp && c.lp.sure && !k.has('match') && (k.has('teams') || k.has('picks') || k.has('winner')));
+}
+function _lpUseLp(id) {
+  const c = (_lpConflict || {})[id]; let m = DB_MODULE.getMatches().find(x => x.id === id);
+  if (!c || !m || !c.lp) return;
+  if (!confirm('Use Liquipedia\'s version of this game?\n\nTeam names, sides, heroes, bans and winner will match Liquipedia. Your pick order, lanes, players and stats stay with their draft.')) return;
+  const L = c.lp, nm = x => String((x && (x.name || x)) || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
+  const ov = (a, b) => { const B = new Set((b || []).map(nm)); return (a || []).filter(x => B.has(nm(x))).length; };
+  let g = { ...m };
+  // 1) each draft to the side Liquipedia has it on (only when Liquipedia knows the sides)
+  if (!L.sideUnknown && ov(g.bluePicks, L.red.picks) > ov(g.bluePicks, L.blue.picks)) g = _lpFlipSides(g);
+  // 2) each side gets the team whose draft it is, per Liquipedia
+  const lpOf = side => ov(g[side + 'Picks'], L.blue.picks) >= ov(g[side + 'Picks'], L.red.picks) ? L.blue : L.red;
+  const T = { blue: lpOf('blue'), red: lpOf('blue') === L.blue ? L.red : L.blue };
+  g.blueTeam = T.blue.team; g.redTeam = T.red.team;
+  // 3) heroes: a hero Liquipedia doesn't have is replaced by the one it does, keeping that slot's lane / player / KDA
+  ['blue', 'red'].forEach(s => {
+    const lp = T[s].picks, mine = (g[s + 'Picks'] || []).slice();
+    const missing = lp.filter(h => !mine.some(p => nm(p) === nm(h))); let k = 0;
+    let out = mine.map(p => lp.some(h => nm(h) === nm(p)) ? p : (k < missing.length ? { ...(p && typeof p === 'object' ? p : {}), name: missing[k++] } : p));
+    while (k < missing.length && out.length < 5) out.push({ name: missing[k++] });
+    g[s + 'Picks'] = out;
+    if (L.banOk) g[s + 'Bans'] = [...T[s].bans];
+  });
+  // 4) winner: the team Liquipedia says won
+  const winTeam = L[L.winner] && L[L.winner].team;
+  if (winTeam) g.winner = nm(g.blueTeam) === nm(winTeam) ? 'blue' : nm(g.redTeam) === nm(winTeam) ? 'red' : g.winner;
+  const nmatch = { ...g, _verifiedAt: Date.now() };
+  DB_MODULE.upsertMatch(nmatch); DB_MODULE.rebuildTeams(); DB_MODULE.save(); _cloudSaveMatch(nmatch);
+  delete _lpConflict[id];
+  toast('Updated to Liquipedia\'s version');
+  const md = document.getElementById('auditModal'); if (md) md.remove();
+  openAuditPanel(); try { renderMatchListBody(); } catch (_) {}
+}
 function _lpConfRow(m, c) {
   const vod = _lpSafeUrl(c.vod || m.vodLink);
+  const badLp = (c.issues || []).some(i => i && i.kind === 'bans');
   return `<div class="audit-row" style="align-items:flex-start;"><span class="t">${_vEsc(c.game || '')}${(c.issues || []).map(_lpIssueHtml).join('')}</span>
-    <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:46%;">${vod ? `<a class="btn btn-ghost btn-sm" href="${_vEsc(vod)}" target="_blank" rel="noopener">▶ VOD</a>` : ''}<button class="btn btn-ghost btn-sm" onclick="document.getElementById('auditModal').remove();openEditMatch('${m.id}')">Open ✎</button>${c.ack ? `<button class="btn btn-ghost btn-sm" onclick="_lpAckConflict('${m.id}')" title="You checked the VOD and your data is right — stop flagging this game">✓ Mine is right</button>` : ''}</span></div>`;
+    <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:46%;">${vod ? `<a class="btn btn-ghost btn-sm" href="${_vEsc(vod)}" target="_blank" rel="noopener">▶ VOD</a>` : ''}<button class="btn btn-ghost btn-sm" onclick="document.getElementById('auditModal').remove();openEditMatch('${m.id}')">Open ✎</button>${_lpCanUseLp(c) ? `<button class="btn btn-ghost btn-sm" style="color:var(--green,#34C759);border-color:rgba(52,199,89,.35);" onclick="_lpUseLp('${m.id}')" title="Make this game match Liquipedia (names, sides, heroes, bans, winner)">✓ Liquipedia is right</button>` : ''}${c.ack ? `<button class="btn btn-ghost btn-sm" onclick="_lpAckConflict('${m.id}')" title="You checked the VOD and your data is right — stop flagging this game">✓ Mine is right</button>` : ''}${badLp && c.page ? `<a class="btn btn-ghost btn-sm" href="${_vEsc(_lpPageUrl(c.page, true))}" target="_blank" rel="noopener" title="Liquipedia's own page is inconsistent here — fix it at the source">Edit on Liquipedia ↗</a>` : ''}</span></div>`;
 }
 function _lpFixRow(f) {
   const L = { bans: 'Bans', date: 'Date', length: 'Length', map: 'Map', vod: 'VOD', week: 'Week', format: 'Format', winner: 'Winner', sides: 'Sides' };
@@ -3236,7 +3276,7 @@ async function openAuditPanel() {
     <div style="background:var(--surface,#16161c);border:1px solid var(--border2);border-radius:14px;max-width:640px;width:100%;max-height:85vh;overflow:auto;padding:18px 20px;">
       <div style="display:flex;align-items:center;gap:8px;"><div style="font-size:16px;font-weight:800;">⚑ To be verified${lg ? ` · ${_vEsc(lg)}` : ''}</div>${(typeof leagueFilter !== 'undefined' && leagueFilter && leagueFilter !== 'all') ? `<button class="btn btn-ghost btn-sm" onclick="_auditAllLeagues=!_auditAllLeagues;document.getElementById('auditModal').remove();openAuditPanel()">${lg ? 'Show all leagues' : `Only ${_vEsc(leagueFilter)}`}</button>` : ''}<button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="document.getElementById('auditModal').remove()">Close</button></div>
       <div style="color:var(--text3);font-size:11.5px;margin-top:4px;">Open a game, put the picks in draft phase order, press Save — it becomes ✓ Complete. Liquipedia never changes your picks.</div>
-      ${conf.length ? sec(`Differs from Liquipedia (${conf.length})`, 'Liquipedia already corrected your bans, date, length, map, winner and sides. These are the things only the VOD can settle — watch the draft / result, fix it in ✎ if you were wrong, or press <b>✓ Mine is right</b> and it won\'t be flagged again (unless Liquipedia changes).', conf.map(x => _lpConfRow(x.m, x.c)).join('')) : ''}
+      ${conf.length ? sec(`Differs from Liquipedia (${conf.length})`, 'Liquipedia already corrected your bans, date, length, map, winner and sides. These are the things only the VOD can settle — watch the draft / result, then press <b>✓ Liquipedia is right</b> (your game is updated to match) or <b>✓ Mine is right</b> (it won\'t be flagged again unless Liquipedia changes).', conf.map(x => _lpConfRow(x.m, x.c)).join('')) : ''}
       ${fixes.length ? `<details style="margin:14px 0 4px;"><summary style="cursor:pointer;font-weight:800;font-size:12px;">Corrected from Liquipedia (${fixes.length})</summary><div style="color:var(--text3);font-size:11px;margin:4px 0;">Facts Liquipedia takes precedence on — old value → new value. If Liquipedia is wrong, ↩ Keep mine puts yours back.</div>${fixes.slice(0, 200).map(_lpFixRow).join('')}</details>` : ''}
       ${side.length ? sec(`Side not confirmed (${side.length})`, 'Liquipedia left the side blank — imported as team 1 = blue. Use ⇄ Swap sides if wrong.', side.map(m => row(m)).join('')) : ''}
       ${un.length ? sec(`Draft phase order to be verified (${un.length})`, 'Imported from Liquipedia — results and heroes are right, and so is the ban order — only the picks are in lane order (EXP → Jungle → Mid → Gold → Roam). Use ⇅ in the editor to put the picks in the real order. Until then they count for everything except pick-order habits (first pick, phase-1 / phase-2 picks).',

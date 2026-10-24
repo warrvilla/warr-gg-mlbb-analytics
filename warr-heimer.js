@@ -82,6 +82,7 @@
   .hd-panel.min #hdNew{display:none;}
   .hd-panel.min #hdMin{margin-left:auto;}
   .hd-panel.min .hd-dot{margin-left:4px;}
+  html.hd-covered .hd-launch,html.hd-covered .hd-panel.min{opacity:0 !important;pointer-events:none !important;transform:translateY(10px);}   /* a popup / editor is open → step aside */
   .hd-dot{display:none;width:8px;height:8px;border-radius:50%;background:#34C759;box-shadow:0 0 0 3px rgba(52,199,89,.22);flex-shrink:0;}
   .hd-panel.min.unread .hd-dot{display:inline-block;}
   .hd-ph{display:flex;align-items:center;gap:10px;padding:12px 12px 10px 14px;border-bottom:0.5px solid rgba(255,255,255,.07);}
@@ -444,7 +445,28 @@ ${pack.text}`;
     $in.addEventListener('input', () => { $in.style.height = 'auto'; $in.style.height = Math.min(120, $in.scrollHeight) + 'px'; });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && $panel.classList.contains('open')) toggle(false); });
     try { HD.chat = JSON.parse(localStorage.getItem(KEY()) || '[]'); } catch (_) { HD.chat = []; }
+    watchCover();
     try { if (sessionStorage.getItem('warr_heimer_open') === '1') { toggle(true); if (sessionStorage.getItem('warr_heimer_min') === '1') setMin(true); } } catch (_) {}
+  }
+  // While a popup / editor is open, the launcher and the minimized bar hide so they never sit on its buttons
+  // (Save Match etc.). An open chat panel stays — you opened it on purpose.
+  const COVER_SEL = '.modal-overlay,.modal-bg,.drafts-overlay,.winner-overlay,.recap-modal,#auditModal,[id$="Modal"],[id$="Overlay"],[role="dialog"]';
+  function isCovered() {
+    for (const el of document.querySelectorAll(COVER_SEL)) {
+      if (el.closest('#hdPanel')) continue;
+      const cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || cs.pointerEvents === 'none') continue;   // (not opacity: popups fade in)
+      const r = el.getBoundingClientRect();
+      if (r.width >= 200 && r.height >= 150) return true;
+    }
+    return false;
+  }
+  function watchCover() {
+    let raf = 0;
+    const sync = () => { raf = 0; document.documentElement.classList.toggle('hd-covered', isCovered()); };
+    new MutationObserver(() => { if (!raf) { raf = requestAnimationFrame(sync); setTimeout(sync, 400); } })   // again after open/close animations
+      .observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden', 'open'] });
+    sync();
   }
   // Minimize: shrink to a small bar (keeps the chat and any answer in progress); tap it to open again
   function setMin(on) {
