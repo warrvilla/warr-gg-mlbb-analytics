@@ -37,7 +37,7 @@ const STORE = 'warr-mpl-import';
 const MAPS = { flyingcloud: 'Flying Cloud', revealingwisps: 'Revealing Wisps', healingturtle: 'Healing Turtle', goldenturret: 'Golden Turret',
   dangerousgrass: 'Dangerous Grass', brokenwalls: 'Broken Walls', expandingriver: 'Expanding River', expandingrivers: 'Expanding River' };
 // Bump when the page parser changes: every stored page is read again so old imports get the fix.
-export const PARSER_V = 2;
+export const PARSER_V = 3;
 // "Broken Walls" / "Dangerous Grasa" (typo) / "[[Flying Cloud]]" → the site's map name
 export function mapName(raw) {
   const t = String(raw || '').replace(/\[\[|\]\]/g, '').trim(), k = norm(t);
@@ -121,8 +121,14 @@ export function due(state, status, nowMs) {
 export function parseSeasonPage(raw, { league, season, page, heroName }) {
   heroName = heroName || (x => x);
   // bracket round labels live in comments just before each match: <!-- Upper Bracket Quarterfinals --> |R1M1=
-  const label = {};
-  for (const m of String(raw || '').matchAll(/<!--\s*([^<>]{3,60}?)\s*-->\s*\|\s*(R\d+M\d+)\s*=/g)) label[m[2]] = m[1].trim();
+  // Liquipedia labels a bracket round once, on its first match (<!-- Upper Bracket Quarterfinals --> |R1M1=);
+  // the next matches of the SAME round carry that label on (R1M2..R1M4 are quarterfinals too).
+  const label = {}; let cur = null;
+  const STAGE = /bracket|final|semi|quarter|grand|decider|elimination|upper|lower|play-?in|qualif|knockout|third/i;
+  for (const m of String(raw || '').matchAll(/<!--\s*([^<>]{3,60}?)\s*-->|\|\s*(R(\d+)M\d+)\s*=/g)) {
+    if (m[1] !== undefined) { if (STAGE.test(m[1]) && !/hero|pick|ban/i.test(m[1])) cur = { text: m[1].trim(), round: null }; }
+    else if (cur) { if (cur.round === null) cur.round = m[3]; if (cur.round === m[3]) label[m[2]] = cur.text; else cur = null; }
+  }
   const wt = String(raw || '').replace(/<!--[\s\S]*?-->/g, '');
   const pageStage = /\/Playoffs/i.test(page) ? 'Playoffs' : /\/Play-?ins?/i.test(page) ? 'Play-ins' : /\/Regular Season/i.test(page) ? 'Regular Season' : /Qualif/i.test(page) ? 'Qualifiers' : 'Regular Season';
   const games = [];
@@ -179,7 +185,8 @@ export function parseSeasonPage(raw, { league, season, page, heroName }) {
     }
     if (nm.startsWith('bracket')) {
       Object.keys(P).filter(k => /^r\d+m\d+$/i.test(k)).forEach(k => {
-        const K = k.toUpperCase(), lab = label[K] || plain(P[`r${K.match(/R(\d+)/)[1]}m1header`] || '') || `Round ${K.match(/R(\d+)/)[1]}`;
+        const K = k.toUpperCase(), hd = plain(P[`r${K.match(/R(\d+)/)[1]}m1header`] || '').trim();
+        const lab = label[K] || (hd && !/^round\s*\d+$/i.test(hd) ? hd : pageStage);   // never a made-up "Round 2"
         const mt = templates(String(P[k] || ''))[0];
         if (mt && /^match$/i.test(mt.name)) readMatch(mt.params, `${P.id || 'bracket'}:${K}`, lab, /grand ?final/i.test(lab) ? 'Grand Finals' : pageStage);
       });
@@ -357,7 +364,7 @@ export function plan(lpGames, existing, opts) {
       if (g.duration && secs(g.duration) != null && secs(R.duration) !== secs(g.duration)) { put('length', R.duration || '', g.duration); set.duration = g.duration; }
       if (g.map && norm(R.map) !== norm(g.map)) { put('map', R.map || '', g.map); set.map = g.map; }
       if (g.vodLink && !R.vodLink) { put('vod', '', g.vodLink); set.vodLink = g.vodLink; }
-      if (g.week && !String(R.week || '').trim()) { put('week', '', g.week); set.week = g.week; }
+      if (g.week && (!String(R.week || '').trim() || (/^round\s*\d+$/i.test(R.week) && R.week !== g.week))) { put('week', R.week || '', g.week); set.week = g.week; }   // fill, or replace an old "Round N"
       if (g.seriesFormat && !R.seriesFormat) { put('format', '', g.seriesFormat); set.seriesFormat = g.seriesFormat; }
     }
     // flags — never changed for you

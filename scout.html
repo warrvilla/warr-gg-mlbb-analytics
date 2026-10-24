@@ -2365,7 +2365,37 @@ let patchFilter = 'all';
 let weekFilter  = 'all';
 let _weekAutoPicked = false;  // latest-week auto-default fires once per league/season, not on every render
 const _UNLABELED_WEEK = '__noweek__';
-function _weekSortKey(w){ const m=String(w).match(/\d+/); return m? parseInt(m[0],10) : 9000 + String(w).charCodeAt(0)/1000; }
+// Order of a season: Week 1…N (or Day 1…N) → Play-ins → Playoffs → bracket stages in the order they're played → Grand Final.
+// The list shows newest first, so this is sorted descending.
+// Newest stage first, in the order the games were actually played (one season): the middle date of each
+// week / stage, then the Liquipedia bracket round (R1 → R4) for stages on the same day, then the stage name.
+// Across several seasons "Week 1" mixes seasons, so there it's by stage name only.
+function _sortWeeks(pool){
+  const info = {};
+  pool.forEach(m => { const w = _weekGroup(m.week); if (!w) return;
+    const o = info[w] || (info[w] = { dates: [], round: 0, last: '' });
+    if (m.date) o.dates.push(m.date);
+    const r = m.lp && /:R(\d+)M\d+/i.exec(m.lp.key || ''); if (r) o.round = Math.max(o.round, Number(r[1])); });
+  Object.values(info).forEach(o => { o.dates.sort(); o.last = o.dates[Math.floor(o.dates.length / 2)] || ''; });   // middle date: one mistyped date can't move a week
+  const oneSeason = new Set(pool.map(m => (m.season || '').trim())).size <= 1;
+  return Object.keys(info).sort((a, b) => (oneSeason ? (info[b].last.localeCompare(info[a].last) || info[b].round - info[a].round) : 0) || (_weekSortKey(b) - _weekSortKey(a)));
+}
+function _weekSortKey(w){
+  const s=String(w||'').toLowerCase().trim(), n=parseInt((s.match(/\d+/)||[0])[0],10)||0;
+  if(/^(week|wk|w)\s*\d/.test(s)) return n;
+  if(/^day\s*\d/.test(s)) return n;
+  if(/play-?in/.test(s)) return 100+n/100;
+  const lower=/lower|lb\b/.test(s), upper=/upper|ub\b/.test(s);
+  if(/grand/.test(s)) return 500+n/100;
+  if(/third|3rd|decider/.test(s)) return 480;
+  if(/final/.test(s)&&!/semi|quarter/.test(s)) return lower?470:upper?460:490;   // UB final → LB final → (generic) Final
+  if(/semi/.test(s)) return lower?440:upper?420:430;
+  if(/quarter/.test(s)) return lower?410:upper?400:405;
+  if(/round/.test(s)) return (lower?380:upper?350:360)+n;
+  if(/playoff|knockout|bracket/.test(s)) return 300+n/100;                          // "Playoffs Day 2"
+  if(/regular|group/.test(s)) return 90+n/100;
+  return 95;
+}
 // Collapse 'Week 8 Day 1' / 'Week 8 Day 2' → 'Week 8'. Named stages keep
 // their label minus any 'Day N' suffix (e.g. 'Playoffs Day 2' → 'Playoffs').
 function _weekGroup(w){ return String(w||'').replace(/\s*[-—]?\s*day\s*\d+.*$/i,'').trim() || String(w||'').trim(); }
@@ -3297,8 +3327,7 @@ function renderMatchListBody() {
     if (leagueFilter !== 'all') pool = pool.filter(m => m.league === leagueFilter);
     if (seasonFilter !== 'all') pool = pool.filter(m => (m.season||'') === seasonFilter);
     const hasUnlabeled = pool.some(m => !_weekGroup(m.week));
-    const weeks = [...new Set(pool.map(m => _weekGroup(m.week)).filter(Boolean))]
-      .sort((a,b) => _weekSortKey(b) - _weekSortKey(a));
+    const weeks = _sortWeeks(pool);
     if (weekFilter === 'all' && !_weekAutoPicked && weeks.length > 1) { weekFilter = weeks[0]; }
     _weekAutoPicked = true;
     if (weekFilter !== 'all' && weekFilter !== _UNLABELED_WEEK && !weeks.includes(weekFilter)) weekFilter = 'all';
