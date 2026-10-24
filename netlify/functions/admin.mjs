@@ -57,7 +57,7 @@ export default async (req) => {
     }
   }
   if (!action || !userId) return Response.json({ error: 'MISSING_PARAMS' }, { status: 400, headers: cors() });
-  const svcHeaders = { apikey: svc, authorization: `Bearer ${svc}`, 'content-type': 'application/json' };
+  const svcHeaders = /^sb_secret_/.test(svc) ? { apikey: svc, 'content-type': 'application/json' } : { apikey: svc, authorization: `Bearer ${svc}`, 'content-type': 'application/json' };
 
   try {
     if (action === 'delete_user') {
