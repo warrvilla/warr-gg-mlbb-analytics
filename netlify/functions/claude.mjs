@@ -39,7 +39,11 @@ const MODEL_FAST = process.env.AI_MODEL_FAST || 'claude-sonnet-5-5';   // picks 
 const MODEL_DEEP = process.env.AI_MODEL_DEEP || 'claude-opus-5-5';     // Pro Team / admin analysis
 const MODEL_SAFE = 'claude-sonnet-4-6';                                 // last-resort retry if a newer model/param is rejected
 const EFFORT_PICK     = process.env.AI_EFFORT_PICK || 'low';            // live draft turns: keep them quick
-const EFFORT_ANALYSIS = process.env.AI_EFFORT_ANALYSIS || 'medium';
+const EFFORT_ANALYSIS = process.env.AI_EFFORT_ANALYSIS || 'low';    // low = fast enough for the function time limit
+const EFFORT_CHAT     = process.env.AI_EFFORT_CHAT || 'low';
+// Heimer chat runs on Sonnet by default: it answers in several quick steps and
+// every step must finish inside the function time limit. CHAT_OPUS=1 opts in.
+const CHAT_OPUS = process.env.CHAT_OPUS === '1';
 // USD per 1M tokens. Thinking tokens are billed as output.
 const PRICES = {
   'claude-sonnet-5-5': [2, 10],
@@ -60,14 +64,24 @@ const ANALYST_DAILY_CALLS = Number(process.env.ANALYST_DAILY_CALLS || process.en
 const TEAM_DAILY_CALLS    = Number(process.env.TEAM_DAILY_CALLS || 60);
 const OPUS_DAILY_CALLS    = Number(process.env.OPUS_DAILY_CALLS || 15);   // per Pro Team account; then Sonnet
 const FREE_MONTHLY_CALLS  = Number(process.env.FREE_MONTHLY_CALLS || 0);  // Members: 0 = no Claude AI
+// ── BUDGET SAVER (no sponsor yet → make every dollar last) ──
+// From SAVER_AT of the month's budget: no Opus (Sonnet is ~half the price) and
+// Heimer gets at most 2 tool rounds. From RESERVE_AT: only the admin can call
+// Claude — everyone else gets Heimer Lite / the free Draft Brain (the clients
+// fall back automatically). USER_MONTHLY_USD caps one account's share.
+const SAVER_AT   = Number(process.env.SAVER_AT || 0.6);
+const RESERVE_AT = Number(process.env.RESERVE_AT || 0.85);
+const USER_MONTHLY_USD = Number(process.env.USER_MONTHLY_USD || 1);
 
 const LEVEL_LABEL = { free: 'Member', pro: 'Analyst', team: 'Pro Team', admin: 'Admin' };
 
-// Netlify sync functions stop at 60s. Every Anthropic call gets a slice of a
-// 55s deadline so a slow Opus answer still leaves room for one fast retry.
-const DEEP_TIMEOUT_MS = 34000;
-const FAST_TIMEOUT_MS = 24000;
-const TOTAL_DEADLINE_MS = 55000;
+// Netlify cuts synchronous functions off (30 s on some plans, 60 s on others) and
+// then the browser only sees a bare 504. Stay well inside the strictest limit:
+// every Anthropic call gets a slice of a 25 s deadline, so a slow Opus answer
+// still leaves room for one quick Sonnet retry and a clean JSON error.
+const TOTAL_DEADLINE_MS = Number(process.env.FN_DEADLINE_MS || 25000);
+const DEEP_TIMEOUT_MS = Math.round(TOTAL_DEADLINE_MS * 0.66);
+const FAST_TIMEOUT_MS = Math.round(TOTAL_DEADLINE_MS * 0.8);
 
 async function _readNum(store, key) {
   try { return Number(await store.get(key)) || 0; } catch { return 0; }
@@ -150,6 +164,12 @@ export default async (req) => {
     if (spentUSD >= BUDGET_USD) {
       return _err(429, 'BUDGET_EXCEEDED', 'Monthly AI budget reached — the local Draft Brain takes over until next month.');
     }
+    if (!isAdmin && spentUSD >= BUDGET_USD * RESERVE_AT) {
+      return _err(429, 'BUDGET_LOW', "This month's AI budget is nearly used up — free mode (Heimer Lite / Draft Brain) until it resets.");
+    }
+    if (!isAdmin && hasAI && USER_MONTHLY_USD > 0 && userUSD >= USER_MONTHLY_USD) {
+      return _err(429, 'USER_MONTHLY_CAP', "You've used this account's AI share for the month — free mode until it resets.");
+    }
     if (level === 'free' && userCalls >= FREE_MONTHLY_CALLS) {
       return _err(429, 'FREE_PLAN_CAP', "You've used this month's free AI trial — the local Draft Brain still works unlimited. Ask Warr for AI access.");
     }
@@ -160,13 +180,15 @@ export default async (req) => {
   }
 
   // ── MODEL ROUTING ──
-  const opusAllowed = level === 'admin' || (level === 'team' && (!store || opusCalls < OPUS_DAILY_CALLS));
-  const deep = purpose === 'analysis' && opusAllowed;
+  const saver = !!store && BUDGET_USD > 0 && spentUSD >= BUDGET_USD * SAVER_AT;
+  const opusAllowed = !saver && (level === 'admin' || (level === 'team' && (!store || opusCalls < OPUS_DAILY_CALLS)));
+  const deep = purpose === 'analysis' && opusAllowed && (!isChat || CHAT_OPUS);
   const model = deep ? MODEL_DEEP : MODEL_FAST;
-  const effort = purpose === 'analysis' ? EFFORT_ANALYSIS : EFFORT_PICK;
+  const effort = isChat ? EFFORT_CHAT : purpose === 'analysis' ? EFFORT_ANALYSIS : EFFORT_PICK;
   // Client max_tokens is the size of the ANSWER; thinking needs room on top.
-  const answerMax = Math.min(Math.max(1, Number(body.max_tokens) || 300), 3000);
-  const headroom = purpose === 'analysis' ? 6000 : 1500;
+  // Kept tight: output tokens are what take time (and money).
+  const answerMax = Math.min(Math.max(1, Number(body.max_tokens) || 300), isChat ? 1500 : 3000);
+  const headroom = isChat ? 1500 : purpose === 'analysis' ? 2500 : 1500;
 
   // Chat = Heimerdinger. It can run a short tool loop (the tools execute in the
   // browser over data the user can already see), so its history may carry
@@ -190,7 +212,7 @@ export default async (req) => {
   // Heimer's data tools (custom, client-executed): chat only, well-formed only.
   if (isChat && Array.isArray(body.tools)) {
     body.tools.filter(t => t && !t.type && typeof t.name === 'string' && /^[a-zA-Z0-9_-]{1,64}$/.test(t.name) && t.input_schema && typeof t.input_schema === 'object')
-      .slice(0, 12).forEach(t => tools.push({ name: t.name, description: String(t.description || '').slice(0, 1500), input_schema: t.input_schema }));
+      .slice(0, 16).forEach(t => tools.push({ name: t.name, description: String(t.description || '').slice(0, 1500), input_schema: t.input_schema }));
     if (JSON.stringify(tools).length > 24000) return _err(400, 'TOOLS_TOO_LARGE');
   }
   // Web search: admin only (it costs $10 per 1,000 searches).
@@ -202,6 +224,12 @@ export default async (req) => {
     base.tools = tools;
     const tc = body.tool_choice && body.tool_choice.type;
     if (tc === 'auto' || tc === 'none') base.tool_choice = { type: tc };
+    // saver: at most 2 tool rounds per question, then answer
+    if (saver && isChat) {
+      let rounds = 0;
+      for (let i = messages.length - 1; i >= 0; i--) { const m = messages[i]; if (m.role === 'user' && !hasBlock(m, 'tool_result')) break; if (m.role === 'assistant' && hasBlock(m, 'tool_use')) rounds++; }
+      if (rounds >= 2) base.tool_choice = { type: 'none' };
+    }
   }
   if (isChat) base.messages = _cacheTail(messages);
 
@@ -260,6 +288,7 @@ export default async (req) => {
       'content-type': 'application/json',
       'x-warr-model': usedModel,
       'x-warr-level': LEVEL_LABEL[level],
+      ...(saver ? { 'x-warr-saver': '1' } : {}),
       ...(fellBack ? { 'x-warr-fallback': fellBack } : {}),
       ...(_cors()),
     },

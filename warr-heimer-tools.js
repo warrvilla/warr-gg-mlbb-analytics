@@ -173,7 +173,7 @@
         return (data && data[0]) || null;
       }),
       safe(() => JSON.parse(localStorage.getItem('warr_patch_meta') || '[]')),
-    ]).then(([meta, roster, rel, top100, patches]) => ({ meta: meta || {}, roster: roster || [], rel: rel || {}, top100, patches: Array.isArray(patches) ? patches : [] }));
+    ]).then(([meta, roster, rel, top100, patches]) => { X.rel = rel || {}; return { meta: meta || {}, roster: roster || [], rel: rel || {}, top100, patches: Array.isArray(patches) ? patches : [] }; });
     return X.p;
   }
   T._resetExtras = () => { X.p = null; };
@@ -235,6 +235,24 @@
         blue_bans: { type: 'array', items: { type: 'string' } }, red_bans: { type: 'array', items: { type: 'string' } },
         ...common,
       }, required: ['team'] } },
+    { name: 'ban_plan', description: 'THE tool for any ban question ("what should we ban vs X", "phase 2 bans", "who to ban first"). Ranks bans against an opponent the way a coach does: meta power (how often pros ban/pick the hero this season, recent trend, patch/tier lists — OP heroes get banned even when their win rate is hidden by bans), the opponent\'s comfort and ban impact (their win rate when it\'s open vs banned), their first-pick priorities, how thin each lane\'s hero pool is (ban both of a one-trick\'s heroes), threats to the user\'s team, and the draft model\'s value — weighted by how likely the opponent is to pick each hero. Splits phase 1 vs phase 2 (aimed at the lanes they still need), flags contested heroes to pick instead, and lists what they will likely ban against you.',
+      input_schema: { type: 'object', properties: {
+        opponent: S('The team you are banning against.'), team: S('Your team (default: the user\'s team).'),
+        side: { type: 'string', enum: ['blue', 'red'], description: 'YOUR side, if known.' },
+        phase: { type: 'integer', enum: [1, 2], description: 'Ban phase (default: inferred from the draft).' },
+        blue_picks: { type: 'array', items: { type: 'object', properties: { hero: { type: 'string' }, lane: { type: 'string' } }, required: ['hero'] } },
+        red_picks: { type: 'array', items: { type: 'object', properties: { hero: { type: 'string' }, lane: { type: 'string' } }, required: ['hero'] } },
+        blue_bans: { type: 'array', items: { type: 'string' } }, red_bans: { type: 'array', items: { type: 'string' } },
+        map: S('Battle map, if known.'),
+        series: { type: 'array', description: 'Earlier games of THIS series, oldest first.', items: { type: 'object', properties: { their_picks: { type: 'array', items: { type: 'string' } }, our_picks: { type: 'array', items: { type: 'string' } }, we_won: { type: 'boolean' } } } },
+        ...common,
+      }, required: ['opponent'] } },
+    { name: 'team_brain', description: 'HOW A TEAM THINKS when drafting — learned from every pick and ban they made against the alternatives that were open (league-wide expert brain over all logged drafts). Returns why they pick (power/priority, comfort, player comfort, counter, synergy, comp fix, deny, flex/hide, lane plan, team habit, pocket picks) and why they ban (meta, target, protect, role, lane-lock), each vs the league average; philosophy scores; how predictable they are; the draft types (comp archetypes found in the data) they run; and their latest draft explained step by step. Use for "how does X draft", "what is X\'s style / thought process", "what does X do differently".',
+      input_schema: { type: 'object', properties: { team: S('Team name.') }, required: ['team'] } },
+    { name: 'explain_game', description: 'Explain one real game\'s draft decision by decision (all 20 bans and picks): the reason the brain attributes to each and how expected it was (its rank among the options). Finds the latest game for the team (optionally vs an opponent or on a date).',
+      input_schema: { type: 'object', properties: { team: S('Team name.'), opponent: S('Optional opponent.'), date: S('Optional YYYY-MM-DD.'), game_number: { type: 'integer' } }, required: ['team'] } },
+    { name: 'patch_report', description: 'THE tool for the current patch and hero kits. Without a hero: who is strongest right now (patch power ranking with tiers) from the patch notes (exact old → new numbers, Liquipedia), pro picks/bans/wins on this patch vs the previous one, the draft model and solo-queue Top 100 — plus everything buffed, nerfed or revamped this patch and the risers/fallers. With a hero: its full kit (each skill: type, cooldowns, damage numbers, CC and durations), its patch-change history and where it ranks now. Optional lane filter. Use for "who is OP / strongest this patch", "what got buffed/nerfed", "tier list", "what does X do", "X cooldown", "did X get nerfed".',
+      input_schema: { type: 'object', properties: { hero: S('Optional hero for kit + change history.'), lane: { type: 'string', enum: ['EXP', 'Jungle', 'Mid', 'Gold', 'Roam'] }, top: { type: 'integer', description: 'How many heroes to rank (default 15).' } } } },
     { name: 'league_report', description: 'A league/season overview: regular-season standings (series record, then game difference), playoff series, opponent-adjusted strength ranking, hero meta (presence, picks, bans, WR), most common first picks and phase-1 bans, blue-side win rate, average game time.',
       input_schema: { type: 'object', properties: { ...common } } },
   ];
@@ -257,6 +275,10 @@
       case 'hero_report': return `Looking up ${a.hero}${a.vs_hero ? ' vs ' + a.vs_hero : ''}${a.with_hero ? ' with ' + a.with_hero : ''}${w}…`;
       case 'player_report': return `Checking ${a.player}'s hero pool…`;
       case 'league_report': return `Reading the ${a.league || 'league'} table${w}…`;
+      case 'patch_report': return a.hero ? `Reading ${a.hero}'s kit and patch history…` : `Ranking heroes on the current patch${a.lane ? ' (' + a.lane + ')' : ''}…`;
+      case 'team_brain': return `Learning how ${a.team} drafts…`;
+      case 'explain_game': return `Explaining ${a.team}'s draft${a.opponent ? ' vs ' + a.opponent : ''}…`;
+      case 'ban_plan': return `Building a ban plan vs ${a.opponent}${w}…`;
       case 'evaluate_draft': return `Running the draft model${a.blue_team && a.red_team ? ` on ${a.blue_team} vs ${a.red_team}` : ''}…`;
       case 'predict_draft': return `Predicting ${a.team}'s next ${a.kind || 'move'}…`;
       default: return 'Checking the data…';
@@ -447,8 +469,8 @@
       return `${b.hero} (${I.team} ${pct(b.availWR)}% when open → ${pct(b.bannedWR)}% when banned, ${b.bannedG}g banned; ${by} banned it ${usual}x in ${D2.n}g)`;
     });
     const bA = banIdeas(IB, A, DA), bB = banIdeas(IA, B, DB);
-    if (bA.length) out.push(`Bans for ${A} to consider (hurt ${B} most): ${bA.join('; ')}`);
-    if (bB.length) out.push(`What ${B} should ban vs ${A} (hurt ${A} most): ${bB.join('; ')}`);
+    if (bA.length) out.push(`${B}'s ban-impact heroes (team-specific only — for actual ban advice use ban_plan, which also weighs the meta): ${bA.join('; ')}`);
+    if (bB.length) out.push(`${A}'s ban-impact heroes (what ${B} may target): ${bB.join('; ')}`);
     const sig = I => new Set(I.signature.slice(0, 8).map(s => s.hero));
     const sA = sig(IA), sB = sig(IB), both = [...sA].filter(h => sB.has(h));
     if (both.length) out.push(`Contested (signature for both): ${both.join(', ')}`);
@@ -510,6 +532,76 @@
     const pt = ex.patches.slice().sort((p, q) => (q.dateFrom || '').localeCompare(p.dateFrom || ''))[0];
     const tier = pt && pt.heroes && pt.heroes[h] && pt.heroes[h].tier;
     if (tier) out.push(`Patch tier list (${pt.name}): ${tier}`);
+    const HDx = await heroData();
+    if (HDx) {
+      const kl = HDx.kitLine(h); if (kl) out.push(`Kit (Liquipedia): ${kl}`);
+      const ch = HDx.changes(h).slice(0, 2); if (ch.length) out.push(`Recent patch changes: ${ch.map(c => HDx.changeLine(c, 220)).join(' | ')}`);
+    }
+    return out.join('\n');
+  };
+
+  // ── Hero kits + patch notes (Liquipedia via /api/hero-data) ─────────────
+  async function heroData() {
+    const H = root.WHeroData; if (!H) return null;
+    if (!H.ready()) { try { await Promise.race([H.load({ full: true }), new Promise(r => setTimeout(r, 6000))]); } catch (_) {} }
+    return H.ready() ? H : null;
+  }
+  IMPL.patch_report = async (a) => {
+    const H = await heroData();
+    if (!H) throw fail('Hero and patch data (Liquipedia) is not available right now — use hero_report / league_report for pro stats instead.');
+    const games = C.usable.filter(m => !isScrim(m) && visible(m));
+    let mm = null; try { mm = root.WDraft ? draftModel() : null; } catch (_) { mm = null; }
+    const x = await extras();
+    const pp = H.patchPower({ games, top100: x.top100, model: mm && mm.model });
+    const cur = pp.patch;
+    const rank = r => `${r.hero}${r.lane ? ' (' + r.lane + ')' : ''} ${r.tier}${r.trend ? ' ↑↓'.charAt(r.trend === 'rising' ? 1 : 2) : ''}`;
+    const out = [];
+    const head = cur ? `patch ${cur.name} (since ${cur.release}${cur.name !== cur.major ? `; ${cur.major} since ${cur.since}` : ''}) · ${pp.games} pro games on ${cur.major}${cur.prevMajor ? `, ${pp.prevGames} on ${cur.prevMajor}` : ''}` : 'patch unknown';
+    if (a.hero) {
+      const h = findHero(a.hero, true);
+      const kit = H.hero(h);
+      out.push(`=== ${h} — kit & patch history · ${head} ===`);
+      if (kit) {
+        out.push(`Kit: ${H.kitLine(h)}`);
+        const st = kit.stats || {};
+        if (Object.keys(st).length) out.push(`Base stats: HP ${st.hp ?? '?'} · HP regen ${st.hpreg ?? '?'} · Phys ATK ${st.phyatk ?? '?'} · Phys DEF ${st.phydef ?? '?'} · Mag DEF ${st.magdef ?? '?'} · ATK speed ${st.atkspeed ?? '?'} · Move speed ${st.movespeed ?? '?'}${st.mana ? ' · Mana ' + st.mana : ''}`);
+        out.push('Skills:', ...H.skillsText(h, 380).split('\n').map(l => '  ' + l));
+      } else out.push('Kit: not on Liquipedia yet.');
+      const ch = H.changes(h);
+      if (ch.length) {
+        out.push('Patch history (newest first):', ...ch.slice(0, 6).map(c => '  ' + H.changeLine(c, 320) + (c.note ? ` — designers: "${c.note.slice(0, 160)}"` : '')));
+        if (kit && kit.edited && ch[0].release && kit.edited.slice(0, 10) < ch[0].release) out.push(`Note: the kit numbers above are from the hero page (last edited ${kit.edited.slice(0, 10)}), before the ${ch[0].patch} change — trust the patch-history numbers where they differ.`);
+      } else out.push('Patch history: no changes in the recent patches.');
+      const r = pp.rows.find(z => norm(z.hero) === norm(h));
+      if (r && r.tier !== '—') out.push(`This patch: ${r.tier}-tier, #${r.rank} of ${pp.rows.filter(z => z.tier !== '—').length} (score ${r.score}: pro ${r.parts.pro}, patch changes ${r.parts.kit}, model ${r.parts.model}, solo queue ${r.parts.solo})${r.trend ? ' · ' + r.trend : ''} — ${r.reasons.join(' · ')}`);
+      out.push(`Source: kit and patch notes — ${H.CREDIT}; pro games — Warr.GG.`);
+      return out.join('\n');
+    }
+    const lane = a.lane ? String(a.lane) : '';
+    const laneOk = r => !lane || norm(r.lane) === norm(lane) || (norm(lane) === 'exp' && /exp/i.test(r.lane));
+    const rows = pp.rows.filter(r => r.tier !== '—' && laneOk(r));
+    const top = Math.max(5, Math.min(30, Number(a.top) || 15));
+    out.push(`=== Patch power${lane ? ' — ' + lane : ''} · ${head} ===`, pp.note);
+    out.push(`TOP NOW${lane ? ' (' + lane + ')' : ''}:`);
+    rows.slice(0, top).forEach((r, i) => out.push(`${i + 1}. ${rank(r)} — ${r.reasons.slice(0, 3).join(' · ')}`));
+    const thisP = pp.rows.filter(r => laneOk(r) && r.kit && r.kit.changes.some(c => cur && c.release >= cur.since));
+    const fmt = r => { const c = r.kit.changes.find(z => cur && z.release >= cur.since); return `${r.hero} (${H.changeLine(c, 150).replace(/^\S+ \S+ (\([^)]*\) )?— /, c.patch + ': ')})`; };
+    const buffs = thisP.filter(r => r.kit.changes.some(c => c.release >= cur.since && c.type === 'buff' || (c.type === 'adjust' && c.score > 0.05)) && r.kit.delta > 0).sort((p, q) => q.kit.delta - p.kit.delta);
+    const nerfs = thisP.filter(r => r.kit.delta < 0).sort((p, q) => p.kit.delta - q.kit.delta);
+    const rev = thisP.filter(r => r.revamp);
+    if (buffs.length) out.push(`BUFFED THIS PATCH: ${buffs.slice(0, 10).map(fmt).join(' | ')}`);
+    if (nerfs.length) out.push(`NERFED THIS PATCH: ${nerfs.slice(0, 10).map(fmt).join(' | ')}`);
+    if (rev.length) out.push(`REVAMPED (untested — watch them): ${rev.map(r => r.hero).join(', ')}`);
+    const cmp = pp.games >= 10 && pp.prevGames >= 10;
+    if (cmp) {
+      const d = r => r.pro.pres - r.pro.presPrev;
+      const up = pp.rows.filter(r => laneOk(r) && d(r) > 0.12).sort((p, q) => d(q) - d(p)).slice(0, 6);
+      const dn = pp.rows.filter(r => laneOk(r) && d(r) < -0.12).sort((p, q) => d(p) - d(q)).slice(0, 6);
+      if (up.length) out.push(`RISING in pro play: ${up.map(r => `${r.hero} ${Math.round(r.pro.presPrev * 100)}% → ${Math.round(r.pro.pres * 100)}%`).join(', ')}`);
+      if (dn.length) out.push(`FALLING in pro play: ${dn.map(r => `${r.hero} ${Math.round(r.pro.presPrev * 100)}% → ${Math.round(r.pro.pres * 100)}%`).join(', ')}`);
+    }
+    out.push(`How it's scored: pro presence + win rate on this patch (trusted more as games come in), patch-note changes (strongest before games exist, fading as games are played on them), the draft model's hero effect, solo-queue Top 100. Raw kit numbers alone never decide it.`);
+    out.push(`Source: patch notes — ${H.CREDIT}; pro games — Warr.GG.`);
     return out.join('\n');
   };
 
@@ -575,10 +667,14 @@
   const M = { key: '', model: null, lanes: null };
   function draftModel() {
     const WD = root.WDraft; if (!WD) throw fail('Draft model not loaded.');
+    // On AI Battle the page trains its own model (same data + curated counters):
+    // use it so Heimer, the win meter and the AI all give the same numbers.
+    const pg = root.heimerDraftModel;
+    if (pg && pg.model && pg.model.w) return { key: 'page', model: pg.model, lanes: pg.lanes || {}, source: pg.source || 'page' };
     const off = C.usable.filter(m => !isScrim(m));
     const key = off.length + '|' + off.reduce((x, m) => ((m.date || '') > x ? m.date || '' : x), '');
     if (M.key !== key) {
-      M.model = WD.train(off, { roster: root.WDB && root.WDB.HERO_ROSTER, archetypes: root.WDB && root.WDB.COMP_ARCHETYPES });
+      M.model = WD.train(off, { roster: root.WDB && root.WDB.HERO_ROSTER, archetypes: root.WDB && root.WDB.COMP_ARCHETYPES, relations: X.rel || null });
       M.lanes = WD.lanePool(off, 2); M.key = key;
     }
     return M;
@@ -611,13 +707,17 @@
     // infer missing lanes: the hero's most common lane among those still open
     [bp, rp].forEach(ps => ps.forEach(p => { if (p.lane) return; const used = ps.map(q => q.lane).filter(Boolean); p.lane = (lanes[p.name] || []).find(l => !used.includes(l)) || ''; p.inferred = !!p.lane; }));
     const bans = arr => (Array.isArray(arr) ? arr : []).map(x => findHero(x, true));
-    const bt = a.blue_team ? findTeam(a.blue_team) : '', rt = a.red_team ? findTeam(a.red_team) : '';
+    // a team the data doesn't know (e.g. "You" on AI Battle) or a private one
+    // just means: no team-specific terms — the draft is still rated
+    const tryTeam = x => { try { return x ? findTeam(x) : ''; } catch (_) { return ''; } };
+    const bt = tryTeam(a.blue_team), rt = tryTeam(a.red_team);
     return { blueTeam: bt, redTeam: rt, bluePicks: bp, redPicks: rp, blueBans: bans(a.blue_bans), redBans: bans(a.red_bans) };
   }
   const pts = x => `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(1)}`;
   const pickTxt = ps => ps.map(p => `${p.name}${p.lane ? ' (' + p.lane + (p.inferred ? '?' : '') + ')' : ''}`).join(', ') || '—';
 
   IMPL.evaluate_draft = async (a) => {
+    await extras();
     const WD = root.WDraft, mm = draftModel(), model = mm.model;
     if (!model || !Object.keys(model.w).length) return `Draft model unavailable: ${(model && model.meta.note) || 'not enough games with full picks.'}`;
     const dr = readDraft(a, mm);
@@ -627,6 +727,8 @@
     const out = [`=== Draft model ===`, `BLUE ${dr.blueTeam || '(team not set)'}: ${pickTxt(dr.bluePicks)}${dr.blueBans.length ? ' · bans ' + dr.blueBans.join(', ') : ''}`,
       `RED ${dr.redTeam || '(team not set)'}: ${pickTxt(dr.redPicks)}${dr.redBans.length ? ' · bans ' + dr.redBans.join(', ') : ''}`];
     if (dr.bluePicks.some(p => p.inferred) || dr.redPicks.some(p => p.inferred)) out.push('(lane? = inferred from where that hero is usually played)');
+    const pDraft = WD.prob(model, dr, { noStrength: true });
+    out.push(`Draft only (team strength excluded — what the AI Battle win meter shows): BLUE ${Math.round(pDraft * 100)}% / RED ${Math.round((1 - pDraft) * 100)}%.`);
     out.push(`Win chance: BLUE ${Math.round(s.p * 100)}% / RED ${Math.round((1 - s.p) * 100)}%. ${dr.blueTeam && dr.redTeam ? 'Side + team strength' : 'Side'} alone: BLUE ${Math.round(pBase * 100)}% → the draft itself moves it ${pts((s.p - pBase) * 100)} pts for blue.`);
     const fac = side => s.parts.filter(p => p.group !== 'side' && p.group !== 'str' && (side === 'blue' ? p.pts > 0 : p.pts < 0)).slice(0, 6)
       .map(p => `${p.label} ${pts(Math.abs(p.pts))} (${p.n} games)`).join(', ');
@@ -656,6 +758,7 @@
   };
 
   IMPL.predict_draft = async (a) => {
+    await extras();
     const WD = root.WDraft, mm = draftModel();
     const team = findTeam(a.team, true);
     const dr = readDraft({ ...a, blue_team: a.side === 'blue' ? team : a.opponent, red_team: a.side === 'blue' ? a.opponent : team }, mm);
@@ -676,6 +779,263 @@
     }
     if (pr.sample < 4) out.push(`Only ${pr.sample} games at this slot — leaning on their overall picks.`);
     return out.join('\n');
+  };
+
+  // ── Draft brain: league-wide expert brain + how each team thinks ───────
+  const BR = { key: '', p: null };
+  function brainNow() {
+    if (!root.WBrain) throw fail('Draft brain not loaded.');
+    const off = C.usable.filter(m => !isScrim(m));
+    const key = off.length + '|' + off.reduce((z, m) => ((m.date || '') > z ? m.date || '' : z), '');
+    if (BR.key !== key || !BR.p) {
+      BR.key = key;
+      BR.p = Promise.all([extras(), heroData().catch(() => null)]).then(([x, H]) => {
+        const kitProfiles = {};
+        if (H && root.WHeroProfile) Object.keys(H.data().heroes).forEach(t => { const n = H.siteName(t); if (!root.WHeroProfile.get(n) || root.WHeroProfile.get(n).fromKit) kitProfiles[n] = { info: H.data().heroes[t].info, traits: H.data().heroes[t].traits }; });
+        return root.WBrain.buildAsync(off, { relations: x.rel || {}, calendar: H ? H.calendar() : undefined, kitProfiles });
+      });
+    }
+    return BR.p;
+  }
+  T.brain = () => brainNow();
+  const accLine = brain => {
+    const a = brain.acc || {}, gs = Object.keys(a); if (!gs.length) return 'Engine check: not enough recent drafts to test yet.';
+    const sum = (k, f) => gs.filter(f).reduce((s2, g) => s2 + a[g][k] * a[g].n, 0) / Math.max(1, gs.filter(f).reduce((s2, g) => s2 + a[g].n, 0));
+    const isBan = g => g.startsWith('ban'), isPick = g => g.startsWith('pick');
+    return `Engine check (predicting the newest 20% of real drafts it never saw): bans — right hero in its top 3 ${pct(sum('top3', isBan))}% of the time (presence alone ${pct(sum('pop3', isBan))}%); picks — ${pct(sum('top3', isPick))}% (presence alone ${pct(sum('pop3', isPick))}%).`;
+  };
+  IMPL.team_brain = async (a) => {
+    const team = findTeam(a.team, true);
+    const brain = await brainNow();
+    if (!brain.models || !Object.keys(brain.models).length) return `The draft brain needs 12+ logged games with full pick order — it has ${brain.n}.`;
+    const M = root.WBrain.teamMind(brain, team);
+    if (!M) return `${team} has no logged drafts with full pick order in the brain's window (${brain.n} most recent games).`;
+    const arrow = x => (x.d >= 0.05 ? ' ▲' : x.d <= -0.05 ? ' ▼' : '');
+    const out = [`=== How ${team} drafts — learned from ${M.nPicks} of their picks and ${M.nBans} bans (league brain: ${brain.n} games, ${brain.decisions} decisions) ===`, accLine(brain)];
+    out.push(`WHY THEY PICK (share of their picks · league): ${M.picks.slice(0, 7).map(x => `${x.label} ${pct(x.team)}% (${pct(x.league)}%)${arrow(x)}`).join(', ')}`);
+    out.push(`WHY THEY BAN: ${M.bans.slice(0, 6).map(x => `${x.label} ${pct(x.team)}% (${pct(x.league)}%)${arrow(x)}`).join(', ')}`);
+    const ph = M.philosophy.filter(p => p.n >= 3 && p.league > 0).sort((x, y) => Math.abs(Math.log((y.ratio || 0.01))) - Math.abs(Math.log((x.ratio || 0.01))));
+    if (ph.length) out.push(`PHILOSOPHY vs league (×1.0 = average): ${ph.slice(0, 7).map(p => `${p.label} ×${p.ratio.toFixed(2)}${p.ratio >= 1.25 ? ' (more)' : p.ratio <= 0.8 ? ' (less)' : ''}`).join('; ')}`);
+    out.push(`Predictability: the brain had their actual pick in its top 3 ${pct(M.predictable)}% of the time — ${M.predictable >= 0.55 ? 'by-the-book drafter' : M.predictable <= 0.35 ? 'creative / hard to read' : 'about league-typical'}.`);
+    if (M.types.length) out.push(`DRAFT TYPES they run (found in the data): ${M.types.map(x => `${x.type} ${pct(x.share)}% (that type wins ${pct(x.wr)}% league-wide)`).join('; ')}`);
+    if (M.pockets.length) out.push(`Pocket picks (first-time / rare heroes): ${M.pockets.slice(0, 8).join(', ')}`);
+    if (brain.shifts && brain.shifts.list && brain.shifts.list.length) out.push(`Patch ${brain.shifts.patch} shifts (from the data): ${brain.shifts.list.slice(0, 6).map(x => `${x.hero} ${x.dir === 'up' ? '▲' : '▼'} ${pct(x.before)}%→${pct(x.after)}%`).join(', ')}`);
+    // their latest draft, explained
+    const ids = brain.gameIds || (brain.games || []).map(g => g.id);
+    const lastId = [...ids].reverse().find(id => (brain.decs || []).some(d => d.game === id && d.team === team));
+    if (lastId) {
+      const g = (brain.games || []).find(x => x.id === lastId) || {};
+      const ex = root.WBrain.explainGame(brain, lastId).filter(d => d.team === team);
+      out.push(`Their latest draft${g.date ? ` (${g.date}${g.blueTeam ? `, ${g.blueTeam} vs ${g.redTeam}` : ''})` : ''}: ${ex.map(d => `${d.kind === 'ban' ? 'ban' : 'pick'} ${d.hero} — ${d.label}${d.rank != null ? ` (option #${d.rank + 1})` : ''}`).join('; ')}`);
+    }
+    return out.join('\n');
+  };
+  IMPL.explain_game = async (a) => {
+    const team = findTeam(a.team, true), opp = a.opponent ? findTeam(a.opponent) : '';
+    const brain = await brainNow();
+    const games = (brain.games || []).filter(g => involves(g, team) && (!opp || involves(g, opp)) && (!a.date || (g.date || '').startsWith(a.date)) && (!a.game_number || Number(g.gameNum) === Number(a.game_number)));
+    const g = games[games.length - 1];
+    if (!g) return `No logged game with full pick order found for ${team}${opp ? ' vs ' + opp : ''}${a.date ? ' on ' + a.date : ''}.`;
+    const ex = root.WBrain.explainGame(brain, g.id);
+    const slot = d => { const o = root.WBrain.ORDER[d.step - 1]; return o ? (o[0] === 'ban' ? `${o[1]} ban ${o[2] + 1}` : `${o[1] === 'blue' ? 'B' : 'R'}${o[2] + 1}`) : ''; };
+    return [`=== ${g.blueTeam} (blue) vs ${g.redTeam} (red) — ${g.date}${g.stage ? ' · ' + g.stage : ''}${g.gameNum ? ' · game ' + g.gameNum : ''} · ${g.winner === 'blue' ? g.blueTeam : g.redTeam} won ===`,
+      ...ex.map(d => `${d.step}. ${slot(d)} ${d.team}: ${d.hero} — ${d.label}${d.why.length > 1 ? ' (+' + d.why.slice(1).join(', ') + ')' : ''} · option #${d.rank + 1} (${pct(d.p || 0)}%)`),
+      'Option # = where the brain ranked the choice among what was open (1 = the expected move; high numbers = a surprise).'].join('\n');
+  };
+
+  // ── Ban plan: the WBan engine (warr-ban.js) over everything we log ─────
+  IMPL.ban_plan = async (a) => {
+    const x = await extras();
+    const W = root.WIntel, WB = root.WBan;
+    if (!WB) throw fail('Ban engine not loaded.');
+    const opp = findTeam(a.opponent || a.team_b, true);
+    let us = '';
+    try { us = a.team ? findTeam(a.team) : (C.myTeam && !C.locked(C.myTeam) && C.myTeam !== opp ? C.myTeam : ''); } catch (_) { us = ''; }
+    if (us === opp) us = '';
+    const off = p => p.filter(m => !isScrim(m));
+    const sc = scope(a, opp), seasonSc = a.stage ? scope({ ...a, stage: '' }, opp) : sc;
+    const meta = off(seasonSc.pool);
+    if (!meta.length) return `No games in ${sc.label}.`;
+    let oppGames = off(sc.pool).filter(m => involves(m, opp));
+    if (a.stage && oppGames.length < 6) oppGames = meta.filter(m => involves(m, opp));            // thin playoff sample → whole season
+    if (!oppGames.length) return `${opp} has no games in ${sc.label} — try season "all".`;
+    let usGames = [];
+    if (us) { try { usGames = off(scope({ ...a, stage: '' }, us).pool).filter(m => involves(m, us)); } catch (_) { usGames = []; } }
+    const scrims = us ? C.usable.filter(m => isScrim(m) && involves(m, us)) : [];
+    const last = meta.reduce((z, m) => ((m.date || '') > z ? m.date || '' : z), '');
+    const lo = new Date((Date.parse(last) || Date.now()) - 120 * 864e5).toISOString().slice(0, 10);
+    const cross = C.usable.filter(m => !isScrim(m) && m.league !== sc.lg && (m.date || '') >= lo && (m.date || '') <= last);
+    let mm = null; try { mm = root.WDraft ? draftModel() : null; } catch (_) { mm = null; }
+    const ourSide = a.side === 'blue' || a.side === 'red' ? a.side : '';
+    const theirSide = ourSide ? (ourSide === 'blue' ? 'red' : 'blue') : 'red';
+    const dr = readDraft({ blue_team: theirSide === 'blue' ? opp : us, red_team: theirSide === 'red' ? opp : us,
+      blue_picks: a.blue_picks, red_picks: a.red_picks, blue_bans: a.blue_bans, red_bans: a.red_bans }, mm || { lanes: {} });
+    let tierOf = () => '';
+    try {
+      const dd = JSON.parse(localStorage.getItem('mlbb_draft_data') || 'null');
+      const pt = x.patches.slice().sort((p, q) => (q.dateFrom || '').localeCompare(p.dateFrom || ''))[0];
+      tierOf = h => (pt && pt.heroes && pt.heroes[h] && pt.heroes[h].tier) || (dd && dd.tierList && dd.tierList[h] && dd.tierList[h].tier) || '';
+    } catch (_) {}
+    const mustBan = h => { try { return typeof HEROES !== 'undefined' && (HEROES.find(z => z.name === h) || {}).mp === 'mustban'; } catch (_) { return false; } };   // eslint-disable-line no-undef
+    const series = (a.series || []).map(g => ({ theirPicks: (g.their_picks || []).map(h => { try { return findHero(h); } catch (_) { return h; } }), weWon: !!g.we_won }));
+    const R = W.ratings(meta);
+    const res = WB.plan({ opp, us, meta, oppGames, usGames, scrims, cross, R, side: ourSide, phase: a.phase ? Number(a.phase) : 0,
+      draft: dr, series, stage: /play-?off|final|semi|bracket|knock/i.test(a.stage || '') ? 'Playoffs' : '', map: a.map || '',
+      model: mm && mm.model, lanes: mm && mm.lanes, relations: x.rel || {}, archetypes: root.WDB && root.WDB.COMP_ARCHETYPES, tierOf, mustBan, top100: x.top100,
+      ...(await heroData().then(H => H ? { kit: H.kitBySite({ games: C.usable.filter(m => !isScrim(m)) }), patchOf: m => H.patchOfGame(m) } : {}).catch(() => ({}))) });
+    const pts = v => `${v >= 0 ? '+' : ''}${v.toFixed(1)}`;
+    const line = (r, i) => `${i + 1}. ${r.hero}${r.lane ? ' (' + r.lane + ')' : ''} [${r.kind} · ${r.conf}] — ${r.factors.slice(0, 4).map(f => `${f.label} (${pts(f.v)})`).join('; ')}`
+      + (r.flags.pickInstead ? ' · CONTESTED: you can first-pick it instead' : '') + (r.flags.theyBan ? ` · they ban it ${r.flags.theyBan}% of games — may not need your ban` : '');
+    const out = [`=== Ban plan vs ${opp} — ${sc.label}${us ? ` · for ${us}` : ''}${ourSide ? ` · you are ${ourSide.toUpperCase()}` : ''} · phase ${res.phase} ===`,
+      `Based on ${res.n.league} ${seasonSc.label} games (meta${res.curPatch ? ', patch ' + res.curPatch : ''}), ${res.n.opp} ${opp} games${us ? `, ${res.n.us} ${us} games` : ''}${res.n.scrims ? `, ${res.n.scrims} of your scrims` : ''}${cross.length ? `, ${cross.length} games from other leagues` : ''}. Each ban = how likely they pick it × what they lose vs their next-best option, plus meta denial, their identity and threats to you; points ≈ win-%.`];
+    const strat = [];
+    res.strategy.forEach(st => strat.push(`Lane-lock their ${st.lane}${st.main ? ' (' + st.main + ')' : ''}: ${st.heroes.join(' + ')} cover ${pct(st.share)}% of their ${st.lane} games — banning both forces them off-comfort.`));
+    res.notes.forEach(n2 => strat.push(n2));
+    if (strat.length) out.push('STRATEGY: ' + strat.join(' '));
+    if (res.phase === 1) {
+      const order = ourSide === 'blue' ? 'your bans go 1st, 3rd and 5th' : ourSide === 'red' ? 'your bans go 2nd, 4th and 6th' : 'B-R-B-R-B-R';
+      out.push(`PHASE 1 — ban in this order (${order}):`);
+      res.picked.forEach((r, i) => out.push(line(r, i)));
+      out.push('Also strong:');
+      res.rows.filter(r => !res.picked.includes(r)).slice(0, 4).forEach((r, i) => out.push(line(r, i + 3)));
+      out.push(`PHASE 2 preview (ban into the roles ${opp} still needs): ${Object.entries(res.phase2).map(([l, hs]) => `${l}: ${hs.join(', ')}`).join(' | ')}`);
+    } else {
+      out.push(`PHASE 2 — ${opp} still needs ${res.theirOpen.join(', ') || 'nothing'}:`);
+      res.picked.forEach((r, i) => out.push(line(r, i)));
+      res.rows.filter(r => !res.picked.includes(r)).slice(0, 3).forEach((r, i) => out.push(line(r, i + 2)));
+    }
+    const contested = res.rows.slice(0, 12).filter(r => r.flags.contested);
+    if (contested.length) out.push(`Contested (your heroes too): ${contested.slice(0, 4).map(r => `${r.hero} (you ${r.flags.contested})`).join(', ')}${ourSide === 'blue' && res.phase === 1 ? ' — with first pick, take the best one instead of banning it' : ''}.`);
+    if (res.theirBans.length) out.push(`Expect ${opp} to ban: ${res.theirBans.map(b => `${b.hero} ${b.n}/${b.of}`).join(', ')}.`);
+    return out.join('\n');
+  };
+
+  // ── Heimer Lite: answers from the tools alone — no language model ──────
+  // Used when there's no AI access or the AI budget is used up. It cannot
+  // invent anything (every line is a tool result over the site's data), but it
+  // reads questions by keywords, so every answer says what it looked up.
+  const RX = {
+    playoffs: /\b(play-?offs?|knock-?outs?|brackets?|grand ?finals?|finals?|semis?|semi-?finals?)\b/i,
+    regular: /\b(regular season|reg season|group stage|weeks?)\b/i,
+    draftNow: /\b(what (should|do|can) (i|we) (pick|ban)|(pick|ban) (now|next)|next (pick|ban)|what to (pick|ban)|best pick|counter[- ]?pick|ano (pick|ban))\b/i,
+    rate: /\b(draft|lineup|comp)\b.*\b(good|bad|rate|strong|win|chance|better|ok)\b|\bwho wins\b|\bwin (rate|chance|%)\b/i,
+    predict: /\b(what will|what would|predict|likely|expect|gonna)\b|\bwhen\b.*\bbanned\b|\bif we ban\b/i,
+    draftHabit: /\b(first[- ]?pick|last pick|draft(s|ing)?|bans?|banning|phase|priority|habits?|adjust)\b/i,
+    vs: /\b(vs\.?|versus|against|beat|matchup|h2h|head[- ]to[- ]head|kalaban)\b/i,
+    league: /\b(standings?|table|rank(ing)?s?|meta|contested|tier|strongest|best teams?|top teams?|who.?s (the )?best|league)\b/i,
+    player: /\b(player|ign|hero pool|plays)\b/i,
+  };
+  const KEYLINE = {
+    evaluate_draft: [/^Win chance:.*/m, /^Draft only.*/m, /^Best next picks for .*/m, /^.*'s habits say .*/m],
+    predict_draft: [/^Most likely \(habit\):.*/m, /^Best for them by the draft model:.*/m],
+    draft_tendencies: [/^- Blue first pick.*/m, /^- Red first two.*/m, /^- When .* is banned.*/m],
+    matchup: [/^Model \(.*/m, /^Bans for .*/m, /^Head-to-head.*/m],
+    team_report: [/^.* · strength rank .*/m, /^Data levers — .*/m],
+    team_brain: [/^WHY THEY PICK.*/m, /^WHY THEY BAN.*/m, /^PHILOSOPHY.*/m, /^Predictability.*/m],
+    explain_game: [/^=== .*/m],
+    ban_plan: [/^STRATEGY: .*/m, /^1\. .*/m, /^2\. .*/m, /^3\. .*/m],
+    hero_report: [/^\d+ picks, .*/m, /^Lane matchups.*/m],
+    player_report: [/^Record .*/m, /^Hero pool: .*/m],
+    league_report: [/^REGULAR SEASON STANDINGS.*/m, /^Meta .*/m],
+    patch_report: [/^This patch: .*/m, /^1\. .*/m, /^2\. .*/m, /^BUFFED THIS PATCH: .*/m, /^NERFED THIS PATCH: .*/m, /^Kit: .*/m],
+  };
+  function toMd(text) {
+    return String(text || '').split('\n').map(l => {
+      const t = l.replace(/\s+$/, '');
+      let m;
+      if ((m = t.match(/^=== (.*) ===$/))) return `#### ${m[1]}`;
+      if (/^\s*- /.test(t)) return t.trim();
+      if (/^\s{2,}\S/.test(t)) return `- ${t.trim()}`;
+      if ((m = t.match(/^([A-Z][A-Za-z0-9 '’()·,./+-]{2,48}?)(:| —) (.+)$/))) return `- **${m[1]}${m[2] === ':' ? ':' : ' —'}** ${m[3]}`;
+      return t;
+    }).join('\n');
+  }
+  function liteHelp() {
+    const lg = (C.myTeam && teamLeague(C.myTeam)) || leagues()[0] || 'MPL PH';
+    const tm = visibleTeams().find(t => teamLeague(t) === lg && t !== C.myTeam) || 'ONIC PH';
+    return [`I'm in **free mode** — I answer straight from Warr.GG's data (no AI writing), so name a team, hero, player or league and I'll pull it up. Try:`,
+      `- "What's ${tm}'s weakness?"`, `- "${C.myTeam || 'Aurora PH'} vs ${tm} in playoffs"`, `- "What does ${tm} first pick?" · "What will ${tm} pick if we ban Ling?"`,
+      `- "Fanny vs Ling" · "Who plays Chou best?"`, `- "${lg} standings" · "${lg} meta"`, `- On AI Battle: "What should I pick now?"`].join('\n');
+  }
+  T.lite = async function (q, ctx, page) {
+    C = ctx;
+    const text = String(q || '');
+    const all = [...new Set(C.usable.flatMap(m => [m.blueTeam, m.redTeam]))];
+    const vis = all.filter(t => !C.locked(t));
+    const myLg = C.myTeam ? teamLeague(C.myTeam) : '';
+    const named = root.WIntel.findTeams(text, vis, t => (t === C.myTeam ? 3 : 0) + (myLg && teamLeague(t) === myLg ? 1 : 0));
+    const lockedHit = root.WIntel.findTeams(text, all.filter(t => C.locked(t)));
+    const we = /\b(we|us|our|my team|kami|namin|natin|tayo)\b/i.test(text) && C.myTeam;
+    // subject first: the team the question is ABOUT (not "us"), then us for matchups
+    let teams = named.filter(t => !(we && t === C.myTeam));
+    if (we) teams.push(C.myTeam);
+    if (!teams.length && named.length) teams = named.slice();
+    teams = [...new Set(teams)].slice(0, 2);
+    const heroes = root.WIntel.findHeroes(text, allHeroes());
+    const stage = RX.playoffs.test(text) ? 'Playoffs' : RX.regular.test(text) ? 'Regular Season' : '';
+    const side = /\bblue\b/i.test(text) ? 'blue' : /\bred\b/i.test(text) ? 'red' : '';
+    let player = '';
+    { const P = allPlayers(); const words = text.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length >= 3); const hit = Object.values(P).find(p => words.includes(norm(p.name)) && Object.keys(p.teams).some(t => !C.locked(t))); if (hit) player = hit.name; }
+    const st = stage ? { stage } : {};
+    const pd = page && page.draft;
+    const calls = [];
+    if (teams.length && /\b(how|what).*\b(draft|think|style|approach|philosophy|thought process|mindset)\b|\b(style|thought process|philosophy|mindset|tendencies)\b/i.test(text) && !/\bban/i.test(text)) {
+      calls.push(['team_brain', { team: teams[0] }]);
+    } else if (teams.length && /\b(explain|why did|break ?down)\b.*\b(draft|pick|ban|game)\b/i.test(text)) {
+      calls.push(['explain_game', { team: teams[0], opponent: teams[1] || undefined }]);
+    }
+    if (calls.length) { /* routed above */ }
+    else if (lockedHit.length && !teams.length) return { text: `I can't see **${lockedHit.join(', ')}** — that team's data is private.`, looked: '' };
+    const pdOpp = pd ? (pd.userSide === 'blue' ? pd.redTeam : pd.blueTeam) : '';
+    if (calls.length) { /* already routed */ } else if (pd && pdOpp && /\bbans?\b|banning/i.test(text) && !/\bpick\b/i.test(text)) {
+      const P = a => (a || []).map(p => ({ hero: p.name, lane: p.lane || undefined }));
+      calls.push(['ban_plan', { opponent: pdOpp, side: pd.userSide, blue_picks: P(pd.bluePicks), red_picks: P(pd.redPicks), blue_bans: pd.blueBans, red_bans: pd.redBans }]);
+    } else if (pd && (RX.draftNow.test(text) || RX.rate.test(text) || (!teams.length && !heroes.length && /\b(pick|ban|draft)\b/i.test(text)))) {
+      const P = a => (a || []).map(p => ({ hero: p.name, lane: p.lane || undefined }));
+      calls.push(['evaluate_draft', { blue_team: pd.blueTeam || undefined, red_team: pd.redTeam || undefined, blue_picks: P(pd.bluePicks), red_picks: P(pd.redPicks), blue_bans: pd.blueBans, red_bans: pd.redBans,
+        suggest_for: pd.next && pd.next.kind === 'pick' ? pd.next.side : (pd.userSide || 'none') }]);
+    } else if (teams.length && /\bbans?\b|\bbanning\b/i.test(text) && !/\bbanned\b/i.test(text) && !(/\b(will|would|does|do|usually|always)\b[^?]*\bbans?\b/i.test(text) && !/\b(we|us|our|should|i)\b/i.test(text))) {
+      const oppT = teams.find(t => t !== C.myTeam) || teams[0];
+      const ph = /phase ?2|second phase|last bans?|2nd phase/i.test(text) ? 2 : /phase ?1|first phase|first bans?|1st phase/i.test(text) ? 1 : undefined;
+      calls.push(['ban_plan', { opponent: oppT, side: side || undefined, phase: ph, ...st }]);
+    } else if (teams.length && RX.predict.test(text)) {
+      const banned = /\bbann?ed\b|\bif we ban\b/i.test(text) ? heroes : [];
+      const tSide = side || 'red';
+      calls.push(['predict_draft', { team: teams[0], side: tSide, kind: /\bpick(s|ed|ing)?\b|first[- ]?pick/i.test(text) ? 'pick' : /\bbans?\b/i.test(text) && !banned.length ? 'ban' : 'pick', [tSide === 'red' ? 'blue_bans' : 'red_bans']: banned, ...st }]);
+      calls.push(['draft_tendencies', { team: teams[0], ...st, ...(side ? { side } : {}) }]);
+    } else if (teams.length >= 2 || (teams.length === 1 && RX.vs.test(text) && C.myTeam && teams[0] !== C.myTeam)) {
+      const a2 = teams.length >= 2 ? (teams.includes(C.myTeam) ? C.myTeam : teams[0]) : C.myTeam;
+      const b2 = teams.length >= 2 ? teams.find(t => t !== a2) : teams[0];
+      calls.push(['matchup', { team_a: a2, team_b: b2, ...st }]);
+    } else if (teams.length && RX.draftHabit.test(text)) {
+      calls.push(['draft_tendencies', { team: teams[0], ...st, ...(side ? { side } : {}) }]);
+    } else if (teams.length) {
+      calls.push(['team_report', { team: teams[0], ...st, ...(side ? { side } : {}) }]);
+    } else if (heroes.length && /\b(skills?|kit|abilit\w*|passive|ultimate|ult|cool ?downs?|cd|what does .* do|buff(ed|s)?|nerf(ed|s)?|changed?|patch)\b/i.test(text)) {
+      calls.push(['patch_report', { hero: heroes[0] }]);
+    } else if (!heroes.length && /\b(this patch|current patch|new patch|patch|buff(ed|s)?|nerf(ed|s)?|op|overpowered|strongest|broken|tier ?list|meta heroes|malakas|lakas)\b/i.test(text) && !/\bstandings?\b|\btable\b/i.test(text)) {
+      const ln = (text.match(/\b(exp|jungle|jungler|mid|gold|roam|roamer)\b/i) || [])[1];
+      const lane = ln ? ({ exp: 'EXP', jungle: 'Jungle', jungler: 'Jungle', mid: 'Mid', gold: 'Gold', roam: 'Roam', roamer: 'Roam' })[ln.toLowerCase()] : undefined;
+      calls.push(['patch_report', { lane }]);
+    } else if (player && (RX.player.test(text) || !heroes.length)) {
+      calls.push(['player_report', { player, ...st }]);
+    } else if (heroes.length) {
+      const vsH = heroes.length >= 2 && RX.vs.test(text) ? heroes[1] : undefined;
+      const withH = heroes.length >= 2 && !vsH ? heroes[1] : undefined;
+      calls.push(['hero_report', { hero: heroes[0], vs_hero: vsH, with_hero: withH, ...st }]);
+    } else if (RX.league.test(text) || stage) {
+      calls.push(['league_report', { ...st }]);
+    }
+    if (!calls.length) return { text: liteHelp(), looked: '' };
+    const outs = [];
+    for (const [n, a] of calls) outs.push({ n, label: T.describe(n, a, C).replace(/…$/, ''), text: await T.run(n, a, C) });
+    const take = [];
+    outs.forEach(o => (KEYLINE[o.n] || []).forEach(rx => { const m = o.text.match(rx); if (m && take.length < 4) take.push(m[0].replace(/^- /, '').trim()); }));
+    const looked = outs.map(o => o.label).join(' · ');
+    const body = [`*Looked up: ${looked}*`];
+    if (take.length && !outs.every(o => /^ERROR/.test(o.text))) body.push('**Quick take**', ...take.map(t => `- ${t}`));
+    outs.forEach(o => body.push('', toMd(o.text)));
+    return { text: body.join('\n'), looked };
   };
 
   T.run = async function (name, input, ctx) {

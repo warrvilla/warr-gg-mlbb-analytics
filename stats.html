@@ -2470,7 +2470,11 @@ Respond ONLY with JSON matching this exact schema:
     _aiCache[_aiKey()] = r;
     renderAIReport(r, aiSection);
   } catch(e) {
-    const msg = (e.code==='NO_AI_ACCESS'||e.message==='NO_API_KEY') ? WDB.NO_AI_MSG : `AI analysis failed: ${e.message}`;
+    const c = e.code || e.message || '';
+    const msg = (c==='NO_AI_ACCESS'||e.message==='NO_API_KEY') ? WDB.NO_AI_MSG
+      : /504|TIMEOUT/i.test(c) ? 'The AI took too long this time. Everything above is built from your data and still holds; try the AI strategy again in a minute.'
+      : /BUDGET|CAP|LIMIT/i.test(c) ? "This month's AI budget is resting, so the AI strategy is off for now. Everything above is free and built from the same data."
+      : `AI strategy unavailable right now (${e.message}). Everything above is built from your data and still holds.`;
     aiSection.innerHTML = `
       <div class="report-hdr"><span class="report-hdr-title">AI Draft Strategy</span></div>
       <div class="report-body"><div style="font-size:12px;color:var(--text3);">${msg}</div></div>`;

@@ -22,6 +22,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="warr-lib.js?v=2"></script>
 <script src="warr-intel.js?v=3"></script>
+<script src="warr-draft-model.js?v=2"></script>
+<script src="warr-ban.js?v=2"></script>
+<script src="warr-hero-data.js?v=1"></script>
 <script src="warr-nav.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <link rel="stylesheet" href="warr-styles.css">
@@ -1161,6 +1164,11 @@ body.in-battle .page-body{overflow:hidden !important;}
             <input type="checkbox" id="useMyScrims" onchange="setUseMyScrims(this.checked)" style="width:14px;height:14px;cursor:pointer;accent-color:var(--accent);">
             Also learn from my own scrims <span style="color:var(--text3);">(private — only yours, never other users')</span>
           </label>
+          <label id="claudeAssistRow" style="display:none;align-items:center;gap:8px;margin-top:8px;font-size:11px;color:var(--text2);cursor:pointer;">
+            <input type="checkbox" id="claudeAssist" onchange="setClaudeAssistAB(this.checked)" style="width:14px;height:14px;cursor:pointer;accent-color:var(--accent);">
+            Claude double-checks AI picks <span style="color:var(--text3);">(uses the AI budget — the free Draft Model already drafts at full strength)</span>
+          </label>
+          <div id="modelStatusAB" style="margin-top:8px;font-size:11px;line-height:1.5;color:var(--text3);"></div>
         </div>
       </div>
     </section>
@@ -1217,7 +1225,7 @@ body.in-battle .page-body{overflow:hidden !important;}
     <div class="phase-lbl" id="phaseLbl">Ban Phase I</div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;">
       <div class="turn-tag turn-you" id="turnTag">YOUR TURN — BAN</div>
-      <div class="bh-wp">WIN PROBABILITY <strong id="wpVal">50%</strong><span id="wpDelta" class="wp-delta"></span></div>
+      <div class="bh-wp">WIN PROBABILITY <strong id="wpVal">50%</strong><span id="wpDelta" class="wp-delta"></span><span id="wpModel" style="margin-left:6px;font-size:9px;color:var(--text3);cursor:help;"></span></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;"><span id="seriesChip" style="display:none;font-size:8.5px;font-weight:700;letter-spacing:.08em;color:var(--gold);background:var(--gold-dim);border:1px solid var(--gold-border);padding:2px 8px;border-radius:999px;"></span><span class="dif" id="difBadge"></span><span style="font-size:9px;color:var(--text3);" id="stepCtr">Step 1/20</span></div>
   </div>
@@ -1295,6 +1303,7 @@ body.in-battle .page-body{overflow:hidden !important;}
     <div class="rasummary" id="rasummary"></div>
     <div class="rbreakdown" id="rbreakdown"></div>
     <div id="rseries" style="display:none;font-size:12px;color:var(--text2);margin:8px 0 2px;letter-spacing:.04em;"></div>
+    <div id="rlogReal"></div>
     <div class="rbtns">
       <button class="rbtn rbp" id="rnextBtn" onclick="nextSeriesGame()" style="display:none;background:linear-gradient(135deg,#7C5CF6,#5E5CE6);">Next Game →</button>
       <button class="rbtn rbp" onclick="this.textContent='Analyzing…';this.disabled=true;runAnalysis().finally(()=>{this.textContent='Full Analysis';this.disabled=false;})">Full Analysis</button>
@@ -1625,7 +1634,12 @@ function setUseMyScrims(v){
   _useMyScrims=!!v;
   try{ localStorage.setItem('warr_ab_use_scrims', _useMyScrims?'1':'0'); }catch(_){}
   if(typeof invalidateScoutIntel==='function') invalidateScoutIntel(); // rebuild intel with new source
+  try{ if(typeof abModelTrain==='function') abModelTrain(); }catch(_){}   // the Draft Model's pool changed too
 }
+// Claude on every AI pick is optional (it costs API budget). Default OFF: the
+// local Draft Brain + trained Draft Model drafts at full strength for free.
+let _claudeAssist=(()=>{ try{ return localStorage.getItem('warr_ab_claude')==='1'; }catch(_){ return false; } })();
+function setClaudeAssistAB(v){ _claudeAssist=!!v; try{ localStorage.setItem('warr_ab_claude', _claudeAssist?'1':'0'); }catch(_){} }
 function _isLearnLeague(lg){
   const x=(lg||'').trim();
   if(_isOfficialLeague(x)) return true;
@@ -1985,11 +1999,14 @@ setSide('blue');setDiff('hard');setMap('');
 document.addEventListener('DOMContentLoaded',async()=>{
   // Reflect saved "learn from my scrims" preference in the toggle
   try{ const _cb=document.getElementById('useMyScrims'); if(_cb)_cb.checked=_useMyScrims; }catch(_){}
+  try{ const _ca=document.getElementById('claudeAssist'); if(_ca)_ca.checked=_claudeAssist;
+       const _row=document.getElementById('claudeAssistRow'); if(_row&&typeof WDB!=='undefined'&&WDB.hasAIAccess&&WDB.hasAIAccess())_row.style.display='flex'; }catch(_){}
   // Pre-warm API key cache from Supabase so sync version works immediately
   if(typeof WDB!=='undefined'&&WDB.getAdminApiKey) await WDB.getAdminApiKey();
   // Load each league's admin-marked current season so AI Battle scopes to it.
   await _loadABCurrentSeasons();
   refreshSeasonScopeAB();
+  try{ abModelTrain(); }catch(_){}
   updateApiKeyCard();
   updateTokenDisplay();
   // Default opponent mode to VS MPL Team and auto-pick the most-scouted team
@@ -2766,7 +2783,7 @@ async function aiTurn(){
   try{
     // Claude AI is invite-only: Analyst / Pro Team / admin. Members get the
     // full local Draft Brain (same pipeline, no API cost).
-    const cloudOK=typeof WDB!=='undefined'&&WDB.hasAIAccess&&WDB.hasAIAccess();
+    const cloudOK=_claudeAssist&&typeof WDB!=='undefined'&&WDB.hasAIAccess&&WDB.hasAIAccess();
     const hero=(!cloudOK||diff==='normal')?localAI(s):await claudeAI(s);
     // Compress the "thinking" beat — was 350ms, now 150ms. The compute itself
     // (localAI/claudeAI) already takes time so the indicator still flashes.
@@ -3903,6 +3920,119 @@ function identityAB(myP){return myP.length>=2?inferArchetype(myP.map(h=>h.name))
 
 // ═══════ THE BRAIN ═══════
 // Returns full decision context: {hero, reason, conf, intent, question, shortlist, audit, prediction}
+// ── WBan: the full ban engine, when the side we ban against is a real team ──
+let _abBPKey='',_abBP=null;
+function _abKnownTeam(t){
+  if(!t)return'';
+  try{const ms=_learnMatches(loadScoutAB().matches||[]);return ms.some(m=>m.league!=='Scrims'&&(m.blueTeam===t||m.redTeam===t))?t:'';}catch(_){return'';}
+}
+function _abBanPlan(opp,us,side){
+  if(typeof WBan==='undefined'||!opp)return null;
+  const key=[opp,us,side,ST.step,ST.bb.length,ST.rb.length,ST.bp.length,ST.rp.length,_abMKey,(window.WHeroData&&WHeroData.ready())?'kit':''].join('|');
+  if(_abBPKey===key)return _abBP;
+  try{
+    const all=loadScoutAB().matches||[];
+    const off=_officialMatches(all).filter(m=>m.winner);
+    const lgOf=t=>{const g=off.filter(m=>m.blueTeam===t||m.redTeam===t).sort((a,b)=>(b.date||'').localeCompare(a.date||''));return(g[0]||{}).league||'';};
+    const lg=lgOf(opp);
+    const meta=abScoped(off.filter(m=>m.league===lg));
+    const oppGames=meta.filter(m=>m.blueTeam===opp||m.redTeam===opp);
+    if(!oppGames.length)return(_abBPKey=key,_abBP=null);
+    const usGames=us?abScoped(off.filter(m=>m.blueTeam===us||m.redTeam===us)):[];
+    const scrims=us?all.filter(m=>m.league==='Scrims'&&m.winner&&(m.blueTeam===us||m.redTeam===us)):[];
+    const last=meta.reduce((z,m)=>((m.date||'')>z?(m.date||''):z),'');
+    const lo=new Date((Date.parse(last)||Date.now())-120*864e5).toISOString().slice(0,10);
+    const cross=off.filter(m=>m.league!==lg&&(m.date||'')>=lo&&(m.date||'')<=last);
+    const P=a=>a.map(h=>({name:h.name,lane:_abLaneOf(h)}));
+    const theirSide=side==='blue'?'red':'blue';
+    const draft={bluePicks:P(ST.bp),redPicks:P(ST.rp),blueBans:ST.bb.map(h=>h.name),redBans:ST.rb.map(h=>h.name),
+      blueTeam:theirSide==='blue'?opp:us,redTeam:theirSide==='red'?opp:us};
+    _abBP=WBan.plan({opp,us,meta,oppGames,usGames,scrims,cross,R:WIntel.ratings(meta),side,draft,
+      map:_battleMap||'',model:_abM,lanes:abLanePool(),relations:_abRel||{},archetypes:(typeof WDB!=='undefined'&&WDB.COMP_ARCHETYPES)||null,
+      tierOf:h=>(TIER_LIST[h]&&TIER_LIST[h].tier)||'',mustBan:h=>(HEROES.find(x=>x.name===h)||{}).mp==='mustban',
+      // patch notes (Liquipedia): fresh buffs/nerfs + the real patch of each game
+      kit:(window.WHeroData&&WHeroData.ready())?WHeroData.kitBySite({games:off}):null,
+      patchOf:m=>(window.WHeroData&&WHeroData.ready())?WHeroData.patchOfGame(m):''});
+  }catch(e){console.warn('[WBan]',e);_abBP=null;}
+  _abBPKey=key;return _abBP;
+}
+
+// ── Model layers for the Draft Brain ─────────────────────────────────────
+// BAN: what each hero is worth to the opponent if they get it (model), times
+// how likely they are to take it — plus the emulated team's real ban habits.
+function _abModelBanLayer(cands,o){
+  const M=abModel();if(!M||!cands.length)return;
+  const rel=WDraft.reliability(M);
+  const dr=abDraftNow(),opp=o.side==='blue'?'red':'blue',lanes=abLanePool();
+  const baseOpp=_abP(M,dr,opp);
+  const top=cands.slice(0,18);
+  top.forEach(c=>{
+    const ls=(lanes[c.h.name]||realLanesAB(c.h)||[]).filter(l=>o.oppNeeded.includes(l));
+    let g=0;ls.forEach(l=>{g=Math.max(g,_abP(M,_abWith(dr,opp,c.h.name,l),opp)-baseOpp);});
+    c.mDeny=g;
+    if(g>0){c.score+=c.pr*g*100*28*rel;if(g>=0.015)c.why.model=`model: worth +${(g*100).toFixed(1)}% to ${o.oppLabel} if they get it`;}
+  });
+  if(o.ep){
+    const P=abPolicy(o.ep.name);
+    if(P&&P.n>=3){
+      const pr=WDraft.predict(P,dr,o.ep.name,o.side,'ban',{limit:60});
+      top.forEach(c=>{const e=pr.all.find(x=>x.hero===c.h.name);if(!e)return;const hp=e.score/(pr.tot||1);c.score+=hp*140;
+        if(hp>=0.12&&!c.why.mimic){c.why.mimic=`${o.ep.name}: ${e.why[0]||'their ban habit'}`;c.mimicHp=hp;}});
+    }
+  }
+  // The full ban engine (meta + their identity + threats to us + economy) when
+  // the opponent is a real team: primary for YOUR suggestions, a layer for the AI.
+  try{
+    const oppTeam=o.forHuman?((aiMode==='enemy'&&enemyTeamName)||''):_abKnownTeam(_abMyTeamGuess());
+    const usTeam=o.forHuman?_abKnownTeam(_abMyTeamGuess()):((aiMode==='enemy'&&enemyTeamName)||'');
+    const res=oppTeam?_abBanPlan(oppTeam,usTeam,o.side):null;
+    if(res){
+      const byH={};res.rows.forEach(r=>{byH[r.hero]=r;});
+      cands.forEach(c=>{const r=byH[c.h.name];
+        if(o.forHuman)c.score*=0.35;                        // your suggestions: the ban engine leads, the brain refines
+        if(!r)return;c.wb=r;c.score+=r.score*(o.forHuman?14:4);
+        c.why.plan=`${r.kind.toLowerCase()} — ${r.factors.slice(0,2).map(f=>f.label).join('; ')}`;});
+      cands.sort((a,b)=>b.score-a.score);
+      cands.forEach(c=>{if(c.wb&&c.wb.score>=10&&(o.forHuman||!c.tag||c.tag==='meta'||c.tag==='model'))c.tag='plan';});
+    }
+  }catch(e){console.warn('[WBan layer]',e);}
+  cands.sort((a,b)=>b.score-a.score);
+  cands.forEach(c=>{if(c.why.model&&c.mDeny>=0.03&&(!c.tag||c.tag==='meta'))c.tag='model';});
+}
+// PICK: model value of each candidate, and — on Hard/GM — where we stand after
+// the opponent's best answer (2-step minimax). Plus the emulated team's habits.
+function _abModelPickLayer(cands,o){
+  const M=abModel();if(!M||!cands.length)return;
+  const rel=WDraft.reliability(M);
+  const dr=abDraftNow(),side=o.side,opp=side==='blue'?'red':'blue';
+  const base=_abP(M,dr,side);
+  const top=cands.slice(0,16);
+  const doLA=o.hardPlus&&o.oppCount<5&&o.intent!=='EXECUTE';
+  const oppPool=doLA?_abPlausible(M,opp,o.usedIds):null;
+  top.forEach(c=>{
+    const ln=pickLaneForHero(c.h,o.myP),lane=ln&&ln!=='Flex'?ln:_abLaneOf(c.h);
+    const nd=_abWith(dr,side,c.h.name,lane);
+    const v1=_abP(M,nd,side);let v=v1,reply='';
+    if(doLA){const r=WDraft.reply(M,nd,opp,oppPool,{noStrength:true});if(r){v=1-r.p;reply=r.hero;}}
+    c.mv=v;c.mGain=v1-base;c.mReply=reply;
+  });
+  const mean=top.reduce((a,c)=>a+c.mv,0)/top.length;
+  const K=(o.intent==='EXECUTE'||o.intent==='COUNTER')?14:10;     // counter slots lean harder on matchups
+  top.forEach(c=>{
+    c.score+=(c.mv-mean)*100*K*rel;
+    if(Math.abs(c.mGain)>=0.01)c.notes.splice(1,0,`model ${c.mGain>=0?'+':''}${(c.mGain*100).toFixed(1)}%${c.mReply?` · their best answer: ${c.mReply}`:''}`);
+  });
+  if(o.ep){
+    const P=abPolicy(o.ep.name);
+    if(P&&P.n>=3){
+      const pr=WDraft.predict(P,dr,o.ep.name,side,'pick',{limit:80});
+      top.forEach(c=>{const e=pr.all.find(x=>x.hero===c.h.name);if(!e)return;const hp=e.score/(pr.tot||1);c.score+=hp*120;c.habit=hp;
+        if(hp>=0.15)c.notes.unshift(`${o.ep.name} habit — ${e.why[0]||'their usual pick here'}`);});
+    }
+  }
+  cands.sort((a,b)=>b.score-a.score);
+}
+
 function draftBrainAB(step,opts){
   const forHuman=!!(opts&&opts.forHuman);
   _btc=null; // reset per-turn memo
@@ -4087,6 +4217,7 @@ function draftBrainAB(step,opts){
       const tag=(tags[0]&&tags[0][1]>0.05)?tags[0][0]:'meta';
       return{h,score,tag,why,pr};
     }).sort((a,b)=>b.score-a.score);
+    _abModelBanLayer(cands,{side,oppNeeded,oppLabel,ep,forHuman});
 
     const best=cands[0];
     // Fallback ladder: legal S-tier → legal anything → raw must-ban → raw first
@@ -4097,7 +4228,7 @@ function draftBrainAB(step,opts){
       ||avail[0];
     const tag=best?best.tag:'meta';
     const why=best?best.why:{};
-    const tagLabel={must:'MUST-BAN',protect:'PROTECT',combo:'COMBO-BREAK',comfort:'COMFORT-DENY',preempt:'PRE-EMPT',lane:'LANE-DENY',mimic:'TEAM HABIT',meta:'META PRESSURE'}[tag];
+    const tagLabel={must:'MUST-BAN',protect:'PROTECT',combo:'COMBO-BREAK',comfort:'COMFORT-DENY',preempt:'PRE-EMPT',lane:'LANE-DENY',mimic:'TEAM HABIT',model:'MODEL DENY',plan:'BAN PLAN',meta:'META PRESSURE'}[tag];
     const detail=why[tag]||`${_dbTier(hero.name)}-tier, ${Math.round(ev.presence(hero.name)*100)}% draft presence — pool pressure`;
     hero._evBrain=true;
     const question=isP2
@@ -4105,7 +4236,8 @@ function draftBrainAB(step,opts){
       :`Ban ${banNum}/3: ${banNum===1?'broken meta or their best hero':banNum===2?'protect our draft plan':'dismantle their pairs and comfort'}`;
     const reason=`[${tagLabel}] ${detail}`;
     const conf=best&&cands[1]&&(best.score-cands[1].score)>30?'high':best?'medium':'low';
-    const shortlist=cands.slice(0,10).map(c=>({name:c.h.name,lanes:getHeroLanesAB(c.h).join('/'),tier:_dbTier(c.h.name),score:Math.round(c.score),note:(c.why[c.tag]||'meta pressure'),tag:c.tag,pPick:Math.round(c.pr*100)}));
+    const shortlist=cands.slice(0,10).map(c=>({name:c.h.name,lanes:getHeroLanesAB(c.h).join('/'),tier:_dbTier(c.h.name),score:Math.round(c.score),note:(c.why[c.tag]||'meta pressure'),tag:c.tag,pPick:Math.round(c.pr*100),
+      md:c.mDeny?Math.round(c.mDeny*1000)/10:null,hb:c.mimicHp?Math.round(c.mimicHp*100):null}));
     return fin(hero,reason,conf,isP2?'BAN-P2':'BAN-P1',question,shortlist);
   }
 
@@ -4256,6 +4388,7 @@ function draftBrainAB(step,opts){
     if(pool.length){rungUsed=r;break;}
   }
   let cands=pool.map(mkCand).sort((a,b)=>b.score-a.score);
+  _abModelPickLayer(cands,{side,myP,usedIds,hardPlus,oppCount:oppP.length,intent,ep});
 
   // GM two-step lookahead (§9) on pivot slots — re-rank top 6 by end-state
   if(gm&&['CORE','FIX','CLOSE'].includes(intent)&&cands.length>1){
@@ -4289,8 +4422,92 @@ function draftBrainAB(step,opts){
   const shortlist=cands.slice(0,12).map(c=>({
     name:c.h.name,lanes:getHeroLanesAB(c.h).filter(l=>l!=='Flex').join('/'),tier:c.tier,
     score:Math.round(c.score),vs:c.vs,syn:c.syn,note:c.notes[0]||'',gateFix:c.gateFix||'',
+    mg:c.mGain!=null?Math.round(c.mGain*1000)/10:null,reply:c.mReply||'',hb:c.habit?Math.round(c.habit*100):null,
   }));
   return fin(hero,reason,conf,intent,question,shortlist);
+}
+
+// ═══════ DRAFT MODEL (WDraft) — trained in THIS browser, costs $0 ═══════
+// Learns from every official game in the scout data (+ your own scrims when
+// "learn from my scrims" is on, at half weight): heroes, lane matchups, duos,
+// team comfort, meta priority, comp identity vs comp identity, frontline and
+// damage mix — starting from coach priors and moving with the evidence.
+// It powers the win meter, the AI's pick/ban values (with a 2-step lookahead),
+// the post-draft breakdown, and Heimer on this page — so they all agree.
+let _abM=null,_abMKey='',_abMBusy=false,_abRel=null,_abLanes=null,_abPol={};
+function _abModelPool(){return _learnMatches(loadScoutAB().matches||[]).filter(m=>m.league!=='AI Battle');}
+function _abModelKey(pool){return 'v2|'+pool.length+'|'+pool.reduce((x,m)=>((m.date||'')>x?(m.date||''):x),'')+'|'+(_useMyScrims?1:0)+'|'+(_abRel?Object.keys(_abRel).length:0);}
+function abModel(){
+  if(typeof WDraft==='undefined')return null;
+  let pool;try{pool=_abModelPool();}catch(_){return null;}
+  const key=_abModelKey(pool);
+  if(_abM&&_abMKey===key)return _abM;
+  if(!_abMBusy)abModelTrain();
+  return _abM;            // the previous model (if any) until the new one is ready
+}
+function abModelTrain(){
+  // hero kits + patch notes (server refreshes them from Liquipedia every 6 h)
+  if(window.WHeroData&&!WHeroData.ready()&&!abModelTrain._hd){abModelTrain._hd=1;
+    WHeroData.load().then(()=>{if(!WHeroData.ready())return;try{if(window.WHeroProfile)WHeroData.augmentProfiles(WHeroProfile);if(window.WBrain&&WBrain.setCalendar)WBrain.setCalendar(WHeroData.calendar());}catch(_){}_abBPKey=null;}).catch(()=>{});}
+  if(typeof WDraft==='undefined'||_abMBusy)return;
+  _abMBusy=true;
+  setTimeout(async()=>{
+    try{
+      if(_abRel===null){try{_abRel=(typeof WDB!=='undefined'&&WDB.loadHeroRelations)?(await WDB.loadHeroRelations())||{}:{};}catch(_){_abRel={};}}
+      const pool=_abModelPool(),key=_abModelKey(pool);
+      const roster=HEROES.map(h=>({n:h.name,r:h.role}));
+      _abM=WDraft.train(pool,{roster,archetypes:(typeof WDB!=='undefined'&&WDB.COMP_ARCHETYPES)||null,relations:_abRel,
+        weightOf:m=>m.league==='Scrims'?0.5:1});
+      _abMKey=key;_abLanes=null;_abPol={};
+      window.heimerDraftModel={model:_abM,lanes:abLanePool(),source:'AI Battle'};
+      try{updateWinProbAB();renderModelBadgeAB();}catch(_){}
+    }catch(e){console.warn('[WDraft] train failed',e);}
+    finally{_abMBusy=false;}
+  },60);
+}
+// hero → lanes it can be played in: real data first, then the curated lane sets
+function abLanePool(){
+  if(_abLanes)return _abLanes;
+  const out={};
+  try{Object.assign(out,WDraft.lanePool(_abModelPool(),2));}catch(_){}
+  HEROES.forEach(h=>{const ls=realLanesAB(h).filter(l=>l&&l!=='Flex');if(!out[h.name]&&ls.length)out[h.name]=ls;});
+  return(_abLanes=out);
+}
+function _abLaneOf(h){const l=effectiveLaneAB(h);return l&&l!=='Flex'?l:((realLanesAB(h)||[])[0]||'');}
+function _abTeamName(side){
+  if(side===pSide)return pName||'';
+  return(aiMode==='enemy'&&enemyTeamName)?enemyTeamName:'';
+}
+// The live board as a WDraft draft (optionally with explicit pick lists).
+function abDraftNow(bp,rp){
+  const P=a=>(a||[]).map(h=>({name:h.name,lane:_abLaneOf(h)}));
+  return{blueTeam:_abTeamName('blue'),redTeam:_abTeamName('red'),
+    bluePicks:P(bp||ST.bp),redPicks:P(rp||ST.rp),blueBans:ST.bb.map(h=>h.name),redBans:ST.rb.map(h=>h.name)};
+}
+const _abWith=(dr,side,name,lane)=>({...dr,[side+'Picks']:[...dr[side+'Picks'],{name,lane}]});
+const _abP=(M,dr,side)=>{const p=WDraft.prob(M,dr,{noStrength:true});return side==='blue'?p:1-p;};
+// Plausible heroes for `side` (the opponent in a lookahead): drafted in this
+// meta, or one of their habits — keeps the search sharp and fast.
+function _abPlausible(M,side,usedIds){
+  const lanes=abLanePool(),pres=(M.K&&M.K.presence)||{};
+  const used=new Set([...usedIds].map(id=>(HEROES.find(h=>h.id===id)||{}).name));
+  const team=_abTeamName(side),cf=(M.comfort&&M.comfort[team])||{};
+  const names=Object.keys(lanes).filter(n=>!used.has(n)).sort((a,b)=>((pres[b]||0)+(cf[b]?0.2:0))-((pres[a]||0)+(cf[a]?0.2:0))).slice(0,45);
+  const out={};names.forEach(n=>{out[n]=lanes[n];});return out;
+}
+function abPolicy(team){
+  if(!team||typeof WDraft==='undefined')return null;
+  if(_abPol[team])return _abPol[team];
+  try{const pool=abScoped(_learnMatches(loadScoutAB().matches||[]));return(_abPol[team]=WDraft.policy(pool,team));}catch(_){return null;}
+}
+function renderModelBadgeAB(){
+  const st=document.getElementById('modelStatusAB');
+  if(st){st.innerHTML=_abM?`<b style="color:var(--text2);">Draft Model</b> · ${_abM.n>=20?`trained on ${_abM.n} games in this browser`:'running on coach priors (log more games to train it)'} · free, no API cost<br><span style="font-size:10px;">${WDraft.summary(_abM).replace(/</g,'&lt;')}</span>`:'Draft Model training…';}
+  const el=document.getElementById('wpModel');if(!el)return;
+  const M=_abM;
+  if(!M){el.textContent='';el.title='';return;}
+  el.textContent=M.n>=20?`model · ${M.n}g`:'coach priors';
+  el.title=WDraft.summary(M);
 }
 
 // ═══════ LIVE WIN PROBABILITY (status bar) ═══════
@@ -4300,12 +4517,23 @@ function draftBrainAB(step,opts){
 let _wpPrev=50;
 function liveWinProbAB(){
   const my=pSide==='blue'?ST.bp:ST.rp, ai=pSide==='blue'?ST.rp:ST.bp;
-  if(!my.length&&!ai.length)return 50;
-  return winProbForAB(my,ai);
+  if(!my.length&&!ai.length&&!abModel())return 50;
+  return winProbForAB(my,ai,pSide);
 }
 // Draft-only win probability for `my` vs `ai` (hero strength, counters,
 // duos, comp gaps) — shared by the live meter and the post-draft analysis.
-function winProbForAB(my,ai){
+function winProbForAB(my,ai,mySide){
+  // The trained draft model is the source of truth (same numbers Heimer and
+  // the AI use). Team strength is left out on purpose: this rates the DRAFT.
+  const M=abModel();
+  if(M&&mySide){
+    const dr=mySide==='blue'?abDraftNow(my,ai):abDraftNow(ai,my);
+    return Math.max(5,Math.min(95,Math.round(_abP(M,dr,mySide)*100)));
+  }
+  return _winProbHeuristicAB(my,ai);
+}
+// Fallback before the model is ready (or with no data at all).
+function _winProbHeuristicAB(my,ai){
   _btc=null;
   const myN=my.map(h=>h.name),aiN=ai.map(h=>h.name);
   const tierSum=t=>t.reduce((a,h)=>a+_dbTierScore(h.name),0);
@@ -4342,9 +4570,12 @@ window.heimerContext=function(){
       `BLUE (${who('blue')}): bans ${bn(ST.bb)} · picks ${pk(ST.bp)}`,
       `RED (${who('red')}): bans ${bn(ST.rb)} · picks ${pk(ST.rp)}`,
       nx?`Next: ${nx.team.toUpperCase()} ${nx.type} — ${nx.team===pSide?'the user is on the clock':'the AI is on the clock'}.`:'Draft complete.',
-      `On-screen win meter (AI Battle heuristic): ${liveWinProbAB()}% for the user.`];
+      `On-screen win meter (Draft Model, team strength excluded): ${liveWinProbAB()}% for the user.${_abM?' '+WDraft.summary(_abM):''}`];
     if(SERIES&&SERIES.len>1)L.push(`Series: BO${SERIES.len}, game ${SERIES.gameNum}, user ${SERIES.me||0}-${SERIES.opp||0}.`);
-    return {text:L.join('\n'),teams:aiMode==='enemy'&&enemyTeamName?[enemyTeamName]:[]};
+    return {text:L.join('\n'),teams:aiMode==='enemy'&&enemyTeamName?[enemyTeamName]:[],
+      draft:(()=>{const d=abDraftNow(),known=t=>!!(t&&_abM&&_abM.R&&_abM.R.r[t]!=null);
+        if(!known(d.blueTeam))d.blueTeam='';if(!known(d.redTeam))d.redTeam='';
+        return{...d,userSide:pSide,next:nx?{side:nx.team,kind:nx.type}:null};})()};
   }catch(_){return null;}
 };
 
@@ -4429,6 +4660,9 @@ async function claudeAI(step){
     if(typeof c.syn==='number'&&c.syn>0)bits.push(`synergy +${c.syn}`);
     if(c.gateFix)bits.push(`fixes ${c.gateFix}`);
     if(typeof c.pPick==='number')bits.push(`P(they pick) ${c.pPick}%`);
+    if(typeof c.mg==='number')bits.push(`draft model ${c.mg>=0?'+':''}${c.mg}%${c.reply?` (after their best answer ${c.reply})`:''}`);
+    if(typeof c.md==='number'&&c.md>0)bits.push(`model: worth +${c.md}% to them`);
+    if(typeof c.hb==='number'&&c.hb>=10)bits.push(`their habit ${c.hb}%`);
     if(c.tag)bits.push(`intent:${c.tag}`);
     return`${i+1}. ${c.name} [${bits.join(', ')}]${c.note?` — ${c.note}`:''}`;
   }).join('\n');
@@ -4662,7 +4896,7 @@ function showResult(){
       return `<div class="rbd-row">
         <img class="rbd-img" src="${u}" onerror="this.src='${fb(h)}'" alt="${h.name}">
         <div class="rbd-info">
-          <div class="rbd-name">${h.name} <span style="font-size:9px;color:var(--text3);font-weight:400;">· ${lane(h)}</span></div>
+          <div class="rbd-name">${h.name} <span style="font-size:9px;color:var(--text3);font-weight:400;">· ${effectiveLaneAB(h)}</span></div>
           <div class="rbd-reason">${h._r || 'Best available'}</div>
         </div>
         <span class="rbd-conf rbd-${conf}">${conf.charAt(0).toUpperCase()+conf.slice(1)}</span>
@@ -4709,6 +4943,7 @@ function showResult(){
   const aiBans=aiSide==='blue'?ST.bb:ST.rb;
   const saved=saveMatchToScout(pp,aip,pBans,aiBans,pw);
   if(saved)toast('Match saved to Scout history');
+  try{renderLogRealAB();}catch(e){console.warn('log real',e);}
 }
 
 async function captureResult() {
@@ -4723,6 +4958,70 @@ async function captureResult() {
     link.click();
     toast('Saved as PNG ✓');
   } catch(e) { toast('Screenshot failed', 'error'); }
+}
+
+// ═══════ LOG THE REAL RESULT — the AI learns from games you actually played ═══════
+// AI Battle's own "result" is a prediction, so it is never learned from. When
+// you play the drafted game for real (a scrim), log who won here: it's saved as
+// YOUR scrim (private to you, synced like any scout row) with the full draft in
+// pick order, and the Draft Model learns from it when "learn from my scrims" is on.
+const _escAB=x=>String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function _abMyTeamGuess(){
+  try{const t=localStorage.getItem('warr_heimer_team');if(t&&t!=='-')return t;}catch(_){}
+  try{const pr=WAuth.getProfile();if(pr&&pr.team_name&&pr.team_status==='approved')return pr.team_name;}catch(_){}
+  return(pName&&!/^(you|player ?1)$/i.test(pName))?pName:'';
+}
+function renderLogRealAB(){
+  const el=document.getElementById('rlogReal');if(!el)return;
+  if(aiMode==='pvp'){el.innerHTML='';return;}
+  const box='margin:10px 0 4px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.02);text-align:left;';
+  if(ST._loggedReal){
+    el.innerHTML=`<div style="${box}font-size:11.5px;color:var(--text2);">✓ Logged as your scrim (${_escAB(ST._loggedReal)}).
+      ${_useMyScrims?'The Draft Model is learning from it now.':`<button class="rbtn rbs" style="margin-left:6px;padding:5px 10px;font-size:11px;" onclick="setUseMyScrims(true);try{document.getElementById('useMyScrims').checked=true}catch(_){};renderLogRealAB()">Let the AI learn from my scrims</button>`}</div>`;
+    return;
+  }
+  const me=_abMyTeamGuess(),opp=(aiMode==='enemy'&&enemyTeamName)?enemyTeamName:'';
+  let teams=[];try{teams=[...new Set(_learnMatches(loadScoutAB().matches||[]).flatMap(m=>[m.blueTeam,m.redTeam]))].filter(Boolean).sort();}catch(_){}
+  const inp='flex:1;min-width:0;padding:7px 9px;border-radius:8px;border:1px solid var(--border);background:var(--bg2,rgba(0,0,0,.25));color:var(--text);font-size:12px;';
+  el.innerHTML=`<div style="${box}">
+    <div style="font-size:12px;font-weight:700;color:var(--text);">Played this draft for real?</div>
+    <div style="font-size:10.5px;color:var(--text3);margin:3px 0 8px;line-height:1.5;">Log the result as your scrim (private to you). Real results are what the AI learns from. It never learns from AI Battle's own guesses.</div>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;">
+      <input id="lrMe" list="lrTeams" placeholder="Your team" value="${_escAB(me)}" style="${inp}">
+      <span style="font-size:10px;color:var(--text3);">vs</span>
+      <input id="lrOpp" list="lrTeams" placeholder="Opponent" value="${_escAB(opp)}" style="${inp}">
+      <datalist id="lrTeams">${teams.map(t=>`<option value="${_escAB(t)}">`).join('')}</datalist>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button class="rbtn rbp" style="flex:1;" onclick="logRealResultAB(true)">We won</button>
+      <button class="rbtn rbs" style="flex:1;" onclick="logRealResultAB(false)">We lost</button>
+    </div></div>`;
+}
+function logRealResultAB(won){
+  const me=(document.getElementById('lrMe')?.value||'').trim(),opp=(document.getElementById('lrOpp')?.value||'').trim();
+  if(!me||!opp){toast('Add both team names','error');return;}
+  if(me.toLowerCase()===opp.toLowerCase()){toast('Pick two different teams','error');return;}
+  if(ST.bp.length<5||ST.rp.length<5){toast('Finish the draft first','error');return;}
+  const isBlue=pSide==='blue',date=new Date().toISOString().split('T')[0];
+  const blueTeam=isBlue?me:opp,redTeam=isBlue?opp:me;
+  const P=arr=>arr.map(h=>({name:h.name,lane:_abLaneOf(h)||lane(h)}));     // pick order = draft order
+  const uid=(typeof WAuth!=='undefined'&&WAuth.getUser)?(WAuth.getUser()?.id||null):null;
+  const bo=SERIES&&SERIES.len>1?SERIES.len:1;
+  const match={id:'scrim_ab_'+Date.now(),league:'Scrims',season:'',stage:'Scrim',week:'',
+    seriesFormat:'BO'+bo,seriesId:'sid_ab_'+date+'_'+[blueTeam,redTeam].sort().join('|').replace(/\s+/g,'_'),
+    gameNum:bo>1?(SERIES.gameNum||1):1,date,blueTeam,redTeam,winner:won?pSide:aiSide,
+    bluePicks:P(ST.bp),redPicks:P(ST.rp),blueBans:ST.bb.map(h=>h.name),redBans:ST.rb.map(h=>h.name),
+    vodLink:'',notes:'Logged from an AI Battle draft (real result).',_createdBy:uid,savedAt:Date.now()};
+  try{
+    const db=loadScoutAB();db.matches=db.matches||[];db.matches.unshift(match);
+    localStorage.setItem(SCOUT_KEY_AB,JSON.stringify(db));
+  }catch(e){toast('Could not save locally: '+e.message,'error');return;}
+  if(typeof WDB!=='undefined'&&WDB.saveMatch)WDB.saveMatch(match).catch(e=>{console.warn('[AI Battle] scrim sync failed',e);toast('Saved here, but cloud sync failed: '+(e.message||e),'error');});
+  ST._loggedReal=`${me} ${won?'beat':'lost to'} ${opp}`;
+  try{invalidateScoutIntel();_rlKeyAB='';_evCacheAB2=null;}catch(_){}
+  try{abModelTrain();}catch(_){}
+  renderLogRealAB();
+  toast(won?'Win logged — the AI will learn from it':'Loss logged — the AI will learn from it');
 }
 
 // ═══════ FULL ANALYSIS ═══════
@@ -4786,7 +5085,7 @@ function draftScorecardAB(bp,rp,bt,rt){
     const sy=(intel.synergies[a]||[]).find(x=>x.name===b)||(intel.synergies[b]||[]).find(x=>x.name===a);
     if(sy&&(sy.count||0)>=3)out.push({a,b,wr:sy.wr,count:sy.count,adj:(sy.wr*sy.count+1.5)/(sy.count+3)});}
     return out.sort((x,y)=>(y.adj-0.5)*Math.sqrt(y.count)-(x.adj-0.5)*Math.sqrt(x.count));};
-  const wpBlue=winProbForAB(bp,rp);
+  const wpBlue=winProbForAB(bp,rp,'blue');
   // Team context when a side is a real team with games in scope
   let teams={blue:null,red:null},teamP=null;
   try{
@@ -4816,7 +5115,10 @@ function _heroFormAB(st){return st&&st.n?`${_pctAB(st.wr)}% in ${st.n}g`:'no gam
 function scorecardPromptAB(sc,bt,rt){
   const L=[];
   L.push(`DRAFT DATA (${sc.n} official games${sc.season?' · '+sc.season:''}; WR = this season, shrunk for small samples):`);
-  L.push(`Draft model: ${bt} ${sc.wpBlue}% / ${rt} ${100-sc.wpBlue}% (hero strength, counters, duos, comp gaps).`);
+  L.push(`Draft model (trained in-browser on the logged games; team strength excluded): ${bt} ${sc.wpBlue}% / ${rt} ${100-sc.wpBlue}%.`);
+  try{const M=abModel();if(M){const ms=WDraft.score(M,abDraftNow(),{noStrength:true});
+    const fx=k=>ms.parts.filter(p=>p.group!=='side'&&p.group!=='str'&&(k==='blue'?p.pts>0:p.pts<0)).slice(0,5).map(p=>`${p.label} +${Math.abs(p.pts).toFixed(1)} pts${p.n?` (${p.n}g)`:''}`).join(', ')||'none';
+    L.push(`Model factors — ${bt}: ${fx('blue')} | ${rt}: ${fx('red')}. ${WDraft.summary(M)}`);}}catch(_){}
   if(sc.teamP!=null)L.push(`Team form model (opponent-adjusted results): ${sc.teams.blue.team} ${_pctAB(sc.teamP)}% per game vs ${sc.teams.red.team}.`);
   L.push('Lane duels — '+sc.duels.map(d=>`${d.lane}: ${d.a||'—'} (${_heroFormAB(d.sa)}) vs ${d.b||'—'} (${_heroFormAB(d.sb)})${d.edge!=null?` → ${d.edge>0?d.a:d.b} favoured +${_pctAB(Math.abs(d.edge))}% head-to-head (${d.count}g)`:' → no head-to-head data'}`).join(' | '));
   const th=k=>sc.threats[k].slice(0,3).map(t=>`${t.hero} beats ${t.vs} +${_pctAB(t.edge)}% (${t.count}g)`).join(', ')||'none with data';
@@ -4902,11 +5204,12 @@ function localAnalysis(bp,rp,bb,rb,bt,rt,sc){
     mvpReason:mvp?(mvp.st.n?`${_pctAB(mvp.st.wr)}% this season (${mvp.st.n}g), ${_pctAB(mvp.st.pres)}% presence`:'highest-impact pick in this draft'):'',
     _local:true};
 }
-async function runAnalysis(){
+async function runAnalysis(deep){
   if(ST.bp.length<3||ST.rp.length<3){toast('Need more picks','error');return;}
   // Access gate — Claude analysis is invite-only; everyone else gets the
   // local breakdown (same screen, no API cost).
-  let aiOK=typeof WDB!=='undefined'&&WDB.hasAIAccess&&WDB.hasAIAccess();
+  // Local (free) breakdown by default; Claude only when asked for the deep read.
+  let aiOK=deep===true&&typeof WDB!=='undefined'&&WDB.hasAIAccess&&WDB.hasAIAccess();
   if(aiOK&&WDB.canAnalyze&&!WDB.canAnalyze()){
     toast(`Monthly AI limit reached for your ${WDB.levelLabel(WDB.getSubscription().plan)} access — showing the local analysis.`,'error');
     aiOK=false;
@@ -5023,6 +5326,23 @@ function renderAnalysis(a,bt,rt){
       ${rows}
       <div style="font-size:9px;color:var(--text3);margin-top:5px;">Duos — <span style="color:var(--blue);">${duo('blue')}</span> | <span style="color:var(--red);">${duo('red')}</span></div>
     </div>`;
+  }
+  // Why the draft model leans the way it does (same model as the win meter)
+  try{
+    const M=abModel();
+    if(M){
+      const ms=WDraft.score(M,abDraftNow(ST.bp,ST.rp),{noStrength:true});
+      const fx=k=>ms.parts.filter(p=>p.group!=='side'&&p.group!=='str'&&(k==='blue'?p.pts>0:p.pts<0)).slice(0,4)
+        .map(p=>`${esc(p.label)} <b>+${Math.abs(p.pts).toFixed(1)}</b>${p.prior&&p.n<5?'':` <span style="color:var(--text3);">(${p.n}g)</span>`}`).join(' · ')||'—';
+      data+=`<div style="margin-top:8px;padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.015);">
+        <div style="display:flex;gap:8px;align-items:baseline;margin-bottom:5px;"><span style="font-size:8px;font-weight:700;letter-spacing:1px;color:var(--gold);">WHY — DRAFT MODEL</span>
+          <span style="margin-left:auto;font-size:8.5px;color:var(--text3);" title="${esc(WDraft.summary(M))}">win-% points · ${M.n} games · free</span></div>
+        <div style="font-size:9.5px;line-height:1.7;"><span style="color:var(--blue);font-weight:700;">${esc(bt)}:</span> ${fx('blue')}</div>
+        <div style="font-size:9.5px;line-height:1.7;"><span style="color:var(--red);font-weight:700;">${esc(rt)}:</span> ${fx('red')}</div></div>`;
+    }
+  }catch(e){console.warn('model factors',e);}
+  if(a._local&&typeof WDB!=='undefined'&&WDB.hasAIAccess&&WDB.hasAIAccess()){
+    data+=`<div style="margin-top:9px;text-align:right;"><button type="button" class="btn" onclick="runAnalysis(true)" style="font-size:10px;padding:6px 12px;">Deep read with Claude <span style="opacity:.6;">· uses AI budget</span></button></div>`;
   }
   const myKeys=a[mySide+'KeysToVictory']||[];
   const ra=document.getElementById('rasummary');ra.style.display='block';

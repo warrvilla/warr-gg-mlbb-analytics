@@ -189,8 +189,17 @@
     if (HD.loading) return HD.loading;
     HD.loading = (async () => {
       if (!window.WIntel || !WIntel.draftOrder) await loadScript('warr-intel.js?v=3');
-      if (!window.WDraft) await loadScript('warr-draft-model.js?v=1');
-      if (!window.HeimerTools || !window.HeimerTools.draftModel) await loadScript('warr-heimer-tools.js?v=2');
+      if (!window.WDraft || !window.WDraft.prob) await loadScript('warr-draft-model.js?v=2');
+      if (!window.WBan || !window.WBan.v2) await loadScript('warr-ban.js?v=2');
+      if (!window.WHeroProfile || !window.WHeroProfile.addFromKit) await loadScript('warr-hero-profiles.js?v=2');
+      if (!window.WBrain || !window.WBrain.setCalendar) await loadScript('warr-draft-brain.js?v=2');
+      if (!window.WHeroData) await loadScript('warr-hero-data.js?v=1');
+      if (!window.HeimerTools || !window.HeimerTools.lite || !window.HeimerTools.defs.some(d => d.name === 'patch_report')) await loadScript('warr-heimer-tools.js?v=7');
+      // Hero kits + patch notes (Liquipedia, refreshed by the server every 6 h). Never blocks Heimer for long.
+      try {
+        await Promise.race([WHeroData.load({ full: true }), new Promise(r => setTimeout(r, 5000))]);
+        if (WHeroData.ready()) { WHeroData.augmentProfiles(window.WHeroProfile); if (window.WBrain) WBrain.setCalendar(WHeroData.calendar()); }
+      } catch (_) {}
       let ms = [];
       try { ms = await WDB.loadMatches(); } catch (_) {}
       if (!ms || !ms.length) {   // offline / not synced yet → this browser's scout cache
@@ -352,12 +361,15 @@ RULES
 - Reply in the user's language (English, Filipino or Taglish).
 
 TOOLS
-- The DATA PACK below is only a starting summary. Your tools query ALL of Warr.GG's data: every league, season, stage, team, player, hero and patch; full drafts in pick order; draft tendencies; head-to-heads; standings; admin coach notes and rosters; curated counters/synergies; solo-queue Top 100.
+- The DATA PACK below is only a starting summary. Your tools query ALL of Warr.GG's data: every league, season, stage, team, player, hero and patch; full drafts in pick order; draft tendencies; head-to-heads; standings; admin coach notes and rosters; curated counters/synergies; solo-queue Top 100; every hero's kit and the recent patch notes (Liquipedia, refreshed automatically).
 - Use a tool whenever the pack doesn't answer directly, the question is specific (a stage, side, game number, patch, player, hero pairing, "what do they do when X is banned"), or before you recommend bans/picks — check it. Don't fetch what the pack already shows.
 - Ask for several things in one turn (parallel tool calls). One or two rounds is usually enough.
 - A tool ERROR saying a team is private means: tell the user you can't see that team's data.
 - evaluate_draft rates a draft (full or partial) with the trained draft model and suggests next picks; predict_draft replicates how a named team drafts (their likely next pick/ban and why). Use them for "is this draft good", "what should we pick/ban now", "what will they pick". The model reports its own back-test — if it says the draft terms add little, present its numbers as hints and lean on game sense.
 - If ON SCREEN NOW shows a live draft, questions like "what should I pick?" are about that draft: pass its picks/bans to the draft tools.
+- TEAM THINKING: for "how does X draft / think / what's their style", call team_brain — it is learned from every pick and ban the team made against the options that were open, compared with the league. For "why did they pick/ban that" in a real game, call explain_game. Explain the reasons in coach language (power picks, comfort, counters, synergy, comp fixes, denies, flex, lane plans, habits, pocket picks; meta / target / protect / role / lane-lock bans) and quote the engine-check accuracy when you rely on predictions.
+- PATCH & KITS: for "who is strongest / OP this patch", "what got buffed or nerfed", tier lists, or what a hero's skills do (CC, cooldowns, damage numbers), call patch_report (optionally with a hero or lane). It combines the patch notes (exact old → new numbers from Liquipedia), pro picks/bans/wins on this patch vs the last, the draft model and solo-queue Top 100, and says how many games back it. Quote skill numbers and patch changes ONLY from patch_report — never from memory. Credit "Liquipedia" when you quote kit or patch-note numbers.
+- BANS: for any ban question call ban_plan (opponent, the user's team, the user's side if known, the draft so far, the map, and earlier games of this series if the user mentions them). A real ban plan mixes meta/OP bans (what pros ban this season, rising heroes, tier lists) with opponent-specific ones (comfort, ban impact, first picks, a one-trick lane pool) and threats to the user's comp — never recommend bans from one team's stats alone. The "Ban …" lines in the DATA PACK levers are team-only evidence, not a ban plan. Present bans phase by phase with the reason for each.
 
 DRAFT THINKING
 - Think like a draft coach: first-pick priority and denial, flex picks that hide lanes, what each side saves for the last pick (R5 is the counter-pick slot), phase 2 bans aimed at the roles the enemy still needs, comfort vs meta, side choice, and how a team adjusts after losing a game.
@@ -512,17 +524,17 @@ ${pack.text}`;
   function render() {
     if (!$thread) return;
     const ai = hasAI();
-    $sub.textContent = ai ? `MLBB analyst · ${deep() ? 'Claude Opus 5.5' : 'Claude Sonnet 5.5'}` : 'MLBB analyst · invite-only';
+    $sub.textContent = ai && !(HD.liteUntil > Date.now()) ? 'MLBB analyst · Claude Sonnet 5.5' : 'Heimer Lite · free mode';
     const pt = pageTeams();
     $pg.textContent = pt.length ? `· on screen: ${pt.join(' vs ')}` : '';
-    $in.disabled = !ai || HD.busy; $send.disabled = !ai || HD.busy;
+    $in.disabled = HD.busy; $send.disabled = HD.busy;
     let html = '';
-    if (!ai) html += `<div class="hd-gate"><b>Heimerdinger is invite-only for now.</b> Everything else on Warr.GG stays free. Want access for your team? <a href="mailto:wrrenvillapando@gmail.com?subject=Warr.GG%20%E2%80%94%20Heimerdinger%20access">Ask Warr</a>.</div>`;
     if (!HD.chat.length) {
+      if (!ai || HD.liteUntil > Date.now()) html += `<div class="hd-gate"><b>Free mode.</b> I answer straight from Warr.GG's data — every number is real, nothing is generated. ${ai ? "The AI budget is resting right now." : `Full Heimer (Claude) is invite-only — <a href="mailto:wrrenvillapando@gmail.com?subject=Warr.GG%20%E2%80%94%20Heimerdinger%20access">ask Warr</a>.`}</div>`;
       const sug = HD.ready ? suggestions() : [];
       html += `<div class="hd-empty"><p>Ask me about any team, player, matchup, hero or draft. I dig through all of Warr.GG's match data myself — any league, season, stage, side or patch — and show the numbers behind every call.</p>
         ${!HD.ready ? `<div class="hd-think"><span class="hd-dots"><i></i><i></i><i></i></span> Loading match data…</div>` : ''}
-        ${sug.map(x => `<button class="hd-sug" type="button" data-q="${esc(x)}"${ai ? '' : ' disabled'}>${esc(x)}</button>`).join('')}</div>`;
+        ${sug.map(x => `<button class="hd-sug" type="button" data-q="${esc(x)}">${esc(x)}</button>`).join('')}</div>`;
     }
     HD.chat.forEach(m => {
       if (m.role === 'user') html += `<div class="hd-u">${esc(m.content)}</div>`;
@@ -536,10 +548,10 @@ ${pack.text}`;
   }
   async function ask(text) {
     const q = String(text || '').trim();
-    if (!q || HD.busy || !hasAI()) return;
+    if (!q || HD.busy) return;
     await ensureData();
     $in.value = ''; $in.style.height = 'auto';
-    const history = HD.chat.filter(m => !m.err).slice(-10).map(m => ({ role: m.role, content: m.content }));
+    const history = HD.chat.filter(m => !m.err && !m.lite).slice(-10).map(m => ({ role: m.role, content: m.content }));
     while (history.length && history[0].role !== 'user') history.shift();
     HD.chat.push({ role: 'user', content: q, ts: Date.now() });
     HD.busy = true; HD.step = ''; render();
@@ -550,6 +562,9 @@ ${pack.text}`;
       el.textContent = HD.step ? `${HD.step} ${s}s` : (s < 4 ? 'Reading the data…' : `Thinking… ${s}s`);
     }, 1000);
     try {
+      // Free mode: no AI access (or the budget is used up) → Heimer Lite answers
+      // straight from the data tools. Nothing is generated, so nothing is invented.
+      if (!hasAI() || HD.liteUntil > Date.now()) { await liteAnswer(q, hasAI() ? 'The AI budget is resting, so this is free mode.' : ''); return; }
       if (WDB.canAnalyze && !WDB.canAnalyze()) throw Object.assign(new Error('Monthly AI limit reached for your access level.'), { code: 'LIMIT' });
       const pack = buildPack(q);
       if (pack.teams.length) HD.ctxTeams = pack.teams;
@@ -561,16 +576,31 @@ ${pack.text}`;
       HD.chat.push({ role: 'assistant', content: out, ts: Date.now(), meta: `Based on ${pack.used.join(' · ') || 'league data'}${checked.length ? ' · checked: ' + checked.join(', ') : ''}${model ? ' · ' + model : ''}` });
     } catch (e) {
       const c = e && e.code;
-      const msg = c === 'USER_DAILY_CAP' || c === 'FREE_PLAN_CAP' || c === 'LIMIT' ? `${e.message} Try again tomorrow.`
-        : c === 'BUDGET_EXCEEDED' ? 'The monthly AI budget is used up — Heimerdinger is back next month.'
-        : c === 'NO_AI_ACCESS' ? 'Heimerdinger is invite-only for now — ask Warr for access.'
-        : c === 'AI_TIMEOUT' ? 'That took too long — try a shorter or more specific question.'
-        : `Something went wrong: ${(e && e.message) || e}`;
-      HD.chat.push({ role: 'assistant', content: msg, err: true, ts: Date.now() });
+      // Budget / access / limit / timeout → answer in free mode instead of failing.
+      const why = c === 'USER_DAILY_CAP' || c === 'FREE_PLAN_CAP' || c === 'LIMIT' || c === 'USER_MONTHLY_CAP' ? 'Your AI limit for now is used up, so this is free mode.'
+        : c === 'BUDGET_EXCEEDED' || c === 'BUDGET_LOW' ? "This month's AI budget is used up, so this is free mode."
+        : c === 'NO_AI_ACCESS' ? ''
+        : c === 'AI_TIMEOUT' ? 'The AI took too long, so here is the data answer.'
+        : 'The AI is unavailable right now, so here is the data answer.';
+      if (c === 'BUDGET_EXCEEDED' || c === 'BUDGET_LOW' || c === 'USER_MONTHLY_CAP' || c === 'USER_DAILY_CAP' || c === 'NO_AI_ACCESS') HD.liteUntil = Date.now() + 30 * 60 * 1000;   // don't retry the API for a while
+      try { await liteAnswer(q, why); }
+      catch (e2) { HD.chat.push({ role: 'assistant', content: `Something went wrong: ${(e2 && e2.message) || e2}`, err: true, ts: Date.now() }); }
     } finally {
       clearInterval(tick);
       HD.busy = false; HD.step = ''; save(); render();
     }
+  }
+
+  // Heimer Lite — the same tools, no language model.
+  async function liteAnswer(q, note) {
+    const T = window.HeimerTools;
+    if (!T || !T.lite) throw new Error('data tools not loaded');
+    setStep('Pulling the data…');
+    let page = null; try { page = typeof window.heimerContext === 'function' ? window.heimerContext() : null; } catch (_) {}
+    const ctx = { usable: HD.usable, locked, cur: HD.cur, myTeam: HD.myTeam, heroes: HD.heroes };
+    const r = await T.lite(q, ctx, page);
+    HD.chat.push({ role: 'assistant', content: (note ? `*${note}*\n\n` : '') + r.text, ts: Date.now(), lite: true,
+      meta: 'Heimer Lite · free mode · straight from the data, nothing generated' });
   }
 
   // Ask → (tool calls → results)* → answer. Tools run in this browser over the
