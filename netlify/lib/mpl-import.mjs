@@ -13,8 +13,13 @@
 // in Scout entry. The engines skip order-dependent learning for those games.
 //
 // Never doubles your data: a game already on Warr.GG (same heroes, or same teams
-// + date + game number) is skipped and never changed. Imported games you edited
-// are never touched again; unedited imports follow Liquipedia's corrections.
+// + date + game number) is never re-added. On YOUR games (logged by you, or an
+// import you arranged) Liquipedia takes precedence for the facts — bans (real
+// order), date, game length, map, winner, sides; a missing VOD / week is filled
+// in — but only when it is surely the same game (8+ of the 10 heroes match).
+// Every correction is logged with the old value and can be undone ("keep mine").
+// Picks are never changed: a difference is flagged for you to check on the VOD.
+// Unedited imports simply follow Liquipedia.
 // Content: Liquipedia (CC-BY-SA 3.0).
 // ═══════════════════════════════════════════════════════════════════════
 import { templates, plain } from './liquipedia-parse.mjs';
@@ -30,6 +35,25 @@ const GAP_MS = 2100;
 const STORE = 'warr-mpl-import';
 const MAPS = { flyingcloud: 'Flying Cloud', revealingwisps: 'Revealing Wisps', healingturtle: 'Healing Turtle', goldenturret: 'Golden Turret',
   dangerousgrass: 'Dangerous Grass', brokenwalls: 'Broken Walls', expandingriver: 'Expanding River', expandingrivers: 'Expanding River' };
+// Bump when the page parser changes: every stored page is read again so old imports get the fix.
+export const PARSER_V = 2;
+// "Broken Walls" / "Dangerous Grasa" (typo) / "[[Flying Cloud]]" → the site's map name
+export function mapName(raw) {
+  const t = String(raw || '').replace(/\[\[|\]\]/g, '').trim(), k = norm(t);
+  if (!k) return '';
+  if (MAPS[k]) return MAPS[k];
+  const hit = Object.keys(MAPS).find(x => k.length >= 7 && x.slice(0, 7) === k.slice(0, 7));
+  return hit ? MAPS[hit] : '';
+}
+// the map from a game's |mapmode= (ID pages), else its comment ("ONPH picked [[Flying Cloud]]")
+export function readMap(M) {
+  const direct = mapName(plain(String((M && (M.mapmode || M.map)) || '')));
+  if (direct) return direct;
+  const c = plain(String((M && M.comment) || ''));
+  const pk = /picked\s+(.+?)\s*$/i.exec(c); if (pk && mapName(pk[1])) return mapName(pk[1]);
+  const any = Object.values(MAPS).find(n => new RegExp(n.replace(/\s+/g, '\\s*'), 'i').test(c));
+  return any || '';
+}
 const HERO_ALIAS = { yss: 'Yi Sun-shin', yisunshin: 'Yi Sun-shin', popolandkupa: 'Popol & Kupa', popol: 'Popol & Kupa', popolkupa: 'Popol & Kupa',
   xborg: 'X.Borg', lapulapu: 'Lapu-Lapu', lapu: 'Lapu-Lapu', change: "Chang'e", luoyi: 'Luo Yi', yuzhong: 'Yu Zhong', yinn: 'Yin', gs: 'Gusion', yz: 'Yu Zhong', xb: 'X.Borg', ls: 'Lesley', pk: 'Popol & Kupa' };
 const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
@@ -121,8 +145,7 @@ export function parseSeasonPage(raw, { league, season, page, heroName }) {
       const t1Blue = sideUnknown ? true : s1 === 'blue';
       const picks = arr => arr.map((name, i) => ({ name, lane: LANES[i] }));
       const bans = t => [1, 2, 3, 4, 5].map(i => b(t, i)).filter(Boolean);
-      const mapTxt = plain(M.comment || ''), mm = /picked\s+(.+?)\s*$/i.exec(mapTxt);
-      const map = mm ? (MAPS[norm(mm[1])] || mm[1].trim()) : '';
+      const map = readMap(M);
       const g = {
         id: 'lp_' + hash(`${league}|${season}|${page}|${key}|${gn}`),
         league, season, stage, week, seriesFormat: bo ? 'BO' + bo : '', gameNum: gn,
@@ -229,7 +252,23 @@ function sb() {
 const pickSet = ps => (ps || []).map(norm).filter(Boolean).sort().join(',');
 const overlap = (a, b) => { const B = new Set((b || []).map(norm)); return (a || []).map(norm).filter(x => B.has(x)).length; };
 const dayDiff = (a, b) => Math.abs((Date.parse(a) || 0) - (Date.parse(b) || 0)) / 864e5;
+// the database stores objects with its own key order ({lane,name}) → compare key-order-independently
+const stable = v => JSON.stringify(v ?? null, (k, x) => (x && typeof x === 'object' && !Array.isArray(x)) ? Object.keys(x).sort().reduce((o, kk) => { o[kk] = x[kk]; return o; }, {}) : x);
 const CMP = ['league', 'season', 'stage', 'week', 'seriesFormat', 'gameNum', 'blueTeam', 'redTeam', 'winner', 'date', 'duration', 'vodLink', 'map', 'blueBans', 'redBans', 'bluePicks', 'redPicks', 'sideUnknown'];
+
+// Swap a game's sides the way Scout's ⇄ does: teams, picks, bans, regions, towers, winner,
+// first blood, phase winners, turtles / lords — every blue/red field moves with its team.
+const flipSide = v => v === 'blue' ? 'red' : v === 'red' ? 'blue' : v;
+export function flipSides(R) {
+  const o = { ...R, blueTeam: R.redTeam, redTeam: R.blueTeam, bluePicks: R.redPicks, redPicks: R.bluePicks, blueBans: R.redBans, redBans: R.blueBans, winner: flipSide(R.winner) };
+  if ('blueRegion' in R || 'redRegion' in R) { o.blueRegion = R.redRegion; o.redRegion = R.blueRegion; }
+  if (R.towers && typeof R.towers === 'object') o.towers = { ...R.towers, blue: R.towers.red, red: R.towers.blue };
+  if (R.firstBlood) o.firstBlood = flipSide(R.firstBlood);
+  if (R.ourSide) o.ourSide = flipSide(R.ourSide);
+  if (R.phaseWinners && typeof R.phaseWinners === 'object') o.phaseWinners = Object.fromEntries(Object.entries(R.phaseWinners).map(([k, v]) => [k, flipSide(v)]));
+  if (R.objectives && typeof R.objectives === 'object') o.objectives = Object.fromEntries(Object.entries(R.objectives).map(([k, v]) => [k, Array.isArray(v) ? v.map(flipSide) : flipSide(v)]));
+  return o;
+}
 
 export function plan(lpGames, existing, opts) {
   opts = opts || {};
@@ -243,7 +282,9 @@ export function plan(lpGames, existing, opts) {
   // one display form per Liquipedia team ("evil" / "Evil" / "EVIL" → the most used capitalised form)
   const forms = {}; lpGames.forEach(g => [g.blueTeam, g.redTeam].forEach(t => { const k = tk(g.league, t); (forms[k] = forms[k] || {})[t] = (forms[k][t] || 0) + 1; }));
   const canon = k => { const f = forms[k] || {}; const c = Object.entries(f).sort((a, b) => (/[A-Z]/.test(b[0]) - /[A-Z]/.test(a[0])) || b[1] - a[1])[0]; return c ? prettyTeam(c[0]) : ''; };
-  const out = { add: [], update: [], already: 0, editedSkip: 0, same: 0, conflicts: [], perSeason: {} };
+  const out = { add: [], update: [], fix: [], already: 0, editedSkip: 0, same: 0, conflicts: [], perSeason: {} };
+  const known = opts.heroTitles && opts.heroTitles.length ? new Set(opts.heroTitles.map(norm)) : null;   // only real hero names may replace your bans
+  const now = opts.now || Date.now();
   const inc = (g, k) => { const s = `${g.league} ${g.season}`; const x = out.perSeason[s] || (out.perSeason[s] = { add: 0, already: 0, update: 0 }); x[k]++; };
   // pass 1: find games already on Warr.GG (and learn team names from them)
   // one Liquipedia game ↔ at most one of your games: exact hero matches claim first, then near matches
@@ -263,13 +304,85 @@ export function plan(lpGames, existing, opts) {
   Object.entries(votes).forEach(([k, v]) => { if (!teamMap[k]) teamMap[k] = Object.entries(v).sort((a, b) => b[1] - a[1])[0][0]; });
   const tname = (league, raw) => teamMap[tk(league, raw)] || canon(tk(league, raw)) || prettyTeam(raw);
   const stageGrp = x => /grand/i.test(x || '') ? 'gf' : /play/i.test(x || '') ? 'po' : 'rs';
+  // ── your game ↔ its Liquipedia game: correct the facts, flag what only the VOD can settle ──
+  const secs = d => { const m = /^(\d{1,3}):(\d{2})$/.exec(String(d || '').trim()); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+  const nj = a => (a || []).map(norm).join(',');
+  const banOk = bs => bs.length === 5 && bs.every(b => b && (!known || known.has(norm(b))));
+  const flip = s => s === 'blue' ? 'red' : 'blue';
+  const label = (R, g) => `${g.league} ${g.season} · ${g.date || R.date || ''} · ${R.blueTeam} vs ${R.redTeam} G${R.gameNum || g.gameNum}`;
+  // which Liquipedia team is on YOUR blue side — by the heroes, and by the team names
+  const orient = (R, g) => {
+    const ob = overlap(R.bluePicks, g.bluePicks), orr = overlap(R.bluePicks, g.redPicks);
+    const byPicks = ob !== orr ? orr > ob : null;
+    const nb = norm(R.blueTeam), nr = norm(R.redTeam), gb = norm(g.blueTeam), gr = norm(g.redTeam);
+    const byNames = (nb === gb || nr === gr) ? false : (nb === gr || nr === gb) ? true : null;
+    const mixed = byPicks !== null && byNames !== null && byPicks !== byNames;   // your names say one team, your picks say the other
+    return { byPicks, mixed, sw: byPicks !== null ? byPicks : !!byNames };
+  };
+  const yours = (row, g, confident) => {
+    let R = row.d;
+    const ack = R.lpAck || {};
+    const changes = [], set = {};
+    let O = orient(R, g);
+    // sides: Liquipedia knows them and yours are the other way round → flip the whole game (unless you kept yours)
+    if (confident && !O.mixed && O.sw && !g.sideUnknown && ack.sides !== 'swapped') {
+      changes.push({ f: 'sides', from: `${R.blueTeam} on blue`, to: `${R.redTeam} on blue` });
+      R = flipSides(R); O = orient(R, g);
+    }
+    const { byPicks, mixed, sw } = O;
+    const L = { bBans: sw ? g.redBans : g.blueBans, rBans: sw ? g.blueBans : g.redBans, bPicks: sw ? g.redPicks : g.bluePicks, rPicks: sw ? g.bluePicks : g.redPicks,
+      winner: sw ? flip(g.winner) : g.winner };
+    const put = (f, from, to) => { changes.push({ f, from, to }); };
+    // Liquipedia's bans must make sense before they replace yours: 10 different heroes, none of them picked
+    const lpB = [...L.bBans, ...L.rBans].map(norm), picked = new Set([...g.bluePicks, ...g.redPicks, ...(R.bluePicks || []), ...(R.redPicks || [])].map(norm).filter(Boolean));
+    const banBad = new Set(lpB).size !== lpB.length ? 'a hero is banned twice' : lpB.some(b => picked.has(b)) ? `${[...L.bBans, ...L.rBans].filter(b => picked.has(norm(b))).join(', ')} was also picked` : '';
+    const bansDiffer = banOk(g.blueBans) && banOk(g.redBans) && (nj(R.blueBans) !== nj(L.bBans) || nj(R.redBans) !== nj(L.rBans));
+    const banSig = hash(nj(g.blueBans) + '|' + nj(g.redBans));            // Liquipedia's own sides → same fingerprint however your game is flipped
+    if (confident) {
+      if (bansDiffer && !mixed && !banBad && ack.bans !== banSig) {   // Liquipedia's bans are taken as correct (even if some move to the other team)       // ack: you pressed "keep my bans" for exactly these
+        changes.push({ f: 'bans', from: [R.blueBans || [], R.redBans || []], to: [L.bBans, L.rBans], sig: banSig }); set.blueBans = [...L.bBans]; set.redBans = [...L.rBans];
+      }
+      if (g.date && R.date !== g.date) { put('date', R.date || '', g.date); set.date = g.date; }
+      if (g.duration && secs(g.duration) != null && secs(R.duration) !== secs(g.duration)) { put('length', R.duration || '', g.duration); set.duration = g.duration; }
+      if (g.map && norm(R.map) !== norm(g.map)) { put('map', R.map || '', g.map); set.map = g.map; }
+      if (g.vodLink && !R.vodLink) { put('vod', '', g.vodLink); set.vodLink = g.vodLink; }
+      if (g.week && !String(R.week || '').trim()) { put('week', '', g.week); set.week = g.week; }
+      if (g.seriesFormat && !R.seriesFormat) { put('format', '', g.seriesFormat); set.seriesFormat = g.seriesFormat; }
+    }
+    // flags — never changed for you
+    const issues = [];
+    const pickSig = hash(pickSet(g.bluePicks) + '|' + pickSet(g.redPicks));
+    if (!confident && ack.picks !== pickSig) issues.push({ kind: 'match', text: `Only ${overlap([...(R.bluePicks || []), ...(R.redPicks || [])], [...g.bluePicks, ...g.redPicks])} of 10 heroes match Liquipedia's game — check it's the right game / game number. Nothing was auto-corrected.` });
+    if (mixed && ack.teams !== pickSig) {
+      const lpTeamOfYourBlue = byPicks ? g.redTeam : g.blueTeam;
+      issues.push({ kind: 'teams', text: `team names and drafts don't line up — on Liquipedia, the draft you have under ${R.blueTeam} was ${lpTeamOfYourBlue}'s (Liquipedia: ${g.winner === 'blue' ? g.blueTeam : g.redTeam} won). Check which team picked what; bans were not changed.` });
+    }
+    if (confident && bansDiffer && !mixed && banBad && ack.bans !== banSig) issues.push({ kind: 'bans', yours: [R.blueBans || [], R.redBans || []], lp: [L.bBans, L.rBans],
+      text: `bans — Liquipedia's look wrong (${banBad}), kept yours: you ${(R.blueBans || []).join(', ')} / ${(R.redBans || []).join(', ')} · Liquipedia ${L.bBans.join(', ')} / ${L.rBans.join(', ')}` });
+    if (ack.picks !== pickSig) [['blue', R.bluePicks, L.bPicks, R.blueTeam], ['red', R.redPicks, L.rPicks, R.redTeam]].forEach(([side, mine, lp, team]) => {
+      const M = (mine || []).map(p => p && (p.name || p)).filter(Boolean), Lp = lp.map(p => p.name);
+      const onlyYou = M.filter(h => !Lp.map(norm).includes(norm(h))), onlyLp = Lp.filter(h => !M.map(norm).includes(norm(h)));
+      if (onlyYou.length || onlyLp.length) issues.push({ kind: 'picks', side, team, yours: onlyYou, lp: onlyLp, text: `${team} picks — you have ${onlyYou.join(', ') || '—'}, Liquipedia has ${onlyLp.join(', ') || '—'}` });
+    });
+    const youWin = R.winner === 'blue' ? R.blueTeam : R.redTeam, lpWin = L.winner === 'blue' ? R.blueTeam : R.redTeam;
+    if (!mixed && R.winner && R.winner !== L.winner && ack.winner !== g.winner) {
+      if (confident) { changes.push({ f: 'winner', from: youWin, to: lpWin, sig: g.winner }); set.winner = L.winner; }   // Liquipedia's result wins
+      else issues.push({ kind: 'winner', yours: youWin, lp: lpWin, text: `winner — you have ${youWin}, Liquipedia has ${lpWin}` });
+    }
+    if (changes.length) {
+      const log = { at: now, changes };
+      out.fix.push({ id: row.id, row: { ...R, ...set, lpRef: { page: g.lp.page, key: g.lp.key }, lpFix: [...(R.lpFix || []), log].slice(-10) }, by: row.by, changes, game: label(R, g) });
+    }
+    if (issues.length) out.conflicts.push({ id: row.id, game: label(R, g), vod: R.vodLink || g.vodLink || '', issues,
+      ack: { picks: pickSig, teams: pickSig, bans: banSig, winner: g.winner, sides: sw ? 'swapped' : '' } });
+  };
   // pass 2: classify
   lpGames.forEach(g0 => {
     const g = { ...g0, blueTeam: tname(g0.league, g0.blueTeam), redTeam: tname(g0.league, g0.redTeam) };
     const own = byId[g.id];
     if (own) {                                                  // imported before
-      if (own.d.lp && own.d.lp.edited) { out.editedSkip++; return; }
-      const changed = CMP.filter(k => JSON.stringify(own.d[k] ?? null) !== JSON.stringify(g[k] ?? null));
+      if (own.d.lp && own.d.lp.edited) { out.editedSkip++; yours(own, g, true); return; }   // you arranged it: it's yours now
+      const changed = CMP.filter(k => stable(own.d[k]) !== stable(g[k]));
       if (changed.length) { out.update.push({ row: { ...own.d, ...g, id: g.id, seriesId: own.d.seriesId || g.seriesId, savedAt: Date.now() }, by: own.by, changed }); inc(g, 'update'); }
       else out.same++;
       return;
@@ -280,19 +393,10 @@ export function plan(lpGames, existing, opts) {
       && [r.d.blueTeam, r.d.redTeam].map(norm).sort().join('|') === [g.blueTeam, g.redTeam].map(norm).sort().join('|')
       && (!g.date || !r.d.date || dayDiff(r.d.date, g.date) <= 1 || (dayDiff(r.d.date, g.date) <= 7 && stageGrp(r.d.stage) === stageGrp(g.stage)
         && overlap([...(r.d.bluePicks || []), ...(r.d.redPicks || [])], [...g.bluePicks, ...g.redPicks]) >= 5)));
-    if (hit) {                                                  // you logged it: never re-add, never change
+    if (hit) {                                                  // you logged it: never re-added
       claimed.add(hit.id);
       out.already++; inc(g, 'already');
-      const sameSide = pickSet(hit.d.bluePicks) === pickSet(g.bluePicks) || norm(hit.d.blueTeam) === norm(g.blueTeam);
-      const theirWinner = hit.d.winner === 'blue' ? hit.d.blueTeam : hit.d.redTeam, lpWinner = g.winner === 'blue' ? g.blueTeam : g.redTeam;
-      const lpWinPicks = pickSet(g.winner === 'blue' ? g.bluePicks : g.redPicks), yourWinPicks = pickSet(hit.d.winner === 'blue' ? hit.d.bluePicks : hit.d.redPicks);
-      const issues = [];
-      if (lpWinPicks !== yourWinPicks && norm(theirWinner) !== norm(lpWinner)) issues.push(`winner: yours ${theirWinner}, Liquipedia ${lpWinner}`);
-      if (!sameSide && !g.sideUnknown) issues.push('sides are swapped vs Liquipedia');
-      const bansYou = [...(hit.d.blueBans || []), ...(hit.d.redBans || [])], bansLp = [...g.blueBans, ...g.redBans];
-      if (bansYou.length && overlap(bansYou, bansLp) < Math.min(bansYou.length, bansLp.length)) issues.push(`bans differ (${bansYou.filter(b => !bansLp.map(norm).includes(norm(b))).join(', ')} vs ${bansLp.filter(b => !bansYou.map(norm).includes(norm(b))).join(', ')})`);
-      if (g.date && hit.d.date && dayDiff(hit.d.date, g.date) >= 1) issues.push(`date: yours ${hit.d.date}, Liquipedia ${g.date}`);
-      if (issues.length) out.conflicts.push({ id: hit.id, game: `${g.league} ${g.season} · ${g.date} · ${hit.d.blueTeam} vs ${hit.d.redTeam} G${hit.d.gameNum || g.gameNum}`, issues });
+      yours(hit, g, overlap([...(hit.d.bluePicks || []), ...(hit.d.redPicks || [])], [...g.bluePicks, ...g.redPicks]) >= 8);
       return;
     }
     // new game: join the series you already logged (same teams/date/format), else its own series
@@ -325,9 +429,10 @@ export async function run(opts = {}) {
   await store.setJSON('lock', { at: t });
   try { return await runInner({ ...opts, store }); } finally { await store.setJSON('lock', { at: 0 }); }
 }
-async function runInner({ apply = false, budgetMs = 22000, fetchImpl = fetch, now = () => Date.now(), store, db, heroTitles } = {}) {
+async function runInner({ apply = false, force = false, budgetMs = 22000, fetchImpl = fetch, now = () => Date.now(), store, db, heroTitles } = {}) {
   const st = (await store.get('state', { type: 'json' })) || { pages: {}, teamMap: {}, auto: false };
   st.pages = st.pages || {}; st.teamMap = st.teamMap || {};
+  if (st.parserV !== PARSER_V) { Object.values(st.pages).forEach(p => { p.revid = 0; }); st.parserV = PARSER_V; }   // parser improved → read every page again
   if (!db) {                                  // no database key → stop before asking Liquipedia for anything
     try { db = sb(); } catch (e) {
       const res = { at: new Date(now()).toISOString(), error: String(e.message || e), requests: 0, auto: !!st.auto };
@@ -367,9 +472,9 @@ async function runInner({ apply = false, budgetMs = 22000, fetchImpl = fetch, no
   const prev = (await store.get('status', { type: 'json' })) || {};
   let result = { at: new Date(now()).toISOString(), partial, error, requests: C.count(), lpGames: lpGames.length, pages: Object.keys(st.pages).length, applied: false,
     nextMatch: (st.schedule.find(t => t > now() - 4 * 3600e3) ? new Date(st.schedule.find(t => t > now() - 4 * 3600e3)).toISOString() : null) };
-  // nothing new on Liquipedia since the last import → skip the database entirely
-  const sig = hash(JSON.stringify(lpGames.map(g => [g.id, g.winner, g.date, g.map, g.blueTeam, g.redTeam, g.duration, g.bluePicks.map(p => p.name).join(), g.blueBans.join()])) + JSON.stringify(st.teamMap));
-  if (apply && !error && sig === st.appliedSig) {
+  // nothing new on Liquipedia and the database was checked < 30 min ago → skip it (your edits are re-checked every 30 min)
+  const sig = hash(PARSER_V + JSON.stringify(lpGames.map(g => [g.id, g.winner, g.date, g.map, g.blueTeam, g.redTeam, g.duration, g.bluePicks.map(p => p.name).join(), g.blueBans.join(), g.redBans.join()])) + JSON.stringify(st.teamMap));
+  if (apply && !force && !error && sig === st.appliedSig && now() - (st.appliedAt || 0) < 30 * 60e3) {
     result = { ...prev, at: result.at, requests: result.requests, partial, nextMatch: result.nextMatch, upToDate: true, applied: false };
     await store.setJSON('state', st); await store.setJSON('status', { ...result, auto: !!st.auto });
     return { ...result, auto: !!st.auto };
@@ -378,18 +483,22 @@ async function runInner({ apply = false, budgetMs = 22000, fetchImpl = fetch, no
     try {
       db = db || sb();
       const existing = await db.rows([...new Set(lpGames.map(g => g.league))], [...new Set(lpGames.map(g => g.season))]);
-      const P = plan(lpGames, existing, { teamMap: st.teamMap, adminId: st.adminId });
-      result = { ...result, add: P.add.length, update: P.update.length, already: P.already, editedSkip: P.editedSkip, same: P.same, perSeason: P.perSeason,
+      const P = plan(lpGames, existing, { teamMap: st.teamMap, adminId: st.adminId, heroTitles, now: now() });
+      result = { ...result, add: P.add.length, update: P.update.length, fix: P.fix.length, already: P.already, editedSkip: P.editedSkip, same: P.same, perSeason: P.perSeason,
+        fixPreview: P.fix.slice(0, 200).map(f => ({ id: f.id, game: f.game, changes: f.changes })),
         conflicts: P.conflicts, newTeams: P.newTeams, unknownHeroes: [...(typeof heroName !== 'undefined' && heroName.unknown ? heroName.unknown : [])], preview: P.add.slice(0, 60).map(g => `${g.league} ${g.season} · ${g.stage}${g.week ? ' · ' + g.week : ''} · ${g.date} · ${g.blueTeam} vs ${g.redTeam} G${g.gameNum}${g.map ? ' · ' + g.map : ''}`) };
-      if (apply && (P.add.length || P.update.length)) {
+      if (apply && (P.add.length || P.update.length || P.fix.length)) {
         if (!P.adminId) throw new Error('NO_ADMIN_ID');
-        await db.upsert([...P.add.map(g => ({ id: g.id, data: g, created_by: P.adminId })), ...P.update.map(u => ({ id: u.row.id, data: u.row, created_by: u.by || P.adminId }))]);
+        await db.upsert([...P.add.map(g => ({ id: g.id, data: g, created_by: P.adminId })), ...P.update.map(u => ({ id: u.row.id, data: u.row, created_by: u.by || P.adminId })),
+          ...P.fix.map(f => ({ id: f.id, data: f.row, created_by: f.by || P.adminId }))]);
         result.applied = true;
+        if (P.fix.length) st.fixLog = [...P.fix.map(f => ({ at: now(), id: f.id, game: f.game, changes: f.changes })), ...(st.fixLog || [])].slice(0, 400);
       }
-      if (apply) st.appliedSig = sig;
+      if (apply) { st.appliedSig = sig; st.appliedAt = now(); }
       st.adminId = st.adminId || P.adminId;
     } catch (e) { result.error = String(e.message || e); }
   }
+  result.fixLog = (st.fixLog || []).slice(0, 400);                // every correction made to your games (old → new)
   await store.setJSON('state', st);
   await store.setJSON('status', { ...result, auto: !!st.auto });
   return { ...result, auto: !!st.auto };

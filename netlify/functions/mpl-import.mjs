@@ -2,7 +2,7 @@
 // Warr.GG — /api/mpl-import  (MPL games from Liquipedia → scout database)
 //   GET ?status=1                         last check: new games, already-logged, review list
 //   POST {action:'preview'}               admin — read Liquipedia, show what would be added
-//   POST {action:'import'}                admin — add the new games (never touches yours)
+//   POST {action:'import'}                admin — add new games + correct your games' facts from Liquipedia
 //   POST {action:'auto', on:true|false}   admin — keep importing automatically (live on match days)
 //   POST {action:'team', league, liquipedia, site}   admin — how a Liquipedia team is named here
 // ═══════════════════════════════════════════════════════════════
@@ -38,7 +38,7 @@ export default async (req) => {
   if (email !== ADMIN_EMAIL) return Response.json({ error: 'ADMIN_ONLY' }, { status: 403, headers: cors() });
   let body = {}; try { body = await req.json(); } catch {}
   if (body.action === 'preview' || body.action === 'import') {
-    const r = await run({ store, apply: body.action === 'import', budgetMs: 21000, heroTitles: await heroTitles() });
+    const r = await run({ store, apply: body.action === 'import', force: true, budgetMs: 21000, heroTitles: await heroTitles() });
     return Response.json(r, { headers: cors() });
   }
   if (body.action === 'auto') return Response.json(await setOption(store, { auto: !!body.on }), { headers: cors() });
