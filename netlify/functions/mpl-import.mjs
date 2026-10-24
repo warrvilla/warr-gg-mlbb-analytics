@@ -5,6 +5,7 @@
 //   POST {action:'import'}                admin — add new games + correct your games' facts from Liquipedia
 //   POST {action:'auto', on:true|false}   admin — keep importing automatically (live on match days)
 //   POST {action:'team', league, liquipedia, site}   admin — how a Liquipedia team is named here
+//   POST {action:'league', site, link | remove}       admin — follow another league by its Liquipedia link
 // ═══════════════════════════════════════════════════════════════
 import { run, setOption, openStore } from '../lib/mpl-import.mjs';
 import { openStore as heroStore } from '../lib/hero-data.mjs';
@@ -42,6 +43,7 @@ export default async (req) => {
     return Response.json(r, { headers: cors() });
   }
   if (body.action === 'auto') return Response.json(await setOption(store, { auto: !!body.on }), { headers: cors() });
+  if (body.action === 'league') { const r = await setOption(store, { league: { site: body.site, link: body.link, remove: !!body.remove } }); return Response.json(r, { status: r.error ? 400 : 200, headers: cors() }); }
   if (body.action === 'team') return Response.json(await setOption(store, { team: { league: body.league, liquipedia: body.liquipedia, site: body.site } }), { headers: cors() });
   return Response.json({ error: 'UNKNOWN_ACTION' }, { status: 400, headers: cors() });
 };

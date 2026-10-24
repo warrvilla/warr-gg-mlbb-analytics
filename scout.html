@@ -2285,8 +2285,9 @@ async function loadFromSupabase() {
     // resurrect it), and not tombstoned. This is what stops deletes from coming back.
     const localOnly = DB_MODULE.getMatches().filter(m =>
       !cloudIds.has(m.id) && !m._synced && !(WDB._isTomb && WDB._isTomb(m.id)) &&
-      (m._createdBy === userId || (!m._createdBy && userId === null))
-    );
+      (m._createdBy === userId || !m._createdBy) &&       // no owner = logged before the cloud existed (e.g. the March M7 games) → yours, upload it, never drop it
+      (typeof WAdmin === 'undefined' || !WAdmin.canWrite || WAdmin.canWrite(m.league || ''))
+    ).map(m => (m._createdBy || !userId) ? m : { ...m, _createdBy: userId });
     // Replace entire match list with authoritative cloud data first
     DB_MODULE.resetMatches(cloudMatches.slice());
     // Then merge in any truly local-only matches for current user and upload them
@@ -3126,6 +3127,7 @@ function renderMatchList() {
            <select class="form-select" style="width:auto;font-size:11px;" onchange="matchSort=this.value;renderMatchListBody()"><option value="date">Sort by Date</option><option value="league">League</option><option value="blue">Blue Team</option><option value="red">Red Team</option></select>
            <select id="seasonFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="setSeasonFilter(this.value)"><option value="all">All Seasons</option></select>
            <select id="weekFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="setWeekFilter(this.value)"><option value="all">All Weeks</option></select>
+           <button class="btn btn-ghost" id="importBtn" onclick="document.getElementById('importFile').click()" style="padding:7px 12px;font-size:11px;display:none;" title="Import games from a Warr.GG Scout export (warr_scout_….xlsx) — they are saved to the cloud">⇪ Import</button><input type="file" id="importFile" accept=".xlsx,.xls" style="display:none" onchange="importData(this)">
            <button class="btn btn-ghost" id="auditBtn" onclick="openAuditPanel()" style="padding:7px 12px;font-size:11px;display:none;" title="Liquipedia imports whose draft order you haven't arranged yet, and your games that differ from Liquipedia">⚑ To be verified</button>
            <button class="btn btn-accent" onclick="openNewMatch()" style="padding:7px 14px;font-size:11px;">+ New Match</button>
          </div>
@@ -3170,7 +3172,7 @@ async function _loadLpStatus(force) {
   });
   return _lpStatus;
 }
-setTimeout(() => _loadLpStatus().then(() => { try { const ab = document.getElementById('auditBtn'); if (ab) ab.style.display = _lpAdm() ? '' : 'none'; if (Object.keys(_lpConflict || {}).length) renderMatchListBody(); } catch (_) {} }), 1500);
+setTimeout(() => _loadLpStatus().then(() => { try { ['auditBtn', 'importBtn'].forEach(i => { const ab = document.getElementById(i); if (ab) ab.style.display = _lpAdm() ? '' : 'none'; }); if (Object.keys(_lpConflict || {}).length) renderMatchListBody(); } catch (_) {} }), 1500);
 // ── "Differs from Liquipedia": what exactly differs, VOD, and "mine is right" ──
 function _lpSafeUrl(u) { return /^https?:\/\//i.test(String(u || '')) ? String(u) : ''; }
 function _lpIssueHtml(i) {
@@ -3323,7 +3325,7 @@ async function openAuditPanel() {
 function renderMatchListBody() {
   const body = document.getElementById('matchListBody');
   if (!body) return;
-  { const ab = document.getElementById('auditBtn'); if (ab) ab.style.display = _lpAdm() ? '' : 'none'; }
+  ['auditBtn', 'importBtn'].forEach(i => { const ab = document.getElementById(i); if (ab) ab.style.display = _lpAdm() ? '' : 'none'; });
   // Update patch dropdown with unique patches from all matches
   const weekSel = document.getElementById('weekFilterSelect');
   if (weekSel) {
@@ -7337,7 +7339,8 @@ function buildMetaTable(matches, roleFilter) {
 // ══════════════════════════════════════════════════════════════
 // EXPORT / IMPORT
 // ══════════════════════════════════════════════════════════════
-function exportData() {
+async function exportData() {
+  try { await _needXLSX(); } catch (e) { toast('Export failed: ' + e.message); return; }
   const wb = XLSX.utils.book_new();
   const mRows = [['ID','SeriesID','League','Season','Stage','Week','SeriesFormat','GameNum','BlueTeam','RedTeam','Winner','Date','VODLink','Notes',
     'BlueBan1','BlueBan2','BlueBan3','BlueBan4','BlueBan5',
@@ -7381,13 +7384,25 @@ function exportData() {
   toast('Exported successfully');
 }
 
-function importData(input) {
+// SheetJS is only needed for Import / Export, so it loads on first use
+function _needXLSX() {
+  if (typeof XLSX !== 'undefined') return Promise.resolve();
+  return window.__xlsxP || (window.__xlsxP = new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload = () => res(); s.onerror = () => { window.__xlsxP = null; rej(new Error('could not load the Excel reader')); };
+    document.head.appendChild(s);
+  }));
+}
+async function importData(input) {
   const file = input.files[0]; if (!file) return;
+  try { await _needXLSX(); } catch (e) { toast('Import failed: ' + e.message); input.value = ''; return; }
   const reader = new FileReader();
   reader.onload = e => {
     try {
       const wb = XLSX.read(e.target.result, {type:'array'});
       let imported = 0, updated = 0;
+      const _uid = (typeof WAuth !== 'undefined' && WAuth.getUser && WAuth.getUser()?.id) || null;
+      const _fresh = [];                       // new games → also saved to the cloud (before, they lived only in this browser and were lost on the next sync)
       const wsM = wb.Sheets['Scout_Matches'];
       if (wsM) {
         const rows = XLSX.utils.sheet_to_json(wsM, {header:1});
@@ -7425,7 +7440,7 @@ function importData(input) {
             return;
           }
 
-          DB_MODULE.upsertMatch({
+          const _nm = {
             id, league, season, stage, week:wk, seriesFormat:fmtClean,
             gameNum: Number(gn)||1, blueTeam:bt, redTeam:rt, winner, date,
             vodLink:vod||'', notes:notes||'', seriesId,
@@ -7433,7 +7448,9 @@ function importData(input) {
             redBans:   [rb1,rb2,rb3,rb4,rb5].filter(Boolean),
             bluePicks: [mk(bp1n,bp1l),mk(bp2n,bp2l),mk(bp3n,bp3l),mk(bp4n,bp4l),mk(bp5n,bp5l)].filter(Boolean),
             redPicks:  [mk(rp1n,rp1l),mk(rp2n,rp2l),mk(rp3n,rp3l),mk(rp4n,rp4l),mk(rp5n,rp5l)].filter(Boolean),
-          });
+            ...(_uid ? { _createdBy: _uid } : {}),
+          };
+          DB_MODULE.upsertMatch(_nm); _fresh.push(_nm);
           imported++;
         });
       }
@@ -7453,7 +7470,13 @@ function importData(input) {
       DB_MODULE.rebuildTeams();
       DB_MODULE.save();
       showView(currentView);
-      toast(`✓ ${imported} new · ${updated} updated`);
+      toast(`✓ ${imported} new · ${updated} updated${_fresh.length && _uid ? ' — saving to the cloud…' : ''}`);
+      if (_fresh.length && _uid && typeof WDB !== 'undefined' && WDB.saveMatch) (async () => {
+        let ok = 0, fail = 0;
+        for (const m of _fresh) { try { await WDB.saveMatch(m); m._synced = true; ok++; } catch (_) { fail++; } }
+        DB_MODULE.save(); _setSyncStatus(fail ? 'err' : 'ok');
+        toast(fail ? `☁ ${ok} saved to the cloud, ${fail} failed — import again to retry` : `☁ All ${ok} imported games saved to the cloud`, fail ? 'error' : undefined);
+      })();
     } catch(err) {
       toast('Import failed: ' + err.message);
     }

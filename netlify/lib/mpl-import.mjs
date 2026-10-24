@@ -1,8 +1,9 @@
 // ═══════════════════════════════════════════════════════════════════════
 // Warr.GG — MPL games from Liquipedia → the scout database.
 //
-// Reads the current and previous season of every MPL league (PH, ID, MY, SG,
-// KH) — the season list is discovered, so Season 19 is picked up by itself.
+// Reads the current and previous edition of every league in LEAGUES (MPL PH/ID/MY/SG/KH,
+// MTC, MSL TH, MSC, GOTF, M-Series) plus any league added in Admin by its Liquipedia link —
+// editions are discovered, so Season 19 / MSC 2027 / M8 are picked up by themselves.
 // Each finished game brings: teams, side, winner, length, date, game number,
 // stage/week, map pick, VOD, bans and picks with lanes. Draft ORDER is not
 // trusted: picks are listed in lane order. Ban order IS the real order (matched
@@ -26,10 +27,30 @@
 import { templates, plain } from './liquipedia-parse.mjs';
 import { API, UA } from './hero-data.mjs';
 
+// Every league Warr.GG follows on Liquipedia. kind: 'season' → <prefix>N (Season 17, 18…),
+// 'year' → <prefix>YYYY (MSC/2026), 'worlds' → M7 World Championship, M8 … Current + previous edition.
+// Leagues added from Admin (a pasted Liquipedia link) are appended at run time.
 export const LEAGUES = [
-  { site: 'MPL PH', lp: 'Philippines' }, { site: 'MPL ID', lp: 'Indonesia' }, { site: 'MPL MY', lp: 'Malaysia' },
-  { site: 'MPL SG', lp: 'Singapore' }, { site: 'MPL KH', lp: 'Cambodia' },
+  { site: 'MPL PH', prefix: 'MPL/Philippines/Season ', kind: 'season' }, { site: 'MPL ID', prefix: 'MPL/Indonesia/Season ', kind: 'season' },
+  { site: 'MPL MY', prefix: 'MPL/Malaysia/Season ', kind: 'season' }, { site: 'MPL SG', prefix: 'MPL/Singapore/Season ', kind: 'season' },
+  { site: 'MPL KH', prefix: 'MPL/Cambodia/Season ', kind: 'season' },
+  { site: 'MTC', prefix: 'MTC Turkiye Championship/Season ', kind: 'season' },
+  { site: 'MSL TH', prefix: 'MLBB Super League/Thailand/Season ', kind: 'season' },
+  { site: 'MSC', prefix: 'MSC/', kind: 'year' },
+  { site: 'GOTF', prefix: 'Games of the Future/', kind: 'year' },
+  { site: 'M-Series', prefix: 'M', kind: 'worlds' },
 ];
+// A pasted Liquipedia link → league config ("…/MLBB_Super_League/Thailand/Season_2" → season series)
+export function leagueFromLink(site, link) {
+  let t = String(link || '').trim().replace(/^https?:\/\/liquipedia\.net\/mobilelegends\//i, '').replace(/[?#].*$/, '');
+  try { t = decodeURIComponent(t); } catch (_) {}
+  t = t.replace(/_/g, ' ').replace(/\/+$/, '');
+  if (!site || !t || /[<>{}|]/.test(t)) return null;
+  let m = /^(.*\/Season )\d+(\/.*)?$/i.exec(t); if (m) return { site, prefix: m[1], kind: 'season' };
+  m = /^(.*\/)(\d{4})(\/.*)?$/.exec(t); if (m) return { site, prefix: m[1], kind: 'year' };
+  return { site, prefix: t.split('/')[0], kind: 'event' };          // a one-off event page (and its stages)
+}
+const STAGE_PAGE = /^(Regular Season|Play-?ins?|Playoffs|Group Stage|Groups?|Swiss Stage|Knockout Stage|Knockouts|Wildcard|Main Event|Finals?|Last Chance)$/i;
 const SEASONS = 2;                                   // current + previous
 const LANES = ['EXP', 'Jungle', 'Mid', 'Gold', 'Roam'];
 const GAP_MS = 2100;
@@ -37,7 +58,7 @@ const STORE = 'warr-mpl-import';
 const MAPS = { flyingcloud: 'Flying Cloud', revealingwisps: 'Revealing Wisps', healingturtle: 'Healing Turtle', goldenturret: 'Golden Turret',
   dangerousgrass: 'Dangerous Grass', brokenwalls: 'Broken Walls', expandingriver: 'Expanding River', expandingrivers: 'Expanding River' };
 // Bump when the page parser changes: every stored page is read again so old imports get the fix.
-export const PARSER_V = 3;
+export const PARSER_V = 5;
 // "Broken Walls" / "Dangerous Grasa" (typo) / "[[Flying Cloud]]" → the site's map name
 export function mapName(raw) {
   const t = String(raw || '').replace(/\[\[|\]\]/g, '').trim(), k = norm(t);
@@ -56,7 +77,7 @@ export function readMap(M) {
   return any || '';
 }
 const HERO_ALIAS = { yss: 'Yi Sun-shin', yisunshin: 'Yi Sun-shin', popolandkupa: 'Popol & Kupa', popol: 'Popol & Kupa', popolkupa: 'Popol & Kupa',
-  xborg: 'X.Borg', lapulapu: 'Lapu-Lapu', lapu: 'Lapu-Lapu', change: "Chang'e", luoyi: 'Luo Yi', yuzhong: 'Yu Zhong', yinn: 'Yin', gs: 'Gusion', yz: 'Yu Zhong', xb: 'X.Borg', ls: 'Lesley', pk: 'Popol & Kupa' };
+  xborg: 'X.Borg', lapulapu: 'Lapu-Lapu', lapu: 'Lapu-Lapu', yu: 'Yu Zhong', change: "Chang'e", luoyi: 'Luo Yi', yuzhong: 'Yu Zhong', yinn: 'Yin', gs: 'Gusion', yz: 'Yu Zhong', xb: 'X.Borg', ls: 'Lesley', pk: 'Popol & Kupa' };
 const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
 
 export const norm = s => String((s && (s.name || s)) || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
@@ -93,16 +114,16 @@ export function parseDate(s) {
   const p = n => String(n).padStart(2, '0');
   const iso = /(\d{4})-(\d{1,2})-(\d{1,2})(?:\s*-\s*(\d{1,2}):(\d{2}))?/.exec(String(s || ''));   // "2026-04-03 - 13:00" (KH, SG pages)
   if (iso) return { date: `${iso[1]}-${p(iso[2])}-${p(iso[3])}`, time: iso[4] ? `${p(iso[4])}:${iso[5]}` : '' };
-  const m = /([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2}),?\s*(\d{4})(?:\s*-\s*(\d{1,2}:\d{2}))?/.exec(String(s || ''));   // "October 21,2026 - 15:00"
+  const m = /([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2}),?\s*(\d{4})(?:\s*[-,]\s*(\d{1,2}:\d{2}))?/.exec(String(s || ''));   // "October 21,2026 - 15:00" / "October 16, 2026, 11:00"
   if (!m || !MONTHS[m[1].toLowerCase()]) return { date: '', time: '' };
   return { date: `${m[3]}-${p(MONTHS[m[1].toLowerCase()])}-${p(m[2])}`, time: m[4] ? p(m[4].split(':')[0]) + ':' + m[4].split(':')[1] : '' };
 }
 
 // ── Match schedule (any weekday): start times from every |date= on the page ──
-const TZ = { SGT: 8, PHT: 8, PST: 8, MYT: 8, HKT: 8, WITA: 8, AWST: 8, WIB: 7, ICT: 7, WIT: 9, KST: 9, JST: 9, GST: 4, AST: 3, MSK: 3, CEST: 2, CET: 1, BST: 1, UTC: 0, GMT: 0, BRT: -3, EST: -5, EDT: -4, CST: -6, PDT: -7 };
+const TZ = { TRT: 3, TJT: 5, PKT: 5, IST: 5.5, NPT: 5.75, BDT: 6, MMT: 6.5, EET: 2, EEST: 3, AEST: 10, AEDT: 11, SGT: 8, PHT: 8, PST: 8, MYT: 8, HKT: 8, WITA: 8, AWST: 8, WIB: 7, ICT: 7, WIT: 9, KST: 9, JST: 9, GST: 4, AST: 3, MSK: 3, CEST: 2, CET: 1, BST: 1, UTC: 0, GMT: 0, BRT: -3, EST: -5, EDT: -4, CST: -6, PDT: -7 };
 export function parseSchedule(raw) {
   const out = [];
-  for (const m of String(raw || '').matchAll(/\|\s*date\s*=\s*((?:[A-Za-z]{3}[a-z]*\.?\s+\d{1,2},?\s*\d{4}|\d{4}-\d{1,2}-\d{1,2})\s*-\s*\d{1,2}:\d{2})\s*(?:\{\{\s*Abbr\/([A-Za-z]+)\s*\}\})?/g)) {
+  for (const m of String(raw || '').matchAll(/\|\s*date\s*=\s*((?:[A-Za-z]{3}[a-z]*\.?\s+\d{1,2},?\s*\d{4}|\d{4}-\d{1,2}-\d{1,2})\s*[-,]\s*\d{1,2}:\d{2})\s*(?:\{\{\s*Abbr\/([A-Za-z]+)\s*\}\})?/gi)) {
     const { date, time } = parseDate(m[1]); if (!date || !time) continue;
     const off = TZ[(m[2] || 'SGT').toUpperCase()] ?? 8;
     const t = Date.parse(`${date}T${time}:00Z`) - off * 3600e3;
@@ -124,16 +145,20 @@ export function parseSeasonPage(raw, { league, season, page, heroName }) {
   // Liquipedia labels a bracket round once, on its first match (<!-- Upper Bracket Quarterfinals --> |R1M1=);
   // the next matches of the SAME round carry that label on (R1M2..R1M4 are quarterfinals too).
   const label = {}; let cur = null;
-  const STAGE = /bracket|final|semi|quarter|grand|decider|elimination|upper|lower|play-?in|qualif|knockout|third/i;
+  const STAGE = /bracket|final|semi|quarter|grand|decider|elimination|upper|lower|play-?in|qualif|knockout|third|opening|winners?'?|losers?'?|match/i;
   for (const m of String(raw || '').matchAll(/<!--\s*([^<>]{3,60}?)\s*-->|\|\s*(R(\d+)M\d+)\s*=/g)) {
     if (m[1] !== undefined) { if (STAGE.test(m[1]) && !/hero|pick|ban/i.test(m[1])) cur = { text: m[1].trim(), round: null }; }
     else if (cur) { if (cur.round === null) cur.round = m[3]; if (cur.round === m[3]) label[m[2]] = cur.text; else cur = null; }
   }
   const wt = String(raw || '').replace(/<!--[\s\S]*?-->/g, '');
-  const pageStage = /\/Playoffs/i.test(page) ? 'Playoffs' : /\/Play-?ins?/i.test(page) ? 'Play-ins' : /\/Regular Season/i.test(page) ? 'Regular Season' : /Qualif/i.test(page) ? 'Qualifiers' : 'Regular Season';
+  // "Upper Bracket QF" → Quarterfinals, "Semi-Finals" → Semifinals, drop "(Bo3)" / empty "()"
+  const cleanLabel = x => String(x || '').replace(/\(\s*(?:bo\s*\d+|best of \d+)?\s*\)/gi, '').replace(/\bQF\b/g, 'Quarterfinals').replace(/\bSF\b/g, 'Semifinals').replace(/\bGF\b/g, 'Grand Final')
+    .replace(/semi-finals/gi, 'Semifinals').replace(/semi-final/gi, 'Semifinal').replace(/quarter-finals/gi, 'Quarterfinals').replace(/\s+/g, ' ').trim();
+  const pageStage = /\/(Playoffs|Knockout|Knockouts|Finals?|Main Event)\b/i.test(page) ? 'Playoffs' : /\/Play-?ins?/i.test(page) ? 'Play-ins' : /\/Swiss/i.test(page) ? 'Swiss Stage'
+    : /\/Group/i.test(page) ? 'Group Stage' : /\/Wildcard/i.test(page) ? 'Wildcard' : /\/Regular Season/i.test(page) ? 'Regular Season' : /Qualif/i.test(page) ? 'Qualifiers' : 'Regular Season';
   const games = [];
   const readMatch = (P, key, week, stage, fallbackDate) => {
-    const team = o => { const t = templates(String(o || ''))[0]; return t ? String(t.params['1'] || '').trim() : ''; };
+    const team = o => { const t = templates(String(o || ''))[0]; return t ? String(t.params['1'] || '').trim().replace(/\s*\((?:male|female|men'?s|women'?s) team\)\s*$/i, '') : ''; };
     const o1 = team(P.opponent1), o2 = team(P.opponent2);
     if (!o1 || !o2) return;
     let { date, time } = parseDate(P.date);
@@ -143,8 +168,9 @@ export function parseSeasonPage(raw, { league, season, page, heroName }) {
       const mp = templates(String(P[k] || ''))[0]; if (!mp) return;
       const M = mp.params, gn = Number(k.slice(3));
       const winner = String(M.winner || '').trim();
-      const h = (t, i) => heroName(String(M[`t${t}h${i}`] || '').trim());
-      const b = (t, i) => heroName(String(M[`t${t}b${i}`] || '').trim());
+      const val = x => { const v = String(x || '').trim(); return /^(none|-|—|n\/?a|null|skip|no ban)$/i.test(v) ? '' : v; };   // "none" = empty ban slot, not a hero
+      const h = (t, i) => heroName(val(M[`t${t}h${i}`]));
+      const b = (t, i) => heroName(val(M[`t${t}b${i}`]));
       const t1p = [1, 2, 3, 4, 5].map(i => h(1, i)), t2p = [1, 2, 3, 4, 5].map(i => h(2, i));
       if (!/^[12]$/.test(winner) || t1p.filter(Boolean).length < 5 || t2p.filter(Boolean).length < 5) return;   // not played / not filled in yet
       const s1 = String(M.team1side || '').trim().toLowerCase();
@@ -174,16 +200,17 @@ export function parseSeasonPage(raw, { league, season, page, heroName }) {
   const heads = [...wt.matchAll(/^(=+)\s*(.+?)\s*\1\s*$/gm)].map(h => {
     const hs = /\{\{\s*HiddenSort\s*\|([^}]*)\}\}/i.exec(h[2]);
     return { at: h.index, text: (hs ? hs[1] : plain(h[2])).replace(/^[A-Z]{1,4}:\s*/, '').trim() };
-  }).filter(h => h.text && !/^(detailed results|results|format|standings|participants|prize|broadcast|notes?|references?|group [a-z])$/i.test(h.text));
+  }).filter(h => h.text && !/^(detailed results|match results|results|format|standings|participants|prize.*|broadcast.*|notes?|references?|swiss table)$/i.test(h.text));
   const headingAt = pos => { let t = ''; for (const h of heads) { if (h.at < pos) t = h.text; else break; } return t; };
   const walk = (list, ctx) => list.forEach(t => {
     const nm = t.name.toLowerCase(), P = t.params;
     if (nm === 'matchlist') {
-      const title = plain(P.title || '').trim() || (t.start != null ? headingAt(t.start) : '');   // no title → the heading above it
+      let title = cleanLabel(plain(P.title || '').replace(/\bmatches\b/i, '')) || (t.start != null ? headingAt(t.start) : '');   // no title → the heading above it
+      if (pageStage === 'Swiss Stage' && /^round\s*\d+/i.test(title)) title = 'Swiss ' + title;          // M-Series Swiss rounds
       let header = '', dayDate = '';
       Object.keys(P).filter(k => /^m\d+$/i.test(k)).sort((a, b) => Number(a.slice(1)) - Number(b.slice(1))).forEach(k => {
         const n = Number(k.slice(1));
-        if (P[`m${n}header`]) { header = plain(P[`m${n}header`]).trim(); dayDate = ''; }
+        if (P[`m${n}header`]) { const hv = plain(P[`m${n}header`]).trim(); header = /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}(,?\s*\d{4})?$/i.test(hv) ? '' : cleanLabel(hv); dayDate = ''; }   // a date as header ("January 10") isn't a label
         const mt = templates(String(P[k] || ''))[0];
         if (mt && /^match$/i.test(mt.name)) dayDate = readMatch(mt.params, `${P.id || plain(P.title || '').trim()}:${k.toUpperCase()}`, [title, header].filter(Boolean).join(' ') || ctx.week || pageStage, pageStage, dayDate) || dayDate;
       });
@@ -192,7 +219,9 @@ export function parseSeasonPage(raw, { league, season, page, heroName }) {
     if (nm.startsWith('bracket')) {
       Object.keys(P).filter(k => /^r\d+m\d+$/i.test(k)).forEach(k => {
         const K = k.toUpperCase(), hd = plain(P[`r${K.match(/R(\d+)/)[1]}m1header`] || '').trim();
-        const lab = label[K] || (hd && !/^round\s*\d+$/i.test(hd) ? hd : pageStage);   // never a made-up "Round 2"
+        const gh = t.start != null ? headingAt(t.start) : '';
+        const lab0 = label[K] || (hd && !/^round\s*\d+$/i.test(hd) ? hd : '');   // never a made-up "Round 2"
+        const lab = cleanLabel(/^group\b/i.test(gh) ? [gh, lab0].filter(Boolean).join(' · ') : (lab0 || pageStage));   // GOTF / MSC groups: "Group A · …"
         const mt = templates(String(P[k] || ''))[0];
         if (mt && /^match$/i.test(mt.name)) readMatch(mt.params, `${P.id || 'bracket'}:${K}`, lab, /grand ?final/i.test(lab) ? 'Grand Finals' : pageStage);
       });
@@ -221,20 +250,48 @@ function client({ budgetMs, fetchImpl, now }) {
   return { call, count: () => n };
 }
 
-// Which pages to read: current + previous season of each league (auto-advances).
-async function discover(call) {
+// Which pages to read: current + previous edition of each league (auto-advances: Season 19, MSC 2027, M8…).
+// Resumable: with ~10 leagues it can take more than one run — progress is kept in state, the old list is used meanwhile.
+const subpagesOf = (titles, base, strict) => {
+  const kids = titles.filter(t => t.startsWith(base + '/') && !t.slice(base.length + 1).includes('/'));
+  const pick = strict ? kids.filter(t => STAGE_PAGE.test(t.slice(base.length + 1)))
+    : kids.filter(t => !/Statistics|Qualifier|Qualification|Broadcast|Media|Rosters?$|Additional Content/i.test(t));
+  return pick.length ? pick : (titles.includes(base) ? [base] : []);
+};
+export async function discoverOne(call, L) {
   const out = [];
-  for (const L of LEAGUES) {
-    const j = await call({ action: 'query', list: 'allpages', apprefix: `MPL/${L.lp}/Season `, apfilterredir: 'nonredirects', aplimit: '500' });
-    const titles = ((j.query && j.query.allpages) || []).map(p => p.title);
-    const seasons = [...new Set(titles.map(t => (/^MPL\/[^/]+\/Season (\d+)/.exec(t) || [])[1]).filter(Boolean).map(Number))].sort((a, b) => b - a).slice(0, SEASONS);
-    seasons.forEach(sn => {
-      const sub = titles.filter(t => new RegExp(`^MPL/${L.lp}/Season ${sn}/`).test(t) && !/Statistics|Qualifier|Broadcast|Media|Rosters?$/i.test(t));
-      const pages = sub.length ? sub : titles.filter(t => t === `MPL/${L.lp}/Season ${sn}`);
-      pages.forEach(p => out.push({ title: p, league: L.site, season: `Season ${sn}` }));
-    });
+  const all = async prefix => ((await call({ action: 'query', list: 'allpages', apprefix: prefix, apfilterredir: 'nonredirects', aplimit: '500' })).query || {}).allpages || [];
+  if (L.kind === 'worlds') {                                   // M7 World Championship, M8 … (the newest two that exist)
+    const cand = Array.from({ length: 10 }, (_, i) => `M${i + 5} World Championship`);
+    const j = await call({ action: 'query', titles: cand.join('|') });
+    const have = ((j.query && j.query.pages) || []).filter(p => !p.missing && p.title).map(p => p.title)
+      .sort((a, b) => Number(/M(\d+)/.exec(b)[1]) - Number(/M(\d+)/.exec(a)[1])).slice(0, SEASONS);
+    for (const base of have) {
+      const titles = (await all(base + '/')).map(p => p.title).concat([base]);
+      subpagesOf(titles, base, true).forEach(t => out.push({ title: t, league: L.site, season: base }));
+    }
+    return out;
   }
+  if (L.kind === 'event') {                                    // one event + its stage pages
+    const titles = (await all(L.prefix)).map(p => p.title);
+    subpagesOf(titles, L.prefix, true).forEach(t => out.push({ title: t, league: L.site, season: L.prefix }));
+    return out;
+  }
+  const titles = (await all(L.prefix)).map(p => p.title);
+  const esc = L.prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = L.kind === 'year' ? new RegExp(`^${esc}(\\d{4})(?:/|$)`) : new RegExp(`^${esc}(\\d+)(?:/|$)`);
+  const eds = [...new Set(titles.map(t => (re.exec(t) || [])[1]).filter(Boolean).map(Number))].sort((a, b) => b - a).slice(0, SEASONS);
+  eds.forEach(n => {
+    const base = `${L.prefix}${n}`;
+    subpagesOf(titles, base, L.kind !== 'season').forEach(t => out.push({ title: t, league: L.site, season: L.kind === 'season' ? `Season ${n}` : String(n) }));
+  });
   return out;
+}
+async function discover(call, st, leagues, v) {
+  const d = (st.disc && st.disc.v === v) ? st.disc : (st.disc = { v, i: 0, pages: [] });
+  for (; d.i < leagues.length; d.i++) d.pages.push(...await discoverOne(call, leagues[d.i]));   // OUT_OF_TIME → resumes here next run
+  st.disc = null;
+  return d.pages;
 }
 
 // ── Supabase (service role: the import writes as the admin) ──────────────
@@ -252,6 +309,13 @@ function sb() {
         const part = await r.json(); out.push(...part); if (part.length < 1000) break;
       }
       return out;
+    },
+    async remove(ids) {                                        // only ever Liquipedia imports (lp_…) — never your own games
+      ids = ids.filter(id => /^lp_[a-z0-9]+$/.test(id));
+      for (let i = 0; i < ids.length; i += 100) {
+        const r = await fetch(`${url}/rest/v1/scout_matches?id=in.(${ids.slice(i, i + 100).join(',')})`, { method: 'DELETE', headers: { ...h, prefer: 'return=minimal' } });
+        if (!r.ok) throw new Error('SUPABASE_DELETE_' + r.status);
+      }
     },
     async upsert(rows) {
       for (let i = 0; i < rows.length; i += 200) {
@@ -291,12 +355,22 @@ export function plan(lpGames, existing, opts) {
   const site = existing.map(r => ({ id: r.id, d: r.data || {}, by: r.created_by }));
   const byId = {}; site.forEach(r => { byId[r.id] = r; });
   const manual = site.filter(r => !(r.d.lp && r.d.lp.src === 'liquipedia'));
+  // Liquipedia's edition name → the season name you use for that league ("2026" → "EWC 2026", "Season 8" stays)
+  const seasonsOf = {}; manual.forEach(r => { const l = r.d.league, x = String(r.d.season || '').trim(); if (l && x) { const m = seasonsOf[l] || (seasonsOf[l] = {}); m[x] = (m[x] || 0) + 1; } });
+  const seasonFor = (league, lpSeason) => {
+    const m = seasonsOf[league] || {}; if (m[lpSeason]) return lpSeason;
+    const tok = (/\b(M\d+)\b/i.exec(lpSeason) || /(\d{4})/.exec(lpSeason) || /(\d+)/.exec(lpSeason) || [])[1]; if (!tok) return lpSeason;
+    const re = new RegExp(`(^|[^0-9A-Za-z])${tok}([^0-9]|$)`, 'i');
+    const c = Object.entries(m).filter(([x]) => re.test(x)).sort((a, b) => b[1] - a[1]);
+    return c.length ? c[0][0] : lpSeason;
+  };
+  lpGames = lpGames.map(g => { const se = seasonFor(g.league, g.season); return se === g.season ? g : { ...g, season: se }; });
   const tk = (league, name) => league + '|' + norm(name);             // team names are per league ("onic" in ID ≠ PH)
   const pickName = (league, lpName, siteName) => { const k = tk(league, lpName); (votes[k] = votes[k] || {})[siteName] = ((votes[k] || {})[siteName] || 0) + 1; };
   // one display form per Liquipedia team ("evil" / "Evil" / "EVIL" → the most used capitalised form)
   const forms = {}; lpGames.forEach(g => [g.blueTeam, g.redTeam].forEach(t => { const k = tk(g.league, t); (forms[k] = forms[k] || {})[t] = (forms[k][t] || 0) + 1; }));
   const canon = k => { const f = forms[k] || {}; const c = Object.entries(f).sort((a, b) => (/[A-Z]/.test(b[0]) - /[A-Z]/.test(a[0])) || b[1] - a[1])[0]; return c ? prettyTeam(c[0]) : ''; };
-  const out = { add: [], update: [], fix: [], already: 0, editedSkip: 0, same: 0, conflicts: [], perSeason: {} };
+  const out = { add: [], update: [], fix: [], remove: [], already: 0, editedSkip: 0, same: 0, conflicts: [], perSeason: {} };
   const known = opts.heroTitles && opts.heroTitles.length ? new Set(opts.heroTitles.map(norm)) : null;   // only real hero names may replace your bans
   const now = opts.now || Date.now();
   const inc = (g, k) => { const s = `${g.league} ${g.season}`; const x = out.perSeason[s] || (out.perSeason[s] = { add: 0, already: 0, update: 0 }); x[k]++; };
@@ -416,6 +490,8 @@ export function plan(lpGames, existing, opts) {
     const own = byId[g.id];
     if (own) {                                                  // imported before
       if (own.d.lp && own.d.lp.edited) { out.editedSkip++; yours(own, g, true); return; }   // you arranged it: it's yours now
+      const mine = matched.get(g0);                             // you've since logged this game yourself → your copy wins, the import goes
+      if (mine) { out.remove.push(own.id); out.already++; inc(g, 'already'); yours(mine, g, overlap([...(mine.d.bluePicks || []), ...(mine.d.redPicks || [])], [...g.bluePicks, ...g.redPicks]) >= 8); return; }
       const changed = CMP.filter(k => stable(own.d[k]) !== stable(g[k]));
       if (changed.length) { out.update.push({ row: { ...own.d, ...g, id: g.id, seriesId: own.d.seriesId || g.seriesId, savedAt: Date.now() }, by: own.by, changed }); inc(g, 'update'); }
       else out.same++;
@@ -475,8 +551,13 @@ async function runInner({ apply = false, force = false, budgetMs = 22000, fetchI
   }
   const C = client({ budgetMs, fetchImpl, now });
   let partial = false, error = null;
+  const leagues = [...LEAGUES, ...(st.customLeagues || []).filter(c => !LEAGUES.some(L => L.site === c.site))];
+  const LV = hash(JSON.stringify(leagues));
   try {
-    if (!st.list || now() - (st.list.at || 0) > 6 * 3600e3) st.list = { at: now(), pages: await discover(C.call) };
+    if (!st.list || st.list.v !== LV || now() - (st.list.at || 0) > 6 * 3600e3) {
+      try { st.list = { at: now(), v: LV, pages: await discover(C.call, st, leagues, LV) }; }
+      catch (e) { if (!(e.oot && st.list)) throw e; partial = true; }      // not done yet → keep using the previous list this run
+    }
     const pages = st.list.pages;
     // revision check (one light request per 50 pages), then download only changed pages
     const stale = [];
@@ -498,10 +579,20 @@ async function runInner({ apply = false, force = false, budgetMs = 22000, fetchI
       });
       await store.setJSON('state', st);
     }
+    // Liquipedia short team codes ("bru", "fs") → full names via {{TeamName}} — one request for all new names, cached
+    st.teamNames = st.teamNames || {};
+    const raw = [...new Set(Object.values(st.pages).flatMap(p => (p.games || []).flatMap(g => [g.lp.team1, g.lp.team2])))].filter(n => n && !/[A-Z]/.test(n) && !(n in st.teamNames));
+    for (let i = 0; i < raw.length; i += 60) {
+      const part = raw.slice(i, i + 60);
+      const j = await C.call({ action: 'expandtemplates', prop: 'wikitext', text: part.map(n => `{{TeamName|${n}}}`).join('§') });
+      const got = String((j.expandtemplates && j.expandtemplates.wikitext) || '').split('§');
+      part.forEach((n, k) => { const v = (got[k] || '').trim(); st.teamNames[n] = (v && v.length <= 60 && !/[{}\[\]|<>]|template/i.test(v)) ? v : ''; });
+    }
   } catch (e) { if (e.oot) partial = true; else error = String(e.message || e); }
   const live = new Set((st.list && st.list.pages || []).map(p => p.title));
   Object.keys(st.pages).forEach(t => { if (!live.has(t)) delete st.pages[t]; });   // seasons that rolled off
-  const lpGames = Object.values(st.pages).flatMap(p => p.games || []);
+  const TN = st.teamNames || {}, full = n => TN[n] || n;
+  const lpGames = Object.values(st.pages).flatMap(p => (p.games || []).map(g => ({ ...g, blueTeam: full(g.blueTeam), redTeam: full(g.redTeam), lp: { ...g.lp, team1: full(g.lp.team1), team2: full(g.lp.team2) } })));
   st.schedule = [...new Set(Object.values(st.pages).flatMap(p => p.schedule || []))].sort((a, b) => a - b);
   const prev = (await store.get('status', { type: 'json' })) || {};
   let result = { at: new Date(now()).toISOString(), partial, error, requests: C.count(), lpGames: lpGames.length, pages: Object.keys(st.pages).length, applied: false,
@@ -516,15 +607,16 @@ async function runInner({ apply = false, force = false, budgetMs = 22000, fetchI
   if (!error && lpGames.length) {
     try {
       db = db || sb();
-      const existing = await db.rows([...new Set(lpGames.map(g => g.league))], [...new Set(lpGames.map(g => g.season))]);
+      const existing = await db.rows([...new Set(lpGames.map(g => g.league))]);   // every season: Liquipedia's "2026" may be your "EWC 2026"
       const P = plan(lpGames, existing, { teamMap: st.teamMap, adminId: st.adminId, heroTitles, now: now() });
-      result = { ...result, add: P.add.length, update: P.update.length, fix: P.fix.length, already: P.already, editedSkip: P.editedSkip, same: P.same, perSeason: P.perSeason,
+      result = { ...result, add: P.add.length, update: P.update.length, fix: P.fix.length, remove: P.remove.length, already: P.already, editedSkip: P.editedSkip, same: P.same, perSeason: P.perSeason,
         fixPreview: P.fix.slice(0, 200).map(f => ({ id: f.id, game: f.game, changes: f.changes })),
         conflicts: P.conflicts, newTeams: P.newTeams, unknownHeroes: [...(typeof heroName !== 'undefined' && heroName.unknown ? heroName.unknown : [])], preview: P.add.slice(0, 60).map(g => `${g.league} ${g.season} · ${g.stage}${g.week ? ' · ' + g.week : ''} · ${g.date} · ${g.blueTeam} vs ${g.redTeam} G${g.gameNum}${g.map ? ' · ' + g.map : ''}`) };
-      if (apply && (P.add.length || P.update.length || P.fix.length)) {
+      if (apply && (P.add.length || P.update.length || P.fix.length || P.remove.length)) {
         if (!P.adminId) throw new Error('NO_ADMIN_ID');
         await db.upsert([...P.add.map(g => ({ id: g.id, data: g, created_by: P.adminId })), ...P.update.map(u => ({ id: u.row.id, data: u.row, created_by: u.by || P.adminId })),
           ...P.fix.map(f => ({ id: f.id, data: f.row, created_by: f.by || P.adminId }))]);
+        if (P.remove.length && db.remove) await db.remove(P.remove);   // imports you've since logged yourself
         result.applied = true;
         if (P.fix.length) st.fixLog = [...P.fix.map(f => ({ at: now(), id: f.id, game: f.game, changes: f.changes })), ...(st.fixLog || [])].slice(0, 400);
       }
@@ -532,7 +624,9 @@ async function runInner({ apply = false, force = false, budgetMs = 22000, fetchI
       st.adminId = st.adminId || P.adminId;
     } catch (e) { result.error = String(e.message || e); }
   }
-  result.fixLog = (st.fixLog || []).slice(0, 400);                // every correction made to your games (old → new)
+  result.fixLog = (st.fixLog || []).slice(0, 400);
+  result.leagues = leagues.map(L => ({ site: L.site, page: L.kind === 'worlds' ? 'M# World Championship' : L.prefix + (L.kind === 'season' ? 'N' : L.kind === 'year' ? 'YYYY' : ''), custom: !LEAGUES.some(B => B.site === L.site) }));
+  result.discovering = !!st.disc;                // every correction made to your games (old → new)
   await store.setJSON('state', st);
   await store.setJSON('status', { ...result, auto: !!st.auto });
   return { ...result, auto: !!st.auto };
@@ -541,10 +635,15 @@ export async function setOption(store, patch) {
   store = store || await openStore();
   const st = (await store.get('state', { type: 'json' })) || { pages: {}, teamMap: {} };
   if ('auto' in patch) st.auto = !!patch.auto;
+  if (patch.league && patch.league.site) {                    // a league you follow, by its Liquipedia link
+    const site = String(patch.league.site).replace(/[<>"'`\\]/g, '').trim().slice(0, 40);
+    st.customLeagues = (st.customLeagues || []).filter(c => c.site !== site);
+    if (!patch.league.remove) { const L = leagueFromLink(site, patch.league.link); if (!L) return { error: 'BAD_LINK' }; st.customLeagues.push(L); }
+  }
   if (patch.team && patch.team.liquipedia && patch.team.league) {
     st.teamMap = st.teamMap || {}; const k = patch.team.league + '|' + norm(patch.team.liquipedia);
     if (patch.team.site) st.teamMap[k] = String(patch.team.site).replace(/[<>"'`\\]/g, '').trim().slice(0, 60); else delete st.teamMap[k];
   }
   await store.setJSON('state', st);
-  return { auto: !!st.auto, teamMap: st.teamMap };
+  return { auto: !!st.auto, teamMap: st.teamMap, customLeagues: st.customLeagues || [] };
 }

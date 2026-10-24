@@ -849,10 +849,10 @@ async function loadMplImport(res, msg) {
   const teams = (st.newTeams || []).map((t, i) => `<div style="display:flex;gap:6px;align-items:center;padding:2px 0;"><span style="width:58px;">${E(t.league)}</span><span style="flex:1;color:var(--text);">${E(t.liquipedia)}</span>→<input id="mplTeam${i}" value="${E(t.saved_as)}" style="width:170px;font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text);"><button class="btn-approve" style="padding:3px 8px;" onclick="saveMplTeam(${i})">Save</button></div>`).join('');
   box.innerHTML = `
     <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
-      <span style="font-size:10px;font-weight:700;letter-spacing:.08em;">MPL GAMES · LIQUIPEDIA → SCOUT DATA</span>
+      <span style="font-size:10px;font-weight:700;letter-spacing:.08em;">LEAGUE GAMES · LIQUIPEDIA → SCOUT DATA</span>
       <span style="margin-left:auto;color:var(--text);">${st.never ? 'not checked yet' : 'checked ' + when(st.at)}${st.error ? ' · <span style="color:var(--red)">' + E(st.error) + '</span>' : ''}${st.partial ? ' · partly read (press again)' : ''}</span>
     </div>
-    <div>PH, ID, MY, SG, KH — current + previous season (new seasons are picked up by themselves). Games you already logged are <b>never re-added</b> — on them Liquipedia corrects everything except the picks (bans, date, length, map, winner, sides) when it's surely the same game, and flags pick differences for you to check on the VOD; new ones come in as <b style="color:var(--blue)">◐ Draft phase order to be verified</b> (results and heroes right, picks in lane order) until you arrange and save them in Scout entry.</div>
+    <div>${(st.leagues || []).length ? E(st.leagues.map(l => l.site).join(', ')) : 'MPL PH, ID, MY, SG, KH, MTC, MSL TH, MSC, GOTF, M-Series'} — current + previous season / edition (new ones are picked up by themselves)${st.discovering ? ' · <b style="color:var(--gold)">still finding pages — press Check again</b>' : ''}. Games you already logged are <b>never re-added</b> — on them Liquipedia corrects everything except the picks (bans, date, length, map, winner, sides) when it's surely the same game, and flags pick differences for you to check on the VOD; new ones come in as <b style="color:var(--blue)">◐ Draft phase order to be verified</b> (results and heroes right, picks in lane order) until you arrange and save them in Scout entry.</div>
     ${per ? `<div style="margin-top:8px;">${per}</div>` : ''}
     ${st.add ? `<div style="margin-top:6px;color:var(--text);"><b>${st.add}</b> games to add${st.update ? `, ${st.update} imported games Liquipedia corrected` : ''}.</div>` : (st.at && !st.never ? '<div style="margin-top:6px;">Nothing new to add.</div>' : '')}
     ${(st.preview || []).length ? `<details style="margin-top:4px;"><summary style="cursor:pointer;">Preview the new games</summary><div style="max-height:180px;overflow:auto;font-size:11px;">${st.preview.map(E).join('<br>')}${st.add > st.preview.length ? `<br>… and ${st.add - st.preview.length} more` : ''}</div></details>` : ''}
@@ -860,11 +860,20 @@ async function loadMplImport(res, msg) {
     ${(st.conflicts || []).length ? `<div style="margin-top:6px;"><b style="color:var(--red)">${st.conflicts.length}</b> of your games need a VOD check (picks, team mix-ups, impossible Liquipedia bans) — see <a href="scout.html" style="color:var(--blue)">Scout entry → ⚑ To be verified</a>.</div>` : ''}
     ${(st.unknownHeroes || []).length ? `<div style="margin-top:6px;color:var(--red);">Hero names not recognised: ${E(st.unknownHeroes.join(', '))}</div>` : ''}
     ${teams ? `<details style="margin-top:6px;"${(st.newTeams || []).length ? ' open' : ''}><summary style="cursor:pointer;">New team names (${st.newTeams.length}) — check how they'll be saved</summary>${teams}</details>` : ''}
+    <details style="margin-top:8px;"><summary style="cursor:pointer;">Leagues followed on Liquipedia (${(st.leagues || []).length || '—'}) · add another</summary>
+      <div style="font-size:11px;margin:4px 0;">${(st.leagues || []).map(l => `<div style="display:flex;gap:6px;align-items:center;padding:2px 0;"><span style="width:80px;color:var(--text);">${E(l.site)}</span><span style="flex:1;">${E(l.page)}</span>${l.custom ? `<button class="btn-approve" style="padding:2px 8px;font-size:10px;" onclick="mplLeague('${E(l.site)}', '', true)">Remove</button>` : ''}</div>`).join('')}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px;">
+        <input id="mplLgSite" placeholder="League name on Warr.GG (e.g. MPL BR)" style="flex:1;min-width:150px;">
+        <input id="mplLgLink" placeholder="Liquipedia link of a season (…/MPL/Brazil/Season_5)" style="flex:2;min-width:220px;">
+        <button class="btn-approve" onclick="mplLeague(document.getElementById('mplLgSite').value, document.getElementById('mplLgLink').value)">Follow</button>
+      </div>
+      <div style="font-size:10.5px;margin-top:4px;">Paste any season page of the league — later seasons are found by themselves. Use the exact league name you use in Scout.</div>
+    </details>
     ${st.nextMatch ? `<div style="margin-top:6px;">Next / ongoing match on the schedule: <b style="color:var(--text)">${when(st.nextMatch)}</b>${st.auto ? ' — checks every 5 min from 15 min before until 4 h after' : ''}</div>` : ''}
     ${msg ? `<div style="margin-top:6px;color:var(--text);">${E(msg)}</div>` : ''}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
       <button class="btn-approve" onclick="mplAction('preview', this)">🔍 Check Liquipedia (preview)</button>
-      ${st.add || st.fix || st.update ? `<button class="btn-approve" style="background:var(--gold);color:#000;" onclick="mplAction('import', this)">⬇ ${[st.add ? `Import ${st.add} new` : '', st.fix ? `correct ${st.fix} of yours` : '', st.update ? `update ${st.update} imported` : ''].filter(Boolean).join(' · ')}</button>` : ''}
+      ${st.add || st.fix || st.update || st.remove ? `<button class="btn-approve" style="background:var(--gold);color:#000;" onclick="mplAction('import', this)">⬇ ${[st.add ? `Import ${st.add} new` : '', st.fix ? `correct ${st.fix} of yours` : '', st.update ? `update ${st.update} imported` : '', st.remove ? `drop ${st.remove} duplicate imports` : ''].filter(Boolean).join(' · ')}</button>` : ''}
       <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" ${st.auto ? 'checked' : ''} onchange="mplAuto(this.checked)"> Auto-import (live on match days)</label>
     </div>
     <div style="margin-top:6px;font-size:10.5px;">Content: Liquipedia (CC-BY-SA). Polite: one request every 2 s, only changed pages are downloaded.</div>`;
@@ -877,7 +886,15 @@ async function mplAction(action, btn) {
   try { sessionStorage.removeItem('warr_loadmatches_cache_v3'); } catch (_) {}
   loadMplImport(r && !r.busy && r.at ? r : null, msg);
 }
-async function mplAuto(on) { try { await _mplApi({ action: 'auto', on }); } catch (_) {} loadMplImport(null, on ? 'Auto-import on: new MPL games come in by themselves (every 5 min during matches, hourly otherwise).' : 'Auto-import off.'); }
+async function mplLeague(site, link, remove) {
+  site = String(site || '').trim(); link = String(link || '').trim();
+  if (!site || (!remove && !link)) { loadMplImport(null, 'Enter the league name and a Liquipedia link.'); return; }
+  let msg = '';
+  try { const r = await _mplApi({ action: 'league', site, link, remove: !!remove }); msg = r.error === 'BAD_LINK' ? 'That doesn\'t look like a Liquipedia page link.' : r.error ? 'Failed: ' + r.error : (remove ? `Stopped following ${site}.` : `Following ${site} — press 🔍 Check Liquipedia to find its games.`); }
+  catch (e) { msg = 'Failed: ' + (e.message || e); }
+  loadMplImport(null, msg);
+}
+async function mplAuto(on) { try { await _mplApi({ action: 'auto', on }); } catch (_) {} loadMplImport(null, on ? 'Auto-import on: new league games come in by themselves (every 5 min during matches, hourly otherwise).' : 'Auto-import off.'); }
 async function saveMplTeam(i) {
   const t = (_mplLast && _mplLast.newTeams || [])[i]; if (!t) return;
   const v = (document.getElementById('mplTeam' + i) || {}).value || '';
