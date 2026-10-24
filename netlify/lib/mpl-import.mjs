@@ -16,7 +16,8 @@
 // + date + game number) is never re-added. On YOUR games (logged by you, or an
 // import you arranged) Liquipedia takes precedence for the facts — bans (real
 // order), date, game length, map, winner, sides; a missing VOD / week is filled
-// in — but only when it is surely the same game (8+ of the 10 heroes match).
+// in — but only when it is surely the same game: same league + season, 8+ of the
+// 10 heroes match, AND the week number or date agrees (or both are playoffs).
 // Every correction is logged with the old value and can be undone ("keep mine").
 // Picks are never changed: a difference is flagged for you to check on the VOD.
 // Unedited imports simply follow Liquipedia.
@@ -319,9 +320,19 @@ export function plan(lpGames, existing, opts) {
     const mixed = byPicks !== null && byNames !== null && byPicks !== byNames;   // your names say one team, your picks say the other
     return { byPicks, mixed, sw: byPicks !== null ? byPicks : !!byNames };
   };
-  const yours = (row, g, confident) => {
+  // the week / date must back the heroes up: same week number (Week 3 = Week 3), date within 2 days, or both in the playoffs
+  const wkNo = w => { const m = /week\s*(\d+)/i.exec(String(w || '')); return m ? Number(m[1]) : null; };
+  const isPO = (w, st) => /playoff|bracket|final|semi|quarter|play-?in/i.test(`${w || ''} ${st || ''}`);
+  const backs = (R, g) => {
+    if (!g.date || !R.date || dayDiff(R.date, g.date) <= 2) return true;
+    const a = wkNo(R.week), b = wkNo(g.week);
+    if (a != null && b != null) return a === b;
+    return a == null && b == null && isPO(R.week, R.stage) && isPO(g.week, g.stage);
+  };
+  const yours = (row, g, heroesOk) => {
     let R = row.d;
     const ack = R.lpAck || {};
+    const weekOk = backs(R, g), confident = heroesOk && weekOk;     // auto-correct only when heroes AND week/date agree
     const changes = [], set = {};
     let O = orient(R, g);
     // sides: Liquipedia knows them and yours are the other way round → flip the whole game (unless you kept yours)
@@ -352,7 +363,9 @@ export function plan(lpGames, existing, opts) {
     // flags — never changed for you
     const issues = [];
     const pickSig = hash(pickSet(g.bluePicks) + '|' + pickSet(g.redPicks));
-    if (!confident && ack.picks !== pickSig) issues.push({ kind: 'match', text: `Only ${overlap([...(R.bluePicks || []), ...(R.redPicks || [])], [...g.bluePicks, ...g.redPicks])} of 10 heroes match Liquipedia's game — check it's the right game / game number. Nothing was auto-corrected.` });
+    if (!confident && ack.picks !== pickSig) issues.push({ kind: 'match', text: !heroesOk
+      ? `Only ${overlap([...(R.bluePicks || []), ...(R.redPicks || [])], [...g.bluePicks, ...g.redPicks])} of 10 heroes match Liquipedia's game — check it's the right game / game number. Nothing was auto-corrected.`
+      : `The heroes match Liquipedia's game (${g.week || g.stage || '—'}, ${g.date || '—'}) but your week and date don't (${R.week || '—'}, ${R.date || '—'}) — check it's the right game. Nothing was auto-corrected.` });
     if (mixed && ack.teams !== pickSig) {
       const lpTeamOfYourBlue = byPicks ? g.redTeam : g.blueTeam;
       issues.push({ kind: 'teams', text: `team names and drafts don't line up — on Liquipedia, the draft you have under ${R.blueTeam} was ${lpTeamOfYourBlue}'s (Liquipedia: ${g.winner === 'blue' ? g.blueTeam : g.redTeam} won). Check which team picked what; bans were not changed.` });
@@ -368,6 +381,11 @@ export function plan(lpGames, existing, opts) {
     if (!mixed && R.winner && R.winner !== L.winner && ack.winner !== g.winner) {
       if (confident) { changes.push({ f: 'winner', from: youWin, to: lpWin, sig: g.winner }); set.winner = L.winner; }   // Liquipedia's result wins
       else issues.push({ kind: 'winner', yours: youWin, lp: lpWin, text: `winner — you have ${youWin}, Liquipedia has ${lpWin}` });
+    }
+    if (mixed && confident && R.winner && ack.winner !== g.winner) {          // team mix-up: go by the TEAM Liquipedia says won
+      const lpWinName = g.winner === 'blue' ? g.blueTeam : g.redTeam;
+      const side = norm(R.blueTeam) === norm(lpWinName) ? 'blue' : norm(R.redTeam) === norm(lpWinName) ? 'red' : '';
+      if (side && side !== R.winner) { changes.push({ f: 'winner', from: youWin, to: R[side + 'Team'], sig: g.winner }); set.winner = side; }
     }
     if (changes.length) {
       const log = { at: now, changes };
