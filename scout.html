@@ -3092,7 +3092,7 @@ function renderMatchList() {
            <select class="form-select" style="width:auto;font-size:11px;" onchange="matchSort=this.value;renderMatchListBody()"><option value="date">Sort by Date</option><option value="league">League</option><option value="blue">Blue Team</option><option value="red">Red Team</option></select>
            <select id="seasonFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="setSeasonFilter(this.value)"><option value="all">All Seasons</option></select>
            <select id="weekFilterSelect" class="form-select" style="width:auto;font-size:11px;" onchange="setWeekFilter(this.value)"><option value="all">All Weeks</option></select>
-           <button class="btn btn-ghost" onclick="openAuditPanel()" style="padding:7px 12px;font-size:11px;" title="Liquipedia imports whose draft order you haven't arranged yet, and your games that differ from Liquipedia">⚑ To be verified</button>
+           <button class="btn btn-ghost" id="auditBtn" onclick="openAuditPanel()" style="padding:7px 12px;font-size:11px;display:none;" title="Liquipedia imports whose draft order you haven't arranged yet, and your games that differ from Liquipedia">⚑ To be verified</button>
            <button class="btn btn-accent" onclick="openNewMatch()" style="padding:7px 14px;font-size:11px;">+ New Match</button>
          </div>
          <div id="matchListBody"></div>
@@ -3124,7 +3124,9 @@ function _vBadge(g) {
   if (c) return `<span class="vb vb-c" title="${_vEsc('Differs from Liquipedia: ' + c.issues.join('; ') + '. Check it — re-save to keep yours.')}">⚠ Differs from Liquipedia</span>`;
   return `<span class="vb vb-v" title="Full draft order — entered or arranged by you">✓ Complete</span>`;
 }
+function _lpAdm() { return typeof WAdmin !== 'undefined' && WAdmin.isAdmin && WAdmin.isAdmin(); }   // ⚑ review tools are admin-only
 async function _loadLpStatus(force) {
+  if (!_lpAdm()) { _lpConflict = {}; return {}; }                       // not cached: sign-in may finish later
   if (_lpStatus && !force) return _lpStatus;
   try { const r = await fetch('/api/mpl-import?status=1', { cache: 'no-store' }); _lpStatus = r.ok ? await r.json() : {}; } catch (_) { _lpStatus = {}; }
   _lpConflict = {};
@@ -3134,7 +3136,7 @@ async function _loadLpStatus(force) {
   });
   return _lpStatus;
 }
-setTimeout(() => _loadLpStatus().then(() => { try { if (Object.keys(_lpConflict || {}).length) renderMatchListBody(); } catch (_) {} }), 1500);
+setTimeout(() => _loadLpStatus().then(() => { try { const ab = document.getElementById('auditBtn'); if (ab) ab.style.display = _lpAdm() ? '' : 'none'; if (Object.keys(_lpConflict || {}).length) renderMatchListBody(); } catch (_) {} }), 1500);
 // ── "Differs from Liquipedia": what exactly differs, VOD, and "mine is right" ──
 function _lpSafeUrl(u) { return /^https?:\/\//i.test(String(u || '')) ? String(u) : ''; }
 function _lpIssueHtml(i) {
@@ -3219,6 +3221,7 @@ function _lpAckConflict(id) {
 }
 var _auditAllLeagues = false;   // ⚑ list follows the league you're on; "show all" flips it
 async function openAuditPanel() {
+  if (!_lpAdm()) return;
   await _loadLpStatus(true);
   const lg = (!_auditAllLeagues && typeof leagueFilter !== 'undefined' && leagueFilter && leagueFilter !== 'all') ? leagueFilter : '';
   const ms = DB_MODULE.getMatches().filter(m => !lg || m.league === lg);
@@ -3246,6 +3249,7 @@ async function openAuditPanel() {
 function renderMatchListBody() {
   const body = document.getElementById('matchListBody');
   if (!body) return;
+  { const ab = document.getElementById('auditBtn'); if (ab) ab.style.display = _lpAdm() ? '' : 'none'; }
   // Update patch dropdown with unique patches from all matches
   const weekSel = document.getElementById('weekFilterSelect');
   if (weekSel) {
@@ -3638,7 +3642,7 @@ function _openMatchModal(m) {
         <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="closeMatchModal()">✕ Close</button>
       </div>
       <div class="modal-body">
-        ${m && m.lp && m.lp.src === 'liquipedia' ? `<div style="margin:0 0 12px;padding:10px 14px;border-radius:10px;font-size:12px;line-height:1.5;${m.lp.edited ? 'border:1px solid rgba(52,199,89,.35);background:rgba(52,199,89,.06);' : 'border:1px solid rgba(245,166,35,.4);background:rgba(245,166,35,.07);'}">
+        ${m && m.lp && m.lp.src === 'liquipedia' && _lpAdm() ? `<div style="margin:0 0 12px;padding:10px 14px;border-radius:10px;font-size:12px;line-height:1.5;${m.lp.edited ? 'border:1px solid rgba(52,199,89,.35);background:rgba(52,199,89,.06);' : 'border:1px solid rgba(245,166,35,.4);background:rgba(245,166,35,.07);'}">
           ${m.lp.edited ? '✓ <b>Complete</b> — imported from Liquipedia, then arranged by you. Your picks are kept; Liquipedia still keeps bans, date, length, map, winner and sides up to date.'
             : `◐ <b>Imported from Liquipedia — draft phase order to be verified.</b> Result, heroes and ban order are right; only the picks are in <b>lane order (EXP → Jungle → Mid → Gold → Roam)</b>: tap <b>⇅</b> on a pick, then ⇅ on the one it swaps with, until the picks match the VOD.${m.sideUnknown ? ' <b>Side not confirmed</b> — use ⇄ Swap sides if wrong.' : ''} Add turtles / Lords if you have them, then <b>Save</b> → ✓ Complete.`}
           ${m.vodLink ? ` <a href="${m.vodLink}" target="_blank" style="color:var(--blue);">▶ VOD</a>` : ''}</div>` : ''}

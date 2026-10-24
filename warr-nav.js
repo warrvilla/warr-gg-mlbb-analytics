@@ -401,7 +401,7 @@
     try {
       if (!document.querySelector('script[data-heimer]')) {
         const hs = document.createElement('script');
-        hs.src = 'warr-heimer.js?v=12'; hs.defer = true; hs.setAttribute('data-heimer', '');
+        hs.src = 'warr-heimer.js?v=13'; hs.defer = true; hs.setAttribute('data-heimer', '');
         document.head.appendChild(hs);
       }
     } catch (_) {}

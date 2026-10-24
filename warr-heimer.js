@@ -75,6 +75,15 @@
   .hd-launch.open{opacity:0;pointer-events:none;}
   .hd-panel{position:fixed;top:64px;right:14px;bottom:14px;z-index:2147483001;width:400px;max-width:calc(100vw - 28px);display:flex;flex-direction:column;border-radius:20px;background:rgba(13,13,21,.97);backdrop-filter:blur(24px) saturate(140%);-webkit-backdrop-filter:blur(24px) saturate(140%);border:0.5px solid rgba(255,255,255,.09);box-shadow:0 24px 64px rgba(0,0,0,.65);color:#F0F0F8;font-family:-apple-system,'SF Pro Text','Inter',sans-serif;transform:translateX(24px);opacity:0;pointer-events:none;transition:transform .26s cubic-bezier(.22,1,.36,1),opacity .2s ease;}
   .hd-panel.open{transform:none;opacity:1;pointer-events:auto;}
+  .hd-panel.min{top:auto;height:auto;width:300px;border-radius:16px;cursor:pointer;}
+  .hd-panel.min > :not(.hd-ph){display:none !important;}
+  .hd-panel.min .hd-ph{border-bottom:none;padding:9px 10px 9px 12px;}
+  .hd-panel.min .hd-mark{width:30px;height:30px;}
+  .hd-panel.min #hdNew{display:none;}
+  .hd-panel.min #hdMin{margin-left:auto;}
+  .hd-panel.min .hd-dot{margin-left:4px;}
+  .hd-dot{display:none;width:8px;height:8px;border-radius:50%;background:#34C759;box-shadow:0 0 0 3px rgba(52,199,89,.22);flex-shrink:0;}
+  .hd-panel.min.unread .hd-dot{display:inline-block;}
   .hd-ph{display:flex;align-items:center;gap:10px;padding:12px 12px 10px 14px;border-bottom:0.5px solid rgba(255,255,255,.07);}
   .hd-mark{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:radial-gradient(circle at 50% 35%,#2d2350,#141022 75%);border:0.5px solid rgba(167,139,250,.35);flex-shrink:0;}
   .hd-ttl{display:flex;flex-direction:column;min-width:0;}
@@ -150,6 +159,7 @@
     .hd-panel{top:auto;left:0;right:0;bottom:0;width:auto;max-width:none;height:86vh;border-radius:18px 18px 0 0;transform:translateY(24px);}
     .hd-launch{right:14px;bottom:14px;width:46px;height:46px;}
     .hd-launch .tip{display:none;}
+    .hd-panel.min{left:auto;right:14px;bottom:14px;width:auto;max-width:calc(100vw - 28px);height:auto;border-radius:16px;}
   }`;
 
   // ── Markdown (escape first, then a small safe subset) ───────────────────
@@ -397,7 +407,9 @@ ${pack.text}`;
       <header class="hd-ph">
         <span class="hd-mark" id="hdMark">${bot(28)}</span>
         <div class="hd-ttl"><b>Heimerdinger</b><span id="hdSub">MLBB analyst</span></div>
+        <span class="hd-dot" aria-hidden="true"></span>
         <button class="hd-ib" id="hdNew" type="button" title="New chat" aria-label="New chat"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button class="hd-ib" id="hdMin" type="button" title="Minimize" aria-label="Minimize"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 12h12"/></svg></button>
         <button class="hd-ib" id="hdClose" type="button" title="Close" aria-label="Close">✕</button>
       </header>
       <div class="hd-ctx"><span>I'm on</span><button class="hd-pick" id="hdPick" type="button" aria-haspopup="true" aria-label="Choose your team"></button><span class="pg" id="hdPg"></span></div>
@@ -423,17 +435,31 @@ ${pack.text}`;
     $panel.querySelector('#hdPopQ').oninput = () => renderPop();
     $panel.querySelector('#hdPopNone').onclick = () => chooseTeam('');
     $panel.addEventListener('click', e => { const pop = $panel.querySelector('#hdPop'); if (!pop.hidden && e.target.isConnected && !pop.contains(e.target) && !$team.contains(e.target)) pop.hidden = true; });   // re-rendered chips are detached — not an outside click
-    $panel.querySelector('#hdClose').onclick = () => toggle(false);
+    $panel.querySelector('#hdClose').onclick = e => { e.stopPropagation(); toggle(false); };
+    $panel.querySelector('#hdMin').onclick = e => { e.stopPropagation(); setMin(!$panel.classList.contains('min')); };
+    $panel.querySelector('.hd-ph').addEventListener('click', e => { if ($panel.classList.contains('min') && !e.target.closest('button')) setMin(false); });   // tap the bar to open again
     $panel.querySelector('#hdNew').onclick = () => { HD.chat = []; HD.ctxTeams = []; save(); render(); $in.focus(); };
     $panel.querySelector('#hdForm').onsubmit = e => { e.preventDefault(); ask($in.value); };
     $in.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask($in.value); } });
     $in.addEventListener('input', () => { $in.style.height = 'auto'; $in.style.height = Math.min(120, $in.scrollHeight) + 'px'; });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && $panel.classList.contains('open')) toggle(false); });
     try { HD.chat = JSON.parse(localStorage.getItem(KEY()) || '[]'); } catch (_) { HD.chat = []; }
-    try { if (sessionStorage.getItem('warr_heimer_open') === '1') toggle(true); } catch (_) {}
+    try { if (sessionStorage.getItem('warr_heimer_open') === '1') { toggle(true); if (sessionStorage.getItem('warr_heimer_min') === '1') setMin(true); } } catch (_) {}
+  }
+  // Minimize: shrink to a small bar (keeps the chat and any answer in progress); tap it to open again
+  function setMin(on) {
+    if (!$panel) return;
+    $panel.classList.toggle('min', !!on);
+    if (!on) $panel.classList.remove('unread');
+    const b = $panel.querySelector('#hdMin');
+    if (b) { b.title = on ? 'Expand' : 'Minimize'; b.setAttribute('aria-label', b.title); b.innerHTML = on ? '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>' : '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 12h12"/></svg>'; }
+    try { sessionStorage.setItem('warr_heimer_min', on ? '1' : '0'); } catch (_) {}
+    render();
+    if (!on) setTimeout(() => $in && $in.focus(), 120);
   }
   function save() { try { localStorage.setItem(KEY(), JSON.stringify(HD.chat.slice(-30))); } catch (_) {} }
   async function toggle(open) {
+    if ($panel.classList.contains('min')) { $panel.classList.remove('min', 'unread'); try { sessionStorage.setItem('warr_heimer_min', '0'); } catch (_) {} const b = $panel.querySelector('#hdMin'); if (b) { b.title = 'Minimize'; b.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 12h12"/></svg>'; } }
     $panel.classList.toggle('open', open);
     $launch.classList.toggle('open', open);
     try { sessionStorage.setItem('warr_heimer_open', open ? '1' : '0'); } catch (_) {}
@@ -526,7 +552,8 @@ ${pack.text}`;
   function render() {
     if (!$thread) return;
     const ai = hasAI();
-    $sub.textContent = ai && !(HD.liteUntil > Date.now()) ? 'MLBB analyst · Claude Sonnet 5.5' : 'Heimer Lite · free mode';
+    $sub.textContent = $panel.classList.contains('min') ? (HD.busy ? 'Thinking… ' + (HD.step || '') : $panel.classList.contains('unread') ? 'New reply — tap to open' : 'Tap to open')
+      : ai && !(HD.liteUntil > Date.now()) ? 'MLBB analyst · Claude Sonnet 5.5' : 'Heimer Lite · free mode';
     const pt = pageTeams();
     $pg.textContent = pt.length ? `· on screen: ${pt.join(' vs ')}` : '';
     $in.disabled = HD.busy; $send.disabled = HD.busy;
@@ -589,7 +616,9 @@ ${pack.text}`;
       catch (e2) { HD.chat.push({ role: 'assistant', content: `Something went wrong: ${(e2 && e2.message) || e2}`, err: true, ts: Date.now() }); }
     } finally {
       clearInterval(tick);
-      HD.busy = false; HD.step = ''; save(); render();
+      HD.busy = false; HD.step = '';
+      if ($panel && $panel.classList.contains('min')) $panel.classList.add('unread');   // answer arrived while minimized
+      save(); render();
     }
   }
 
