@@ -1230,6 +1230,38 @@ input[type="number"] { -moz-appearance:textfield; appearance:textfield; }
 }
 .filter-badge:hover { color: var(--text2); border-color: var(--border3); }
 .filter-badge.active { background: var(--blue-dim); border-color: var(--blue-border); color: var(--blue); }
+/* Hero Meta filter panel */
+.mf-panel { display:flex; flex-direction:column; gap:10px; padding:12px 14px; margin:2px 0 10px; background:var(--surface); border:1px solid var(--border); border-radius:12px; }
+.mf-line { display:flex; flex-wrap:wrap; align-items:center; gap:10px 24px; }
+.mf-maps { padding-top:10px; border-top:1px solid var(--border); }
+.mf-grp { display:flex; align-items:center; gap:10px; min-width:0; }
+.mf-lbl { font-size:9px; font-weight:700; color:var(--text3); font-family:var(--font-head); letter-spacing:1.5px; text-transform:uppercase; flex-shrink:0; }
+.mf-lbl { width:42px; }   /* every label the same width, so rows line up when they wrap */
+@media (max-width: 640px) {
+  .mf-panel { padding:12px; }
+  .mf-line { gap:10px; }
+  .mf-date select, .mf-date input { height:32px; font-weight:600; }   /* 16px font stays (stops iOS zoom) */
+}
+.mf-maps .mf-grp { align-items:flex-start; } .mf-maps .mf-lbl { padding-top:5px; }
+.mf-seg { display:inline-flex; padding:2px; gap:2px; background:var(--surface2); border:1px solid var(--border2); border-radius:9px; }
+.mf-seg button { border:0; background:transparent; color:var(--text3); font:700 10.5px var(--font-head); padding:4px 10px; border-radius:7px; cursor:pointer; white-space:nowrap; transition:color .12s, background .12s; }
+.mf-seg button:hover:not(:disabled):not(.active) { color:var(--text2); }
+.mf-seg button.active { background:var(--blue-dim); color:var(--blue); box-shadow:inset 0 0 0 1px var(--blue-border); }
+.mf-seg button:disabled { opacity:.35; cursor:default; }
+.mf-seg .n { margin-left:5px; font-weight:600; opacity:.55; }
+.mf-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.mf-date select, .mf-date input { height:27px; padding:0 9px; font:700 10.5px var(--font-head); color:var(--text2); background:var(--surface2); border:1px solid var(--border2); border-radius:9px; cursor:pointer; }
+.mf-date select:focus, .mf-date input:focus { outline:none; border-color:var(--blue-border); }
+.mf-date .on { color:var(--blue); border-color:var(--blue-border); }
+.mf-date .mf-to { font-size:10px; color:var(--text3); }
+.mf-sum { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; margin:0 2px 10px; font-size:11px; color:var(--text3); }
+.mf-sum b { color:var(--text2); font-weight:600; } .mf-sum .dot { opacity:.5; }
+.mf-reset { margin-left:auto; background:none; border:0; padding:0; font-size:11px; font-weight:600; color:var(--blue); cursor:pointer; }
+.mf-reset:hover { text-decoration:underline; }
+.mf-act { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:8px; background:rgba(124,92,246,.12); border:1px solid rgba(124,92,246,.28); color:#7C5CF6; font-size:11px; font-weight:700; letter-spacing:.5px; text-decoration:none; cursor:pointer; font-family:inherit; transition:background .15s; }
+.mf-act:hover:not(:disabled) { background:rgba(124,92,246,.2); }
+.mf-act:disabled { opacity:.4; cursor:not-allowed; }
+.mf-act span { font-size:13px; }
 
 /* ── LEAGUE BADGES ── */
 .league-badge {
@@ -2416,6 +2448,7 @@ let metaRole = 'All';
 let metaMap = 'all';      // Hero Meta: one battle map, or all
 let metaPhase = 'all';    // Hero Meta: 'all' | 'regular' | 'playoffs'
 let metaFrom = '', metaTo = '';   // Hero Meta date range (YYYY-MM-DD), blank = any
+let metaDatePreset = '';  // '' any · '7' / '14' / '30' last N days · 'custom'
 // Regular season (incl. groups / Swiss) vs playoffs (play-ins, brackets, finals),
 // read from the game's stage + week/round label.
 function _phaseOf(m) {
@@ -7252,73 +7285,80 @@ function renderReportBody(){
 function renderMeta() {
   const area = document.getElementById('mainArea');
   const all  = DB_MODULE.getMatches();
-  const leagueCounts = {'all': all.length};
-  LEAGUES.forEach(l => leagueCounts[l] = all.filter(m=>m.league===l).length);
+  metaLeague = leagueFilter || 'all';           // league comes from the sidebar
+  // Rolling presets ("last N days") are re-applied on every render
+  if (/^\d+$/.test(metaDatePreset)) { const d = new Date(); d.setDate(d.getDate() - (Number(metaDatePreset) - 1)); metaFrom = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; metaTo = ''; }   // local date, not UTC
+  const esc = x => String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  const mapOf = m => (m.map && typeof WDB !== 'undefined' && WDB.normalizeMap) ? WDB.normalizeMap(m.map) : (m.map || '');
 
-  // Use the sidebar league filter instead of a redundant in-meta league filter
-  metaLeague = leagueFilter || 'all';
+  // League → season → date → stage; maps are counted inside that
+  let pool = metaLeague==='all' ? all : all.filter(m => m.league===metaLeague);
+  if (seasonFilter !== 'all') pool = pool.filter(m => (m.season||'') === seasonFilter);
+  if (metaFrom || metaTo) pool = pool.filter(m => { const d = String(m.date || '').slice(0, 10); return d && (!metaFrom || d >= metaFrom) && (!metaTo || d <= metaTo); });
+  const phaseCount = { all: pool.length, regular: 0, playoffs: 0 }; pool.forEach(m => phaseCount[_phaseOf(m)]++);
+  if (metaPhase !== 'all' && !phaseCount[metaPhase]) metaPhase = 'all';
+  if (metaPhase !== 'all') pool = pool.filter(m => _phaseOf(m) === metaPhase);
+  const mapCount = {}; pool.forEach(m => { const k = mapOf(m); if (k) mapCount[k] = (mapCount[k] || 0) + 1; });
+  const maps = Object.entries(mapCount).sort((x, y) => y[1] - x[1]);
+  if (metaMap !== 'all' && !mapCount[metaMap]) metaMap = 'all';
+  if (metaMap === 'all' && metaSort === 'map edge') metaSort = 'presence';
+  if (metaSort === 'picks') metaSort = 'pickrate';   // same order as pick rate
+  if (metaSort === 'bans')  metaSort = 'banrate';
+  const onMap = metaMap === 'all' ? pool : pool.filter(m => mapOf(m) === metaMap);
+  window.__metaCard = { map: metaMap, pool: onMap, base: pool, league: metaLeague, season: seasonFilter, phase: metaPhase, from: metaFrom, to: metaTo };
+
+  const seg = (items, cur, set) => `<div class="mf-seg">${items.map(([k, t, n]) =>
+    `<button class="${cur===k?'active':''}" ${n===0 && k!=='all' ? 'disabled' : ''} onclick="${set}='${k}';renderMeta()">${t}${n!=null?`<span class="n">${n}</span>`:''}</button>`).join('')}</div>`;
+  const filtersOn = metaRole !== 'All' || metaPhase !== 'all' || metaMap !== 'all' || metaDatePreset;
+  const sortName = { presence:'presence', pickrate:'pick rate', banrate:'ban rate', winrate:`win rate (${MAP_EDGE_MIN}+ picks)`, 'map edge':'vs all maps' }[metaSort] || metaSort;
+  const where = [metaLeague!=='all'?metaLeague:'All leagues', seasonFilter!=='all'?seasonFilter:'', metaPhase!=='all'?(metaPhase==='playoffs'?'Playoffs':'Regular season'):'', (metaFrom||metaTo)?_dateRangeTxt(metaFrom,metaTo):''].filter(Boolean).join(' · ');
 
   area.innerHTML = `
     <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
       <div>
         <div class="page-title">Hero Meta</div>
-        <div class="page-sub">Pick & ban rates across your match log${metaLeague!=='all'?' · '+metaLeague:''}${seasonFilter!=='all'?' · '+seasonFilter:''}${metaPhase!=='all'?' · '+(metaPhase==='playoffs'?'Playoffs':'Regular season'):''}${metaFrom||metaTo?' · '+_dateRangeTxt(metaFrom,metaTo):''}</div>
+        <div class="page-sub">Pick &amp; ban rates · ${esc(where)}</div>
       </div>
-      <a href="/meta_export" target="_blank"
-         style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;background:rgba(124,92,246,.12);border:1px solid rgba(124,92,246,.28);color:#7C5CF6;font-size:11px;font-weight:700;letter-spacing:.5px;text-decoration:none;transition:all .15s;"
-         onmouseover="this.style.background='rgba(124,92,246,.2)'" onmouseout="this.style.background='rgba(124,92,246,.12)'">
-        <span style="font-size:13px;">🎴</span> Export Meta Cards
-      </a>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="mf-act" ${metaMap==='all' ? 'disabled title="Pick a map below to make its card"' : 'title="A 1000×1000 card of the top heroes on this map, ranked by the column you sorted"'} onclick="exportMapCard()"><span>🗺️</span> Map card</button>
+        <a class="mf-act" href="/meta_export" target="_blank"><span>🎴</span> Export Meta Cards</a>
+      </div>
     </div>
-    <div class="filter-row">
-      <span style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1.5px;text-transform:uppercase;flex-shrink:0;">SORT</span>
-      ${['presence','pickrate','banrate','winrate','picks','bans', ...(metaMap!=='all' ? ['map edge'] : [])].map(s =>
-        `<button class="filter-badge${metaSort===s?' active':''}" onclick="metaSort='${s}';renderMeta()" ${s==='map edge'?'title="How much better a hero wins on this map than on all maps (min 4 picks here)"':''}>${s}</button>`
-      ).join('')}
+    <div class="mf-panel">
+      <div class="mf-line">
+        <div class="mf-grp"><span class="mf-lbl">Role</span>${seg([['All','All'],['Gold','Gold'],['Jungle','Jungle'],['Mid','Mid'],['EXP','EXP'],['Roam','Roam']], metaRole, 'metaRole')}</div>
+        <div class="mf-grp" title="Regular season includes groups and Swiss rounds · Playoffs includes play-ins, brackets and finals"><span class="mf-lbl">Stage</span>${seg([['all','All',phaseCount.all],['regular','Regular season',phaseCount.regular],['playoffs','Playoffs',phaseCount.playoffs]], metaPhase, 'metaPhase')}</div>
+        <div class="mf-grp mf-date"><span class="mf-lbl">Date</span>
+          <select onchange="_setMetaPreset(this.value)" class="${metaDatePreset?'on':''}" aria-label="Date range">
+            ${[['','Any date'],['7','Last 7 days'],['14','Last 14 days'],['30','Last 30 days'],['custom','Custom range…']].map(([v,t]) => `<option value="${v}"${metaDatePreset===v?' selected':''}>${t}</option>`).join('')}
+          </select>
+          ${metaDatePreset==='custom' ? `<input type="date" id="metaFrom" value="${metaFrom}" onchange="_setMetaDates()" aria-label="From date" class="${metaFrom?'on':''}"><span class="mf-to">to</span><input type="date" id="metaTo" value="${metaTo}" onchange="_setMetaDates()" aria-label="To date" class="${metaTo?'on':''}">` : ''}
+        </div>
+      </div>
+      ${maps.length ? `<div class="mf-line mf-maps">
+        <div class="mf-grp"><span class="mf-lbl">Map</span>
+          <div class="mf-chips">
+            <button class="filter-badge${metaMap==='all'?' active':''}" onclick="metaMap='all';renderMeta()">All maps</button>
+            ${maps.map(([k, n]) => `<button class="filter-badge${metaMap===k?' active':''}" data-map="${esc(k)}" onclick="metaMap=this.dataset.map;renderMeta()">${esc(k)} <span style="opacity:.55;">${n}</span></button>`).join('')}
+          </div>
+        </div>
+      </div>` : ''}
     </div>
-    <div class="filter-row" style="margin-bottom:6px;">
-      <span style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1.5px;text-transform:uppercase;flex-shrink:0;">ROLE</span>
-      ${['All','Gold','Jungle','Mid','EXP','Roam'].map(r =>
-        `<button class="filter-badge${metaRole===r?' active':''}" onclick="metaRole='${r}';renderMeta()">${r}</button>`
-      ).join('')}
+    <div class="mf-sum">
+      <span>${onMap.length} game${onMap.length===1?'':'s'}${metaMap!=='all' ? ` on ${esc(metaMap)} <span style="opacity:.6;">of ${pool.length}</span>` : ''}</span>
+      <span class="dot">·</span><span>Sorted by <b>${sortName}</b> — click a column to change</span>
+      ${metaMap!=='all' && onMap.length < 15 ? `<span class="dot">·</span><span style="color:var(--gold);">small sample, read with care</span>` : ''}
+      ${filtersOn ? `<button class="mf-reset" onclick="_resetMetaFilters()">Reset filters</button>` : ''}
     </div>
-    <div class="filter-row" id="metaPhaseRow" style="margin-bottom:6px;"></div>
-    <div class="filter-row" id="metaMapRow" style="margin-bottom:6px;"></div>
     <div id="metaWrap"></div>`;
-
-  let pool = metaLeague==='all' ? all : all.filter(m => m.league===metaLeague);
-  if (seasonFilter !== 'all') pool = pool.filter(m => (m.season||'') === seasonFilter);
-  // Date range, then stage (regular season / playoffs)
-  if (metaFrom || metaTo) pool = pool.filter(m => { const d = String(m.date || '').slice(0, 10); return d && (!metaFrom || d >= metaFrom) && (!metaTo || d <= metaTo); });
-  const phaseCount = { all: pool.length, regular: 0, playoffs: 0 }; pool.forEach(m => phaseCount[_phaseOf(m)]++);
-  if (metaPhase !== 'all') pool = pool.filter(m => _phaseOf(m) === metaPhase);
-  const _lbl = 'font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1.5px;text-transform:uppercase;flex-shrink:0;';
-  const _din = 'padding:3px 8px;font-size:10px;font-weight:700;font-family:var(--font-head);border:1px solid var(--border2);border-radius:10px;background:transparent;color:var(--text2);cursor:pointer;';
-  document.getElementById('metaPhaseRow').innerHTML = `
-      <span style="${_lbl}">STAGE</span>
-      ${[['all','All'],['regular','Regular season'],['playoffs','Playoffs']].map(([k, t]) => `<button class="filter-badge${metaPhase===k?' active':''}" onclick="metaPhase='${k}';renderMeta()" title="${k==='regular'?'Regular season, groups and Swiss rounds':k==='playoffs'?'Play-ins, brackets and finals':'Every stage'}">${t} <span style="opacity:.55;">${phaseCount[k]}</span></button>`).join('')}
-      <span style="${_lbl}margin-left:14px;">DATE</span>
-      <input type="date" id="metaFrom" value="${metaFrom}" onchange="_setMetaDates()" aria-label="From date" style="${_din}${metaFrom?'border-color:var(--blue-border);color:var(--blue);':''}">
-      <span style="font-size:10px;color:var(--text3);">to</span>
-      <input type="date" id="metaTo" value="${metaTo}" onchange="_setMetaDates()" aria-label="To date" style="${_din}${metaTo?'border-color:var(--blue-border);color:var(--blue);':''}">
-      ${metaFrom || metaTo ? `<button class="filter-badge" onclick="metaFrom='';metaTo='';renderMeta()" title="Any date">✕</button>` : ''}`;
-  // Battle maps in this league / season (games with a map), most played first
-  const mapOf = m => (m.map && typeof WDB !== 'undefined' && WDB.normalizeMap) ? WDB.normalizeMap(m.map) : (m.map || '');
-  const mapCount = {}; pool.forEach(m => { const k = mapOf(m); if (k) mapCount[k] = (mapCount[k] || 0) + 1; });
-  const maps = Object.entries(mapCount).sort((a, b) => b[1] - a[1]);
-  if (metaMap !== 'all' && !mapCount[metaMap]) metaMap = 'all';
-  if (metaMap === 'all' && metaSort === 'map edge') metaSort = 'presence';
-  const esc = x => String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-  document.getElementById('metaMapRow').innerHTML = maps.length ? `
-      <span style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1.5px;text-transform:uppercase;flex-shrink:0;">MAP</span>
-      <button class="filter-badge${metaMap==='all'?' active':''}" onclick="metaMap='all';renderMeta()">All maps</button>
-      ${maps.map(([k, n]) => `<button class="filter-badge${metaMap===k?' active':''}" data-map="${esc(k)}" onclick="metaMap=this.dataset.map;renderMeta()">${esc(k)} <span style="opacity:.55;">${n}</span></button>`).join('')}
-      ${metaMap !== 'all' ? `<button class="filter-badge" style="margin-left:auto;border-color:rgba(124,92,246,.35);color:#7C5CF6;" onclick="exportMapCard()" title="A 1000×1000 card of the top heroes on this map, ranked by the current sort">🎴 Map card</button>` : ''}`
-    : '';
-  const onMap = metaMap === 'all' ? pool : pool.filter(m => mapOf(m) === metaMap);
-  window.__metaCard = { map: metaMap, pool: onMap, base: pool, league: metaLeague, season: seasonFilter, phase: metaPhase, from: metaFrom, to: metaTo };
   document.getElementById('metaWrap').innerHTML = buildMetaTable(onMap, metaRole, metaMap !== 'all' ? pool : null);
 }
+function _setMetaPreset(v) {
+  metaDatePreset = v || '';
+  if (!metaDatePreset) { metaFrom = ''; metaTo = ''; }
+  renderMeta();
+}
+function _resetMetaFilters() { metaRole = 'All'; metaPhase = 'all'; metaMap = 'all'; metaDatePreset = ''; metaFrom = ''; metaTo = ''; if (metaSort === 'map edge') metaSort = 'presence'; renderMeta(); }
 
 // Pick / ban / win numbers per hero for a set of games (shared by the table and the map card)
 function _metaStats(matches) {
@@ -7396,7 +7436,6 @@ function buildMetaTable(matches, roleFilter, base) {
   }).join('');
 
   return `
-    <div style="font-size:11px;color:var(--text3);margin-bottom:10px;font-family:var(--font-mono);">${total} games${base ? ' on ' + String(metaMap).replace(/</g,'&lt;') + ' (of ' + base.length + ')' : ''} · ${rows.length} heroes tracked${base && total < 15 ? ' · <span style="color:var(--gold);">small sample, read with care</span>' : ''}</div>
     <div style="overflow-x:auto;">
       <table class="meta-table">
         <thead>
