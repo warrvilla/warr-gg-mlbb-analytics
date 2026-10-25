@@ -189,7 +189,7 @@
     { href: '/',             label: 'Home'      },
     { href: '/ai_battle',    label: 'AI Battle' },
     { href: '/scout?go=matches', label: 'Scout'   },
-    { href: '/scrims',       label: 'Scrims'    },
+    // Scrims (scrim finder) page dropped — /scrims now goes home. Logging your own scrims in Scout stays.
     { href: '/stats',        label: 'Analysis'  },
     { href: '/heroes',       label: 'Heroes'    },
     { href: '/team_manager', label: 'Teams'     },

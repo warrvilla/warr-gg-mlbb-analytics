@@ -44,6 +44,12 @@
 }
 .filter-badge:hover { color:var(--text2); border-color:var(--border3); }
 .filter-badge.active { background:var(--blue-dim); border-color:var(--blue-border); color:var(--blue); }
+.date-range { display:inline-flex; align-items:center; gap:5px; font-size:10px; font-weight:700; color:var(--text3); font-family:var(--font-head); }
+.date-range input { padding:2px 7px; font-size:10px; font-weight:700; font-family:var(--font-head); border:1px solid var(--border2); border-radius:10px; background:transparent; color:var(--text2); cursor:pointer; }
+.date-range input:focus { outline:none; border-color:var(--blue-border); }
+.date-range.on input { border-color:var(--blue-border); color:var(--blue); }
+.date-range .clr { border:none; background:none; color:var(--text3); cursor:pointer; font-size:12px; padding:0 2px; }
+.date-range .clr:hover { color:var(--text); }
 .gen-btn {
   margin-left: auto;
   padding: 7px 18px;
@@ -213,6 +219,12 @@
       <option value="">Current season</option>
       <option value="all">All seasons</option>
     </select>
+    <span class="date-range" id="metaDates" title="Only count games played between these dates (inside the league and season you picked). Leave blank for any date.">
+      <input type="date" id="metaFrom" onchange="setMetaDates()" aria-label="From date">
+      <span>to</span>
+      <input type="date" id="metaTo" onchange="setMetaDates()" aria-label="To date">
+      <button class="clr" id="metaDatesClr" onclick="clearMetaDates()" title="Any date" style="display:none;">✕</button>
+    </span>
     <button class="gen-btn" id="genBtn" onclick="generateAll()">▶ Generate All Cards</button>
   </div>
 
@@ -469,6 +481,26 @@ function _dominantSeason(ms){
   const f={}; (ms||[]).forEach(m=>{const s=String(m.season||'').trim(); if(s)f[s]=(f[s]||0)+1;});
   return Object.entries(f).sort((a,b)=>b[1]-a[1])[0]?.[0] || '';
 }
+// Optional date range ('YYYY-MM-DD'); blank = any date
+let metaFrom = '', metaTo = '';
+function _fmtDay(d){ const [y,m,dd]=d.split('-').map(Number); return new Date(y,m-1,dd).toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+function _metaDateTxt(){
+  if (!metaFrom && !metaTo) return '';
+  const yr = d => d.slice(0,4);
+  const sameYr = metaFrom && metaTo && yr(metaFrom)===yr(metaTo);
+  const f = metaFrom ? _fmtDay(metaFrom) + (sameYr ? '' : ', ' + yr(metaFrom)) : '';
+  const t = metaTo ? _fmtDay(metaTo) + ', ' + yr(metaTo) : '';
+  return f && t ? `${f} – ${t}` : f ? `Since ${f}` : `Until ${t}`;
+}
+function setMetaDates(){
+  let f = document.getElementById('metaFrom').value || '', t = document.getElementById('metaTo').value || '';
+  if (f && t && f > t) { const x=f; f=t; t=x; document.getElementById('metaFrom').value=f; document.getElementById('metaTo').value=t; }
+  metaFrom = f; metaTo = t;
+  document.getElementById('metaDates').classList.toggle('on', !!(f||t));
+  document.getElementById('metaDatesClr').style.display = (f||t) ? '' : 'none';
+  if (document.getElementById('cardsGrid')?.children.length && typeof generateAll==='function') generateAll();
+}
+function clearMetaDates(){ document.getElementById('metaFrom').value=''; document.getElementById('metaTo').value=''; setMetaDates(); }
 function setMetaSeason(v){
   metaSeason = v || '';
   if (document.getElementById('cardsGrid')?.children.length && typeof generateAll==='function') generateAll();
@@ -567,6 +599,11 @@ function loadScoutStats() {
     } else if (metaSeason !== 'all') {
       matches = matches.filter(m => String(m.season||'').trim() === metaSeason);
     }
+    // DATE RANGE — narrows whatever league + season is selected
+    if (metaFrom || metaTo) matches = matches.filter(m => {
+      const d = String(m.date||'').slice(0,10);
+      return d && (!metaFrom || d >= metaFrom) && (!metaTo || d <= metaTo);
+    });
     _metaSeasonUsed = _dominantSeason(matches);
     scoutMatchCount = matches.length;
     const heroData = {};
@@ -769,11 +806,12 @@ function buildCard(lane) {
   const cfg         = LANE_CONFIG[lane];
   const heroes      = getTopForLane(lane).slice(0, 10);
   const _seasonTxt  = metaSeason==='all' ? 'All Seasons' : (_metaSeasonUsed || (metaSeason || ''));
-  const filterLabel = (currentFilter === 'all' ? 'All Leagues' : currentFilter) + (_seasonTxt ? ` · ${_seasonTxt}` : '');
+  const _dateTxt    = _metaDateTxt();
+  const filterLabel = (currentFilter === 'all' ? 'All Leagues' : currentFilter) + (_seasonTxt ? ` · ${_seasonTxt}` : '') + (_dateTxt ? ` · ${_dateTxt}` : '');
   const patchLabel  = patchVersion ? `Patch ${patchVersion}` : `Meta ${new Date().getFullYear()}`;
   const scoutLabel  = scoutMatchCount > 0
-    ? `Based on ${scoutMatchCount} matches${_seasonTxt && metaSeason!=='all' ? ` · ${_seasonTxt}` : ''}`
-    : 'Sorted by tier score';
+    ? `Based on ${scoutMatchCount} matches${_seasonTxt && metaSeason!=='all' ? ` · ${_seasonTxt}` : ''}${_dateTxt ? ` · ${_dateTxt}` : ''}`
+    : ((metaFrom || metaTo) ? 'No games in this date range · sorted by tier score' : 'Sorted by tier score');
 
   const RANK_C = [
     '#F5C842','#C0C0C0','#CD7F32',
@@ -941,7 +979,8 @@ async function downloadCard(lane) {
 
     const link = document.createElement('a');
     const _seasonTag = metaSeason==='all' ? 'all_seasons' : (_metaSeasonUsed || metaSeason || '').replace(/\s/g,'_');
-    link.download = `warr_meta_${lane.toLowerCase()}_${currentFilter.replace(/\s/g,'_')}${_seasonTag?'_'+_seasonTag:''}.png`;
+    const _dateTag = (metaFrom || metaTo) ? `_${metaFrom||'start'}_to_${metaTo||'now'}` : '';
+    link.download = `warr_meta_${lane.toLowerCase()}_${currentFilter.replace(/\s/g,'_')}${_seasonTag?'_'+_seasonTag:''}${_dateTag}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
   } catch(e) {

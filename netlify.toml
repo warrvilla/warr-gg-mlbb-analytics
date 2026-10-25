@@ -31,10 +31,17 @@
   from = "/stats"
   to = "/stats.html"
   status = 200
+# Scrims (scrim finder) page dropped — old links go home. Scrims you log in Scout are unaffected.
 [[redirects]]
   from = "/scrims"
-  to = "/scrims.html"
-  status = 200
+  to = "/"
+  status = 301
+  force = true
+[[redirects]]
+  from = "/scrims.html"
+  to = "/"
+  status = 301
+  force = true
 # Playbook hidden until ready — re-add this redirect (and the nav link) to ship it.
 # [[redirects]]
 #   from = "/playbook"
