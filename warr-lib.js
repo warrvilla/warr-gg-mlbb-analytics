@@ -2197,6 +2197,13 @@ WDB._mergeLeagues = function(rows, myMemberships) {
   const mem = new Set(myMemberships || []);
   // Admin-hidden league presets — filtered out of every list.
   WDB._hiddenLeagues = new Set((rows || []).filter(r => r && r.name && r.hidden).map(r => r.name));
+  // Player stats switched off by the admin (wrong player tags): whole league or listed teams
+  WDB._leagueRows = rows || [];
+  WDB._playerHide = {};
+  (rows || []).forEach(r => {
+    const h = r && r.name && r.hide_players;
+    if (h && typeof h === 'object') WDB._playerHide[r.name] = { all: !!h.all, teams: new Set((h.teams || []).map(t => String(t).trim().toLowerCase())) };
+  });
   // Hide private leagues the current user can't access (not owner, not a member).
   // Members keep them so their matches aren't dropped by the client filter; the
   // real gate is RLS on scout_matches (server-side) — this is UX de-clutter.
@@ -2211,6 +2218,34 @@ WDB._mergeLeagues = function(rows, myMemberships) {
       WAdmin.LOCKED_LEAGUES.push(r.name);
     }
   });
+};
+/** True when player stats are hidden for this league, or for this team in it. */
+WDB.playersHidden = function(league, team) {
+  const h = WDB._playerHide && WDB._playerHide[String(league || '').trim()];
+  if (!h) return false;
+  return h.all || (!!team && h.teams.has(String(team).trim().toLowerCase()));
+};
+/** Admin: hide/show player stats for a whole league (team = null) or one team in it.
+ *  Stored on the league row (leagues.hide_players) — needs migration 024. */
+WDB.setPlayersHidden = async function(league, team, on) {
+  league = String(league || '').trim(); if (!league) throw new Error('No league');
+  const row = (WDB._leagueRows || []).find(r => r && r.name === league);
+  const cur = (row && row.hide_players && typeof row.hide_players === 'object') ? row.hide_players : {};
+  const next = { all: !!cur.all, teams: Array.isArray(cur.teams) ? cur.teams.slice() : [] };
+  if (!team) next.all = !!on;
+  else {
+    const k = String(team).trim().toLowerCase();
+    next.teams = next.teams.filter(t => String(t).trim().toLowerCase() !== k);
+    if (on) next.teams.push(String(team).trim());
+  }
+  const payload = { name: league, hide_players: (next.all || next.teams.length) ? next : null };
+  if (row && row.id) payload.id = row.id;
+  const { error } = await _sbClient.from('leagues').upsert(payload, { onConflict: 'id' });
+  if (error) {
+    if (/hide_players/i.test(error.message || '')) throw new Error('Run migrations/024_hide_players.sql in Supabase first');
+    throw error;
+  }
+  WDB.invalidateLeagues(); await WDB.initLeagues({ force: true });
 };
 WDB.initLeagues = async function(opts) {
   if (WDB._leaguesReady && !(opts && opts.force)) return WDB.customLeagues;
@@ -2762,10 +2797,11 @@ WDB.computePlayerHeroPool = function(matches, playerIgn, filters = {}) {
 
   filtered.forEach(m => {
     const sides = [
-      { picks: m.bluePicks || [], won: m.winner === 'blue' },
-      { picks: m.redPicks  || [], won: m.winner === 'red'  },
+      { picks: m.bluePicks || [], won: m.winner === 'blue', team: m.blueTeam },
+      { picks: m.redPicks  || [], won: m.winner === 'red',  team: m.redTeam  },
     ];
-    sides.forEach(({ picks, won }) => {
+    sides.forEach(({ picks, won, team }) => {
+      if (WDB.playersHidden && WDB.playersHidden(m.league, team)) return;   // player tags switched off here
       picks.forEach(p => {
         if (!p.player || p.player.toLowerCase() !== playerIgn.toLowerCase()) return;
         const hero = p.name;

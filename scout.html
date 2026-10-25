@@ -2231,7 +2231,7 @@ const DB_MODULE = (() => {
             heroKDA[hero].games++; heroKDA[hero].k+=k; heroKDA[hero].d+=d; heroKDA[hero].a+=a;
             if (won) heroKDA[hero].wins++;
           }
-          if (p.player) {
+          if (p.player && !_plHidden(m.league, name)) {   // skipped where the admin switched player stats off
             if (!playerKDA[p.player]) playerKDA[p.player] = { games:0, k:0, d:0, a:0, lane:p.lane||null, heroes:{} };
             const pk = playerKDA[p.player];
             pk.games++; pk.k+=k; pk.d+=d; pk.a+=a;
@@ -2461,6 +2461,55 @@ function _dateRangeTxt(f, t) {
   const yr = d => d.slice(0, 4), same = f && t && yr(f) === yr(t);
   const a = f ? _fmtDay(f) + (same ? '' : ', ' + yr(f)) : '', b = t ? _fmtDay(t) + ', ' + yr(t) : '';
   return a && b ? `${a} – ${b}` : a ? `Since ${a}` : `Until ${b}`;
+}
+// ── Player tags switched off (wrong assignments) → per-role stats instead ──
+function _plHidden(league, team) { try { return typeof WDB !== 'undefined' && !!WDB.playersHidden && WDB.playersHidden(league, team); } catch (_) { return false; } }
+const _ROLE_ORDER = ['Gold', 'EXP', 'Mid', 'Jungle', 'Roam'];
+const _ROLE_CLR = { Gold:'#f4a534', Jungle:'#a78bfa', Mid:'#60a5fa', EXP:'#f87171', Roam:'#34d17a' };
+// Per-role numbers from picks (one team, or every team when teamName is empty)
+function _roleRows(games, teamName) {
+  const R = {}; _ROLE_ORDER.forEach(L => R[L] = { games:0, wins:0, k:0, d:0, a:0, kg:0, heroes:{} });
+  games.forEach(m => [['blue', m.bluePicks, m.blueTeam], ['red', m.redPicks, m.redTeam]].forEach(([side, picks, tn]) => {
+    if (teamName && tn !== teamName) return;
+    const won = m.winner === side;
+    (picks || []).forEach(p => {
+      const L = p && p.lane, n = p && (p.name || p); if (!n || !R[L]) return;
+      const r = R[L]; r.games++; if (won) r.wins++;
+      if (p.kda) { r.k += +p.kda.k || 0; r.d += +p.kda.d || 0; r.a += +p.kda.a || 0; r.kg++; }
+      r.heroes[n] = (r.heroes[n] || 0) + 1;
+    });
+  }));
+  return _ROLE_ORDER.map(L => { const r = R[L]; return { lane: L, games: r.games, wr: r.games ? Math.round(r.wins / r.games * 100) : null,
+    kda: r.kg ? (r.d ? (r.k + r.a) / r.d : r.k + r.a) : null, heroes: Object.entries(r.heroes).sort((a, b) => b[1] - a[1]).map(([h]) => h) }; });
+}
+function _roleRowsHtml(rows, img) {
+  const g = 'display:grid;grid-template-columns:.8fr .5fr .55fr .5fr 1.8fr;gap:8px;';
+  const wc = v => v == null ? 'var(--text3)' : v >= 60 ? 'var(--green)' : v >= 50 ? 'var(--gold)' : 'var(--red)';
+  return `<div style="${g}font-size:8px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text4);padding-bottom:7px;border-bottom:1px solid var(--border);margin-bottom:4px;">
+      <span>Role</span><span style="text-align:center;">Games</span><span style="text-align:center;">KDA</span><span style="text-align:center;">Win</span><span>Heroes played</span></div>`
+    + rows.map(r => `<div style="${g}align-items:center;padding:5px 0;font-size:10.5px;${r.games ? '' : 'opacity:.45;'}">
+      <span style="font-weight:700;color:${_ROLE_CLR[r.lane]};">${r.lane}</span>
+      <span style="text-align:center;font-family:var(--font-mono);color:var(--text3);">${r.games}</span>
+      <span style="text-align:center;font-family:var(--font-mono);font-weight:700;color:var(--text2);">${r.kda != null ? r.kda.toFixed(1) : '—'}</span>
+      <span style="text-align:center;font-family:var(--font-mono);font-weight:800;color:${wc(r.wr)};">${r.wr != null ? r.wr + '%' : '—'}</span>
+      <span style="display:flex;gap:2px;overflow:hidden;">${r.heroes.slice(0, 7).map(h => img(h, 20)).join('')}</span></div>`).join('');
+}
+// Admin toggles (the setting lives on the league row, so it applies for everyone)
+async function _tglTeamPlayers(btn) {
+  const team = btn.dataset.team, on = btn.dataset.on === '1';
+  let leagues = []; try { leagues = JSON.parse(btn.dataset.leagues || '[]'); } catch (_) {}
+  if (!on) { const whole = leagues.filter(L => WDB.playersHidden(L, null)); if (whole.length) toast(`Player stats are off for all of ${whole.join(', ')} — switch them back on from the League Report`); }
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try { for (const L of leagues) await WDB.setPlayersHidden(L, team, on); toast(on ? `Player stats hidden for ${team} — showing roles` : `Player stats back on for ${team}`); }
+  catch (e) { toast('Could not save: ' + (e && e.message || e), 'error'); }
+  _reReport();
+}
+async function _tglLeaguePlayers(btn) {
+  const league = btn.dataset.league, on = btn.dataset.on === '1';
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try { await WDB.setPlayersHidden(league, null, on); toast(on ? `Player stats hidden for ${league} — showing roles` : `Player stats back on for ${league}`); }
+  catch (e) { toast('Could not save: ' + (e && e.message || e), 'error'); }
+  _reLeagueReport();
 }
 function _setMetaDates() {
   let f = document.getElementById('metaFrom')?.value || '', t = document.getElementById('metaTo')?.value || '';
@@ -5689,7 +5738,7 @@ function openTeamReport(teamName) {
       const hero = p.name, lane = p.lane;
       if (!hero || !lane) return;
       if (!LANE_ORDER.includes(lane)) return;
-      const player = p.player || UNTAGGED;
+      const player = (p.player && !_plHidden(m.league, teamName)) ? p.player : UNTAGGED;
       if (!laneRoster[lane][player]) {
         laneRoster[lane][player] = { games:0, k:0, d:0, a:0, kdaGames:0, heroes:{} };
       }
@@ -5704,6 +5753,10 @@ function openTeamReport(teamName) {
     });
   });
   const anyLaneData = LANE_ORDER.some(L => laneTotals[L] > 0);
+  // Player stats switched off for this team (in some or all of these games)?
+  const _tLeagues = [...new Set(teamGames.map(m => m.league).filter(Boolean))];
+  const _tHidN = teamGames.filter(m => _plHidden(m.league, teamName)).length;
+  const _tHidAll = teamGames.length > 0 && _tHidN === teamGames.length;
 
   // Per-Lane Roster — for each lane, list players (main first, subs after) with
   // their hero pool. KDA shown when entered, omitted gracefully when not.
@@ -5750,7 +5803,7 @@ function openTeamReport(teamName) {
       const aa = hasKda ? (pr.a/pr.kdaGames).toFixed(1) : null;
       const playerLine = isUntagged
         ? `<div class="lp-player-line lp-untagged">
-            <span class="lp-player-ign">Unassigned picks</span>
+            <span class="lp-player-ign">${_tHidAll ? 'All picks · player tags hidden' : _tHidN ? 'Unassigned or hidden picks' : 'Unassigned picks'}</span>
             <span class="lp-player-stats">${pr.games}g</span>
           </div>`
         : `<div class="lp-player-line">
@@ -6259,8 +6312,8 @@ function openTeamReport(teamName) {
         <!-- PLAYERS + HERO PERFORMANCE -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;">
           <div class="rpt2-panel">
-            <div class="rpt2-title"><span class="bar"></span><h3>Players</h3></div>
-            ${playerRows.length?`
+            <div class="rpt2-title"><span class="bar"></span><h3>${_tHidAll ? 'Roles' : 'Players'}</h3>${_tHidAll ? '<span class="meta">player tags hidden</span>' : _tHidN ? `<span class="meta" title="Player stats are off for this team in some leagues; those games aren't counted here">${_tHidN} game${_tHidN===1?'':'s'} hidden</span>` : ''}${(typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin()&&_tLeagues.length) ? `<button class="rpt2-vall" style="width:auto;margin:0 0 0 ${(_tHidAll || _tHidN) ? '8px' : 'auto'};padding:4px 10px;" data-team="${String(teamName).replace(/"/g,'&quot;')}" data-leagues="${JSON.stringify(_tLeagues).replace(/"/g,'&quot;')}" data-on="${_tHidAll ? '0' : '1'}" onclick="_tglTeamPlayers(this)" title="${_tHidAll ? 'Show player stats again' : 'Player tags wrong? Hide player stats for this team (' + _tLeagues.join(', ') + ') and show per-role stats instead. Tags stay saved.'}">${_tHidAll ? 'Show players' : 'Hide players'}</button>` : ''}</div>
+            ${_tHidAll ? _roleRowsHtml(_roleRows(teamGames, teamName), img) : playerRows.length?`
               <div style="display:grid;grid-template-columns:1.3fr .8fr .5fr .55fr 1.5fr;gap:8px;font-size:8px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text4);padding-bottom:7px;border-bottom:1px solid var(--border);margin-bottom:4px;">
                 <span>Player</span><span>Role</span><span style="text-align:center;">Games</span><span style="text-align:center;">KDA</span><span>Hero Pool</span>
               </div>
@@ -6396,6 +6449,7 @@ function openLeagueReport(league, season) {
   const _fmtD = s => { const d=new Date(s); return isNaN(d.getTime())?s:`${d.toLocaleString('default',{month:'short'})} ${d.getDate()}, ${d.getFullYear()}`; };
   const LANES=['Gold','Jungle','Mid','EXP','Roam'];
   const LC={Gold:'#f4a534',Jungle:'#a78bfa',Mid:'#60a5fa',EXP:'#f87171',Roam:'#34d17a'};
+  const _lgHid = LEAGUE !== 'all' && _plHidden(LEAGUE, null);   // admin switched player stats off for this league
 
   const games = all.length;
   const teamsSet = new Set(); all.forEach(m=>{ if(m.blueTeam)teamsSet.add(m.blueTeam); if(m.redTeam)teamsSet.add(m.redTeam); });
@@ -6417,7 +6471,7 @@ function openLeagueReport(league, season) {
         const L=p&&p.lane; if(L&&LANES.includes(L)){ const a=laneAgg[L]||(laneAgg[L]={}); const le=a[n]||(a[n]={c:0,w:0}); le.c++; if(won)le.w++; }
         if(p&&p.kda){ const k=+p.kda.k||0,d=+p.kda.d||0,as=+p.kda.a||0;
           const hk=heroKDA[n]||(heroKDA[n]={g:0,k:0,d:0,a:0,w:0}); hk.g++; hk.k+=k; hk.d+=d; hk.a+=as; if(won)hk.w++;
-          if(p.player){ const pk=playerKDA[p.player]||(playerKDA[p.player]={g:0,k:0,d:0,a:0,lane:p.lane||'',team:tn||''}); pk.g++; pk.k+=k; pk.d+=d; pk.a+=as; if(p.lane&&!pk.lane)pk.lane=p.lane; }
+          if(p.player&&!_plHidden(m.league,tn)){ const pk=playerKDA[p.player]||(playerKDA[p.player]={g:0,k:0,d:0,a:0,lane:p.lane||'',team:tn||''}); pk.g++; pk.k+=k; pk.d+=d; pk.a+=as; if(p.lane&&!pk.lane)pk.lane=p.lane; }
         }
       });
       (bans||[]).forEach(bn=>{ const n=bn&&(bn.name||bn); if(!n||_seenB.has(n))return; _seenB.add(n); banC[n]=(banC[n]||0)+1; });
@@ -6702,8 +6756,8 @@ function openLeagueReport(league, season) {
         <!-- TOP PLAYERS · HERO PERFORMANCE -->
         <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:14px;align-items:start;">
           <div class="rpt2-panel">
-            <div class="rpt2-title"><span class="bar"></span><h3>Top Players</h3><span class="meta">by KDA · min 3g</span></div>
-            ${playerRows.length?`
+            <div class="rpt2-title"><span class="bar"></span><h3>${_lgHid ? 'Roles' : 'Top Players'}</h3><span class="meta">${_lgHid ? 'player tags hidden' : 'by KDA · min 3g'}</span>${(LEAGUE!=='all' && typeof WAdmin!=='undefined'&&WAdmin.isAdmin&&WAdmin.isAdmin()) ? `<button class="rpt2-vall" style="width:auto;margin:0 0 0 8px;padding:4px 10px;" data-league="${String(LEAGUE).replace(/"/g,'&quot;')}" data-on="${_lgHid ? '0' : '1'}" onclick="_tglLeaguePlayers(this)" title="${_lgHid ? 'Show player stats again' : 'Player tags wrong in this league? Hide player stats everywhere for ' + LEAGUE + ' and show per-role stats instead. Tags stay saved.'}">${_lgHid ? 'Show players' : 'Hide players'}</button>` : ''}</div>
+            ${_lgHid ? _roleRowsHtml(_roleRows(all, ''), img) : playerRows.length?`
               <div style="display:grid;grid-template-columns:1.2fr 1.1fr .6fr .5fr .5fr;gap:8px;font-size:8px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text4);padding-bottom:7px;border-bottom:1px solid var(--border);margin-bottom:4px;">
                 <span>Player</span><span>Team</span><span>Role</span><span style="text-align:center;">G</span><span style="text-align:center;">KDA</span>
               </div>
@@ -7130,7 +7184,7 @@ function _rComputeTeam(matches,name){
       if(o!=null){twG++; twS+=Number(o)||0; twO+=Number(e)||0;}
     }
     const picks=isBlue?(m.bluePicks||[]):(m.redPicks||[]);
-    picks.forEach(p=>{ if(!p||!p.kda||!p.player)return;
+    picks.forEach(p=>{ if(!p||!p.kda||!p.player||_plHidden(m.league,name))return;
       const k=Number(p.kda.k)||0,d=Number(p.kda.d)||0,a=Number(p.kda.a)||0;
       if(!pk[p.player])pk[p.player]={games:0,k:0,d:0,a:0,lane:p.lane||null,wins:0};
       const q=pk[p.player]; q.games++; q.k+=k; q.d+=d; q.a+=a; if(p.lane&&!q.lane)q.lane=p.lane; if(w)q.wins++;

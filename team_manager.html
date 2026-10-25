@@ -903,6 +903,7 @@ function _derivedRosterPlayers(teamName, season) {
   (allMatches||[]).forEach(m => {
     if ((m.season||'').trim() !== season) return;
     const sides = [];
+    if (typeof WDB!=='undefined' && WDB.playersHidden && WDB.playersHidden(m.league, teamName)) return;   // player stats switched off here
     if (m.blueTeam===teamName) sides.push(m.bluePicks||[]);
     if (m.redTeam ===teamName) sides.push(m.redPicks ||[]);
     sides.forEach(picks => picks.forEach(p => {
