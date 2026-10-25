@@ -2414,6 +2414,26 @@ let metaSort = 'presence';
 let metaLeague = 'all';
 let metaRole = 'All';
 let metaMap = 'all';      // Hero Meta: one battle map, or all
+let metaPhase = 'all';    // Hero Meta: 'all' | 'regular' | 'playoffs'
+let metaFrom = '', metaTo = '';   // Hero Meta date range (YYYY-MM-DD), blank = any
+// Regular season (incl. groups / Swiss) vs playoffs (play-ins, brackets, finals),
+// read from the game's stage + week/round label.
+function _phaseOf(m) {
+  const s = ((m && m.stage) || '') + ' ' + ((m && m.week) || '');
+  return /play-?offs?|play-?ins?|knock-?out|bracket|final|semi|quarter|elimination|decider|third place|\b(ub|lb|qf|sf|gf)\b/i.test(s) ? 'playoffs' : 'regular';
+}
+function _fmtDay(d) { const [y, m, dd] = String(d).split('-').map(Number); return new Date(y, m - 1, dd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }
+function _dateRangeTxt(f, t) {
+  if (!f && !t) return '';
+  const yr = d => d.slice(0, 4), same = f && t && yr(f) === yr(t);
+  const a = f ? _fmtDay(f) + (same ? '' : ', ' + yr(f)) : '', b = t ? _fmtDay(t) + ', ' + yr(t) : '';
+  return a && b ? `${a} – ${b}` : a ? `Since ${a}` : `Until ${b}`;
+}
+function _setMetaDates() {
+  let f = document.getElementById('metaFrom')?.value || '', t = document.getElementById('metaTo')?.value || '';
+  if (f && t && f > t) { const x = f; f = t; t = x; }
+  metaFrom = f; metaTo = t; renderMeta();
+}
 let _seriesCollapsed = {};
 // ── Pagination ──
 const MATCH_PAGE_SIZE = 12;  // series per page (each expands to its games)
@@ -7242,7 +7262,7 @@ function renderMeta() {
     <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
       <div>
         <div class="page-title">Hero Meta</div>
-        <div class="page-sub">Pick & ban rates across your match log${metaLeague!=='all'?' · '+metaLeague:''}${seasonFilter!=='all'?' · '+seasonFilter:''}</div>
+        <div class="page-sub">Pick & ban rates across your match log${metaLeague!=='all'?' · '+metaLeague:''}${seasonFilter!=='all'?' · '+seasonFilter:''}${metaPhase!=='all'?' · '+(metaPhase==='playoffs'?'Playoffs':'Regular season'):''}${metaFrom||metaTo?' · '+_dateRangeTxt(metaFrom,metaTo):''}</div>
       </div>
       <a href="/meta_export" target="_blank"
          style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;background:rgba(124,92,246,.12);border:1px solid rgba(124,92,246,.28);color:#7C5CF6;font-size:11px;font-weight:700;letter-spacing:.5px;text-decoration:none;transition:all .15s;"
@@ -7262,11 +7282,26 @@ function renderMeta() {
         `<button class="filter-badge${metaRole===r?' active':''}" onclick="metaRole='${r}';renderMeta()">${r}</button>`
       ).join('')}
     </div>
+    <div class="filter-row" id="metaPhaseRow" style="margin-bottom:6px;"></div>
     <div class="filter-row" id="metaMapRow" style="margin-bottom:6px;"></div>
     <div id="metaWrap"></div>`;
 
   let pool = metaLeague==='all' ? all : all.filter(m => m.league===metaLeague);
   if (seasonFilter !== 'all') pool = pool.filter(m => (m.season||'') === seasonFilter);
+  // Date range, then stage (regular season / playoffs)
+  if (metaFrom || metaTo) pool = pool.filter(m => { const d = String(m.date || '').slice(0, 10); return d && (!metaFrom || d >= metaFrom) && (!metaTo || d <= metaTo); });
+  const phaseCount = { all: pool.length, regular: 0, playoffs: 0 }; pool.forEach(m => phaseCount[_phaseOf(m)]++);
+  if (metaPhase !== 'all') pool = pool.filter(m => _phaseOf(m) === metaPhase);
+  const _lbl = 'font-size:9px;font-weight:700;color:var(--text3);font-family:var(--font-head);letter-spacing:1.5px;text-transform:uppercase;flex-shrink:0;';
+  const _din = 'padding:3px 8px;font-size:10px;font-weight:700;font-family:var(--font-head);border:1px solid var(--border2);border-radius:10px;background:transparent;color:var(--text2);cursor:pointer;';
+  document.getElementById('metaPhaseRow').innerHTML = `
+      <span style="${_lbl}">STAGE</span>
+      ${[['all','All'],['regular','Regular season'],['playoffs','Playoffs']].map(([k, t]) => `<button class="filter-badge${metaPhase===k?' active':''}" onclick="metaPhase='${k}';renderMeta()" title="${k==='regular'?'Regular season, groups and Swiss rounds':k==='playoffs'?'Play-ins, brackets and finals':'Every stage'}">${t} <span style="opacity:.55;">${phaseCount[k]}</span></button>`).join('')}
+      <span style="${_lbl}margin-left:14px;">DATE</span>
+      <input type="date" id="metaFrom" value="${metaFrom}" onchange="_setMetaDates()" aria-label="From date" style="${_din}${metaFrom?'border-color:var(--blue-border);color:var(--blue);':''}">
+      <span style="font-size:10px;color:var(--text3);">to</span>
+      <input type="date" id="metaTo" value="${metaTo}" onchange="_setMetaDates()" aria-label="To date" style="${_din}${metaTo?'border-color:var(--blue-border);color:var(--blue);':''}">
+      ${metaFrom || metaTo ? `<button class="filter-badge" onclick="metaFrom='';metaTo='';renderMeta()" title="Any date">✕</button>` : ''}`;
   // Battle maps in this league / season (games with a map), most played first
   const mapOf = m => (m.map && typeof WDB !== 'undefined' && WDB.normalizeMap) ? WDB.normalizeMap(m.map) : (m.map || '');
   const mapCount = {}; pool.forEach(m => { const k = mapOf(m); if (k) mapCount[k] = (mapCount[k] || 0) + 1; });
@@ -7281,7 +7316,7 @@ function renderMeta() {
       ${metaMap !== 'all' ? `<button class="filter-badge" style="margin-left:auto;border-color:rgba(124,92,246,.35);color:#7C5CF6;" onclick="exportMapCard()" title="A 1000×1000 card of the top heroes on this map, ranked by the current sort">🎴 Map card</button>` : ''}`
     : '';
   const onMap = metaMap === 'all' ? pool : pool.filter(m => mapOf(m) === metaMap);
-  window.__metaCard = { map: metaMap, pool: onMap, base: pool, league: metaLeague, season: seasonFilter };
+  window.__metaCard = { map: metaMap, pool: onMap, base: pool, league: metaLeague, season: seasonFilter, phase: metaPhase, from: metaFrom, to: metaTo };
   document.getElementById('metaWrap').innerHTML = buildMetaTable(onMap, metaRole, metaMap !== 'all' ? pool : null);
 }
 
@@ -7390,85 +7425,98 @@ function _mapCardColor(name) {
   let h = 0; for (const ch of String(name)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return pal[h % pal.length];
 }
-function _accentLine(color) {
-  const c = document.createElement('canvas'); c.width = 1000; c.height = 2;
-  const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 1000, 0);
-  g.addColorStop(0, color + '90'); g.addColorStop(0.55, color + '28'); g.addColorStop(1, color + '00');
-  x.fillStyle = g; x.fillRect(0, 0, 1000, 2); return c.toDataURL('image/png');
-}
-function _imgOk(src) { return new Promise(res => { if (!src) return res(false); const i = new Image(); i.onload = () => res(true); i.onerror = () => res(false); i.src = src; }); }
-function _buildMapCard(ctx, artOk) {
-  const esc = x => String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+function _loadImg(src) { return new Promise(res => { if (!src) return res(null); const i = new Image(); i.onload = () => res(i.naturalWidth ? i : null); i.onerror = () => res(null); i.src = src; }); }
+// Drawn straight onto a canvas (no html2canvas): every label is measured and
+// centred by its real cap height, so it lines up the same on every PC/browser.
+async function _drawMapCard(ctx) {
   const map = ctx.map, color = _mapCardColor(map), total = ctx.pool.length;
-  const sortBy = metaSort;
-  const needN = sortBy === 'winrate' || sortBy === 'map edge';
+  const sortBy = metaSort, needN = sortBy === 'winrate' || sortBy === 'map edge';
   let rows = _metaRows(ctx.pool, metaRole, ctx.base);
   if (needN) rows = rows.filter(r => r.picks >= MAP_EDGE_MIN && (sortBy !== 'map edge' || r.edge != null));
   rows = rows.slice(0, 10);
   const how = { presence:'Presence', pickrate:'Pick Rate', banrate:'Ban Rate', picks:'Picks', bans:'Bans',
     winrate:`Win Rate · ${MAP_EDGE_MIN}+ picks`, 'map edge':`Win Rate vs All Maps · ${MAP_EDGE_MIN}+ picks` }[sortBy] || 'Presence';
-  const word = needN ? 'BEST ON ' : 'META ON ';
-  const role = metaRole !== 'All' ? metaRole.toUpperCase() + ' ' : '';
   const lg = ctx.league === 'all' ? 'All Leagues' : ctx.league;
-  const chip = lg + (ctx.season && ctx.season !== 'all' ? ' · ' + ctx.season : '');
+  const chip = lg + (ctx.season && ctx.season !== 'all' ? ' · ' + ctx.season : '') + (ctx.phase && ctx.phase !== 'all' ? ' · ' + (ctx.phase === 'playoffs' ? 'Playoffs' : 'Regular season') : '');
+  const dateTxt = _dateRangeTxt(ctx.from, ctx.to);
+  try { await Promise.all(['500','600','700','800','900'].map(w => document.fonts.load(`${w} 20px Inter`))); } catch (_) {}
+  const art = await _loadImg(typeof WDB !== 'undefined' && WDB.mapImage ? WDB.mapImage(map) : '');
+  const pics = await Promise.all(rows.map(r => _loadImg(_heroIcon(r.name))));
+
+  const S = 2, W = 1000, cv = document.createElement('canvas'); cv.width = cv.height = W * S;
+  const c = cv.getContext('2d'); c.scale(S, S);
+  const hasLS = 'letterSpacing' in c;
+  const font = (size, weight, ls) => { c.font = `${weight} ${size}px Inter, "Segoe UI", Arial, sans-serif`; if (hasLS) c.letterSpacing = (ls || 0) + 'px'; };
+  const capH = () => c.measureText('H').actualBoundingBoxAscent || 0;
+  // Text whose capital letters are vertically centred on cy
+  const text = (str, x, cy, o) => {
+    font(o.size, o.weight || 400, o.ls); c.fillStyle = o.color; c.textAlign = o.align || 'left'; c.textBaseline = 'alphabetic';
+    let t = o.upper ? String(str).toUpperCase() : String(str);
+    if (o.max) { if (c.measureText(t).width > o.max) { while (t.length > 1 && c.measureText(t + '…').width > o.max) t = t.slice(0, -1); t += '…'; } }
+    c.fillText(t, x, cy + capH() / 2); return c.measureText(t).width;
+  };
+  const rr = (x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
+  const cover = (img, x, y, w, h) => { const k = Math.max(w / img.naturalWidth, h / img.naturalHeight), sw = w / k, sh = h / k; c.drawImage(img, (img.naturalWidth - sw) / 2, (img.naturalHeight - sh) / 2, sw, sh, x, y, w, h); };
+  const L = 36, R = W - 36;
+
+  // Background + header (152px)
+  c.fillStyle = '#080810'; c.fillRect(0, 0, W, W);
+  if (art) {
+    c.save(); c.globalAlpha = .28; cover(art, 0, 0, W, 152); c.restore();
+    const g = c.createLinearGradient(0, 0, W, 0); g.addColorStop(0, '#080810'); g.addColorStop(.45, 'rgba(8,8,16,.82)'); g.addColorStop(1, 'rgba(8,8,16,.35)');
+    c.fillStyle = g; c.fillRect(0, 0, W, 152);
+  }
+  { const g = c.createLinearGradient(0, 0, 0, 152); g.addColorStop(0, 'rgba(255,255,255,.036)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, W, 152); }
+  // Top line: dot + brand (left), pills (right) — all centred on y=50
+  const TOP = 50;
+  c.save(); c.shadowColor = color + '99'; c.shadowBlur = 9; c.fillStyle = color; c.beginPath(); c.arc(L + 3, TOP, 3, 0, Math.PI * 2); c.fill(); c.restore();
+  text('warr.gg · MLBB Intelligence', L + 13, TOP, { size: 8.5, weight: 700, ls: 2.5, color: 'rgba(240,240,248,.25)', upper: true });
+  const pill = (label, right, o) => {
+    font(8, o.weight, o.ls); const t = label.toUpperCase(), w = c.measureText(t).width + 22, h = 19, x = right - w;
+    rr(x + .5, TOP - h / 2 + .5, w - 1, h - 1, h / 2); c.fillStyle = o.bg; c.fill(); c.strokeStyle = o.border; c.lineWidth = 1; c.stroke();
+    text(t, x + w / 2, TOP, { size: 8, weight: o.weight, ls: o.ls, color: o.color, align: 'center' }); return x;
+  };
+  const px = pill(chip, R, { weight: 700, ls: .8, bg: color + '16', border: color + '38', color });
+  pill(`${total} game${total === 1 ? '' : 's'} on this map`, px - 5, { weight: 600, ls: .3, bg: 'rgba(255,255,255,.055)', border: 'rgba(255,255,255,.08)', color: 'rgba(240,240,248,.4)' });
+  // Title: "[ROLE] META ON / BEST ON" + map name in the map colour; shrinks to fit
+  const lead = (metaRole !== 'All' ? metaRole.toUpperCase() + ' ' : '') + (needN ? 'BEST ON' : 'META ON'), mapT = String(map).toUpperCase();
+  let ts = 40; for (; ts > 24; ts--) { font(ts, 900, -1.5); if (c.measureText(lead).width + ts * .3 + c.measureText(mapT).width <= R - L) break; }
+  const lw = text(lead, L, 96, { size: ts, weight: 900, ls: -1.5, color: 'rgba(240,240,248,.88)' });
+  text(mapT, L + lw + ts * .3, 96, { size: ts, weight: 900, ls: -1.5, color });
+  text(`Ranked by ${how} · ${total} of ${ctx.base.length} games in ${chip}${dateTxt ? ' · ' + dateTxt : ''}`, L, 132, { size: 9, weight: 500, ls: 1.2, color: 'rgba(240,240,248,.2)', upper: true, max: R - L });
+  // Accent line
+  { const g = c.createLinearGradient(0, 0, W, 0); g.addColorStop(0, color + '90'); g.addColorStop(.55, color + '28'); g.addColorStop(1, color + '00'); c.fillStyle = g; c.fillRect(0, 152, W, 1); }
+  // Column headers (153–180)
+  const COLS = [['Presence', 700], ['Pick', 762], ['Ban', 824], ['Win', 886], ['vs All Maps', 964]];
+  COLS.forEach(([h, x]) => text(h, x, 166.5, { size: 7, weight: 700, ls: 1.2, color: 'rgba(240,240,248,.2)', upper: true, align: 'right' }));
+  c.fillStyle = 'rgba(255,255,255,.04)'; c.fillRect(0, 179, W, 1);
+  // Rows (10 × 75px from y=180)
   const RANK_C = ['#F5C842','#C0C0C0','#CD7F32','rgba(240,240,248,.55)','rgba(240,240,248,.45)','rgba(240,240,248,.38)','rgba(240,240,248,.32)','rgba(240,240,248,.26)','rgba(240,240,248,.22)','rgba(240,240,248,.18)'];
-  const F = "font-family:'Inter',sans-serif;";
-  const cell = v => v != null ? `<div style="font-size:15px;font-weight:700;color:rgba(240,240,248,.88);${F}letter-spacing:-.5px;line-height:1;">${v}%</div>`
-                              : `<div style="font-size:13px;color:rgba(255,255,255,.18);${F}">—</div>`;
-  const edge = v => v == null ? `<div style="font-size:13px;color:rgba(255,255,255,.18);${F}">—</div>`
-    : `<div style="font-size:15px;font-weight:800;color:${v > 0 ? '#4ADE80' : v < 0 ? '#F87171' : 'rgba(240,240,248,.5)'};${F}letter-spacing:-.5px;line-height:1;">${v > 0 ? '+' : ''}${v}</div>`;
-  const body = rows.map((r, i) => {
-    const lane = r.h ? (heroLanes(r.h)[0] || r.h.role || '') : '';
-    return `<div style="display:flex;align-items:center;height:75px;padding:0 36px;background:${i % 2 ? 'transparent' : 'rgba(255,255,255,.018)'};border-bottom:1px solid rgba(255,255,255,.028);box-sizing:border-box;">
-      <div style="width:34px;text-align:center;font-size:${i < 3 ? 20 : 15}px;font-weight:900;color:${RANK_C[i]};${F}margin-right:18px;line-height:1;letter-spacing:-1px;">${i + 1}</div>
-      <img src="${esc(_heroIcon(r.name))}" alt="" style="width:52px;height:52px;border-radius:9px;object-fit:cover;flex-shrink:0;background:#0E0E1A;display:block;margin-right:16px;border:1px solid rgba(255,255,255,.07);">
-      <div style="flex:1;min-width:0;margin-right:18px;">
-        <div style="font-size:17px;font-weight:700;color:rgba(240,240,248,.95);${F}white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;padding-bottom:1px;letter-spacing:-.3px;">${esc(r.name)}</div>
-        <div style="font-size:9px;font-weight:500;color:rgba(240,240,248,.25);${F}margin-top:1px;line-height:1.3;letter-spacing:1px;text-transform:uppercase;">${esc(lane)}${r.picks ? ` · ${r.picks} pick${r.picks === 1 ? '' : 's'}` : ''}</div>
-      </div>
-      <div style="width:68px;text-align:right;">${cell(r.presence)}</div>
-      <div style="width:62px;text-align:right;">${cell(r.pickRate)}</div>
-      <div style="width:62px;text-align:right;">${cell(r.banRate)}</div>
-      <div style="width:62px;text-align:right;">${cell(r.winRate)}</div>
-      <div style="width:78px;text-align:right;">${edge(r.edge)}</div>
-    </div>`;
-  }).join('') || `<div style="padding:60px 36px;color:rgba(240,240,248,.35);font-size:16px;${F}">Not enough games on this map yet${needN ? ` (heroes need ${MAP_EDGE_MIN}+ picks here)` : ''}.</div>`;
-  const hd = t => `<div style="width:${t[1]}px;text-align:right;font-size:7px;font-weight:700;color:rgba(240,240,248,.2);${F}letter-spacing:1.2px;text-transform:uppercase;">${t[0]}</div>`;
-  return `<div style="width:1000px;height:1000px;overflow:hidden;position:relative;background:#080810;display:flex;flex-direction:column;${F}">
-    <div style="height:152px;flex-shrink:0;position:relative;overflow:hidden;box-sizing:border-box;">
-      ${artOk ? `<img src="${esc(WDB.mapImage(map))}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.28;">
-      <div style="position:absolute;inset:0;background:linear-gradient(90deg,#080810 0%,rgba(8,8,16,.82) 45%,rgba(8,8,16,.35) 100%);"></div>` : ''}
-      <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.036) 0%,rgba(255,255,255,0) 100%);"></div>
-      <div style="position:relative;height:100%;padding:26px 36px 0;display:flex;flex-direction:column;justify-content:center;box-sizing:border-box;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-          <div style="display:flex;align-items:center;gap:7px;">
-            <div style="width:6px;height:6px;border-radius:50%;background:${color};box-shadow:0 0 9px ${color}99;"></div>
-            <div style="font-size:8.5px;font-weight:700;color:rgba(240,240,248,.25);letter-spacing:2.5px;text-transform:uppercase;">warr.gg · MLBB Intelligence</div>
-          </div>
-          <div style="display:flex;gap:5px;">
-            <div style="font-size:8px;font-weight:600;line-height:1.5;padding:2px 11px 3px;border-radius:20px;background:rgba(255,255,255,.055);color:rgba(240,240,248,.4);border:1px solid rgba(255,255,255,.08);letter-spacing:.3px;">${total} GAME${total === 1 ? '' : 'S'} ON THIS MAP</div>
-            <div style="font-size:8px;font-weight:700;line-height:1.5;padding:2px 11px 3px;border-radius:20px;background:${color}16;color:${color};border:1px solid ${color}38;letter-spacing:.8px;text-transform:uppercase;">${esc(chip)}</div>
-          </div>
-        </div>
-        <div style="line-height:1.12;margin-bottom:10px;font-size:40px;font-weight:900;letter-spacing:-1.5px;white-space:nowrap;">
-          <span style="color:rgba(240,240,248,.88);">${role}${word}</span><span style="color:${color};">${esc(String(map).toUpperCase())}</span>
-        </div>
-        <div style="font-size:9px;font-weight:500;color:rgba(240,240,248,.2);letter-spacing:1.2px;text-transform:uppercase;">Ranked by ${how} · ${total} of ${ctx.base.length} games in ${esc(chip)}</div>
-      </div>
-    </div>
-    <img src="${_accentLine(color)}" alt="" style="display:block;width:100%;height:1px;flex-shrink:0;">
-    <div style="display:flex;align-items:center;height:27px;padding:0 36px;flex-shrink:0;box-sizing:border-box;border-bottom:1px solid rgba(255,255,255,.04);">
-      <div style="flex:1;"></div>${[['Presence',68],['Pick',62],['Ban',62],['Win',62],['vs All Maps',78]].map(hd).join('')}
-    </div>
-    <div style="flex:1;overflow:hidden;">${body}</div>
-    <div style="height:70px;flex-shrink:0;border-top:1px solid rgba(255,255,255,.045);padding:0 36px;display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,.12);box-sizing:border-box;">
-      <div style="display:flex;flex-direction:column;gap:5px;">
-        <div style="font-size:8px;font-weight:700;color:rgba(240,240,248,.28);letter-spacing:1.2px;text-transform:uppercase;">vs All Maps = win rate here minus win rate on every map (${MAP_EDGE_MIN}+ picks here)</div>
-        <div style="font-size:7.5px;color:rgba(240,240,248,.12);letter-spacing:.3px;">Based on scout data and will update as more games are analyzed.</div>
-      </div>
-      <div style="font-size:16px;font-weight:900;color:${color};letter-spacing:1.5px;opacity:.8;">WARR.GG</div>
-    </div>
-  </div>`;
+  const num = (v, x, cy) => v != null ? text(v + '%', x, cy, { size: 15, weight: 700, ls: -.5, color: 'rgba(240,240,248,.88)', align: 'right' })
+                                      : text('—', x, cy, { size: 13, weight: 400, color: 'rgba(255,255,255,.18)', align: 'right' });
+  rows.forEach((r, i) => {
+    const top = 180 + i * 75, mid = top + 37.5;
+    if (i % 2 === 0) { c.fillStyle = 'rgba(255,255,255,.018)'; c.fillRect(0, top, W, 75); }
+    c.fillStyle = 'rgba(255,255,255,.028)'; c.fillRect(0, top + 74, W, 1);
+    text(String(i + 1), L + 17, mid, { size: i < 3 ? 20 : 15, weight: 900, ls: -1, color: RANK_C[i], align: 'center' });
+    const ix = L + 34 + 18, iy = mid - 26;
+    c.save(); rr(ix, iy, 52, 52, 9); c.fillStyle = '#0E0E1A'; c.fill(); c.clip(); if (pics[i]) cover(pics[i], ix, iy, 52, 52); c.restore();
+    rr(ix + .5, iy + .5, 51, 51, 9); c.strokeStyle = 'rgba(255,255,255,.07)'; c.lineWidth = 1; c.stroke();
+    const nx = ix + 52 + 16, lane = r.h ? (heroLanes(r.h)[0] || r.h.role || '') : '';
+    text(r.name, nx, mid - 6, { size: 17, weight: 700, ls: -.3, color: 'rgba(240,240,248,.95)', max: 632 - 18 - nx });
+    text(lane + (r.picks ? ` · ${r.picks} pick${r.picks === 1 ? '' : 's'}` : ''), nx, mid + 12, { size: 9, weight: 500, ls: 1, color: 'rgba(240,240,248,.25)', upper: true });
+    num(r.presence, 700, mid); num(r.pickRate, 762, mid); num(r.banRate, 824, mid); num(r.winRate, 886, mid);
+    if (r.edge == null) text('—', 964, mid, { size: 13, weight: 400, color: 'rgba(255,255,255,.18)', align: 'right' });
+    else text((r.edge > 0 ? '+' : '') + r.edge, 964, mid, { size: 15, weight: 800, ls: -.5, color: r.edge > 0 ? '#4ADE80' : r.edge < 0 ? '#F87171' : 'rgba(240,240,248,.5)', align: 'right' });
+  });
+  if (!rows.length) text(`Not enough games on this map yet${needN ? ` (heroes need ${MAP_EDGE_MIN}+ picks here)` : ''}.`, L, 240, { size: 16, weight: 500, color: 'rgba(240,240,248,.35)' });
+  // Footer (930–1000)
+  c.fillStyle = 'rgba(0,0,0,.12)'; c.fillRect(0, 930, W, 70);
+  c.fillStyle = 'rgba(255,255,255,.045)'; c.fillRect(0, 930, W, 1);
+  text(`vs All Maps = win rate here minus win rate on every map (${MAP_EDGE_MIN}+ picks here)`, L, 958, { size: 8, weight: 700, ls: 1.2, color: 'rgba(240,240,248,.28)', upper: true });
+  text('Based on scout data and will update as more games are analyzed.', L, 973, { size: 7.5, weight: 400, ls: .3, color: 'rgba(240,240,248,.12)' });
+  c.save(); c.globalAlpha = .8; text('WARR.GG', R, 965, { size: 16, weight: 900, ls: 1.5, color, align: 'right' }); c.restore();
+  return cv;
 }
 async function exportMapCard() {
   const ctx = window.__metaCard;
@@ -7481,41 +7529,16 @@ async function exportMapCard() {
     <div id="mapCardBody" style="padding:16px;overflow:auto;text-align:center;color:var(--text3);font-size:12px;">Making the card…</div></div>`;
   document.body.appendChild(md);
   const body = () => document.getElementById('mapCardBody');
-  let wrap = null;
-  const _cp = CanvasRenderingContext2D.prototype.createPattern;
   try {
-    if (!window.html2canvas) await new Promise((res, rej) => {
-      const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-      s.onload = res; s.onerror = () => rej(new Error('could not load the image tool')); document.head.appendChild(s);
-    });
-    const artOk = await _imgOk(typeof WDB !== 'undefined' && WDB.mapImage ? WDB.mapImage(ctx.map) : '');
-    wrap = document.createElement('div');
-    wrap.style.cssText = 'position:fixed;top:-12000px;left:-12000px;z-index:-1;pointer-events:none;';
-    wrap.innerHTML = _buildMapCard(ctx, artOk);
-    document.body.appendChild(wrap);
-    const el = wrap.firstElementChild;
-    // Missing portraits → plain tile instead of a broken image
-    await Promise.all([...el.querySelectorAll('img')].map(img => img.complete && img.naturalWidth ? 1
-      : new Promise(res => { img.onload = res; img.onerror = () => { img.removeAttribute('src'); res(); }; })));
-    await new Promise(r => setTimeout(r, 150));
-    CanvasRenderingContext2D.prototype.createPattern = function (img, rep) {
-      if (img && (img.width === 0 || img.height === 0)) { const b = document.createElement('canvas'); b.width = b.height = 1; return _cp.call(this, b, rep); }
-      return _cp.call(this, img, rep);
-    };
-    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#080810', width: 1000, height: 1000, logging: false });
-    const url = canvas.toDataURL('image/png');
+    const url = (await _drawMapCard(ctx)).toDataURL('image/png');
     const slug = x => String(x || '').trim().replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '');
-    const name = ['warr_map', slug(ctx.map), metaRole !== 'All' ? slug(metaRole) : '', ctx.league === 'all' ? 'all_leagues' : slug(ctx.league), ctx.season && ctx.season !== 'all' ? slug(ctx.season) : ''].filter(Boolean).join('_') + '.png';
+    const name = ['warr_map', slug(ctx.map), metaRole !== 'All' ? slug(metaRole) : '', ctx.league === 'all' ? 'all_leagues' : slug(ctx.league), ctx.season && ctx.season !== 'all' ? slug(ctx.season) : '', ctx.phase && ctx.phase !== 'all' ? ctx.phase : '', ctx.from || ctx.to ? `${ctx.from || 'start'}_to_${ctx.to || 'now'}` : ''].filter(Boolean).join('_') + '.png';
     if (!body()) return;
     body().innerHTML = `<img src="${url}" alt="Map card" style="width:100%;max-width:560px;border-radius:8px;display:block;margin:0 auto 12px;">
       <a class="btn btn-accent btn-sm" href="${url}" download="${name}" style="text-decoration:none;">⬇ Download PNG</a>
       <div style="margin-top:8px;font-size:11px;color:var(--text3);">Ranked by the sort you picked in Hero Meta. Change it and make the card again for a different list.</div>`;
   } catch (e) {
     if (body()) body().textContent = 'Could not make the card: ' + (e && e.message || e);
-  } finally {
-    CanvasRenderingContext2D.prototype.createPattern = _cp;
-    if (wrap) wrap.remove();
   }
 }
 
