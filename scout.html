@@ -17,7 +17,7 @@
 <meta property="og:image" content="https://warr-gg.one/assets/logo.png">
 <meta name="twitter:card" content="summary_large_image">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="warr-lib.js?v=3"></script>
+<script src="warr-lib.js?v=4"></script>
 <script src="warr-nav.js"></script>
 <link rel="stylesheet" href="warr-styles.css">
 <style>
@@ -1786,6 +1786,7 @@ async function loadCustomLeagues() {
       if (!name) return;
       // Cache current_season for ALL leagues — including hardcoded ones that have a row
       if (l.current_season) LEAGUE_CURRENT_SEASON[name] = l.current_season;
+      try { if (name === leagueFilter && _reapplyDefaultSeason()) renderCurrentView(); } catch (_) {}
       if (LEAGUES.includes(name)) return; // already in hardcoded list — skip the UI inject
       LEAGUES.push(name);
       const color = _CUSTOM_LEAGUE_PALETTE[i % _CUSTOM_LEAGUE_PALETTE.length];
@@ -2322,6 +2323,7 @@ async function loadFromSupabase() {
     } catch(_){}
     DB_MODULE.save();
     _setSyncStatus('ok');
+    _reapplyDefaultSeason();          // the league's active season, now that its games are here
     renderCurrentView();
   } catch(e) {
     _setSyncStatus('err');
@@ -2837,8 +2839,27 @@ function _mostRecentSeason(league){
     .sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}));
   return ss[0] || '';
 }
+// The league's ACTIVE season: the newest one with games, or the admin-marked current season if
+// that's newer. 'all' only when some of the league's games have no season (narrowing would hide them).
+function _defaultSeasonFor(lf) {
+  if (!lf || lf === 'all') return 'all';
+  const lgMatches = DB_MODULE.getMatches().filter(m => (m.league||'') === lf);
+  if (lgMatches.some(m => !(m.season||'').trim())) return 'all';
+  const newest = _mostRecentSeason(lf), cur = LEAGUE_CURRENT_SEASON[lf];
+  return [newest, cur].filter(Boolean).sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}))[0] || 'all';
+}
+var _seasonUserPicked = false;   // you chose a season yourself → don't override it (var: Scout restores your league before this line runs)
+// Games / current seasons arrive after the page opens (cloud load) — land on the active season once they do.
+function _reapplyDefaultSeason() {
+  if (_seasonUserPicked || typeof leagueFilter === 'undefined' || leagueFilter === 'all') return false;
+  const d = _defaultSeasonFor(leagueFilter);
+  if (d === seasonFilter) return false;
+  seasonFilter = d; _matchPage = 1; weekFilter = 'all';
+  return true;
+}
 function setLeagueFilter(lf) {
   leagueFilter = lf;
+  _seasonUserPicked = false;
   try { localStorage.setItem('warr_scout_league', lf); } catch(_){}   // remember league across reloads
   _muSeason = null; _muHero = null; // matchups re-derives this league's current season + a valid hero
   _matchPage = 1; _teamPage = 1; weekFilter = 'all'; _weekAutoPicked = false;
@@ -2849,19 +2870,7 @@ function setLeagueFilter(lf) {
   //   just-logged new-season match lives — don't get stuck on a stale
   //   admin-marked current season),
   // - fall back to the admin-marked current season, then all.
-  seasonFilter = 'all';
-  if (lf !== 'all') {
-    const lgMatches = DB_MODULE.getMatches().filter(m => (m.league||'') === lf);
-    const anyUntagged = lgMatches.some(m => !(m.season||'').trim());
-    if (!anyUntagged) {
-      const newest = _mostRecentSeason(lf);
-      const cur = LEAGUE_CURRENT_SEASON[lf];
-      // Prefer whichever is newer between the newest-with-data and the admin mark,
-      // so a brand-new season surfaces immediately after its first game is logged.
-      seasonFilter = [newest, cur].filter(Boolean)
-        .sort((a,b)=>b.localeCompare(a,undefined,{numeric:true}))[0] || 'all';
-    }
-  }
+  seasonFilter = _defaultSeasonFor(lf);
   // Sync mobile dropdown
   const sel = document.getElementById('mobileLeagueSelect');
   if (sel) sel.value = lf;
@@ -2878,6 +2887,7 @@ function setLeagueFilter(lf) {
 
 function setSeasonFilter(s) {
   seasonFilter = s || 'all';
+  _seasonUserPicked = true;
   _matchPage = 1; weekFilter = 'all'; _weekAutoPicked = false;
   if (currentView === 'matches') renderMatchListBody();
   else if (currentView === 'meta') renderMeta();
