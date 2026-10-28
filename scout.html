@@ -17,6 +17,7 @@
 <meta property="og:image" content="https://warr-gg.one/assets/logo.png">
 <meta name="twitter:card" content="summary_large_image">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>window.__warrKeepOngoing = true;   /* Scout shows live (Ongoing) games; other pages only get finished ones */</script>
 <script src="warr-lib.js?v=4"></script>
 <script src="warr-nav.js"></script>
 <link rel="stylesheet" href="warr-styles.css">
@@ -451,6 +452,13 @@ body {
 .game-panel.active { display:block; }
 .gp-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; font-size:10px; }
 .gp-win { font-size:10px; font-weight:800; padding:2px 9px; border-radius:6px; }
+/* LIVE — game logged before the result is in (winner = Ongoing) */
+.ml-live { display:inline-flex; align-items:center; gap:5px; margin-left:6px; padding:2px 8px; border-radius:6px; font-size:9px; font-weight:800; letter-spacing:1px; color:#ff453a; background:rgba(255,69,58,.1); border:1px solid rgba(255,69,58,.35); white-space:nowrap; }
+.ml-live i { width:6px; height:6px; border-radius:50%; background:#ff453a; box-shadow:0 0 0 0 rgba(255,69,58,.6); animation:mlLivePulse 1.4s ease-out infinite; }
+.gp-live { margin-left:0; font-size:10px; padding:2px 9px; }
+.gtab-live { margin-left:4px; padding:1px 5px; font-size:8px; letter-spacing:.6px; }
+@keyframes mlLivePulse { 0% { box-shadow:0 0 0 0 rgba(255,69,58,.6); } 70% { box-shadow:0 0 0 6px rgba(255,69,58,0); } 100% { box-shadow:0 0 0 0 rgba(255,69,58,0); } }
+@media (prefers-reduced-motion: reduce) { .ml-live i { animation:none; } }
 .gp-obj { display:flex; align-items:center; gap:5px; color:var(--text3); font-weight:600; }
 .gp-obj b { color:var(--text2); font-variant-numeric:tabular-nums; }
 .gp-kda { margin-left:auto; display:flex; align-items:center; gap:10px; font-size:10px; font-weight:700; font-family:var(--font-mono); }
@@ -2054,7 +2062,10 @@ const DB_MODULE = (() => {
     }
   }
 
-  function getMatches() { return _db.matches; }
+  // getMatches() = finished games (every stat reads this). getAllMatches() also
+  // has games marked Ongoing — for the match log, editing and cloud sync.
+  function getMatches() { return _db.matches.filter(m => m.winner !== 'ongoing'); }
+  function getAllMatches() { return _db.matches; }
   function getTeams() { return _db.teams; }
 
   function upsertMatch(match) {
@@ -2091,7 +2102,7 @@ const DB_MODULE = (() => {
     });
 
     Object.keys(_db.teams).forEach(name => {
-      const games = _db.matches.filter(m => m.blueTeam===name || m.redTeam===name);
+      const games = _db.matches.filter(m => (m.blueTeam===name || m.redTeam===name) && m.winner !== 'ongoing');
       computeTeamStats(name, games, _db.teams[name]);
     });
   }
@@ -2293,7 +2304,7 @@ const DB_MODULE = (() => {
 
   function resetMatches(newMatches) { _db.matches = newMatches || []; }
 
-  return { load, save, getMatches, getTeams, upsertMatch, deleteMatch, upsertTeam, deleteTeam, rebuildTeams, computeTeamStats, resetMatches, getSeriesId, _hashStr, _seriesKey_raw };
+  return { load, save, getMatches, getAllMatches, getTeams, upsertMatch, deleteMatch, upsertTeam, deleteTeam, rebuildTeams, computeTeamStats, resetMatches, getSeriesId, _hashStr, _seriesKey_raw };
 })();
 
 // ── SUPABASE INTEGRATION ──────────────────────────────────────
@@ -2312,13 +2323,13 @@ function _setSyncStatus(state) {
 async function loadFromSupabase() {
   _setSyncStatus('syncing');
   try {
-    const cloudMatches = await WDB.loadMatches();
+    const cloudMatches = await WDB.loadMatches({ includeOngoing: true });
     const cloudIds = new Set(cloudMatches.map(m => m.id));
     const userId = WAuth.getUser()?.id || null;
     // Re-upload ONLY genuinely-new offline matches: not in cloud, mine, NOT a
     // previously-synced match (a synced one missing from cloud was DELETED — don't
     // resurrect it), and not tombstoned. This is what stops deletes from coming back.
-    const localOnly = DB_MODULE.getMatches().filter(m =>
+    const localOnly = DB_MODULE.getAllMatches().filter(m =>
       !cloudIds.has(m.id) && !m._synced && !(WDB._isTomb && WDB._isTomb(m.id)) &&
       (m._createdBy === userId || !m._createdBy) &&       // no owner = logged before the cloud existed (e.g. the March M7 games) → yours, upload it, never drop it
       (typeof WAdmin === 'undefined' || !WAdmin.canWrite || WAdmin.canWrite(m.league || ''))
@@ -3010,7 +3021,7 @@ function updateSidebarCounts() {
 // ══════════════════════════════════════════════════════════════
 function getFilteredMatches() {
   const q = matchSearch.toLowerCase();
-  return DB_MODULE.getMatches().filter(m => {
+  return DB_MODULE.getAllMatches().filter(m => {   // match log shows live (ongoing) games too
     if (leagueFilter !== 'all' && m.league !== leagueFilter) return false;
     if (seasonFilter !== 'all' && (m.season||'') !== seasonFilter) return false;
     if (weekFilter !== 'all') {
@@ -3292,7 +3303,7 @@ async function _loadLpStatus(force) {
   try { const r = await fetch('/api/mpl-import?status=1', { cache: 'no-store' }); _lpStatus = r.ok ? await r.json() : {}; } catch (_) { _lpStatus = {}; }
   _lpConflict = {};
   (_lpStatus.conflicts || []).forEach(c => {
-    const m = DB_MODULE.getMatches().find(x => x.id === c.id);
+    const m = DB_MODULE.getAllMatches().find(x => x.id === c.id);
     if (m && !(m._verifiedAt && m._verifiedAt > Date.parse(_lpStatus.at || 0))) _lpConflict[c.id] = c;   // re-saved since → cleared
   });
   return _lpStatus;
@@ -3319,7 +3330,7 @@ function _lpCanUseLp(c) {
   return !!(c.lp && c.lp.sure && !k.has('match') && (k.has('teams') || k.has('picks') || k.has('winner')));
 }
 function _lpUseLp(id) {
-  const c = (_lpConflict || {})[id]; let m = DB_MODULE.getMatches().find(x => x.id === id);
+  const c = (_lpConflict || {})[id]; let m = DB_MODULE.getAllMatches().find(x => x.id === id);
   if (!c || !m || !c.lp) return;
   if (!confirm('Use Liquipedia\'s version of this game?\n\nTeam names, sides, heroes, bans and winner will match Liquipedia. Your pick order, lanes, players and stats stay with their draft.')) return;
   const L = c.lp, nm = x => String((x && (x.name || x)) || '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '');
@@ -3365,7 +3376,7 @@ function _lpFixRow(f) {
     return [`<div class="lp-iss"><span class="k">${L[c.f] || _vEsc(c.f)}</span>${_vEsc(c.from || '—')} → <b class="l">${_vEsc(c.to || '')}</b></div>`];
   });
   const keepable = (f.changes || []).filter(c => (c.f === 'bans' && c.sig) || (c.f === 'winner' && c.sig) || c.f === 'sides');
-  const m = DB_MODULE.getMatches().find(x => x.id === f.id);
+  const m = DB_MODULE.getAllMatches().find(x => x.id === f.id);
   const a = (m && m.lpAck) || {};
   const kept = keepable.length && keepable.every(c => c.f === 'bans' ? a.bans === c.sig : c.f === 'winner' ? a.winner === c.sig : a.sides === 'swapped');
   const what = [...new Set(keepable.map(c => c.f === 'bans' ? 'bans' : c.f))].join(' + ');
@@ -3387,7 +3398,7 @@ function _lpFlipSides(R) {
 // Liquipedia's correction was wrong → put yours back (bans, winner, sides) and don't correct them again unless Liquipedia changes
 function _lpKeepMine(id, at) {
   const f = ((_lpStatus && _lpStatus.fixLog) || []).find(x => x.id === id && (!at || Number(x.at) === at));
-  let m = DB_MODULE.getMatches().find(x => x.id === id);
+  let m = DB_MODULE.getAllMatches().find(x => x.id === id);
   if (!f || !m) return;
   const ch = f.changes || [], bans = ch.find(c => c.f === 'bans' && c.sig), win = ch.find(c => c.f === 'winner' && c.sig), sides = ch.find(c => c.f === 'sides');
   const what = [bans && 'bans', win && 'winner', sides && 'sides'].filter(Boolean).join(', ');
@@ -3404,7 +3415,7 @@ function _lpKeepMine(id, at) {
   openAuditPanel(); try { renderMatchListBody(); } catch (_) {}
 }
 function _lpAckConflict(id) {
-  const c = (_lpConflict || {})[id], m = DB_MODULE.getMatches().find(x => x.id === id);
+  const c = (_lpConflict || {})[id], m = DB_MODULE.getAllMatches().find(x => x.id === id);
   if (!c || !m || !c.ack) return;
   const kinds = new Set((c.issues || []).map(i => i && i.kind));
   const ack = { ...(m.lpAck || {}) };
@@ -3425,7 +3436,7 @@ async function openAuditPanel() {
   if (!_lpAdm()) return;
   await _loadLpStatus(true);
   const lg = (!_auditAllLeagues && typeof leagueFilter !== 'undefined' && leagueFilter && leagueFilter !== 'all') ? leagueFilter : '';
-  const ms = DB_MODULE.getMatches().filter(m => !lg || m.league === lg);
+  const ms = DB_MODULE.getAllMatches().filter(m => !lg || m.league === lg);
   const un = ms.filter(m => _vState(m) === 'unverified');
   const side = un.filter(m => m.sideUnknown);
   const conf = Object.values(_lpConflict || {}).map(c => ({ c, m: ms.find(x => x.id === c.id) })).filter(x => x.m);
@@ -3470,8 +3481,8 @@ function renderMatchListBody() {
   const seasonSel = document.getElementById('seasonFilterSelect');
   if (seasonSel) {
     const pool = leagueFilter === 'all'
-      ? DB_MODULE.getMatches()
-      : DB_MODULE.getMatches().filter(m => m.league === leagueFilter);
+      ? DB_MODULE.getAllMatches()
+      : DB_MODULE.getAllMatches().filter(m => m.league === leagueFilter);
     const seasons = [...new Set(pool.map(m => (m.season||'').trim()).filter(Boolean))]
       .sort((a,b) => b.localeCompare(a, undefined, {numeric:true}));
     // If currently selected season doesn't exist in this league's pool, reset to 'all'
@@ -3531,8 +3542,10 @@ function renderMatchListBody() {
       const lgLabel = s.league ? `${s.league} — ` : '';
       groupHdr = `<div class="week-group-hdr"><div class="week-group-line"></div><span>${lgLabel}${wLabel}</span><div class="week-group-line"></div></div>`;
     }
-    const blueWins = s.games.filter(g => (g.winner==='blue'?g.blueTeam:g.redTeam) === s.blueTeam).length;
-    const redWins  = s.games.filter(g => (g.winner==='blue'?g.blueTeam:g.redTeam) === s.redTeam).length;
+    const _done = s.games.filter(g => g.winner === 'blue' || g.winner === 'red');   // live (ongoing) games don't score yet
+    const blueWins = _done.filter(g => (g.winner==='blue'?g.blueTeam:g.redTeam) === s.blueTeam).length;
+    const redWins  = _done.filter(g => (g.winner==='blue'?g.blueTeam:g.redTeam) === s.redTeam).length;
+    const _isLive  = s.games.some(g => g.winner === 'ongoing');
     const scoreColor = blueWins > redWins ? 'var(--blue)' : redWins > blueWins ? 'var(--red)' : 'var(--text3)';
     const seriesWinner = blueWins > redWins ? s.blueTeam : redWins > blueWins ? s.redTeam : '';
 
@@ -3579,7 +3592,7 @@ function renderMatchListBody() {
       const _canMod=(typeof WAdmin==='undefined')||(WAdmin.canDelete&&WAdmin.canDelete(g));
       return `<div class="game-panel${gi===0?' active':''}">
         <div class="gp-bar">
-          <span class="gp-win" style="background:${wColor}18;color:${wColor};border:1px solid ${wColor}44;">▲ ${wTeam}</span>
+          ${g.winner === 'ongoing' ? `<span class="ml-live gp-live" title="Still being played — open ✎ and set the winner when it ends"><i></i>LIVE</span>` : `<span class="gp-win" style="background:${wColor}18;color:${wColor};border:1px solid ${wColor}44;">▲ ${wTeam}</span>`}
           ${_vBadge(g)}${_srcTag(g)}
           ${turtles.length?`<span class="gp-obj">🐢 <b style="color:var(--blue)">${_cnt(turtles,'blue')}</b>–<b style="color:var(--red)">${_cnt(turtles,'red')}</b></span>`:''}
           ${lords.length?`<span class="gp-obj">✦ <b style="color:var(--blue)">${_cnt(lords,'blue')}</b>–<b style="color:var(--red)">${_cnt(lords,'red')}</b></span>`:''}
@@ -3609,7 +3622,7 @@ function renderMatchListBody() {
     const gameTabs = s.games.map((g,gi)=>{
       const wc=g.winner==='blue'?'var(--blue)':'var(--red)';
       const wl=(g.winner==='blue'?g.blueTeam:g.redTeam)||'';
-      return `<button class="gtab${gi===0?' active':''}" onclick="_pickGame(this)">G${g.gameNum||1}<span class="gtab-res" style="background:${wc}22;color:${wc};">${wl}</span>${_vState(g)==='unverified'||(_lpConflict || {})[g.id]?'<span class="gtab-u" title="Draft phase order to be verified, or differs from Liquipedia"></span>':''}</button>`;
+      return `<button class="gtab${gi===0?' active':''}" onclick="_pickGame(this)">G${g.gameNum||1}${g.winner === 'ongoing' ? '<span class="ml-live gtab-live"><i></i>LIVE</span>' : `<span class="gtab-res" style="background:${wc}22;color:${wc};">${wl}</span>`}${_vState(g)==='unverified'||(_lpConflict || {})[g.id]?'<span class="gtab-u" title="Draft phase order to be verified, or differs from Liquipedia"></span>':''}</button>`;
     }).join('');
 
     const _mono=n=>(typeof WDB!=='undefined'&&WDB.teamMonogram)?WDB.teamMonogram(n||'?'):{init:(n||'?')[0]||'?',color:'#7C5CF6'};
@@ -3619,7 +3632,8 @@ function renderMatchListBody() {
     // Scrim shared with you by another coach (not logged by you).
     const _isShared = s.games.some(g => g._shared);
     const _srcG = s.games.find(g => _vState(g) === 'unverified');
-    const _sharedBadge = (_isShared ? `<span class="ml-shared" title="Shared with you by another coach — you can view it but not edit">↗ shared</span>` : '')
+    const _sharedBadge = (_isLive ? `<span class="ml-live" title="A game in this series is still being played — set the winner when it ends (or Liquipedia fills it in)"><i></i>LIVE</span>` : '')
+      + (_isShared ? `<span class="ml-shared" title="Shared with you by another coach — you can view it but not edit">↗ shared</span>` : '')
       + (_srcG ? _srcTag(_srcG, 'margin-left:6px;') : '')
       + (s.games.some(g => _vState(g) === 'unverified') ? `<span class="vb vb-u" style="margin-left:6px;" title="Imported from Liquipedia — draft order not arranged yet">◐ ${s.games.filter(g => _vState(g) === 'unverified').length} to be verified</span>`
         : s.games.some(g => (_lpConflict || {})[g.id]) ? `<span class="vb vb-c" style="margin-left:6px;">⚠ differs</span>` : '');
@@ -3666,7 +3680,7 @@ function toggleSeries(sk) {
 
 function deleteMatch(id) {
   // Admin lock — check if this match is from a protected league
-  const match = DB_MODULE.getMatches().find(m => m.id === id);
+  const match = DB_MODULE.getAllMatches().find(m => m.id === id);
   if (match && typeof WAdmin !== 'undefined' && !WAdmin.canDelete(match)) {
     toast(`🔒 Only the Warr.GG admin can delete ${match.league} data.`, 'error');
     return;
@@ -3713,7 +3727,7 @@ function openNewMatch() {
 // Append the next game to an existing series (from the match log). Carries the
 // series info, auto-swaps sides from the last game, and starts a clean draft.
 function openAddGame(seriesId) {
-  const games = DB_MODULE.getMatches()
+  const games = DB_MODULE.getAllMatches()
     .filter(mm => DB_MODULE.getSeriesId(mm) === seriesId)
     .sort((a,b)=>(Number(a.gameNum)||1)-(Number(b.gameNum)||1));
   if (!games.length) { toast('Series not found','error'); return; }
@@ -3752,7 +3766,7 @@ function _onLeagueChangedInModal(newLeague) {
 }
 
 function openEditMatch(id) {
-  const m = DB_MODULE.getMatches().find(x => x.id === id);
+  const m = DB_MODULE.getAllMatches().find(x => x.id === id);
   if (!m) return;
   editingMatchId = id;
   draftSlots = Array(DRAFT_STEPS.length).fill(null);
@@ -3800,7 +3814,7 @@ function _teamsInLeague(league) {
   const L = (league || '').trim().toLowerCase();
   if (!L) return Object.keys(DB_MODULE.getTeams()).sort();
   const set = new Set();
-  DB_MODULE.getMatches().forEach(mm => {
+  DB_MODULE.getAllMatches().forEach(mm => {
     if (((mm.league || '').trim().toLowerCase()) === L) {
       if (mm.blueTeam) set.add(mm.blueTeam);
       if (mm.redTeam)  set.add(mm.redTeam);
@@ -3820,7 +3834,7 @@ function _openMatchModal(m) {
   let _seriesBanner = '';
   if (m.blueTeam && m.redTeam && (Number(m.gameNum)||1) > 1) {
     const key = [m.blueTeam, m.redTeam].sort().join('|');
-    const sib = DB_MODULE.getMatches().filter(mm =>
+    const sib = DB_MODULE.getAllMatches().filter(mm =>
       mm.id !== editingMatchId &&
       [mm.blueTeam, mm.redTeam].sort().join('|') === key &&
       (mm.league||'') === (m.league||'') &&
@@ -3923,6 +3937,7 @@ function _openMatchModal(m) {
               <select class="form-select" id="mf-winner">
                 <option value="blue" ${m.winner==='blue'?'selected':''}>Blue Side</option>
                 <option value="red"  ${m.winner==='red' ?'selected':''}>Red Side</option>
+                <option value="ongoing" ${m.winner==='ongoing'?'selected':''}>Ongoing (live)</option>
               </select>
             </div>
             <div class="form-group">
@@ -4535,7 +4550,7 @@ function saveMatch(next) {
 
   // Find existing series to inherit seriesId (season-scoped — a new season is a
   // new series even for the same teams/week).
-  const existingSeries = DB_MODULE.getMatches().find(m => {
+  const existingSeries = DB_MODULE.getAllMatches().find(m => {
     if (m.id === editingMatchId) return false;
     if ([m.blueTeam,m.redTeam].sort().join('|') !== sortedTeams) return false;
     if ((m.league||'').trim() !== league.trim()) return false;
@@ -4589,7 +4604,7 @@ function saveMatch(next) {
   const _currentUserId = (typeof WAuth !== 'undefined' && WAuth.getUser) ? (WAuth.getUser()?.id || null) : null;
   // Preserve existing _createdBy when editing an old match (don't accidentally
   // re-tag someone else's match as ours during an edit).
-  const _existingMatch = editingMatchId ? DB_MODULE.getMatches().find(m => m.id === editingMatchId) : null;
+  const _existingMatch = editingMatchId ? DB_MODULE.getAllMatches().find(m => m.id === editingMatchId) : null;
   const _createdBy = (_existingMatch && _existingMatch._createdBy) ? _existingMatch._createdBy : _currentUserId;
 
   const match = {
@@ -5135,7 +5150,7 @@ function saveTeam(existing) {
 // the list of changed matches so the cloud sync can persist them.
 function _renameTeamLocal(oldName, newName) {
   const changed = [];
-  DB_MODULE.getMatches().forEach(m => {
+  DB_MODULE.getAllMatches().forEach(m => {
     let ch = false;
     if (m.blueTeam === oldName) { m.blueTeam = newName; ch = true; }
     if (m.redTeam  === oldName) { m.redTeam  = newName; ch = true; }
@@ -7648,7 +7663,7 @@ async function exportData() {
     'RedPick1','RP1Lane','RedPick2','RP2Lane','RedPick3','RP3Lane','RedPick4','RP4Lane','RedPick5','RP5Lane',
     'Turtle1','Turtle2','Turtle3','Turtle4','Turtle5','Lord1','Lord2','Lord3','Lord4','Lord5']];
 
-  DB_MODULE.getMatches().forEach(m => {
+  DB_MODULE.getAllMatches().forEach(m => {
     const bb=m.blueBans||[], rb=m.redBans||[], bp=m.bluePicks||[], rp=m.redPicks||[];
     const obj = m.objectives || {};
     const tArr = obj.turtle || [obj.t1,obj.t2,obj.t3].filter(Boolean) || [];
@@ -7733,7 +7748,7 @@ async function importData(input) {
             return; // silently skip locked league rows for non-admins
           }
 
-          const existing = DB_MODULE.getMatches().find(m => m.id === id);
+          const existing = DB_MODULE.getAllMatches().find(m => m.id === id);
           if (existing) {
             if (existing.seriesId !== seriesId) { existing.seriesId = seriesId; updated++; }
             return;

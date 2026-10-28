@@ -464,7 +464,7 @@ export function plan(lpGames, existing, opts) {
       const onlyYou = M.filter(h => !Lp.map(norm).includes(norm(h))), onlyLp = Lp.filter(h => !M.map(norm).includes(norm(h)));
       if (onlyYou.length || onlyLp.length) issues.push({ kind: 'picks', side, team, yours: onlyYou, lp: onlyLp, text: `${team} picks — you have ${onlyYou.join(', ') || '—'}, Liquipedia has ${onlyLp.join(', ') || '—'}` });
     });
-    const youWin = R.winner === 'blue' ? R.blueTeam : R.redTeam, lpWin = L.winner === 'blue' ? R.blueTeam : R.redTeam;
+    const youWin = R.winner === 'blue' ? R.blueTeam : R.winner === 'red' ? R.redTeam : 'Ongoing', lpWin = L.winner === 'blue' ? R.blueTeam : R.redTeam;   // 'Ongoing' = logged live, result filled in from Liquipedia
     if (!mixed && R.winner && R.winner !== L.winner && ack.winner !== g.winner) {
       if (confident) { changes.push({ f: 'winner', from: youWin, to: lpWin, sig: g.winner }); set.winner = L.winner; }   // Liquipedia's result wins
       else issues.push({ kind: 'winner', yours: youWin, lp: lpWin, text: `winner — you have ${youWin}, Liquipedia has ${lpWin}` });

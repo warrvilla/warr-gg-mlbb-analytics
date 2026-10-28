@@ -37,16 +37,37 @@
   }
   addEventListener('pagehide', flushNow);
   addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushNow(); });
+  // Games marked Ongoing (live, no winner yet) are only for Scout. Every other page
+  // reading this copy gets finished games only (so a live game never counts as a
+  // loss); if such a page saves the copy back (AI Battle does), the hidden live
+  // games are put back so nothing is lost.
+  let liveHidden = null, finSrc = null, finOut = null;
+  const keepLive = () => !!(typeof window !== 'undefined' && window.__warrKeepOngoing);
+  const finished = v => {
+    if (v == null || keepLive() || v.indexOf('"winner":"ongoing"') < 0) return v;
+    if (v === finSrc) return finOut;
+    try {
+      const db = JSON.parse(v), all = Array.isArray(db.matches) ? db.matches : [];
+      const live = all.filter(m => m && m.winner === 'ongoing'); if (!live.length) return v;
+      liveHidden = live; db.matches = all.filter(m => !(m && m.winner === 'ongoing'));
+      finSrc = v; finOut = JSON.stringify(db); return finOut;
+    } catch (_) { return v; }
+  };
   proto.getItem = function (k) {
     if (k !== RAW || !isLocal(this)) return _get.call(this, k);
-    if (memo !== null) return memo;
-    const raw = _get.call(this, RAW); if (raw) return raw;            // old uncompressed copy (until the next save)
+    if (memo !== null) return finished(memo);
+    const raw = _get.call(this, RAW); if (raw) return finished(raw);  // old uncompressed copy (until the next save)
     const z = _get.call(this, Z); if (!z || !LZ) return null;
     try { memo = LZ.decompressFromUTF16(z); } catch (_) { memo = null; }
-    return memo;
+    return finished(memo);
   };
   proto.setItem = function (k, v) {
     if (k !== RAW || !isLocal(this)) return _set.call(this, k, v);
+    if (liveHidden && liveHidden.length && !keepLive()) {             // put back live games this page never saw
+      try { const db = JSON.parse(String(v)); if (Array.isArray(db.matches)) {
+        const ids = new Set(db.matches.map(m => m && m.id)); liveHidden.forEach(m => { if (!ids.has(m.id)) db.matches.push(m); });
+        v = JSON.stringify(db); } } catch (_) {}
+    }
     memo = String(v); pending = memo; seq++;
     if (!timer) timer = setTimeout(flush, 800);                        // many saves in a row → one write
   };
@@ -442,11 +463,15 @@ const WDB = {
   /** Fetch scout matches — public leagues for everyone, private leagues only own.
    *  Uses a sessionStorage cache (5 min TTL, invalidated on save/delete) so
    *  repeat page navigations are instant. Pass {force:true} to skip the cache. */
+  // Games marked "Ongoing" (no winner yet) only reach Scout's match log
+  // (opts.includeOngoing); every stats page gets finished games only, so a live
+  // game never counts as a loss or drags hero win rates down.
   async loadMatches(opts) {
+    const done = list => (opts && opts.includeOngoing) ? list : list.filter(m => m && m.winner !== 'ongoing');
     try { await WDB.initLeagues(); } catch(_) {}
     if (!opts?.force) {
       const cached = this._readMatchCache();
-      if (cached) return cached;
+      if (cached) return done(cached);
     }
     // Page through ALL rows: the database returns at most 1,000 per request, so a single
     // select silently drops the oldest games once the library passes 1,000 (it did with the
@@ -487,7 +512,7 @@ const WDB = {
                      id: row.id, _createdBy: row.created_by, _synced: true,
                      _shared: (row.data?.league === 'Scrims' && row.created_by !== userId) }));
     this._writeMatchCache(result);
-    return result;
+    return done(result);
   },
 
   /** Upsert a single match to cloud (insert or update by id) */
